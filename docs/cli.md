@@ -10,52 +10,52 @@ commande : `namfoop --backend alsa --buffer 48 run -m b7k`.
 ## namfoop
 
 ```text
-Multi-effet basse temps réel (NAM + IR) — JACK ou ALSA direct
+Multi-effet basse temps réel (NAM + IR) — JACK, ALSA direct ou carte simulée
 
 Usage: namfoop [OPTIONS] <COMMAND>
 
 Commands:
-  run        Joue en temps réel : entrée 1 -> [NAM -> IR] -> sorties
+  run        Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
   render     Traite un WAV hors ligne avec la même chaîne que `run`
   bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
   models     Liste les modèles et IR de la bibliothèque
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
+  setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
   ports      Liste les ports JACK (audio + MIDI)
   latency    Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
   help       Print this message or the help of the given subcommand(s)
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -64,44 +64,44 @@ Options:
           Print version
 
 Exemples :
-  pw-jack namfoop run -m b7k -i "svt 8x10"
-  namfoop --backend alsa --buffer 48 run -m "svt classic"
+  namfoop setup              (une fois : carte, entrées, sorties, buffer)
   namfoop calibrate          (une fois : règle le niveau de ta basse)
+  namfoop run -m b7k
+  namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
   namfoop render -m b7k -o /tmp/out.wav
   namfoop bench --all-sizes
   namfoop models
+
+Réglages enregistrés dans ~/.config/namfoop/config.toml ; les options priment.
 ```
 
 ## namfoop run
 
 ```text
-Joue en temps réel : entrée 1 -> [NAM -> IR] -> sorties
+Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
 
 Usage: namfoop run [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
   -m, --model <MODEL>
           Modèle NAM : chemin, ou mots-clés cherchés dans la bibliothèque (ex: "b7k")
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
           IR de baffle (.wav) : chemin ou mots-clés (ex: "dg212 sm57")
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --input-db <INPUT_DB>
           Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
@@ -114,14 +114,10 @@ Options:
           [default: 0]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
@@ -139,8 +135,14 @@ Options:
           - normalize: Loudness du modèle ramenée à `target_db` (convention NAM)
           - raw:       Sortie brute du modèle
 
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --no-limiter
           Désactive le limiteur de sortie
@@ -165,21 +167,14 @@ Options:
           
           [default: library]
 
-      --config <CONFIG>
-          Fichier de config (défaut : ~/.config/namfoop/config.toml)
+      --bass-in <BASS_IN>
+          Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
 
-      --no-config
-          Ignore la config (réglages par défaut : tests reproductibles)
+      --mic-in <MIC_IN>
+          Entrée du micro [défaut : config]
 
-      --out2 <OUT2>
-          Contenu de la sortie 2
-
-          Possible values:
-          - same: Même signal traité que la sortie 1
-          - di:   Signal direct de la basse (DI) : pratique pour envoyer un DI propre au sondier
-          - mute: Silence
-          
-          [default: same]
+      --route <N=SOURCE>
+          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --seconds <SECONDS>
           Arrêt automatique après N secondes (tests)
@@ -200,27 +195,24 @@ Usage: namfoop render [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
   -m, --model <MODEL>
           Modèle NAM : chemin, ou mots-clés cherchés dans la bibliothèque (ex: "b7k")
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
           IR de baffle (.wav) : chemin ou mots-clés (ex: "dg212 sm57")
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --input-db <INPUT_DB>
           Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
@@ -233,14 +225,10 @@ Options:
           [default: 0]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
@@ -258,8 +246,14 @@ Options:
           - normalize: Loudness du modèle ramenée à `target_db` (convention NAM)
           - raw:       Sortie brute du modèle
 
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --no-limiter
           Désactive le limiteur de sortie
@@ -283,12 +277,6 @@ Options:
           Dossier de la bibliothèque (modèles et IR)
           
           [default: library]
-
-      --config <CONFIG>
-          Fichier de config (défaut : ~/.config/namfoop/config.toml)
-
-      --no-config
-          Ignore la config (réglages par défaut : tests reproductibles)
 
       --in <INPUT>
           WAV d'entrée (DI). Par défaut : signal de test de NeuralAmpModelerCore
@@ -318,13 +306,12 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --block <BLOCK>
           Taille de bloc
@@ -332,7 +319,7 @@ Options:
           [default: 64]
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --seconds <SECONDS>
           Secondes d'audio simulées par modèle
@@ -343,9 +330,7 @@ Options:
           Mesure chaque taille des modèles slimmable
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --library <LIBRARY>
           Dossier de la bibliothèque
@@ -353,19 +338,21 @@ Options:
           [default: library]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -386,36 +373,35 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -430,13 +416,12 @@ Usage: namfoop calibrate [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --seconds <SECONDS>
           Durée d'enregistrement (s)
@@ -444,7 +429,7 @@ Options:
           [default: 15]
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --target <TARGET>
           Crête robuste visée à l'entrée des modèles (dBFS)
@@ -452,35 +437,78 @@ Options:
           [default: -30]
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --channel <CHANNEL>
-          Entrée de la carte où est branchée la basse
-          
-          [default: 1]
+          Entrée de la carte où est branchée la basse [défaut : config (setup), sinon 1]
 
       --dry-run
           Analyse seulement, ne sauve rien
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
-
-      --config <CONFIG>
-          Fichier de config à écrire (défaut : ~/.config/namfoop/config.toml)
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop setup
+
+```text
+Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
+
+Usage: namfoop setup [OPTIONS]
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon jack]
+
+          Possible values:
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --library <LIBRARY>
+          Dossier de la bibliothèque (un modèle sert de charge réaliste au test des buffers)
+          
+          [default: library]
+
+      --device <DEVICE>
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -495,36 +523,35 @@ Usage: namfoop ports [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -539,31 +566,28 @@ Usage: namfoop latency [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio
+          Backend audio [défaut : config, sinon jack]
 
           Possible values:
-          - jack: JACK API (pipewire-jack ou jackd)
-          - alsa: ALSA direct, accès exclusif à la carte
-          
-          [default: jack]
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --out-ch <OUT_CH>
-          Canal de sortie qui émet l'impulsion (1 ou 2)
+          Canal de sortie qui émet l'impulsion
           
           [default: 1]
 
       --device <DEVICE>
-          Carte : regex de périphérique JACK (ex: "iTwo") ou device ALSA (ex: "hw:iTwo"). Par défaut : 1ère carte de capture (JACK) / hw:iTwo (ALSA)
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --in-ch <IN_CH>
-          Canal d'entrée où revient le signal (1 ou 2)
+          Canal d'entrée où revient le signal
           
           [default: 2]
 
       --buffer <BUFFER>
-          Taille de buffer / période en frames
-          
-          [default: 64]
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --count <COUNT>
           Nombre de mesures
@@ -571,19 +595,21 @@ Options:
           [default: 10]
 
       --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA). 3 = meilleur compromis mesuré sur l'iTwo
-          
-          [default: 3]
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide)
-          
-          [default: 48000]
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
   -h, --help
           Print help (see a summary with '-h')

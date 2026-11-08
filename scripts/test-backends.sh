@@ -18,8 +18,8 @@ SMOKE=${SMOKE:-10}
 MODEL=${MODEL:-b7k}
 
 cargo build --release -q || exit 1
-JACK=(pw-jack "$BIN" --backend jack --device "$JACK_DEV" --buffer "$BUF")
-ALSA=("$BIN" --backend alsa --device "$ALSA_DEV" --buffer "$BUF" --periods "$PER")
+JACK=("$BIN" --no-config --backend jack --device "$JACK_DEV" --buffer "$BUF")
+ALSA=("$BIN" --no-config --backend alsa --device "$ALSA_DEV" --buffer "$BUF" --periods "$PER")
 
 fail=0
 check() { # nom, commande... : échec si code retour != 0 ou xruns > 0
@@ -37,6 +37,6 @@ for b in jack alsa; do
   [[ $b == jack ]] && cmd=("${JACK[@]}") || cmd=("${ALSA[@]}")
   check "$b latence      " "${cmd[@]}" latency --count 10
   check "$b passthrough  " "${cmd[@]}" run -q --master-db -120 --seconds "$SMOKE"
-  check "$b NAM $MODEL    " "${cmd[@]}" run -q -m "$MODEL" --master-db -120 --seconds "$SMOKE"
+  check "$b NAM $MODEL    " "${cmd[@]}" run -q -m "$MODEL" --route 2=di --master-db -120 --seconds "$SMOKE"
 done
 exit $fail

@@ -10,7 +10,9 @@ use std::time::{Duration, Instant};
 
 use std::path::Path;
 
-use crate::backend::{self, CHANNELS};
+use crate::router::{Router, Routing};
+
+use crate::backend::{self, Io};
 use crate::config::{Config, LevelMode};
 
 pub const DEFAULT_TARGET_DBFS: f32 = -30.0;
@@ -25,7 +27,7 @@ pub struct Analysis {
 
 pub fn analyze(x: &[f32]) -> Analysis {
     let mut abs: Vec<f32> = x.iter().map(|v| v.abs()).collect();
-    let clipped = abs.iter().filter(|a| **a >= crate::live::IN_CLIP).count();
+    let clipped = abs.iter().filter(|a| **a >= crate::router::IN_CLIP).count();
     abs.sort_unstable_by(|a, b| a.total_cmp(b));
     let peak = abs.last().copied().unwrap_or(0.0);
     let robust = abs.get(((abs.len() as f64) * 0.999) as usize).copied().unwrap_or(peak);
@@ -55,29 +57,32 @@ fn trim_silence(x: &[f32], rate: u32) -> &[f32] {
     &x[first.saturating_sub(margin)..(last + 1 + margin).min(x.len())]
 }
 
+/// `routing` : la basse est lue sur `routing.bass_in` et renvoyée en direct (DI) sur les sorties
+/// « basse traitée » du routage, pour que le bassiste s'entende là où il s'entend d'habitude.
 pub fn run(
-    cfg: &backend::Config,
+    cfg: &backend::Settings,
     path: &Path,
     seconds: f64,
     target: f32,
-    channel: usize,
+    routing: &Routing,
     save: bool,
 ) -> Result<()> {
-    if !(1..=CHANNELS).contains(&channel) {
-        bail!("canal valide : 1..={CHANNELS}");
-    }
-    let ch = channel - 1;
+    let channel = routing.bass_in;
+    let ch = channel.checked_sub(1).ok_or_else(|| anyhow::anyhow!("canaux numérotés à partir de 1"))?;
+    let mut router = Router::new(routing, 1024)?;
+    let check = Router::new(routing, 1024)?;
     let capacity = cfg.rate as usize * 2;
     let (mut tx, mut rx) = rtrb::RingBuffer::<f32>::new(capacity);
-    let stream = backend::start(cfg, move |inp: [&[f32]; CHANNELS], out: [&mut [f32]; CHANNELS]| {
-        let src = inp[ch];
-        for o in out {
-            o.copy_from_slice(src); // le bassiste s'entend en direct (DI)
+    let stream = backend::start(cfg, move |io: &mut dyn Io| {
+        if ch < io.n_in() {
+            let src = io.input(ch);
+            if let Ok(chunk) = tx.write_chunk_uninit(src.len()) {
+                chunk.fill_from_iter(src.iter().copied());
+            }
         }
-        if let Ok(chunk) = tx.write_chunk_uninit(src.len()) {
-            chunk.fill_from_iter(src.iter().copied());
-        }
+        router.process(io, |_| {}); // chaîne vide : on s'entend en direct
     })?;
+    check.validate(stream.n_in(), stream.n_out())?;
     let rate = stream.sample_rate();
 
     eprintln!(
@@ -107,7 +112,7 @@ pub fn run(
             eprint!(
                 "\r  {left:>4.1} s   crête {} dB{}      ",
                 crate::live::db(window_peak),
-                if window_peak >= crate::live::IN_CLIP { "  CLIP !" } else { "" }
+                if window_peak >= crate::router::IN_CLIP { "  CLIP !" } else { "" }
             );
             window_peak = 0.0;
             last_print = Instant::now();

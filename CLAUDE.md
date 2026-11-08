@@ -14,13 +14,18 @@ crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolve
                   chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs
   tests/          propriétés de chaîne (indépendance au bloc) et absence d'allocation (assert_no_alloc)
 crates/namfoop/   binaire CLI
-  backend/        mod.rs (trait Processor 2in/2out, Config), jack.rs, alsa.rs (direct, streams liés), rt.rs
+  backend/        mod.rs (trait Io : canaux dynamiques ; Processor ; AudioArgs -> Settings), jack.rs,
+                  alsa.rs (direct, streams liés, probe), sim.rs (carte simulée), rt.rs
+  router.rs       routage temps réel : entrée basse -> chaîne -> sorties (processed/di/mic/mute)
+  setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
+                  audio.rs (vumètres, bip, test des buffers), devices.rs (cartes par backend)
   live.rs         `run` : chaîne en temps réel, vumètre, charge DSP
   offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
   latency.rs      mesure de latence par impulsion (câble de bouclage)
   library.rs      recherche par mots-clés dans library/, métadonnées .nam
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
-  config.rs       ~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav
+  config.rs       ~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
+                  [audio] (backend, device, buffer...), [routing] (bass_in, mic_in, outputs)
   calibrate.rs    `calibrate` : enregistre le DI, calcule le trim, active le niveau « match »
 scripts/check.sh          vérification sans matériel (À FAIRE PASSER AVANT TOUT COMMIT)
 scripts/check-docs.sh     cohérence code <-> docs (appelé par check.sh)
@@ -41,30 +46,40 @@ nam/              zips Tone3000 d'origine (non versionnés, ne pas toucher)
   sauter la bibliothèque.
 - `cargo test` **en debug** : `assert_no_alloc` n'est actif qu'en debug. Le C++ NAM est toujours
   compilé en -O3 (build.rs), donc les tests restent rapides.
-- `render`, `run` et `calibrate` lisent la config de l'utilisateur : pour des résultats
-  reproductibles (tests, comparaisons), toujours passer `--no-config`.
+- `render`, `run`, `calibrate`, `latency` et `setup` lisent la config de l'utilisateur (carte,
+  routage, trim...) : pour des résultats reproductibles (tests, comparaisons), toujours passer
+  l'option globale `--no-config` (elle empêche aussi toute écriture).
+- `setup` est plein écran : pour le tester de bout en bout, le piloter dans un pseudo-terminal
+  (Python `pty`) avec `--no-config --backend sim` ; la logique se teste dans `setup::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.
 
 ## Règles temps réel (non négociables)
 
-Dans tout `Stage::process`, `Processor::process` et les callbacks backend :
+Dans tout `Stage::process`, `Processor::process`, `Router::process` et les callbacks backend :
 - aucune allocation (Vec, String, Box, format!, log!), aucun lock, aucune I/O, aucun appel système
   bloquant ; tout est préparé à la construction de l'étage ;
 - les buffers peuvent avoir **n'importe quelle longueur** (JACK 64, ALSA 48, render 1000) : découper
   en interne si besoin ; le son ne doit pas dépendre de la taille de bloc (test `chain.rs`) ;
-- pas de `panic!` possible en régime établi (`panic = "abort"` en release coupe le son en live).
+- pas de `panic!` possible en régime établi (`panic = "abort"` en release coupe le son en live) :
+  un index de canal venu de la config est vérifié hors temps réel (`Router::validate`) ET protégé
+  dans le callback.
 
 Tout nouvel étage doit être ajouté au test `crates/dsp/tests/realtime.rs` (absence d'allocation) et,
 si pertinent, à `chain.rs` (indépendance au bloc).
 
-## Les deux backends
+## Les backends
 
-Tout changement qui touche l'audio doit marcher sur **JACK et ALSA**. Le DSP est commun (trait
-`backend::Processor`, 2 entrées / 2 sorties) ; seuls l'accès à la carte et le threading diffèrent.
-- JACK : `pw-jack namfoop --device iTwo ...` ; le buffer demandé force le quantum PipeWire (puissances
-  de 2 seulement).
+Tout changement qui touche l'audio doit marcher sur **JACK et ALSA** (testé sur le matériel) et sur
+**sim** (sans matériel, utilisable par les agents). Le DSP est commun (trait `backend::Io`, nombre de
+canaux de la carte) ; seuls l'accès à la carte et le threading diffèrent.
+- `pw-jack` n'est jamais nécessaire (relance automatique avec la libjack PipeWire si besoin,
+  `jack::open_client`) : ne pas l'utiliser dans les docs ni les scripts (vérifié par check-docs.sh).
+- JACK : `namfoop --backend jack --device iTwo ...` ; le buffer demandé force le quantum PipeWire
+  (puissances de 2 seulement). `--device` = nom exact du périphérique (écrit par setup) ou regex.
+- sim : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 -m b7k` exerce toute la
+  chaîne temps réel sans carte ; `--backend sim setup` ouvre l'assistant.
 - ALSA : `namfoop --backend alsa --device hw:iTwo --buffer 48 --periods 3 ...` ; si PipeWire tient la
   carte, son profil passe à « off » pendant la session puis est restauré (y compris en cas de panic).
   Un SIGKILL laisse le profil à « off » : `pactl set-card-profile <carte> pro-audio` pour réparer.
@@ -133,7 +148,7 @@ sans entrée de changelog.
 
 ## Feuille de route
 
-1. ✅ Base : backends JACK + ALSA, `ports`, `latency`.
+1. ✅ Base : backends JACK + ALSA (+ sim), canaux dynamiques, `setup`, `ports`, `latency`.
 2. ✅ NAM + IR : nam-sys, dsp, `run`, `render`, `bench`, `models` ; calibration d'entrée, niveau
    « match », limiteur, compteurs d'écrêtage (prototype actuel).
 3. Effets : gate, compresseur, EQ paramétrique, crossover LR4 (blend grave clair), chorus, delay, reverb.

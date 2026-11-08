@@ -16,6 +16,22 @@ pub enum LevelMode {
     Raw,
 }
 
+/// Réglages audio enregistrés par `namfoop setup` (tous optionnels).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AudioConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backend: Option<crate::backend::Kind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub buffer: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub periods: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate: Option<u32>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -29,6 +45,10 @@ pub struct Config {
     pub limiter: bool,
     /// Enregistrement DI de calibration (relatif au dossier de config si non absolu).
     pub calibration_wav: PathBuf,
+    /// Carte et backend (écrit par `setup`).
+    pub audio: AudioConfig,
+    /// Affectation des entrées / sorties (écrit par `setup`).
+    pub routing: crate::router::Routing,
 }
 
 impl Default for Config {
@@ -39,7 +59,33 @@ impl Default for Config {
             target_db: dsp::nam::TARGET_LOUDNESS_DB,
             limiter: true,
             calibration_wav: PathBuf::from("calibration.wav"),
+            audio: AudioConfig::default(),
+            routing: crate::router::Routing::default(),
         }
+    }
+}
+
+/// Config chargée + son chemin (pour les fichiers relatifs comme l'enregistrement de calibration).
+#[derive(Clone, Debug)]
+pub struct LoadedConfig {
+    pub config: Config,
+    pub path: PathBuf,
+    /// `--no-config` : réglages par défaut, rien n'est lu (ni écrit par `setup`/`calibrate`).
+    pub ignored: bool,
+}
+
+impl LoadedConfig {
+    pub fn load(path: Option<PathBuf>, ignore: bool) -> Result<Self> {
+        let path = path.unwrap_or_else(default_path);
+        let config = if ignore { Config::default() } else { Config::load(&path)? };
+        Ok(Self { config, path, ignored: ignore })
+    }
+}
+
+impl std::ops::Deref for LoadedConfig {
+    type Target = Config;
+    fn deref(&self) -> &Config {
+        &self.config
     }
 }
 
@@ -71,7 +117,8 @@ impl Config {
         let body = toml::to_string_pretty(self)?;
         let text = format!(
             "# namfoop — réglages de l'instrument (écrit par `namfoop calibrate`, modifiable à la main)\n\
-             # level : \"match\" (volume = basse en direct), \"normalize\" (target_db), \"raw\"\n{body}"
+             # level : \"match\" (volume = basse en direct), \"normalize\" (target_db), \"raw\"\n\
+             # [audio] et [routing] : carte et affectation des entrées / sorties (`namfoop setup`)\n{body}"
         );
         std::fs::write(path, text).with_context(|| format!("écriture {}", path.display()))
     }
@@ -102,6 +149,29 @@ mod tests {
         let partial = Config::load(&p).unwrap();
         assert_eq!(partial.trim_db, -3.0);
         assert!(partial.limiter);
+        let _ = std::fs::remove_file(p);
+    }
+
+    #[test]
+    fn audio_and_routing_roundtrip() {
+        use crate::router::{OutputRoute, Source};
+        let p = std::env::temp_dir().join(format!("namfoop-cfg-audio-{}.toml", std::process::id()));
+        let mut c = Config::default();
+        c.audio.backend = Some(crate::backend::Kind::Alsa);
+        c.audio.device = Some("hw:iTwo".into());
+        c.audio.buffer = Some(48);
+        c.routing.bass_in = 1;
+        c.routing.mic_in = Some(2);
+        c.routing.outputs = vec![
+            OutputRoute { channel: 1, source: Source::Processed },
+            OutputRoute { channel: 2, source: Source::Di },
+        ];
+        c.save(&p).unwrap();
+        let text = std::fs::read_to_string(&p).unwrap();
+        assert!(text.contains("[audio]") && text.contains("[routing]"), "{text}");
+        let back = Config::load(&p).unwrap();
+        assert_eq!(back.audio, c.audio);
+        assert_eq!(back.routing, c.routing);
         let _ = std::fs::remove_file(p);
     }
 }
