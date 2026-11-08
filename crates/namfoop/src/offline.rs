@@ -23,9 +23,15 @@ pub struct RenderStats {
     pub finite: bool,
 }
 
-pub fn render(amp: &AmpArgs, input: &Path, output: Option<&Path>, block: usize) -> Result<RenderStats> {
+pub fn render(
+    amp: &AmpArgs,
+    conf: &crate::config::LoadedConfig,
+    input: &Path,
+    output: Option<&Path>,
+    block: usize,
+) -> Result<RenderStats> {
     let (mut buf, sr) = dsp::wav::read_mono(input).with_context(|| format!("lecture {}", input.display()))?;
-    let spec = amp.spec(None)?;
+    let spec = amp.spec(conf, None)?;
     let mut chain = spec.build(sr, block)?;
     let t0 = Instant::now();
     for chunk in buf.chunks_mut(block) {

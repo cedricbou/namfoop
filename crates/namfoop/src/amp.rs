@@ -10,7 +10,7 @@ use dsp::chain::{AmpSpec, Level, LimiterSpec};
 use dsp::ir::IrSettings;
 use dsp::nam::NamSettings;
 
-use crate::config::{self, Config, LevelMode};
+use crate::config::{LevelMode, LoadedConfig};
 use crate::library;
 
 #[derive(Clone, Debug, clap::Args)]
@@ -51,30 +51,14 @@ pub struct AmpArgs {
     /// Dossier de la bibliothèque (modèles et IR)
     #[arg(long, default_value = "library")]
     pub library: PathBuf,
-    /// Fichier de config (défaut : ~/.config/namfoop/config.toml)
-    #[arg(long)]
-    pub config: Option<PathBuf>,
-    /// Ignore la config (réglages par défaut : tests reproductibles)
-    #[arg(long)]
-    pub no_config: bool,
 }
 
 impl AmpArgs {
-    pub fn config_path(&self) -> PathBuf {
-        self.config.clone().unwrap_or_else(config::default_path)
-    }
-
-    pub fn load_config(&self) -> Result<Config> {
-        if self.no_config {
-            Ok(Config::default())
-        } else {
-            Config::load(&self.config_path())
-        }
-    }
-
-    /// Construit la description de chaîne. `limiter_meter` reçoit la réduction de gain du limiteur.
-    pub fn spec(&self, limiter_meter: Option<Arc<AtomicU32>>) -> Result<AmpSpec> {
-        let cfg = self.load_config()?;
+    /// Construit la description de chaîne à partir des options et de la config (`cfg`, avec son
+    /// chemin pour retrouver l'enregistrement de calibration). `limiter_meter` reçoit la
+    /// réduction de gain du limiteur.
+    pub fn spec(&self, file: &LoadedConfig, limiter_meter: Option<Arc<AtomicU32>>) -> Result<AmpSpec> {
+        let cfg = &file.config;
         let model = self.model.as_deref().map(|q| library::resolve(q, &self.library, "nam")).transpose()?;
         let ir = self.ir.as_deref().map(|q| library::resolve(q, &self.library, "wav")).transpose()?;
         if let (Some(m), Some(_)) = (&model, &ir) {
@@ -92,7 +76,7 @@ impl AmpArgs {
             LevelMode::Raw => Level::Raw,
             LevelMode::Normalize => Level::Normalize { target_db },
             LevelMode::Match => {
-                let p = cfg.calibration_path(&self.config_path());
+                let p = cfg.calibration_path(&file.path);
                 match dsp::wav::read_mono(&p) {
                     Ok((samples, sample_rate)) => Level::Match { reference: Arc::new(samples), sample_rate },
                     Err(e) => {

@@ -4,7 +4,7 @@
 use anyhow::{bail, Result};
 use std::time::Duration;
 
-use crate::backend::{self, CHANNELS};
+use crate::backend::{self, Io};
 
 const THRESHOLD: f32 = 0.05;
 const AMPLITUDE: f32 = 0.7;
@@ -14,9 +14,9 @@ enum Event {
     Timeout,
 }
 
-pub fn run(cfg: &backend::Config, out_ch: usize, in_ch: usize, count: u32) -> Result<()> {
-    if !(1..=CHANNELS).contains(&out_ch) || !(1..=CHANNELS).contains(&in_ch) {
-        bail!("canaux valides : 1..={CHANNELS}");
+pub fn run(cfg: &backend::Settings, out_ch: usize, in_ch: usize, count: u32) -> Result<()> {
+    if out_ch == 0 || in_ch == 0 {
+        bail!("les canaux sont numérotés à partir de 1");
     }
     let (oc, ic) = (out_ch - 1, in_ch - 1);
     let (mut tx, mut rx) = rtrb::RingBuffer::<Event>::new(64);
@@ -29,12 +29,12 @@ pub fn run(cfg: &backend::Config, out_ch: usize, in_ch: usize, count: u32) -> Re
     let mut next_emit: u64 = sr; // 1 s de stabilisation
     let mut emitted_at: Option<u64> = None;
 
-    let stream = backend::start(cfg, move |inp: [&[f32]; CHANNELS], mut out: [&mut [f32]; CHANNELS]| {
-        for o in out.iter_mut() {
-            o.fill(0.0);
+    let stream = backend::start(cfg, move |io: &mut dyn Io| {
+        io.silence();
+        if ic >= io.n_in() || oc >= io.n_out() {
+            return; // vérifié après le démarrage
         }
-        let input = inp[ic];
-        let o = &mut *out[oc];
+        let (input, o) = io.in_out(ic, oc);
         for (k, (x, y)) in input.iter().zip(o.iter_mut()).enumerate() {
             let t = frame + k as u64;
             match emitted_at {
@@ -58,6 +58,9 @@ pub fn run(cfg: &backend::Config, out_ch: usize, in_ch: usize, count: u32) -> Re
         frame += input.len() as u64;
     })?;
 
+    if out_ch > stream.n_out() || in_ch > stream.n_in() {
+        bail!("la carte a {} entrée(s) / {} sortie(s)", stream.n_in(), stream.n_out());
+    }
     let rate = stream.sample_rate() as f64;
     let bs = stream.buffer_size();
     println!("Impulsion sur la sortie {out_ch}, retour attendu sur l'entrée {in_ch}.\n");

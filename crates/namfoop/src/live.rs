@@ -6,20 +6,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
-use crate::backend::{self, CHANNELS};
+use crate::backend::{self, Io};
+use crate::config::LoadedConfig;
+use crate::router::{Router, Routing};
 
 /// Taille max de bloc pour laquelle la chaîne est préparée (au-delà : découpage interne).
 const MAX_BLOCK: usize = 1024;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
-pub enum Out2 {
-    /// Même signal traité que la sortie 1
-    Same,
-    /// Signal direct de la basse (DI) : pratique pour envoyer un DI propre au sondier
-    Di,
-    /// Silence
-    Mute,
-}
 
 /// Mesures publiées par le thread audio (f32 stockés en bits), remises à zéro par l'affichage.
 #[derive(Default)]
@@ -33,13 +25,6 @@ struct Meters {
     out_clips: AtomicU32,
     /// Réduction de gain max du limiteur (dB), publiée par l'étage lui-même.
     limiter: Arc<AtomicU32>,
-}
-
-/// Seuil d'écrêtage d'entrée : au-delà, l'ADC est (quasi) saturé.
-pub const IN_CLIP: f32 = 0.999;
-
-pub fn count_over(buf: &[f32], threshold: f32) -> u32 {
-    buf.iter().filter(|x| x.abs() >= threshold).count() as u32
 }
 
 pub fn fetch_max(a: &AtomicU32, v: f32) {
@@ -65,45 +50,38 @@ pub fn db(x: f32) -> String {
 }
 
 pub fn run(
-    cfg: &backend::Config,
+    cfg: &backend::Settings,
+    conf: &LoadedConfig,
     amp: &AmpArgs,
-    out2: Out2,
+    routing: &Routing,
     seconds: Option<f64>,
     quiet: bool,
 ) -> Result<()> {
     let meters = Arc::new(Meters::default());
-    let spec = amp.spec(Some(meters.limiter.clone()))?;
+    let spec = amp.spec(conf, Some(meters.limiter.clone()))?;
     let mut chain = spec.build(cfg.rate, MAX_BLOCK)?;
     if spec.model.is_none() && spec.ir.is_none() {
         log::info!("aucun modèle ni IR : passthrough");
     }
+    let mut router = Router::new(routing, MAX_BLOCK)?;
+    let description = router.describe();
+    let check = Router::new(routing, MAX_BLOCK)?; // copie pour valider une fois la carte ouverte
     let m = meters.clone();
     let frame_secs = 1.0f32 / cfg.rate as f32;
 
-    let stream = backend::start(cfg, move |inp: [&[f32]; CHANNELS], out: [&mut [f32]; CHANNELS]| {
+    let stream = backend::start(cfg, move |io: &mut dyn Io| {
         let t0 = Instant::now();
-        let [o1, o2] = out;
-        let n = o1.len();
-        let src = inp[0];
-        o1.copy_from_slice(src);
-        let in_peak = src.iter().fold(0.0f32, |a, x| a.max(x.abs()));
-        chain.process(o1);
-        match out2 {
-            Out2::Same => o2.copy_from_slice(o1),
-            Out2::Di => o2.copy_from_slice(src),
-            Out2::Mute => o2.fill(0.0),
+        let st = router.process(io, |buf| chain.process(buf));
+        if st.in_clips > 0 {
+            m.in_clips.fetch_add(st.in_clips, Ordering::Relaxed);
         }
-        let out_peak = o1.iter().fold(0.0f32, |a, x| a.max(x.abs()));
-        if in_peak >= IN_CLIP {
-            m.in_clips.fetch_add(count_over(src, IN_CLIP), Ordering::Relaxed);
+        if st.out_clips > 0 {
+            m.out_clips.fetch_add(st.out_clips, Ordering::Relaxed);
         }
-        if out_peak > 1.0 {
-            m.out_clips.fetch_add(count_over(o1, 1.0 + f32::EPSILON), Ordering::Relaxed);
-        }
-        fetch_max(&m.in_peak, in_peak);
-        fetch_max(&m.out_peak, out_peak);
+        fetch_max(&m.in_peak, st.in_peak);
+        fetch_max(&m.out_peak, st.out_peak);
         // part du temps disponible (durée du buffer) passée dans le DSP
-        let load = t0.elapsed().as_secs_f32() / (n.max(1) as f32 * frame_secs);
+        let load = t0.elapsed().as_secs_f32() / (io.frames().max(1) as f32 * frame_secs);
         fetch_max(&m.load, load);
     })?;
     if stream.sample_rate() != cfg.rate {
@@ -113,6 +91,8 @@ pub fn run(
             cfg.rate
         );
     }
+    check.validate(stream.n_in(), stream.n_out())?;
+    log::info!("routage : {description}");
 
     let (tx, rx) = std::sync::mpsc::channel();
     ctrlc::set_handler(move || {
@@ -120,7 +100,7 @@ pub fn run(
     })?;
     let start = Instant::now();
     take(&meters.load); // ignore les premiers callbacks (à froid)
-    log::info!("en route (sortie 2 : {out2:?}), Ctrl+C pour quitter");
+    log::info!("en route, Ctrl+C pour quitter");
     let mut max_load = 0.0f32;
     loop {
         if rx.recv_timeout(Duration::from_millis(500)).is_ok() {

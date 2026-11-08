@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté
+- `namfoop setup` : assistant plein écran (backend, carte, vumètres par entrée, bip par sortie,
+  test automatique des buffers), qui enregistre `[audio]` et `[routing]` dans la config.
+- Cartes multicanaux : namfoop ouvre tous les canaux de la carte (ex. Soundcraft MTK 14/12).
+- Routage : `--bass-in`, `--mic-in`, `--route N=processed|di|mic|mute` (remplace `--out2`).
+- Backend `sim` : carte simulée (basse synthétique) pour tester sans matériel.
+- Options globales `--config` / `--no-config` (communes à toutes les commandes).
+
+### Modifié
+- Plus besoin de `pw-jack` : namfoop trouve la libjack de PipeWire et se relance avec si besoin.
+- Les réglages audio (`--backend`, `--device`, `--buffer`...) viennent de la config s'ils ne sont
+  pas donnés.
+- `calibrate --channel` prend par défaut l'entrée basse du routage ; `calibrate --config` devient
+  l'option globale `--config`.
+
+### Supprimé
+- `run --out2` (remplacé par `--route 2=di|mute|processed`).
+
 ## 0.1.0 — 2026-11-08
 
 Premier prototype.
