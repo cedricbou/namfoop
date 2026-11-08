@@ -8,6 +8,10 @@ export PATH="$HOME/.cargo/bin:$PATH"
 QUICK=${1:-}
 step() { printf '\n== %s\n' "$*"; }
 
+if [[ -z ${CI:-} && ! -x $(git rev-parse --git-path hooks)/pre-push ]]; then
+  echo "⚠ hooks git non installés : scripts/install-hooks.sh (cycle PR imposé)"
+fi
+
 step "submodules"
 git submodule update --init --recursive -q
 

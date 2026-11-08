@@ -1,0 +1,36 @@
+name: pr-rules
+# Règles du cycle de développement (la protection de branche n'est pas disponible sur ce dépôt) :
+# toute PR référence une issue, et met à jour le CHANGELOG si elle touche au code.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: La PR référence une issue (Closes #n / Refs #n)
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ! grep -qE '(Closes|Fixes|Refs) #[0-9]+' <<<"$BODY$TITLE"; then
+            echo "::error::La PR doit référencer une issue (« Closes #n » ou « Refs #n ») : scripts/feature.sh start"
+            exit 1
+          fi
+      - name: Branche nommée feat|fix|docs/<n°>-...
+        env:
+          HEAD: ${{ github.head_ref }}
+        run: |
+          [[ $HEAD =~ ^(feat|fix|docs)/[0-9]+- ]] || { echo "::error::branche « $HEAD » : attendu feat|fix|docs/<n° d'issue>-..."; exit 1; }
+      - name: CHANGELOG mis à jour si le code change
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          files=$(git diff --name-only "$BASE"...HEAD)
+          if grep -qE '^crates/.*/src/' <<<"$files" && ! grep -qx CHANGELOG.md <<<"$files"; then
+            echo "::error::du code a changé sans entrée dans CHANGELOG.md (« Non publié »)"
+            exit 1
+          fi
