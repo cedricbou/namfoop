@@ -30,9 +30,13 @@ crates/namfoop/   binaire CLI
 scripts/check.sh          vérification sans matériel (À FAIRE PASSER AVANT TOUT COMMIT)
 scripts/check-docs.sh     cohérence code <-> docs (appelé par check.sh)
 scripts/gen-cli-doc.sh    régénère docs/cli.md
-scripts/install-hooks.sh  hook pre-commit -> check.sh --quick
+scripts/install-hooks.sh  hooks : pre-commit (refus sur main + check.sh --quick), commit-msg (Refs #n),
+                          pre-push (refus vers main)
+scripts/feature.sh        cycle issue -> branche -> PR -> merge (start | pr | merge | status)
 docs/                     guide.md (utilisateur), cli.md (généré)
-.github/workflows/        CI : check.sh --quick (sans bibliothèque de sons)
+.github/workflows/        CI : check.yml (check.sh --quick, sans bibliothèque de sons),
+                          pr-rules.yml (issue référencée, nom de branche, CHANGELOG)
+.github/ISSUE_TEMPLATE/   modèles d'issue (fonctionnalité, bug) ; pull_request_template.md
 scripts/test-backends.sh  tests matériels sur les deux backends
 library/          modèles .nam / IR .wav de l'utilisateur (non versionné, ne pas modifier ni supprimer)
 nam/              zips Tone3000 d'origine (non versionnés, ne pas toucher)
@@ -89,6 +93,37 @@ canaux de la carte) ; seuls l'accès à la carte et le threading diffèrent.
 - Ne pas lancer `run` avec un gain audible sans l'accord de l'utilisateur (utiliser
   `--master-db -120` pour les tests de fumée).
 
+## Cycle de développement (obligatoire)
+
+Toute évolution suit : **issue GitHub -> branche -> PR -> CI verte -> squash merge -> main à jour**.
+La protection de branche GitHub n'est pas disponible (dépôt privé, offre gratuite) : le cycle est
+imposé par `scripts/feature.sh`, les hooks git (`scripts/install-hooks.sh`) et le workflow
+`pr-rules` de la CI.
+
+```sh
+scripts/install-hooks.sh                  # une fois par clone
+scripts/feature.sh start 12               # reprend l'issue #12 -> branche feat/12-<titre>
+scripts/feature.sh start "Titre" bug      # ou crée l'issue (labels : enhancement, bug, documentation,
+                                          #   roadmap, dette technique, test matériel)
+# ... commits (pre-commit : check.sh --quick ; « Refs #12 » ajouté au message) ...
+scripts/feature.sh pr                     # check.sh complet, push, PR « Closes #12 »
+scripts/feature.sh pr --refs              # idem mais l'issue reste ouverte (tests matériels à faire)
+scripts/feature.sh merge                  # attend la CI, squash merge, supprime la branche, main à jour
+scripts/feature.sh status
+```
+
+Règles :
+- jamais de commit ni de push direct sur `main` (les hooks refusent ; `NAMFOOP_ALLOW_MAIN=1` est
+  réservé aux urgences explicitement demandées par l'utilisateur) ;
+- une branche = une issue ; le nom `feat|fix|docs/<n°>-...` porte le numéro (vérifié en CI) ;
+- la PR référence l'issue (`Closes #n`, ou `Refs #n` si des tests matériels restent à faire) et met
+  à jour `CHANGELOG.md` si elle touche au code (vérifié en CI et par `feature.sh pr`) ;
+- fusion seulement CI verte (`feature.sh merge` attend et refuse sinon) ; squash uniquement ;
+- les tests matériels restants se cochent dans l'issue (label `test matériel`) ; un agent les
+  demande à l'utilisateur ;
+- les limites découvertes en route deviennent des issues (label `dette technique`) plutôt que
+  des notes perdues.
+
 ## Documentation (vérifiée par le harnais)
 
 Trois niveaux, tous en français :
@@ -138,6 +173,8 @@ sans entrée de changelog.
 
 ## Pistes ouvertes / dette connue
 
+Suivies dans les issues GitHub (label `dette technique`) ; résumé :
+
 - Pics de charge DSP en `run` (15–50 % max contre 3 % de moyenne au bench) : tester `mlockall`,
   gouverneur CPU `performance`, préchauffage des modèles.
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
@@ -147,6 +184,8 @@ sans entrée de changelog.
 - Le C++ NAM n'est pas couvert par `assert_no_alloc` (allocateur Rust seulement).
 
 ## Feuille de route
+
+Chaque étape a son issue (label `roadmap`) : `gh issue list --label roadmap`.
 
 1. ✅ Base : backends JACK + ALSA (+ sim), canaux dynamiques, `setup`, `ports`, `latency`.
 2. ✅ NAM + IR : nam-sys, dsp, `run`, `render`, `bench`, `models` ; calibration d'entrée, niveau

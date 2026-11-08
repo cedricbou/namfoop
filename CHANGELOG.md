@@ -13,6 +13,8 @@ section prend le numéro de version.
 - Routage : `--bass-in`, `--mic-in`, `--route N=processed|di|mic|mute` (remplace `--out2`).
 - Backend `sim` : carte simulée (basse synthétique) pour tester sans matériel.
 - Options globales `--config` / `--no-config` (communes à toutes les commandes).
+- Harnais : cycle issue -> branche -> PR -> merge (`scripts/feature.sh`), hooks git qui refusent
+  commits et pushs directs sur `main`, règles de PR vérifiées en CI, modèles d'issue et de PR.
 
 ### Modifié
 - Plus besoin de `pw-jack` : namfoop trouve la libjack de PipeWire et se relance avec si besoin.

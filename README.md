@@ -46,8 +46,11 @@ Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : 
 scripts/check.sh            # sans matériel : format, clippy, tests, docs, rendu de la bibliothèque
 scripts/check.sh --quick    # idem sans la bibliothèque
 scripts/test-backends.sh    # avec matériel : latence + run sur JACK ET ALSA (câble sortie 1 -> entrée 2)
-scripts/install-hooks.sh    # vérification rapide automatique avant chaque commit
+scripts/install-hooks.sh    # hooks : pas de commit/push direct sur main, check rapide avant commit
 ```
+
+Chaque évolution passe par une issue, une branche et une PR (`scripts/feature.sh start | pr |
+merge`) : voir « Cycle de développement » dans [CLAUDE.md](CLAUDE.md).
 
 ## Licences
 
