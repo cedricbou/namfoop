@@ -1,0 +1,6 @@
+/target
+# bibliothèque personnelle (modèles / IR Tone3000) : pas versionnée, licences propres à chaque pack
+/library
+/nam
+*.wav
+!crates/**/tests/data/*.wav

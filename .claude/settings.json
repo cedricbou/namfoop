@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/check.sh:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(./target/release/namfoop render:*)",
+      "Bash(./target/release/namfoop bench:*)",
+      "Bash(./target/release/namfoop models:*)",
+      "Bash(./target/release/namfoop --help)",
+      "Bash(pw-jack ./target/release/namfoop ports)"
+    ]
+  }
+}

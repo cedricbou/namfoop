@@ -1,0 +1,16 @@
+[package]
+name = "dsp"
+description = "Traitements audio temps réel de namfoop (NAM, IR, gains...)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+nam-sys = { path = "../nam-sys" }
+fft-convolver = "0.4"
+hound = "3.5"
+thiserror = "2"
+log.workspace = true
+
+[dev-dependencies]
+assert_no_alloc = "1.1"

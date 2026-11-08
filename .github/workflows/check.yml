@@ -1,0 +1,22 @@
+name: check
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Dépendances système
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libjack-jackd2-dev pkg-config
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      # sans bibliothèque de sons (non versionnée) : le rendu de library/ est sauté
+      - run: scripts/check.sh --quick
+        env:
+          NAMFOOP_NATIVE: "0"

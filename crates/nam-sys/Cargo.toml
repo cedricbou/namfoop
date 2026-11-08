@@ -1,0 +1,13 @@
+[package]
+name = "nam-sys"
+description = "Liaison vers NeuralAmpModelerCore (C++)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+links = "nam"
+
+[dependencies]
+thiserror = "2"
+
+[build-dependencies]
+cc = { version = "1.2", features = ["parallel"] }
