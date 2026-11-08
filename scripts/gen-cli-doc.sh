@@ -5,8 +5,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
 OUT=${1:-docs/cli.md}
-BIN=./target/release/namfoop
-cargo build -q --release
+PROFILE=${NAMFOOP_PROFILE:-release}
+BIN=./target/$PROFILE/namfoop
+cargo build -q --profile "$PROFILE"
 
 subcommands() {
   "$BIN" --help | sed -n '/^Commands:/,/^$/p' | awk 'NR>1 && $1 != "help" && NF {print $1}'

@@ -1,9 +1,20 @@
 name: check
+# push : seulement main (les branches sont vérifiées par leur PR, pas de double exécution)
 on:
   push:
+    branches: [main]
   pull_request:
+
+env:
+  NAMFOOP_NATIVE: "0"
+  # sccache : cache de compilation Rust ET C++ (cc-rs l'utilise via RUSTC_WRAPPER) dans le cache
+  # GitHub Actions ; le moteur NAM (C++) n'est recompilé que s'il change.
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+  CARGO_INCREMENTAL: "0"
+
 jobs:
-  check:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,8 +26,33 @@ jobs:
         with:
           toolchain: "1.99.1"
           components: rustfmt, clippy
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: lint
+      # format + clippy ; le C++ n'est pas compilé (NAMFOOP_SKIP_CPP, posé par check.sh en CI)
+      - run: scripts/check.sh --lint-only
+
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # tests + binaire compilés une seule fois (profil `ci` : sans LTO, assertions actives)
+      NAMFOOP_PROFILE: ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Dépendances système
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libjack-jackd2-dev pkg-config
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: mozilla-actions/sccache-action@v0.0.11
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: check
       # sans bibliothèque de sons (non versionnée) : le rendu de library/ est sauté
-      - run: scripts/check.sh --quick
-        env:
-          NAMFOOP_NATIVE: "0"
+      - run: scripts/check.sh --quick --no-lint
+      - name: Statistiques sccache
+        if: always()
+        run: sccache --show-stats

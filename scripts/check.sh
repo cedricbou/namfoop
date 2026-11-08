@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 # Vérification complète SANS carte son : à faire passer avant chaque commit.
-#   scripts/check.sh          tout (format, lint, tests, build release, docs, rendu de la bibliothèque)
-#   scripts/check.sh --quick  sans le rendu de la bibliothèque
+#   scripts/check.sh              tout (format, lint, tests, build, docs, rendu de la bibliothèque)
+#   scripts/check.sh --quick      sans le rendu de la bibliothèque
+#   scripts/check.sh --lint-only  format + clippy seulement (job « lint » de la CI)
+#   scripts/check.sh --no-lint    tout sauf format + clippy (job « check » de la CI)
+# NAMFOOP_PROFILE=ci : tests et binaire compilés une seule fois dans le profil `ci` (rapide, sans
+# LTO, assertions actives). Défaut : tests en debug + binaire `release` (celui qu'on joue).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
-QUICK=${1:-}
+QUICK="" LINT=1 REST=1
+for a in "$@"; do
+  case $a in
+    --quick) QUICK=--quick ;;
+    --lint-only) REST=0 ;;
+    --no-lint) LINT=0 ;;
+    *) echo "option inconnue : $a" >&2; exit 2 ;;
+  esac
+done
+PROFILE=${NAMFOOP_PROFILE:-release}
+export NAMFOOP_PROFILE=$PROFILE
 step() { printf '\n== %s\n' "$*"; }
 
 if [[ -z ${CI:-} && ! -x $(git rev-parse --git-path hooks)/pre-push ]]; then
@@ -15,19 +29,31 @@ fi
 step "submodules"
 git submodule update --init --recursive -q
 
-step "format"
-cargo fmt --all --check
+if (( LINT )); then
+  step "format"
+  cargo fmt --all --check
 
-step "clippy (warnings = erreurs)"
-cargo clippy -q --all-targets -- -D warnings
+  step "clippy (warnings = erreurs)"
+  # en CI le job lint est séparé : inutile d'y compiler le C++ (rien n'est lié en mode check)
+  if [[ -n ${CI:-} ]]; then export NAMFOOP_SKIP_CPP=1; fi
+  cargo clippy -q --all-targets -- -D warnings
+  unset NAMFOOP_SKIP_CPP
+fi
+(( REST )) || { printf '\nOK (lint)\n'; exit 0; }
 
-step "tests (debug : active assert_no_alloc)"
-if ! out=$(cargo test -q 2>&1); then echo "$out"; exit 1; fi
+if [[ $PROFILE == release ]]; then
+  step "tests (debug : active assert_no_alloc)"
+  test_args=()
+else
+  step "tests (profil $PROFILE, assertions actives)"
+  test_args=(--profile "$PROFILE")
+fi
+if ! out=$(cargo test -q "${test_args[@]}" 2>&1); then echo "$out"; exit 1; fi
 grep -E '^test result' <<<"$out" | grep -v ' 0 passed' || true
 
-step "build release"
-cargo build -q --release
-BIN=./target/release/namfoop
+step "build (profil $PROFILE)"
+cargo build -q --profile "$PROFILE"
+BIN=./target/$PROFILE/namfoop
 
 step "documentation (aide CLI, docs/cli.md, guide, README, exemples, pas de sons versionnés)"
 scripts/check-docs.sh

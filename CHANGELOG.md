@@ -15,6 +15,8 @@ section prend le numéro de version.
 - Options globales `--config` / `--no-config` (communes à toutes les commandes).
 - Harnais : cycle issue -> branche -> PR -> merge (`scripts/feature.sh`), hooks git qui refusent
   commits et pushs directs sur `main`, règles de PR vérifiées en CI, modèles d'issue et de PR.
+- CI plus rapide : plus de double exécution par PR, jobs lint et check en parallèle, profil `ci`
+  (tests et binaire compilés une seule fois, sans LTO), cache sccache pour Rust et le C++ NAM.
 
 ### Modifié
 - Plus besoin de `pw-jack` : namfoop trouve la libjack de PipeWire et se relance avec si besoin.

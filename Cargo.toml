@@ -24,3 +24,15 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 debug = 1
+
+# Profil des vérifications automatiques (CI, NAMFOOP_PROFILE=ci) : optimisé comme release mais sans
+# LTO, compilation parallèle, assertions de debug actives (assert_no_alloc). Partagé par les tests et
+# le binaire utilisé pour les docs / rendus : une seule compilation. Le binaire de scène reste `release`.
+[profile.ci]
+inherits = "release"
+lto = false
+codegen-units = 16
+debug = 0
+debug-assertions = true
+panic = "unwind"
+incremental = false

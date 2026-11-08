@@ -11,12 +11,13 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
-BIN=./target/release/namfoop
+PROFILE=${NAMFOOP_PROFILE:-release}
+BIN=./target/$PROFILE/namfoop
 GUIDE=${GUIDE:-docs/guide.md}
 fail=0
 err() { echo "  ✗ $*"; fail=1; }
 
-cargo build -q --release || exit 1
+cargo build -q --profile "$PROFILE" || exit 1
 [[ -f $GUIDE ]] || { echo "  ✗ $GUIDE absent"; exit 1; }
 
 # 1. référence générée à jour
