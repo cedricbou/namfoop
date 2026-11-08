@@ -48,8 +48,14 @@ nam/              zips Tone3000 d'origine (non versionnés, ne pas toucher)
 - `scripts/check.sh` : fmt --check, clippy -D warnings, `cargo test` (debug), build release, rendu de
   chaque modèle de `library/` (échec si NaN ou silence ; signale les crêtes > +6 dBFS). `--quick` pour
   sauter la bibliothèque.
-- `cargo test` **en debug** : `assert_no_alloc` n'est actif qu'en debug. Le C++ NAM est toujours
-  compilé en -O3 (build.rs), donc les tests restent rapides.
+- `cargo test` **en debug** : `assert_no_alloc` n'est actif qu'en debug (ou dans le profil `ci`,
+  qui garde les assertions). Le C++ NAM est toujours compilé en -O3 (build.rs).
+- Profil `ci` (`NAMFOOP_PROFILE=ci scripts/check.sh`) : tests et binaire compilés une seule fois,
+  sans LTO — c'est ce que fait la CI. Le binaire de scène reste `release` (LTO). Les scripts
+  utilisent `target/$NAMFOOP_PROFILE/namfoop` (défaut `release`).
+- `NAMFOOP_SKIP_CPP=1` : build.rs ne compile pas le C++ (clippy / check uniquement).
+- CI (`.github/workflows/check.yml`) : jobs `lint` et `check` en parallèle, sccache (Rust + C++),
+  `push` seulement sur main. Mesurer une étape : `gh run view <id> --log` (horodatages des `== `).
 - `render`, `run`, `calibrate`, `latency` et `setup` lisent la config de l'utilisateur (carte,
   routage, trim...) : pour des résultats reproductibles (tests, comparaisons), toujours passer
   l'option globale `--no-config` (elle empêche aussi toute écriture).

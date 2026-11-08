@@ -3,7 +3,8 @@
 //! et les tests sont inutilisablement lents.
 //!
 //! Variables d'environnement :
-//!   NAMFOOP_NATIVE=0  désactive -march=native / -mcpu=native (binaire portable)
+//!   NAMFOOP_NATIVE=0    désactive -march=native / -mcpu=native (binaire portable)
+//!   NAMFOOP_SKIP_CPP=1  ne compile pas le C++ (clippy / cargo check seulement : rien n'est lié)
 
 use std::path::{Path, PathBuf};
 
@@ -12,6 +13,11 @@ fn main() {
     let core = root.join("vendor/NeuralAmpModelerCore");
     if !core.join("NAM/dsp.h").exists() {
         panic!("NeuralAmpModelerCore absent : lancer `git submodule update --init --recursive`");
+    }
+
+    println!("cargo:rerun-if-env-changed=NAMFOOP_SKIP_CPP");
+    if std::env::var_os("NAMFOOP_SKIP_CPP").is_some() {
+        return;
     }
 
     let mut files: Vec<PathBuf> = Vec::new();
