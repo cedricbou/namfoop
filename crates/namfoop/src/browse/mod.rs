@@ -345,6 +345,7 @@ pub fn run(
                         IrChoice::Item(i) => Some(st.irs[i].path.clone()),
                         IrChoice::Blend => {
                             blend_spec("écoute", &st, true).save(&audition)?;
+                            st.blend_profile = dsp::profile::IrProfile::of_file(&audition).ok().map(Arc::new);
                             Some(audition.clone())
                         }
                     };

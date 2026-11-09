@@ -163,7 +163,9 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                         let it = &s.irs[index];
                         let in_blend = s.blend.iter().find(|p| p.ir == index);
                         spans.push(Span::styled(format!("{:<6}", it.id), Style::new().fg(Color::DarkGray)));
-                        spans.push(if recommended {
+                        spans.push(if s.reference == Some(index) {
+                            Span::styled(" ◆ ", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                        } else if recommended {
                             Span::styled(" ★ ", Style::new().fg(Color::Yellow))
                         } else if in_blend.is_some() {
                             Span::styled(" ● ", Style::new().fg(Color::Magenta))
@@ -218,6 +220,11 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }
     if let Some(ed) = &s.editor {
         render_editor(s, ed, f, body);
+    } else if s.tab != Tab::Models && body.width >= SPECTRUM_MIN_WIDTH {
+        let [list, spectrum] =
+            Layout::horizontal([Constraint::Percentage(58), Constraint::Percentage(42)]).areas(body);
+        f.render_widget(Paragraph::new(lines).block(Block::bordered()), list);
+        render_spectrum(s, f, spectrum);
     } else {
         f.render_widget(Paragraph::new(lines).block(Block::bordered()), body);
     }
@@ -248,6 +255,16 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             Line::from(vec![
                 Span::styled(" ♪ ", Style::new().fg(Color::Green)),
                 Span::raw(format!("{model}  +  IR : {ir}")),
+                Span::styled(
+                    if s.bypass {
+                        "   [A/B : IR coupée — b]".to_string()
+                    } else if let (true, Some(r)) = (s.listen_ref, s.reference) {
+                        format!("   [A/B : B = ◆ {} — r]", s.irs[r].label)
+                    } else {
+                        String::new()
+                    },
+                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                ),
             ]),
             Line::from(meters),
             Line::from(Span::styled(
@@ -267,16 +284,131 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         }
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler",
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre",
-        (_, _, Tab::Models) => "↑↓ écouter   e modifier / calibrer   / filtrer   Tab → IR   q quitter",
-        (_, _, Tab::Irs) => "↑↓ écouter   espace ajouter au mélange   / filtrer   Tab → mélange   q quitter",
+        (_, _, Tab::Models) => "↑↓ écouter   e modifier / calibrer   b avec/sans IR   / filtrer   Tab → IR   q",
+        (_, _, Tab::Irs) => {
+            "↑↓ écouter   c épingler réf.   r A/B réf.   b avec/sans IR   espace → mélange   / filtrer   Tab   q"
+        }
         (_, _, Tab::Blend) => {
-            "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Tab   q"
+            "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   b avec/sans   r A/B réf.   Tab   q"
         }
     };
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(format!(" {keys}"), Style::new().fg(Color::DarkGray)))),
         foot,
     );
+}
+
+/// Largeur minimale du corps pour afficher le panneau spectre à droite de la liste.
+pub const SPECTRUM_MIN_WIDTH: u16 = 130;
+
+fn curve(p: &dsp::profile::IrProfile) -> Vec<(f64, f64)> {
+    dsp::profile::band_centers()
+        .iter()
+        .zip(&p.bands_db)
+        .map(|(f, d)| ((*f as f64).log10(), (*d as f64).clamp(-24.0, 12.0)))
+        .collect()
+}
+
+/// Panneau « Spectre » : courbe sous le curseur (ou du mélange), référence épinglée, écarts par zone.
+fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
+    use ratatui::symbols::Marker;
+    use ratatui::widgets::{Axis, Chart, Dataset, GraphType};
+    let profile_of = |i: usize| s.irs[i].profile.as_ref().map(|d| d.profile.clone());
+    // (nom, profil, couleur)
+    let mut shown: Vec<(String, std::sync::Arc<dsp::profile::IrProfile>, Color)> = Vec::new();
+    match s.tab {
+        Tab::Blend => {
+            if let Some(b) = &s.blend_profile {
+                shown.push(("mélange".into(), b.clone(), Color::Magenta));
+            }
+            if let Some(p) = s.blend.get(s.cursor()) {
+                if let Some(pr) = profile_of(p.ir) {
+                    shown.push((s.irs[p.ir].label.clone(), pr, Color::Cyan));
+                }
+            }
+        }
+        _ => {
+            if let Some(i) = s.ir_at_cursor() {
+                if let Some(pr) = profile_of(i) {
+                    shown.push((s.irs[i].label.clone(), pr, Color::Cyan));
+                }
+            }
+        }
+    }
+    let reference = s.reference.and_then(|r| profile_of(r).map(|p| (s.irs[r].label.clone(), p)));
+    let [chart_area, info] = Layout::vertical([Constraint::Min(6), Constraint::Length(3)]).areas(area);
+    let curves: Vec<Vec<(f64, f64)>> =
+        shown.iter().map(|(_, p, _)| curve(p)).chain(reference.iter().map(|(_, p)| curve(p))).collect();
+    let mut datasets = Vec::new();
+    for (k, (name, _, color)) in shown.iter().enumerate() {
+        datasets.push(
+            Dataset::default()
+                .name(name.clone())
+                .marker(Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::new().fg(*color))
+                .data(&curves[k]),
+        );
+    }
+    if let Some((name, _)) = &reference {
+        datasets.push(
+            Dataset::default()
+                .name(format!("◆ {name}"))
+                .marker(Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::new().fg(Color::Yellow))
+                .data(&curves[curves.len() - 1]),
+        );
+    }
+    let x_labels: Vec<Span> =
+        ["31", "90", "250", "700", "2k", "5,7k", "16k"].into_iter().map(Span::raw).collect();
+    let chart = Chart::new(datasets)
+        .block(Block::bordered().title(" Spectre (dB, IR telle qu'écoutée) "))
+        .x_axis(
+            Axis::default()
+                .bounds([31.25f64.log10(), 16000f64.log10()])
+                .labels(x_labels)
+                .style(Style::new().fg(Color::DarkGray)),
+        )
+        .y_axis(
+            Axis::default()
+                .bounds([-24.0, 12.0])
+                .labels(["-24", "-12", "0", "+12"].into_iter().map(Span::raw).collect::<Vec<_>>())
+                .style(Style::new().fg(Color::DarkGray)),
+        )
+        .legend_position(Some(ratatui::widgets::LegendPosition::TopRight))
+        .hidden_legend_constraints((Constraint::Percentage(70), Constraint::Percentage(70)));
+    f.render_widget(chart, chart_area);
+
+    let mut text = Vec::new();
+    match (shown.last(), &reference) {
+        (Some((name, p, _)), Some((rname, r))) => {
+            let (a, b) = (crate::profile::zones(p), crate::profile::zones(r));
+            let parts: Vec<String> = crate::profile::ZONES
+                .iter()
+                .enumerate()
+                .map(|(k, (z, ..))| format!("{z} {:+.0}", a[k] - b[k]))
+                .collect();
+            text.push(Line::from(Span::styled(
+                format!(" {name} vs ◆ {rname} :"),
+                Style::new().fg(Color::Yellow),
+            )));
+            text.push(Line::raw(format!(" {}", parts.join(" · "))));
+        }
+        (Some(_), None) => {
+            text.push(Line::from(Span::styled(
+                " c : épingler l'IR sous le curseur comme référence (comparaison)",
+                Style::new().fg(Color::DarkGray),
+            )));
+        }
+        (None, _) => {
+            text.push(Line::from(Span::styled(
+                " pas de profil pour cette ligne",
+                Style::new().fg(Color::DarkGray),
+            )));
+        }
+    }
+    f.render_widget(Paragraph::new(text).wrap(ratatui::widgets::Wrap { trim: true }), info);
 }
 
 fn type_help(t: &str) -> &'static str {
@@ -399,6 +531,62 @@ mod tests {
         s.on_key(Key::Tab);
         let t = screen(&s);
         assert!(t.contains("▅▆▇▆▅▄▃▃▂▂▁▁  sub +4, sombre"), "{t}");
+    }
+
+    fn with_profiles(s: &mut State) {
+        for (k, it) in s.irs.iter_mut().enumerate() {
+            let tilt = k as f32 * 3.0;
+            it.profile = Some(crate::profile::Described {
+                profile: std::sync::Arc::new(dsp::profile::IrProfile {
+                    bands_db: dsp::profile::band_centers()
+                        .iter()
+                        .map(|f| {
+                            if *f > 2000.0 {
+                                -6.0 - tilt
+                            } else if *f < 80.0 {
+                                tilt
+                            } else {
+                                0.0
+                            }
+                        })
+                        .collect(),
+                    low_cut_hz: 40.0,
+                    high_cut_hz: 6000.0,
+                }),
+                spark: "▅▆▇▆▅▄▃▃▂▂▁▁".into(),
+                tags: vec![],
+            });
+        }
+    }
+
+    #[test]
+    fn spectrum_panel_with_reference_on_wide_terminals() {
+        let mut s = sample();
+        with_profiles(&mut s);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // 800D
+        s.on_key(Key::Tab);
+        s.on_key(Key::Down); // IR 2 (conseillée)
+        s.on_key(Key::Down); // IR 0
+        s.on_key(Key::Char('c'));
+        s.on_key(Key::Up); // IR 2 sous le curseur
+        let wide = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
+        assert!(wide.contains("Spectre") && wide.contains("◆"), "{wide}");
+        assert!(wide.contains("◆ 121 Lower - Cap") && wide.contains("Powerhouse 410"), "légende : {wide}");
+        assert!(wide.contains("Powerhouse 410 vs ◆ 121 Lower - Cap"), "{wide}");
+        assert!(wide.contains("sub +6") && wide.contains("air -6"), "{wide}");
+        assert!(wide.contains("c épingler réf."), "{wide}");
+        // terminal étroit : pas de panneau
+        let narrow = crate::tui::screen_text(110, 30, |f| render(&s, &Status::default(), f));
+        assert!(!narrow.contains("Spectre"), "{narrow}");
+        // A/B : l'en-tête le signale
+        s.on_key(Key::Char('r'));
+        let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("[A/B : B = ◆ 121 Lower - Cap — r]"), "{t}");
+        s.on_key(Key::Char('b'));
+        let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("[A/B : IR coupée — b]"), "{t}");
     }
 
     #[test]

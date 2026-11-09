@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#32)
+- `browse` : panneau Spectre à droite de la liste (onglets IR et Mélange, terminal large) avec la
+  courbe de l'IR sous le curseur, celle du mélange résultant, et une **référence épinglée** (`c`)
+  superposée avec les écarts par zone.
+- Écoute A/B : `b` coupe / remet l'IR (aussi dans l'éditeur), `r` bascule entre ton choix et la
+  référence ; à volume égal en mode `match`.
+
 ### Ajouté (#34)
 - Profil sonore des IR et mélanges : réponse par tiers d'octave (IR telle qu'elle est jouée),
   mini-spectre de 12 colonnes et étiquettes relatives au pack (« sub +4 », « sombre », « air +3 »,

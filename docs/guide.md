@@ -446,7 +446,9 @@ Contrairement à `a` à l'écran, `meta --all` applique **toutes** les options d
 Pour t'orienter dans un pack d'IR numérotées, lis leurs **étiquettes**
 ([profil sonore](#profil-sonore-des-ir)) : `namfoop models`, ou l'onglet IR de `browse`. Commence
 par les extrêmes (la plus « sub + », la plus « brillant », la plus « sombre ») pour situer le pack,
-puis affine à l'oreille entre les IR voisines. Pour écouter les IR seules, sur le son direct de la
+puis affine à l'oreille entre les IR voisines. Dans `browse`, épingle ta favorite du moment avec
+`c` et compare chaque candidate avec `r` (A/B à volume égal) en regardant les écarts sous le
+spectre. Pour écouter les IR seules, sur le son direct de la
 basse, choisis la ligne « son direct (DI) » de l'onglet Modèles.
 
 L'import a déjà retenu l'IR fournie avec le pack comme **IR préférée** (`-i auto` la prend).
@@ -575,6 +577,18 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
   autres. Dans un pack, le début commun des noms est masqué : on lit « 121 Lower - Cap » au lieu de
   « 1970 Bassman Cabinet CTS - 121 Lower - Cap ». Chaque IR affiche son mini-spectre et ses
   étiquettes ([profil sonore](#profil-sonore-des-ir)). **Espace** ajoute ou retire l'IR du mélange.
+- **Panneau Spectre** (onglets IR et Mélange, terminal d'au moins ~130 colonnes) : à droite de
+  la liste, la courbe de l'IR sous le curseur. Dans l'onglet Mélange, s'y ajoute la courbe du
+  **mélange** résultant, où se voient les annulations entre micros. **`c` épingle** l'IR sous le
+  curseur comme **référence** (◆, courbe jaune) ; sous le graphique, les écarts par zone entre
+  l'IR et la référence (« sub +4 · … · air −2 »). `c` sur la référence la retire.
+- **Écoute A/B**, dans tous les onglets et dans l'éditeur :
+  - **`b`** coupe ou remet l'IR, pour entendre le modèle (ou ta basse) avec et sans baffle ;
+  - **`r`** bascule entre ton choix (A) et la référence épinglée (B), sans perdre la sélection.
+
+  L'en-tête affiche « [A/B : IR coupée — b] » ou « [A/B : B = ◆ … — r] ». En mode `match`, le
+  volume est réaligné à chaque bascule : la comparaison se fait **à volume égal**, l'oreille juge
+  le timbre et non le niveau. Choisir une autre IR ou un autre modèle met fin à l'A/B.
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
@@ -615,7 +629,8 @@ packs achetés…). Joue comme sur scène et règle l'entrée jusqu'au grain vou
 et `lim` en bas. Pour comparer avec un autre modèle, ferme l'éditeur, passe au modèle suivant et
 reviens. Le volume, lui, est aligné par `--level`.
 
-**Baffle inclus ou pas ?** Passe l'IR préférée sur « aucune », puis sur une IR conseillée. Une
+**Baffle inclus ou pas ?** Appuie sur **`b`** pour couper et remettre l'IR (ou passe l'IR préférée
+sur « aucune », puis sur une IR conseillée). Une
 capture **avec** baffle sonne finie sans IR, et sourde avec (deux baffles). Une capture **sans**
 baffle est criarde et bourdonnante sans IR. Règle le type en conséquence. Le son seul ne permet
 pas de le deviner automatiquement : les baffles basse ont souvent un tweeter.
