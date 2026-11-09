@@ -32,6 +32,8 @@ pub struct Item {
     pub recommended: Vec<usize>,
     /// Modèles : métadonnées effectives (corrections comprises) et celles du fichier.
     pub meta: Option<Box<(ModelMeta, ModelMeta)>>,
+    /// IR et mélanges : profil sonore (mini-spectre, étiquettes, courbe).
+    pub profile: Option<crate::profile::Described>,
 }
 
 impl Item {
@@ -645,6 +647,7 @@ pub mod tests {
             needs,
             recommended: rec,
             meta: None,
+            profile: None,
         }
     }
 

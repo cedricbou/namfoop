@@ -58,7 +58,11 @@ fn strip(stem: &str, n: usize) -> String {
 }
 
 /// Index de la bibliothèque pour le navigateur : (modèles, IR et mélanges).
-pub fn index(lib: &Library, default_ir: Option<&str>) -> (Vec<Item>, Vec<Item>) {
+pub fn index(
+    lib: &Library,
+    default_ir: Option<&str>,
+    profiles: &crate::profile::Profiles,
+) -> (Vec<Item>, Vec<Item>) {
     let mut irs: Vec<Item> = Vec::new();
     let mut by_rel: HashMap<String, usize> = HashMap::new();
     for kind in [Kind::Cab, Kind::Ir] {
@@ -84,6 +88,7 @@ pub fn index(lib: &Library, default_ir: Option<&str>) -> (Vec<Item>, Vec<Item>) 
                 needs: NeedsIr::Maybe,
                 recommended: Vec::new(),
                 meta: None,
+                profile: profiles.by_rel.get(&e.rel).cloned(),
             });
         }
     }
@@ -134,6 +139,7 @@ fn model_item(
         needs,
         recommended,
         meta,
+        profile: None,
     }
 }
 
@@ -235,12 +241,13 @@ pub fn run(
     start_with: Start,
 ) -> Result<()> {
     let lib = Library::scan(library);
-    let (mut models, irs) = index(&lib, conf.default_ir.as_deref());
+    let profiles = crate::profile::Profiles::load_verbose(&lib);
+    let (mut models, irs) = index(&lib, conf.default_ir.as_deref(), &profiles);
     if let Some(only) = start_with.only {
         models.retain(|m| only.contains(&m.rel));
     }
-    if models.is_empty() {
-        bail!("aucun modèle dans {} : namfoop import <zip>", library.display());
+    if models.is_empty() && irs.is_empty() {
+        bail!("bibliothèque vide ({}) : namfoop import <zip>", library.display());
     }
 
     // audio : routeur + chaîne échangeable (au départ vide = son direct)

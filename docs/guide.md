@@ -443,6 +443,12 @@ Contrairement à `a` à l'écran, `meta --all` applique **toutes** les options d
 
 #### Étape 6 — Choisir l'IR des modèles sans baffle
 
+Pour t'orienter dans un pack d'IR numérotées, lis leurs **étiquettes**
+([profil sonore](#profil-sonore-des-ir)) : `namfoop models`, ou l'onglet IR de `browse`. Commence
+par les extrêmes (la plus « sub + », la plus « brillant », la plus « sombre ») pour situer le pack,
+puis affine à l'oreille entre les IR voisines. Pour écouter les IR seules, sur le son direct de la
+basse, choisis la ligne « son direct (DI) » de l'onglet Modèles.
+
 L'import a déjà retenu l'IR fournie avec le pack comme **IR préférée** (`-i auto` la prend).
 Pour en changer : dans l'éditeur, champ **IR préférée**, ←→ parmi les conseillées. Ou choisis
 n'importe quelle IR dans l'onglet IR (y compris un de tes mélanges), reviens sur le modèle, `e`,
@@ -475,7 +481,39 @@ namfoop models
 ```
 
 Pour chaque modèle : son **identifiant**, le **type de capture**, le style, les **tailles**
-disponibles, la loudness, et si une **IR** est nécessaire. Pour chaque IR : son identifiant.
+disponibles, la loudness, et si une **IR** est nécessaire. Pour chaque IR : son identifiant, puis
+son **profil sonore** (ci-dessous). Les fichiers sont classés dans l'ordre naturel (Mix 2 avant
+Mix 10).
+
+### Profil sonore des IR
+
+Dans un pack, les IR portent souvent de simples numéros (« AMPG 410 Mix 1 » à « Mix 11 »).
+namfoop mesure la réponse en fréquence de chacune, **telle qu'elle est jouée** (tronquée et
+normalisée comme à l'écoute), et la résume :
+
+```
+    i3j9   AMPG 410 Mix 11  ▆███▇▆▃▅▄▃▁▁  air +4, haut-médium −2
+    ijep   AMPG 410 Mix 3   ▅███▆▅▃▅▄▃▁▁  présence −3, sub −2, aigus coupés à 3,9 kHz
+    i0xe   AMPG 410 Mix 9   ▇██▇▆▅▃▅▄▄▂▁  sub +4
+```
+
+- Le **mini-spectre** a 12 colonnes, du grave (40 Hz) à gauche à l'aigu (13 kHz) à droite. Chaque
+  colonne représente deux tiers d'octave. Les baffles basse ont tous une bosse dans le grave et
+  une chute dans l'aigu : c'est la forme générale qui se lit d'un coup d'œil.
+- Les **étiquettes** disent ce qui distingue l'IR **des autres IR de son pack**, par écart à leur
+  médiane. Un pack de moins de 3 IR est comparé à toute la bibliothèque. Les zones : sub
+  (40–80 Hz), grave (80–200), bas-médium (200–500), médium (0,5–1,5 kHz), haut-médium
+  (1,5–3,5 kHz), présence (3,5–7 kHz), air (7–14 kHz). Un écart s'affiche à partir de 1,5 dB.
+  « brillant » et « sombre » résument présence et air ensemble ; « médium en avant » et « médium
+  creusé » résument le médium. « aigus coupés à 3,9 kHz » ou « aigus jusqu'à 7,4 kHz » indiquent
+  une étendue dans l'aigu (point à -12 dB) qui diffère d'un tiers d'octave ou plus de celle du pack.
+  « dans la moyenne » : rien ne ressort.
+
+Ce sont des **repères pour choisir quoi écouter**, pas un jugement : deux IR proches sur le papier
+peuvent sonner différemment (phase, résonances fines). Le profil est calculé à l'import et gardé
+dans `library/.cache/ir-profiles.json`, rangé par empreinte du contenu. Les IR déjà présentes
+sont profilées au premier `models` ou `browse` (environ 1 s pour 250 IR), puis tout est lu dans le
+cache. Ce fichier peut être supprimé sans risque : il se reconstruit.
 
 ### Faut-il une IR ?
 
@@ -535,7 +573,8 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
   quand tu passes sur cette ligne. Elle disparaît quand un filtre est actif.
 - **Onglet IR** (Tab) : « aucune IR », puis les IR conseillées pour le modèle (★), puis toutes les
   autres. Dans un pack, le début commun des noms est masqué : on lit « 121 Lower - Cap » au lieu de
-  « 1970 Bassman Cabinet CTS - 121 Lower - Cap ». **Espace** ajoute ou retire l'IR du mélange.
+  « 1970 Bassman Cabinet CTS - 121 Lower - Cap ». Chaque IR affiche son mini-spectre et ses
+  étiquettes ([profil sonore](#profil-sonore-des-ir)). **Espace** ajoute ou retire l'IR du mélange.
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).

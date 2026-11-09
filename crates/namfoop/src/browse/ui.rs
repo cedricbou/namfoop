@@ -140,6 +140,16 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         }
         Tab::Irs => {
             let rows = s.ir_rows();
+            // noms alignés pour que les mini-spectres forment une colonne
+            let label_w = rows
+                .iter()
+                .filter_map(|r| match r {
+                    IrRow::Ir { index, .. } => Some(s.irs[*index].label.chars().count()),
+                    IrRow::NoIr => None,
+                })
+                .max()
+                .unwrap_or(0)
+                .min(40);
             for i in window(rows.len(), cur, height) {
                 let mut spans = vec![cursor_span(i == cur)];
                 match rows[i] {
@@ -160,7 +170,11 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                         } else {
                             Span::raw("   ")
                         });
-                        spans.push(Span::raw(it.label.clone()));
+                        spans.push(Span::raw(format!("{:<w$}", it.label, w = label_w)));
+                        if let Some(d) = &it.profile {
+                            spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
+                            spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
+                        }
                         spans
                             .push(Span::styled(format!("  [{}]", it.pack), Style::new().fg(Color::DarkGray)));
                         if let Some(p) = in_blend {
@@ -368,6 +382,23 @@ mod tests {
         s.on_key(Key::Tab);
         let t = screen(&s);
         assert!(t.contains("alignement automatique : oui") && t.contains("p polarité"), "{t}");
+    }
+
+    #[test]
+    fn ir_rows_show_spark_and_tags() {
+        let mut s = sample();
+        s.irs[0].profile = Some(crate::profile::Described {
+            profile: std::sync::Arc::new(dsp::profile::IrProfile {
+                bands_db: vec![0.0; 28],
+                low_cut_hz: 40.0,
+                high_cut_hz: 5000.0,
+            }),
+            spark: "▅▆▇▆▅▄▃▃▂▂▁▁".into(),
+            tags: vec!["sub +4".into(), "sombre".into()],
+        });
+        s.on_key(Key::Tab);
+        let t = screen(&s);
+        assert!(t.contains("▅▆▇▆▅▄▃▃▂▂▁▁  sub +4, sombre"), "{t}");
     }
 
     #[test]

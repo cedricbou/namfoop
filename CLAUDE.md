@@ -13,6 +13,7 @@ crates/nam-sys/   FFI vers NeuralAmpModelerCore (sous-module vendor/, C++20, com
 crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolver), gain.rs, limiter.rs,
                   chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs,
                   blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement),
+                  profile.rs (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB),
                   swap.rs (changement de chaîne à chaud : SwapHandle envoie une Chain construite,
                   SwapChain fond en ~20 ms, l'ancienne repart vers le contrôle — jamais libérée en RT)
   tests/          propriétés de chaîne (indépendance au bloc) et absence d'allocation (assert_no_alloc)
@@ -39,6 +40,8 @@ crates/namfoop/   binaire CLI
                   octets) importés quand même et signalés (packs complets ; --skip-duplicates),
                   validation (modèle joué, IR lue), type de capture (nom > dossiers > métadonnées),
                   IR fournie avec le pack
+  profile.rs      étiquettes des IR relatives au pack (médiane), mini-spectre, cache
+                  library/.cache/ir-profiles.json (par empreinte ; profilage ~1 s / 250 IR)
   overrides.rs    library/overrides.toml (corrections par empreinte du contenu, jamais dans le .nam)
                   et `meta` (afficher / corriger) ; appliqué par Library::meta partout
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
@@ -204,6 +207,9 @@ sans entrée de changelog.
 - Deviner « baffle inclus » par le son NE MARCHE PAS en basse : pente aigus (6–10 kHz) / médium
   (300–1500 Hz) sur bruit blanc, de -30 à -1 dB pour les FullRig comme pour les DI, et même au sein
   d'une paire DI/FullRig du même son l'écart va de -7 à +10 dB (baffles basse avec tweeter). Abandonné.
+- Profil des IR : les 11 « Mix » AMPG 410 de K101 diffèrent de ±2 à ±5 dB par zone (sub, présence,
+  air) une fois comparés à la médiane du pack ; une étendue aiguë « à -6 dB » est trompée par le
+  creux vers 1 kHz des baffles basse, d'où le seuil -12 dB mesuré depuis les extrémités.
 - Les IR sont normalisées sur leur gain moyen 80 Hz–5 kHz (normaliser l'énergie totale saturait de
   +15 dB dans le grave).
 

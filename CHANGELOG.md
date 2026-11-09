@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#34)
+- Profil sonore des IR et mélanges : réponse par tiers d'octave (IR telle qu'elle est jouée),
+  mini-spectre de 12 colonnes et étiquettes relatives au pack (« sub +4 », « sombre », « air +3 »,
+  « aigus coupés à 3,9 kHz »), affichés par `models` et dans l'onglet IR de `browse`. Calculé à
+  l'import, gardé dans `library/.cache/ir-profiles.json` (par empreinte du contenu).
+- Ordre naturel des fichiers (Mix 2 avant Mix 10).
+- `browse` accepte une bibliothèque sans modèle (écoute des IR sur le son direct).
+
 ### Ajouté (#30)
 - `browse` : ligne « son direct (DI, sans modèle) » en tête de l'onglet Modèles, pour écouter les
   IR seules sur le son de la basse ; la commande affichée en sortie est alors `namfoop run -i <id>`.
