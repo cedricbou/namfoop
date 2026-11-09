@@ -18,6 +18,8 @@ Commands:
   run        Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
   render     Traite un WAV hors ligne avec la même chaîne que `run`
   bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
+  import     Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, doublons, type de capture
+  meta       Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
   models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
   browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
@@ -72,6 +74,7 @@ Exemples :
   namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
   namfoop render -m b7k -o /tmp/out.wav
   namfoop bench --all-sizes
+  namfoop import ~/Téléchargements/pack.zip
   namfoop models
 
 Réglages enregistrés dans ~/.config/namfoop/config.toml ; les options priment.
@@ -352,6 +355,144 @@ Options:
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop import
+
+```text
+Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, doublons, type de capture
+
+Usage: namfoop import [OPTIONS] <SOURCES>...
+
+Arguments:
+  <SOURCES>...
+          Zips, dossiers ou fichiers .nam / .wav à importer (un dossier de zips importe chaque zip)
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon jack]
+
+          Possible values:
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --pack <PACK>
+          Nom du pack (dossier dans la bibliothèque) [défaut : nom du zip ou du dossier]
+
+      --device <DEVICE>
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --dry-run
+          Vérifie et affiche le résultat sans rien écrire
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --library <LIBRARY>
+          Dossier de la bibliothèque
+          
+          [default: library]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop meta
+
+```text
+Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
+
+Usage: namfoop meta [OPTIONS] <MODEL>
+
+Arguments:
+  <MODEL>
+          Modèle : identifiant, chemin ou mots-clés
+
+Options:
+      --all
+          Applique à tous les modèles qui contiennent les mots-clés (ex: "fullrig")
+
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon jack]
+
+          Possible values:
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --device <DEVICE>
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --type <GEAR_TYPE>
+          Type de capture (décide s'il faut une IR)
+
+          Possible values:
+          - amp:      Ampli seul, sans baffle (DI) : une IR est nécessaire
+          - amp-cab:  Ampli + baffle (micro compris) : pas d'IR
+          - full-rig: Chaîne complète avec baffle : pas d'IR
+          - pedal:    Pédale : une IR est nécessaire
+          - preamp:   Préampli : une IR est nécessaire
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --make <MAKE>
+          Marque de l'ampli (aide au choix des IR conseillées)
+
+      --name <NAME>
+          Nom affiché
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --input-db <INPUT_DB>
+          Gain d'entrée propre au modèle (dB), ajouté à --input-db ; 0 pour l'annuler
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
+
+      --ir <IR>
+          IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --reset
+          Efface toutes les corrections de ce(s) modèle(s)
+
+      --library <LIBRARY>
+          Dossier de la bibliothèque
+          
+          [default: library]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)

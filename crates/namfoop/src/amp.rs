@@ -11,7 +11,7 @@ use dsp::ir::IrSettings;
 use dsp::nam::NamSettings;
 
 use crate::config::{LevelMode, LoadedConfig};
-use crate::library::{self, Kind, Library};
+use crate::library::{Kind, Library};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
 
 #[derive(Clone, Debug, clap::Args)]
@@ -64,7 +64,7 @@ impl AmpArgs {
         default_ir: Option<&str>,
     ) -> Result<Option<PathBuf>> {
         let Some(m) = model else { anyhow::bail!("-i auto demande un modèle (-m)") };
-        let meta = library::read_meta(m)?;
+        let meta = lib.meta(m)?;
         if needs_ir(&meta.gear_type) == NeedsIr::No {
             log::info!("-i auto : capture « {} », baffle inclus, pas d'IR", meta.gear_type);
             return Ok(None);
@@ -92,8 +92,9 @@ impl AmpArgs {
             Some(q) => Some(lib.resolve_ir(q)?),
             None => None,
         };
-        if let Some(m) = &model {
-            if let Ok(meta) = library::read_meta(m) {
+        let meta = model.as_deref().and_then(|m| lib.meta(m).ok());
+        if let (Some(m), Some(meta)) = (&model, &meta) {
+            {
                 match (needs_ir(&meta.gear_type), &ir) {
                     (NeedsIr::No, Some(_)) => log::warn!(
                         "le modèle est une capture « {} » (baffle inclus) : l'IR ajoute un 2e baffle",
@@ -102,7 +103,7 @@ impl AmpArgs {
                     (NeedsIr::Yes, None) => {
                         let entry = lib.by_path(m).cloned();
                         let sugg =
-                            entry.as_ref().map(|e| recommend(&lib, e, &meta, default_ir)).unwrap_or_default();
+                            entry.as_ref().map(|e| recommend(&lib, e, meta, default_ir)).unwrap_or_default();
                         let list: Vec<String> = sugg
                             .iter()
                             .take(3)
@@ -137,11 +138,15 @@ impl AmpArgs {
         if trim_db != 0.0 {
             log::info!("trim d'entrée {trim_db:+.1} dB");
         }
+        let model_db = meta.as_ref().and_then(|m| m.input_db).unwrap_or(0.0);
+        if model_db != 0.0 {
+            log::info!("entrée propre au modèle {model_db:+.1} dB (library/overrides.toml)");
+        }
         Ok(AmpSpec {
             trim_db,
             model,
             nam: NamSettings {
-                input_db: self.input_db,
+                input_db: self.input_db + model_db,
                 output_db: self.output_db,
                 size: self.size,
                 ..Default::default()

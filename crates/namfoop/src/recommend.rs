@@ -73,6 +73,7 @@ pub fn recommend<'a>(
         format!("{} {} {} {} {}", meta.gear_make, meta.gear_model, meta.name, model.pack, model.stem);
     let model_brands = brands_in(&model_text);
     let default = default_ir.and_then(|q| lib.resolve_ir(q).ok());
+    let preferred = meta.ir.as_deref().and_then(|q| lib.resolve_ir(q).ok());
     let mut all: Vec<Suggestion> = lib
         .entries
         .iter()
@@ -83,6 +84,10 @@ pub fn recommend<'a>(
             if e.kind == Kind::Cab {
                 score += 100;
                 why.push("ton mélange".to_string());
+            }
+            if preferred.as_deref() == Some(e.path.as_path()) {
+                score += 2000;
+                why.push("IR préférée du modèle".to_string());
             }
             if default.as_deref() == Some(e.path.as_path()) {
                 score += 1000;
@@ -151,6 +156,7 @@ mod tests {
             tone_type: String::new(),
             sizes: vec![],
             loudness: None,
+            ..Default::default()
         }
     }
 

@@ -21,7 +21,7 @@ presets, MIDI, démarrage automatique, Raspberry Pi.
 ```sh
 git clone --recurse-submodules https://github.com/cedricbou/namfoop.git && cd namfoop
 cargo build --release                         # prérequis : rustup, gcc, alsa-lib, pipewire-jack
-scripts/import-tone3000.sh nam library        # zips Tone3000 de nam/ -> library/
+./target/release/namfoop import nam/         # zips (Tone3000, packs achetés) -> library/
 ./target/release/namfoop models               # inventaire des modèles et IR
 ./target/release/namfoop setup                # une fois : carte, entrées, sorties, buffer
 ./target/release/namfoop calibrate            # une fois : joue fort 15 s
@@ -30,7 +30,8 @@ scripts/import-tone3000.sh nam library        # zips Tone3000 de nam/ -> library
 ./target/release/namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
 ```
 
-Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : `namfoop render`
+Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : `namfoop meta`
+(corriger les métadonnées d'un modèle : type de capture, gain d'entrée, IR préférée), `namfoop render`
 (traiter un WAV), `namfoop bench` (coût CPU), `namfoop latency` (mesure aller-retour),
 `namfoop ports` (ports JACK). Sans matériel : `namfoop --backend sim run -m b7k`.
 

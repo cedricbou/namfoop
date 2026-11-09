@@ -31,7 +31,13 @@ crates/namfoop/   binaire CLI
   latency.rs      mesure de latence par impulsion (câble de bouclage)
   library.rs      index de library/ (identifiants m…/i…/c…), recherche (id > chemin > mots entiers >
                   version de base), métadonnées .nam
-  recommend.rs    besoin d'IR (gear_type) et IR conseillées (marque, baffle basse, mélanges)
+  recommend.rs    besoin d'IR (gear_type) et IR conseillées (IR préférée du modèle, marque, baffle
+                  basse, mélanges)
+  import.rs       `import` : zips / dossiers -> library/{nam,ir,docs}/<pack>/, doublons par contenu,
+                  validation (modèle joué, IR lue), type de capture (nom > dossiers > métadonnées),
+                  IR fournie avec le pack
+  overrides.rs    library/overrides.toml (corrections par empreinte du contenu, jamais dans le .nam)
+                  et `meta` (afficher / corriger) ; appliqué par Library::meta partout
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
   config.rs       ~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
                   [audio] (backend, device, buffer...), [routing] (bass_in, mic_in, outputs)
@@ -47,8 +53,9 @@ docs/                     guide.md (utilisateur), cli.md (généré)
                           pr-rules.yml (issue référencée, nom de branche, CHANGELOG)
 .github/ISSUE_TEMPLATE/   modèles d'issue (fonctionnalité, bug) ; pull_request_template.md
 scripts/test-backends.sh  tests matériels sur les deux backends
-library/          modèles .nam / IR .wav de l'utilisateur (non versionné, ne pas modifier ni supprimer)
-nam/              zips Tone3000 d'origine (non versionnés, ne pas toucher)
+library/          modèles .nam / IR .wav de l'utilisateur, docs/ des packs, cabs/, overrides.toml
+                  (non versionné, ne pas modifier ni supprimer ; tests : bibliothèque jetable)
+nam/              zips d'origine : Tone3000, komposition101 (achetés) — non versionnés, ne pas toucher
 ```
 
 ## Commandes
@@ -185,6 +192,14 @@ sans entrée de changelog.
   l'utilisateur dans l'iTwo (crête ~ -12 dBFS), il a fallu -18 dB d'entrée pour retrouver le son des
   démos (Bassman 800 « presque clair », THD < 5 % jusqu'à -6 dBFS de sinus) -> cible de calibration :
   crête robuste (99,9e centile) à -30 dBFS à l'entrée des modèles.
+- Métadonnées des packs achetés (komposition101, 84 modèles) : `gear_type = amp` partout, FullRig
+  compris ; marque / modèle `T3K-Null`, `tz-make` ; pas d'`input_level_dbu` ; loudness -9 à -13 dB.
+  Seul le nom (`_DI`, `_FullRig`) ou le dossier (`Full-Rig Profiles/`) est fiable. Les mêmes IR sont
+  livrées dans plusieurs packs (25 doublons sur 266). Formats NAM 0.7.0 A2 SlimmableContainer et
+  0.5.4 WaveNet, IR float 32 bits mono/stéréo : tout se charge.
+- Deviner « baffle inclus » par le son NE MARCHE PAS en basse : pente aigus (6–10 kHz) / médium
+  (300–1500 Hz) sur bruit blanc, de -30 à -1 dB pour les FullRig comme pour les DI, et même au sein
+  d'une paire DI/FullRig du même son l'écart va de -7 à +10 dB (baffles basse avec tweeter). Abandonné.
 - Les IR sont normalisées sur leur gain moyen 80 Hz–5 kHz (normaliser l'énergie totale saturait de
   +15 dB dans le grave).
 

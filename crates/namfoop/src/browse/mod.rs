@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use crate::amp::AmpArgs;
 use crate::backend::{self, Io, Settings};
 use crate::config::LoadedConfig;
-use crate::library::{read_meta, Kind, Library};
+use crate::library::{Kind, Library};
 use crate::live::{fetch_max, take};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
 use crate::router::{Router, Routing};
@@ -88,7 +88,7 @@ pub fn index(lib: &Library, default_ir: Option<&str>) -> (Vec<Item>, Vec<Item>) 
     let models = lib
         .of_kind(Kind::Model)
         .map(|e| {
-            let meta = read_meta(&e.path).ok();
+            let meta = lib.meta(&e.path).ok();
             let (needs, detail, recommended) = match &meta {
                 Some(m) => (
                     needs_ir(&m.gear_type),
@@ -174,7 +174,7 @@ pub fn run(cfg: &Settings, conf: &LoadedConfig, library: &Path, routing: &Routin
     let lib = Library::scan(library);
     let (models, irs) = index(&lib, conf.default_ir.as_deref());
     if models.is_empty() {
-        bail!("aucun modèle dans {} : scripts/import-tone3000.sh", library.display());
+        bail!("aucun modèle dans {} : namfoop import <zip>", library.display());
     }
 
     // audio : routeur + chaîne échangeable (au départ vide = son direct)
