@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#28)
+- `import` : un fichier identique à un autre (même contenu, comparé octet par octet après
+  l'empreinte) est désormais importé et signalé au lieu d'être écarté, pour que chaque pack reste
+  complet (série de micros d'un baffle). `--skip-duplicates` rétablit l'ancien comportement. Un
+  réimport compte les fichiers « déjà présents » ; un fichier différent du même nom est refusé.
+
 ### Ajouté (#26)
 - Guide : tutoriel d'import pas à pas (import et revue, type de capture à l'oreille, gain
   d'entrée par rapport à la calibration, volume en mode `match`, corrections en masse).

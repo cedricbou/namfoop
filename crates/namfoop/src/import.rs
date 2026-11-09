@@ -31,6 +31,11 @@ pub struct ImportArgs {
     /// Vérifie et affiche le résultat sans rien écrire
     #[arg(long)]
     pub dry_run: bool,
+    /// N'importe pas un fichier identique (octet par octet) à un fichier déjà dans la bibliothèque
+    /// ou plus haut dans l'import. Par défaut il est importé quand même, pour que chaque pack
+    /// reste complet, et signalé
+    #[arg(long)]
+    pub skip_duplicates: bool,
     /// Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de
     /// capture, gain d'entrée, IR préférée (prend la carte son)
     #[arg(long)]
@@ -343,7 +348,12 @@ struct PackReport {
     models: Vec<ModelLine>,
     irs: usize,
     docs: usize,
+    /// Ignorés (`--skip-duplicates`) : identiques à un fichier existant.
     duplicates: Vec<String>,
+    /// Importés bien qu'identiques à un autre fichier : (ce fichier, l'autre).
+    twins: Vec<(String, String)>,
+    /// Déjà à leur place avec le même contenu (réimport).
+    already: usize,
     refused: Vec<String>,
     /// IR du pack (nouvelles ou déjà présentes), chemin dans la bibliothèque.
     bundled_irs: Vec<String>,
@@ -375,18 +385,22 @@ pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
         bail!("rien à importer (ni .nam, ni .wav)");
     }
 
-    // contenus déjà présents
-    // empreinte -> chemin dans la bibliothèque
-    let mut known: HashMap<String, String> = HashMap::new();
+    // contenus connus : empreinte -> (chemin dans la bibliothèque, fichier de cet import s'il en vient).
+    // L'empreinte trouve les candidats, la comparaison octet par octet confirme.
+    let mut known: HashMap<String, (String, Option<usize>)> = HashMap::new();
     let mut existing = Vec::new();
     library::walk(&a.library, "nam", &mut existing);
     library::walk(&a.library, "wav", &mut existing);
     for p in &existing {
         if let Ok(h) = library::content_hash(p) {
             let rel = p.strip_prefix(&a.library).unwrap_or(p).to_string_lossy().replace('\\', "/");
-            known.insert(h, rel);
+            known.insert(h, (rel, None));
         }
     }
+    let same_bytes = |data: &[u8], (rel, src): &(String, Option<usize>)| match src {
+        Some(i) => incoming[*i].data == data,
+        None => std::fs::read(a.library.join(rel)).is_ok_and(|b| b == data),
+    };
 
     static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let stage = Staging(std::env::temp_dir().join(format!(
@@ -398,7 +412,7 @@ pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
     let mut reports: Vec<(String, PackReport)> = Vec::new();
     let mut written = 0usize;
 
-    for f in &incoming {
+    for (index, f) in incoming.iter().enumerate() {
         if !reports.iter().any(|(p, _)| p == &f.pack) {
             reports.push((f.pack.clone(), PackReport::default()));
         }
@@ -413,16 +427,26 @@ pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
         let dest = a.library.join(&rel_path);
         let hash = bytes_hash(&f.data);
         if f.kind != FileKind::Doc {
-            if let Some(existing) = known.get(&hash) {
-                if f.kind == FileKind::Ir {
-                    rep.bundled_irs.push(existing.clone());
+            if dest.exists() {
+                if std::fs::read(&dest).is_ok_and(|b| b == f.data) {
+                    rep.already += 1;
+                    if f.kind == FileKind::Ir {
+                        rep.bundled_irs.push(rel);
+                    }
+                } else {
+                    rep.refused.push(format!("{rel} : un autre fichier porte déjà ce nom"));
                 }
-                rep.duplicates.push(rel);
                 continue;
             }
-            if dest.exists() {
-                rep.refused.push(format!("{rel} : un autre fichier porte déjà ce nom"));
-                continue;
+            if let Some(other) = known.get(&hash).filter(|k| same_bytes(&f.data, k)) {
+                if a.skip_duplicates {
+                    if f.kind == FileKind::Ir {
+                        rep.bundled_irs.push(other.0.clone());
+                    }
+                    rep.duplicates.push(rel);
+                    continue;
+                }
+                rep.twins.push((rel.clone(), other.0.clone()));
             }
         } else if dest.exists() {
             continue;
@@ -465,7 +489,7 @@ pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
             FileKind::Doc => rep.docs += 1,
         }
         if f.kind != FileKind::Doc {
-            known.insert(hash, rel.clone());
+            known.entry(hash).or_insert((rel.clone(), Some(index)));
         }
         if !a.dry_run {
             std::fs::create_dir_all(dest.parent().expect("parent"))?;
@@ -528,11 +552,11 @@ fn print_report(
     let mut doubts = Vec::new();
     for (pack, r) in reports {
         println!(
-            "[{pack}] modèles : {} nouveaux · IR : {} nouvelles · docs : {} · doublons : {} · refusés : {}",
+            "[{pack}] modèles : {} nouveaux · IR : {} nouvelles · docs : {} · déjà présents : {} · refusés : {}",
             r.models.len(),
             r.irs,
             r.docs,
-            r.duplicates.len(),
+            r.already,
             r.refused.len()
         );
         for m in &r.models {
@@ -573,12 +597,24 @@ fn print_report(
                 doubts.push(format!("{id} {name} : {d}\n      → namfoop meta {id} {fix}"));
             }
         }
+        let short = |p: &str| p.split_once(&format!("{pack}/")).map_or(p, |(_, x)| x).to_string();
+        if !r.twins.is_empty() {
+            println!(
+                "    {} fichier(s) identique(s) octet par octet à un autre, importé(s) pour garder le pack complet :",
+                r.twins.len()
+            );
+            for (f, other) in r.twins.iter().take(5) {
+                println!("      {}  =  {other}", short(f));
+            }
+            if r.twins.len() > 5 {
+                println!("      … (+{})", r.twins.len() - 5);
+            }
+        }
         if !r.duplicates.is_empty() {
-            let shown: Vec<&str> =
-                r.duplicates.iter().take(3).map(|d| d.rsplit('/').next().unwrap_or(d)).collect();
+            let shown: Vec<String> = r.duplicates.iter().take(3).map(|d| short(d)).collect();
             let more = r.duplicates.len().saturating_sub(3);
             println!(
-                "    doublons ignorés (contenu déjà présent) : {}{}",
+                "    ignorés (--skip-duplicates, contenu déjà présent) : {}{}",
                 shown.join(", "),
                 if more > 0 { format!(" … (+{more})") } else { String::new() }
             );
@@ -692,6 +728,7 @@ mod tests {
             sources: vec![z.clone()],
             pack: None,
             dry_run: dry,
+            skip_duplicates: false,
             review: false,
             library: root.clone(),
         };
@@ -700,14 +737,22 @@ mod tests {
         run(&args(false)).unwrap();
         assert!(root.join("ir/Pack K/Mixes/A.wav").is_file(), "racine commune retirée, sous-dossiers gardés");
         assert!(root.join("ir/Pack K/Mixes/B.wav").is_file());
-        assert!(!root.join("ir/Pack K/Other/A copy.wav").exists(), "doublon de contenu");
+        assert!(root.join("ir/Pack K/Other/A copy.wav").is_file(), "identique mais importé : pack complet");
         assert!(root.join("docs/Pack K/README.txt").is_file());
         assert!(!root.join("nam/Pack K/broken.nam").exists(), "modèle illisible refusé");
-        // réimport : tout est doublon, rien ne change
+        // réimport : tout est déjà en place, rien ne change
         run(&args(false)).unwrap();
         let l = Library::scan(&root);
-        assert_eq!(l.of_kind(Kind::Ir).count(), 2);
+        assert_eq!(l.of_kind(Kind::Ir).count(), 3);
         assert_eq!(l.of_kind(Kind::Ir).next().unwrap().pack, "Pack K/Mixes");
+        // --skip-duplicates : la copie identique n'est pas importée
+        let root2 = lib.join("library2");
+        let mut skip = args(false);
+        skip.library = root2.clone();
+        skip.skip_duplicates = true;
+        run(&skip).unwrap();
+        assert!(root2.join("ir/Pack K/Mixes/A.wav").is_file());
+        assert!(!root2.join("ir/Pack K/Other/A copy.wav").exists());
     }
 
     #[test]
@@ -726,6 +771,7 @@ mod tests {
             sources: vec![lib.join("Mon Pack")],
             pack: None,
             dry_run: false,
+            skip_duplicates: false,
             review: false,
             library: root.clone(),
         })
