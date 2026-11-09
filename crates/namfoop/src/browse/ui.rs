@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
-use super::state::{Editor, Field, IrChoice, IrRow, State, Tab, FIELDS};
+use super::state::{Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
 use crate::recommend::NeedsIr;
 use crate::tui::meter_width;
 
@@ -102,9 +102,24 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     let mut lines: Vec<Line> = Vec::new();
     match s.tab {
         Tab::Models => {
-            let rows = s.model_rows();
+            let rows = s.model_list();
             for i in window(rows.len(), cur, height) {
-                let m = &s.models[rows[i]];
+                let idx = match rows[i] {
+                    ModelRow::Direct => {
+                        let mut spans = vec![
+                            cursor_span(i == cur),
+                            Span::raw("       son direct (DI, sans modèle)"),
+                            Span::styled("  pour écouter une IR seule", Style::new().fg(Color::DarkGray)),
+                        ];
+                        if s.model.is_none() {
+                            spans.push(playing());
+                        }
+                        lines.push(Line::from(spans));
+                        continue;
+                    }
+                    ModelRow::Model(m) => m,
+                };
+                let m = &s.models[idx];
                 let mut spans = vec![
                     cursor_span(i == cur),
                     Span::styled(format!("{:<6}", m.id), Style::new().fg(Color::DarkGray)),
@@ -117,7 +132,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     Span::raw(m.label.to_string()),
                     Span::styled(format!("  {}  [{}]", m.detail, m.pack), Style::new().fg(Color::DarkGray)),
                 ];
-                if s.model == Some(rows[i]) {
+                if s.model == Some(idx) {
                     spans.push(playing());
                 }
                 lines.push(Line::from(spans));
@@ -195,7 +210,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
 
     let model = s
         .model
-        .map_or("aucun (son direct)".to_string(), |m| format!("{} {}", s.models[m].id, s.models[m].label));
+        .map_or("son direct (DI)".to_string(), |m| format!("{} {}", s.models[m].id, s.models[m].label));
     let ir = match s.ir {
         IrChoice::None => "aucune".to_string(),
         IrChoice::Item(i) => format!("{} {}", s.irs[i].id, s.irs[i].label),
@@ -328,16 +343,19 @@ mod tests {
     #[test]
     fn models_tab_shows_ids_badges_and_current() {
         let mut s = sample();
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down);
         s.on_key(Key::Enter);
         let t = screen(&s);
         assert!(t.contains("m002") && t.contains("IR requise") && t.contains("IR incluse"), "{t}");
         assert!(t.contains("◀ en cours") && t.contains("Powerhouse 410"), "{t}");
+        assert!(t.contains("son direct (DI, sans modèle)"), "{t}");
     }
 
     #[test]
     fn ir_tab_marks_recommended_and_blend() {
         let mut s = sample();
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down);
         s.on_key(Key::Enter);
         s.on_key(Key::Tab);
@@ -361,6 +379,7 @@ mod tests {
             eff.gear_type = "amp_cab".into();
             m.meta = Some(Box::new((eff, file)));
         }
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Char('e'));
         let t = screen(&s);
         assert!(t.contains("Modifier m001") && t.contains("◀ amp_cab ▶"), "{t}");

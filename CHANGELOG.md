@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#30)
+- `browse` : ligne « son direct (DI, sans modèle) » en tête de l'onglet Modèles, pour écouter les
+  IR seules sur le son de la basse ; la commande affichée en sortie est alors `namfoop run -i <id>`.
+
 ### Corrigé (#28)
 - `import` : un fichier identique à un autre (même contenu, comparé octet par octet après
   l'empreinte) est désormais importé et signalé au lieu d'être écarté, pour que chaque pack reste

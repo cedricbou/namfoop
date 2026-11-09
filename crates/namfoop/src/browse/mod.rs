@@ -307,6 +307,10 @@ pub fn run(
     }
     let mut first = Action::None;
     if start_with.edit {
+        // premier modèle (la ligne « son direct » est en tête sans filtre)
+        if st.model_list().first() == Some(&state::ModelRow::Direct) {
+            st.cursor[0] = 1;
+        }
         first = st.on_key(tui::Key::Char('e'));
     }
     let mut status =
