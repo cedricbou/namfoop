@@ -103,7 +103,7 @@ enum Cmd {
         #[arg(long, default_value = "library")]
         library: PathBuf,
     },
-    /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, doublons, type de capture
+    /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
     Import {
         #[command(flatten)]
         args: import::ImportArgs,

@@ -35,7 +35,8 @@ crates/namfoop/   binaire CLI
                   version de base), métadonnées .nam
   recommend.rs    besoin d'IR (gear_type) et IR conseillées (IR préférée du modèle, marque, baffle
                   basse, mélanges)
-  import.rs       `import` : zips / dossiers -> library/{nam,ir,docs}/<pack>/, doublons par contenu,
+  import.rs       `import` : zips / dossiers -> library/{nam,ir,docs}/<pack>/, fichiers identiques (empreinte puis
+                  octets) importés quand même et signalés (packs complets ; --skip-duplicates),
                   validation (modèle joué, IR lue), type de capture (nom > dossiers > métadonnées),
                   IR fournie avec le pack
   overrides.rs    library/overrides.toml (corrections par empreinte du contenu, jamais dans le .nam)
@@ -197,7 +198,8 @@ sans entrée de changelog.
 - Métadonnées des packs achetés (komposition101, 84 modèles) : `gear_type = amp` partout, FullRig
   compris ; marque / modèle `T3K-Null`, `tz-make` ; pas d'`input_level_dbu` ; loudness -9 à -13 dB.
   Seul le nom (`_DI`, `_FullRig`) ou le dossier (`Full-Rig Profiles/`) est fiable. Les mêmes IR sont
-  livrées dans plusieurs packs (25 doublons sur 266). Formats NAM 0.7.0 A2 SlimmableContainer et
+  livrées dans plusieurs packs (25 copies exactes sur 266, dont une au sein d'un même pack :
+  MBP2 Cab8_Mix2 = Cab10_Mix3). Formats NAM 0.7.0 A2 SlimmableContainer et
   0.5.4 WaveNet, IR float 32 bits mono/stéréo : tout se charge.
 - Deviner « baffle inclus » par le son NE MARCHE PAS en basse : pente aigus (6–10 kHz) / médium
   (300–1500 Hz) sur bruit blanc, de -30 à -1 dB pour les FullRig comme pour les DI, et même au sein

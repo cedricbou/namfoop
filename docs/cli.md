@@ -18,7 +18,7 @@ Commands:
   run        Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
   render     Traite un WAV hors ligne avec la même chaîne que `run`
   bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
-  import     Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, doublons, type de capture
+  import     Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
   meta       Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
   models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
@@ -366,7 +366,7 @@ Options:
 ## namfoop import
 
 ```text
-Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, doublons, type de capture
+Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
 
 Usage: namfoop import [OPTIONS] <SOURCES>...
 
@@ -395,6 +395,12 @@ Options:
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
+      --skip-duplicates
+          N'importe pas un fichier identique (octet par octet) à un fichier déjà dans la bibliothèque ou plus haut dans l'import. Par défaut il est importé quand même, pour que chaque pack reste complet, et signalé
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
 
@@ -402,9 +408,6 @@ Options:
           Dossier de la bibliothèque
           
           [default: library]
-
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]

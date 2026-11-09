@@ -207,8 +207,11 @@ Pour chaque fichier, `import` :
    `library/docs/<pack>/`. Le pack porte le nom du zip ou du dossier (ou `--pack`). Les
    sous-dossiers du pack sont gardés (`DI/`, `Full-Rig/`…), et le dossier racine du zip est retiré.
    Les fichiers parasites (`desktop.ini`, `__MACOSX`…) sont ignorés ;
-2. **écarte les doublons** : un fichier dont le **contenu** est déjà dans la bibliothèque n'est pas
-   recopié. C'est fréquent : les éditeurs glissent les mêmes IR dans plusieurs packs ;
+2. **repère les fichiers identiques** : un fichier dont le **contenu** est exactement celui d'un
+   fichier déjà dans la bibliothèque (ou ailleurs dans l'import) est **importé quand même** et
+   signalé, avec le fichier dont il est la copie. Chaque pack reste ainsi complet : une série de
+   micros d'un baffle ne perd pas un de ses fichiers parce qu'un autre pack contient le même.
+   `--skip-duplicates` ne les importe pas (bibliothèque sans copie, mais packs incomplets) ;
 3. **vérifie** : chaque modèle est chargé et joué (refusé s'il est illisible, muet ou s'il produit
    des valeurs invalides). Chaque IR est lue, et refusée si elle est vide, muette ou dure plus de
    10 s (une démo, pas une IR) ;
@@ -216,12 +219,26 @@ Pour chaque fichier, `import` :
    métadonnées fausses ;
 5. **retient l'IR du pack** : si le pack fournit des IR, la première (un mélange « Mix » de
    préférence) devient l'**IR préférée** de ses modèles sans baffle ;
-6. **résume** : identifiant, type, IR conseillée, doublons, refus et points à vérifier.
+6. **résume** : identifiant, type, IR conseillée, fichiers identiques, refus et points à vérifier.
 
-Relancer un import ne change rien : tout est reconnu comme doublon. `--dry-run` fait toutes les
+Relancer un import ne change rien : chaque fichier déjà à sa place avec le même contenu est compté
+« déjà présent » et laissé tel quel. Un fichier différent qui porterait le même nom est refusé
+(rien n'est jamais écrasé). `--dry-run` fait toutes les
 vérifications sans rien écrire. `--review` ouvre ensuite le navigateur sur les nouveaux modèles,
 éditeur ouvert, pour les écouter et les corriger ou les calibrer en jouant
 ([`browse`, touche `e`](#modifier-et-calibrer-un-modèle-e)). Il prend la carte son.
+
+**Comment deux fichiers sont reconnus identiques.** namfoop calcule une empreinte de chaque fichier
+(hash de **tous ses octets**) pour trouver les candidats, puis compare les deux fichiers **octet
+par octet**. « Identique » veut donc dire exactement le même fichier, quel que soit son nom ou son
+pack : `AMPG_SVT410_Mix1.wav` d'un pack et `AMPG 410 Mix 1.wav` d'un autre sont reconnus. À
+l'inverse, la même IR réexportée (autre format, 24 bits au lieu de 32, métadonnées ajoutées) n'est
+**pas** considérée identique : les deux sont importées sans remarque, et c'est à l'écoute de
+trancher. Des fichiers identiques au sein d'un même pack existent aussi (erreur de l'éditeur :
+dans *Massive Bass Pack 2*, `Cab8_Mix2` est la copie exacte de `Cab10_Mix3`) : l'import le signale.
+
+Pour les modèles, une copie identique partage les corrections de l'original (`library/overrides.toml`
+est indexé par contenu) : corriger l'un corrige l'autre.
 
 **Type de capture.** Les métadonnées des fichiers sont souvent incomplètes ou fausses. Certains packs
 achetés déclarent `amp` (sans baffle) même pour leurs captures FullRig, ou laissent des valeurs
@@ -281,7 +298,7 @@ référence à tous les réglages d'entrée ci-dessous.
 |---|---|---|
 | Rôle | ranger et **vérifier automatiquement** les fichiers | **écouter** et ajuster à l'oreille |
 | Carte son | non utilisée | prise (le son joue) |
-| Ce qu'il décide | rangement, doublons, fichiers refusés, type de capture d'après le nom, IR fournie avec le pack | type de capture douteux, gain d'entrée propre au modèle, IR préférée, nom, marque |
+| Ce qu'il décide | rangement, fichiers identiques signalés, fichiers refusés, type de capture d'après le nom, IR fournie avec le pack | type de capture douteux, gain d'entrée propre au modèle, IR préférée, nom, marque |
 | Quand | une fois par pack | après l'import, ou n'importe quand plus tard |
 | Obligatoire ? | oui | non : sans revue, les modèles sont jouables avec les réglages par défaut |
 
@@ -298,10 +315,11 @@ namfoop import --dry-run nam/komposition101
 Rien n'est écrit. Lis le résumé, pack par pack :
 
 ```
-[PopPunkBass_NAMA2] modèles : 52 nouveaux · IR : 0 nouvelles · docs : 2 · doublons : 13 · refusés : 0
+[PopPunkBass_NAMA2] modèles : 52 nouveaux · IR : 13 nouvelles · docs : 2 · déjà présents : 0 · refusés : 0
       -      DI/PPB_ChunkyBass_DI.nam  — sans baffle (nom « di »)
       -      Full-Rig/PPB_ChunkyBass_FullRig.nam  — baffle inclus (nom « fullrig ») → corrigé
-    doublons ignorés (contenu déjà présent) : AMPG_SVT410_Mix1.wav, … (+12)
+    13 fichier(s) identique(s) octet par octet à un autre, importé(s) pour garder le pack complet :
+      IR Bass_Variety_Starter_Pack/…/AMPG_SVT410_Mix1.wav  =  ir/EverythingBassIRBundle/K101_AMPG_SVT4x10/Mixes/AMPG 410 Mix 1.wav
 ```
 
 - **sans baffle / baffle inclus** et entre parenthèses **d'où vient la décision** (nom du fichier,
@@ -309,7 +327,9 @@ Rien n'est écrit. Lis le résumé, pack par pack :
 - **→ corrigé** : les métadonnées du fichier disaient autre chose (ici `amp` pour un FullRig) ;
   la correction sera enregistrée ;
 - **⚠ à vérifier** : rien ne permet de trancher, il faudra écouter (étape 3) ;
-- **doublons** : fichiers déjà présents (souvent les mêmes IR livrées dans plusieurs packs) ;
+- **identiques** : copies exactes d'un autre fichier (souvent les mêmes IR livrées dans plusieurs
+  packs), importées pour que le pack reste complet, avec le fichier d'origine en regard ;
+- **déjà présents** : fichiers déjà importés à cette place (réimport) ;
 - **refusés** : fichiers illisibles ou muets, avec la raison.
 
 #### Étape 2 — Importer
