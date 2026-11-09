@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#16)
+- `namfoop browse` : navigateur plein écran qui joue en direct — modèles (badge IR incluse /
+  requise), IR conseillées en tête, filtre, écoute après 150 ms d'arrêt, création de mélanges à
+  l'oreille (gain, polarité, alignement) sauvés dans `library/cabs/`, commande équivalente à la
+  sortie.
+- Changement de chaîne à chaud sans clic (`dsp::swap`, fondu de 20 ms), réutilisable par les presets.
+
 ### Ajouté (#15)
 - Mélanges d'IR (`library/cabs/*.cab.toml`) : plusieurs micros / positions avec gain, alignement
   temporel automatique et polarité, calculés au chargement (coût live = une IR) ; identifiants

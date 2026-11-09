@@ -33,19 +33,7 @@ impl Step {
     }
 }
 
-/// Touches, indépendantes de crossterm.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Key {
-    Up,
-    Down,
-    Left,
-    Right,
-    Enter,
-    Tab,
-    Esc,
-    Backspace,
-    Char(char),
-}
+pub use crate::tui::Key;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DeviceInfo {

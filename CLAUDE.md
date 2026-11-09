@@ -12,12 +12,18 @@ crates/nam-sys/   FFI vers NeuralAmpModelerCore (sous-module vendor/, C++20, com
   shim/           API C (nam_shim.h/.cpp) : load, reset, process (f32 <-> double), loudness, slimmable
 crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolver), gain.rs, limiter.rs,
                   chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs,
-                  blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement)
+                  blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement),
+                  swap.rs (changement de chaîne à chaud : SwapHandle envoie une Chain construite,
+                  SwapChain fond en ~20 ms, l'ancienne repart vers le contrôle — jamais libérée en RT)
   tests/          propriétés de chaîne (indépendance au bloc) et absence d'allocation (assert_no_alloc)
 crates/namfoop/   binaire CLI
   backend/        mod.rs (trait Io : canaux dynamiques ; Processor ; AudioArgs -> Settings), jack.rs,
                   alsa.rs (direct, streams liés, probe), sim.rs (carte simulée), rt.rs
   router.rs       routage temps réel : entrée basse -> chaîne -> sorties (processed/di/mic/mute)
+  tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
+                  redirigé, terminal restauré), meter, screen_text (tests)
+  browse/         `browse` : state.rs (logique pure + horloge fournie, testée), ui.rs (TestBackend),
+                  mod.rs (index, audio routeur + SwapChain, thread de construction des chaînes)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                   audio.rs (vumètres, bip, test des buffers), devices.rs (cartes par backend)
   live.rs         `run` : chaîne en temps réel, vumètre, charge DSP
@@ -62,8 +68,10 @@ nam/              zips Tone3000 d'origine (non versionnés, ne pas toucher)
 - `render`, `run`, `calibrate`, `latency` et `setup` lisent la config de l'utilisateur (carte,
   routage, trim...) : pour des résultats reproductibles (tests, comparaisons), toujours passer
   l'option globale `--no-config` (elle empêche aussi toute écriture).
-- `setup` est plein écran : pour le tester de bout en bout, le piloter dans un pseudo-terminal
-  (Python `pty`) avec `--no-config --backend sim` ; la logique se teste dans `setup::state`.
+- `setup` et `browse` sont plein écran : pour les tester de bout en bout, les piloter dans un
+  pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
+  JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
+  `library/` de l'utilisateur. La logique se teste dans `setup::state` / `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.

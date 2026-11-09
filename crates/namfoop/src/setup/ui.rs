@@ -8,30 +8,7 @@ use ratatui::Frame;
 
 use super::state::{BufferTest, State, Step, BACKENDS};
 
-const BAR: usize = 24;
-
-fn db(x: f32) -> f32 {
-    20.0 * x.max(1e-9).log10()
-}
-
-/// Barre de niveau -60..0 dBFS, colorée vert / jaune (> -12) / rouge (> -3).
-pub fn meter(level: f32) -> Vec<Span<'static>> {
-    let d = db(level);
-    let filled = (((d + 60.0) / 60.0).clamp(0.0, 1.0) * BAR as f32).round() as usize;
-    let color = if d > -3.0 {
-        Color::Red
-    } else if d > -12.0 {
-        Color::Yellow
-    } else {
-        Color::Green
-    };
-    let text = if level <= 1e-6 { "  -inf".to_string() } else { format!("{d:>6.1}") };
-    vec![
-        Span::styled("█".repeat(filled), Style::new().fg(color)),
-        Span::styled("░".repeat(BAR - filled), Style::new().fg(Color::DarkGray)),
-        Span::raw(format!(" {text} dB")),
-    ]
-}
+use crate::tui::meter;
 
 fn cursor(on: bool) -> Span<'static> {
     if on {
@@ -224,21 +201,9 @@ impl BoldIf for Style {
 mod tests {
     use super::super::state::{DeviceInfo, Key};
     use super::*;
-    use ratatui::backend::TestBackend;
-    use ratatui::Terminal;
 
     fn screen(s: &State) -> String {
-        let mut t = Terminal::new(TestBackend::new(100, 24)).unwrap();
-        t.draw(|f| render(s, f)).unwrap();
-        let buf = t.backend().buffer().clone();
-        let mut out = String::new();
-        for y in 0..buf.area.height {
-            for x in 0..buf.area.width {
-                out.push_str(buf[(x, y)].symbol());
-            }
-            out.push('\n');
-        }
-        out
+        crate::tui::screen_text(100, 24, |f| render(s, f))
     }
 
     #[test]
@@ -277,13 +242,5 @@ mod tests {
             txt.contains("PreSonus AudioBox iTwo (hw:iTwo)") && txt.contains("basse     entrée 1"),
             "{txt}"
         );
-    }
-
-    #[test]
-    fn meter_colors_and_width() {
-        let spans = meter(1.0);
-        assert_eq!(spans[0].content.chars().count(), BAR);
-        assert_eq!(spans[0].style.fg, Some(Color::Red));
-        assert_eq!(meter(0.01)[0].style.fg, Some(Color::Green));
     }
 }

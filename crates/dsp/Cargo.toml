@@ -12,6 +12,7 @@ hound = "3.5"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 toml = "1"
+rtrb.workspace = true
 log.workspace = true
 
 [dev-dependencies]
