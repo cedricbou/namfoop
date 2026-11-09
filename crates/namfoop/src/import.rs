@@ -31,6 +31,10 @@ pub struct ImportArgs {
     /// Vérifie et affiche le résultat sans rien écrire
     #[arg(long)]
     pub dry_run: bool,
+    /// Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de
+    /// capture, gain d'entrée, IR préférée (prend la carte son)
+    #[arg(long)]
+    pub review: bool,
     /// Dossier de la bibliothèque
     #[arg(long, default_value = "library")]
     pub library: PathBuf,
@@ -360,7 +364,8 @@ struct ModelLine {
     note: Option<String>,
 }
 
-pub fn run(a: &ImportArgs) -> Result<()> {
+/// Importe ; renvoie les modèles ajoutés (chemins relatifs à la bibliothèque).
+pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
     let mut incoming = Vec::new();
     let mut skipped = Vec::new();
     for s in &a.sources {
@@ -508,7 +513,8 @@ pub fn run(a: &ImportArgs) -> Result<()> {
         overrides.save(&a.library)?;
     }
 
-    print_report(a, &reports, &skipped, corrected, written)
+    print_report(a, &reports, &skipped, corrected, written)?;
+    Ok(reports.iter().flat_map(|(_, r)| r.models.iter().map(|m| m.rel.clone())).collect())
 }
 
 fn print_report(
@@ -595,7 +601,10 @@ fn print_report(
         );
     }
     if !doubts.is_empty() {
-        println!("\nÀ vérifier ({}) — écoute avec `namfoop browse`, puis corrige :", doubts.len());
+        println!(
+            "\nÀ vérifier ({}) — écoute et corrige à l'écran (`namfoop browse`, touche e), ou :",
+            doubts.len()
+        );
         for d in doubts {
             println!("  {d}");
         }
@@ -679,8 +688,13 @@ mod tests {
             ],
         );
         let root = lib.join("library");
-        let args =
-            |dry| ImportArgs { sources: vec![z.clone()], pack: None, dry_run: dry, library: root.clone() };
+        let args = |dry| ImportArgs {
+            sources: vec![z.clone()],
+            pack: None,
+            dry_run: dry,
+            review: false,
+            library: root.clone(),
+        };
         run(&args(true)).unwrap();
         assert!(!root.exists(), "--dry-run n'écrit rien");
         run(&args(false)).unwrap();
@@ -712,6 +726,7 @@ mod tests {
             sources: vec![lib.join("Mon Pack")],
             pack: None,
             dry_run: false,
+            review: false,
             library: root.clone(),
         })
         .unwrap();

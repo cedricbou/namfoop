@@ -103,6 +103,15 @@ impl Overrides {
         self.model.is_empty()
     }
 
+    /// Remplace la correction du modèle `hash` (supprimée si elle est vide).
+    pub fn set(&mut self, hash: &str, o: ModelOverride) {
+        if o.is_empty() {
+            self.model.remove(hash);
+        } else {
+            self.model.insert(hash.to_string(), o);
+        }
+    }
+
     /// Fusionne `o` dans la correction du modèle `hash` (les champs `None` de `o` sont gardés).
     pub fn merge(&mut self, hash: &str, o: ModelOverride) {
         let e = self.model.entry(hash.to_string()).or_default();

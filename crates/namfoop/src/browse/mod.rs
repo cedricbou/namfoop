@@ -20,12 +20,13 @@ use std::time::{Duration, Instant};
 use crate::amp::AmpArgs;
 use crate::backend::{self, Io, Settings};
 use crate::config::LoadedConfig;
-use crate::library::{Kind, Library};
+use crate::library::{content_hash, Kind, Library};
 use crate::live::{fetch_max, take};
+use crate::overrides::{ModelOverride, Overrides};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
 use crate::router::{Router, Routing};
 use crate::tui;
-use state::{Action, BlendPart, IrChoice, Item, State};
+use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
 const FADE_MS: f32 = 20.0;
@@ -82,38 +83,80 @@ pub fn index(lib: &Library, default_ir: Option<&str>) -> (Vec<Item>, Vec<Item>) 
                 detail: String::new(),
                 needs: NeedsIr::Maybe,
                 recommended: Vec::new(),
+                meta: None,
             });
         }
     }
-    let models = lib
-        .of_kind(Kind::Model)
-        .map(|e| {
-            let meta = lib.meta(&e.path).ok();
-            let (needs, detail, recommended) = match &meta {
-                Some(m) => (
-                    needs_ir(&m.gear_type),
-                    format!("{} {}", m.gear_type, m.tone_type),
-                    recommend(lib, e, m, default_ir)
-                        .iter()
-                        .take(8)
-                        .filter_map(|s| by_rel.get(&s.entry.rel).copied())
-                        .collect(),
-                ),
-                None => (NeedsIr::Maybe, "illisible".into(), Vec::new()),
-            };
-            Item {
-                id: e.id.clone(),
-                label: e.stem.clone(),
-                pack: e.pack.clone(),
-                path: e.path.clone(),
-                rel: e.rel.clone(),
-                detail,
-                needs,
-                recommended,
-            }
-        })
-        .collect();
+    let models = lib.of_kind(Kind::Model).map(|e| model_item(lib, e, default_ir, &by_rel)).collect();
     (models, irs)
+}
+
+/// Ligne d'un modèle : badge IR, IR conseillées, métadonnées (corrigées et du fichier).
+fn model_item(
+    lib: &Library,
+    e: &crate::library::Entry,
+    default_ir: Option<&str>,
+    by_rel: &HashMap<String, usize>,
+) -> Item {
+    let ir_index = |q: &str| {
+        lib.resolve_ir(q).ok().and_then(|p| lib.by_path(&p)).and_then(|x| by_rel.get(&x.rel)).copied()
+    };
+    let (needs, detail, recommended, meta) = match (lib.meta(&e.path), crate::library::read_meta(&e.path)) {
+        (Ok(m), Ok(raw)) => {
+            let edit = |x: &crate::library::NamMeta, ir: Option<usize>| ModelMeta {
+                gear_type: x.gear_type.clone(),
+                make: x.gear_make.clone(),
+                name: x.name.clone(),
+                input_db: x.input_db.unwrap_or(0.0),
+                ir,
+            };
+            let pref = m.ir.as_deref().and_then(ir_index);
+            (
+                needs_ir(&m.gear_type),
+                format!("{} {}", if m.gear_type.is_empty() { "type ?" } else { &m.gear_type }, m.tone_type),
+                recommend(lib, e, &m, default_ir)
+                    .iter()
+                    .take(8)
+                    .filter_map(|s| by_rel.get(&s.entry.rel).copied())
+                    .collect(),
+                Some(Box::new((edit(&m, pref), edit(&raw, None)))),
+            )
+        }
+        _ => (NeedsIr::Maybe, "illisible".into(), Vec::new(), None),
+    };
+    Item {
+        id: e.id.clone(),
+        label: e.stem.clone(),
+        pack: e.pack.clone(),
+        path: e.path.clone(),
+        rel: e.rel.clone(),
+        detail,
+        needs,
+        recommended,
+        meta,
+    }
+}
+
+/// Enregistre les métadonnées éditées (différences avec le fichier) dans `library/overrides.toml`.
+fn save_meta(library: &Path, st: &State, edits: &[(usize, ModelMeta)]) -> Result<()> {
+    let mut ov = Overrides::load(library)?;
+    for (i, draft) in edits {
+        let item = &st.models[*i];
+        let file = item.meta.as_ref().map(|b| b.1.clone()).unwrap_or_default();
+        let diff = |a: &String, b: &String| (a != b).then(|| a.clone());
+        let o = ModelOverride {
+            file: Some(item.rel.clone()),
+            gear_type: diff(&draft.gear_type, &file.gear_type),
+            gear_make: diff(&draft.make, &file.make),
+            name: diff(&draft.name, &file.name),
+            input_db: (draft.input_db != 0.0).then_some(draft.input_db),
+            ir: draft.ir.map(|x| st.irs[x].rel.clone()),
+            note: Some("namfoop browse".into()),
+            ..Default::default()
+        };
+        ov.set(&content_hash(&item.path)?, o);
+    }
+    ov.save(library)
 }
 
 fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
@@ -138,6 +181,8 @@ fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
 struct Request {
     model: Option<PathBuf>,
     ir: Option<PathBuf>,
+    /// Gain d'entrée en plus (essai en cours dans l'éditeur).
+    input_db: f32,
 }
 
 enum Built {
@@ -149,7 +194,7 @@ fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
     AmpArgs {
         model: req.model.as_ref().map(|p| p.display().to_string()),
         ir: req.ir.as_ref().map(|p| p.display().to_string()),
-        input_db: 0.0,
+        input_db: req.input_db,
         output_db: 0.0,
         trim: None,
         level: None,
@@ -170,9 +215,30 @@ struct Meters {
     limiter: Arc<AtomicU32>,
 }
 
-pub fn run(cfg: &Settings, conf: &LoadedConfig, library: &Path, routing: &Routing, size: f64) -> Result<()> {
+/// Ce que le navigateur montre au départ.
+#[derive(Default)]
+pub struct Start<'a> {
+    /// Filtre initial.
+    pub filter: Option<&'a str>,
+    /// Seulement ces modèles (chemins relatifs) : revue après `import --review`.
+    pub only: Option<&'a [String]>,
+    /// Ouvre l'éditeur sur le premier modèle.
+    pub edit: bool,
+}
+
+pub fn run(
+    cfg: &Settings,
+    conf: &LoadedConfig,
+    library: &Path,
+    routing: &Routing,
+    size: f64,
+    start_with: Start,
+) -> Result<()> {
     let lib = Library::scan(library);
-    let (models, irs) = index(&lib, conf.default_ir.as_deref());
+    let (mut models, irs) = index(&lib, conf.default_ir.as_deref());
+    if let Some(only) = start_with.only {
+        models.retain(|m| only.contains(&m.rel));
+    }
     if models.is_empty() {
         bail!("aucun modèle dans {} : namfoop import <zip>", library.display());
     }
@@ -236,6 +302,13 @@ pub fn run(cfg: &Settings, conf: &LoadedConfig, library: &Path, routing: &Routin
 
     let audition = std::env::temp_dir().join(format!("namfoop-audition-{}.cab.toml", std::process::id()));
     let mut st = State::new(models, irs);
+    if let Some(f) = start_with.filter {
+        st.filter = f.to_string();
+    }
+    let mut first = Action::None;
+    if start_with.edit {
+        first = st.on_key(tui::Key::Char('e'));
+    }
     let mut status =
         ui::Status { device: format!("{} — Échap pour quitter", stream_label(cfg)), ..Default::default() };
     let mut saved: Option<(String, Vec<BlendPart>, bool)> = None; // (id, mélange sauvé, align)
@@ -243,7 +316,10 @@ pub fn run(cfg: &Settings, conf: &LoadedConfig, library: &Path, routing: &Routin
     let mut session = tui::Session::start()?;
     let result = (|| -> Result<()> {
         loop {
-            let mut action = st.tick(start.elapsed().as_millis() as u64);
+            let mut action = std::mem::replace(&mut first, Action::None);
+            if action == Action::None {
+                action = st.tick(start.elapsed().as_millis() as u64);
+            }
             if action == Action::None {
                 if let Some(k) = tui::poll_key(Duration::from_millis(30))? {
                     action = st.on_key(k);
@@ -261,8 +337,30 @@ pub fn run(cfg: &Settings, conf: &LoadedConfig, library: &Path, routing: &Routin
                             Some(audition.clone())
                         }
                     };
-                    let _ = tx_req.send(Request { model: model.map(|m| st.models[m].path.clone()), ir });
+                    let _ = tx_req.send(Request {
+                        model: model.map(|m| st.models[m].path.clone()),
+                        ir,
+                        input_db: st.input_offset(),
+                    });
                     status.loading = true;
+                }
+                Action::SaveMeta(edits) => {
+                    if let Err(e) = save_meta(library, &st, &edits) {
+                        st.message = Some(format!("enregistrement impossible : {e:#}"));
+                    } else {
+                        let lib = Library::scan(library);
+                        let by_rel: HashMap<String, usize> =
+                            st.irs.iter().enumerate().map(|(i, x)| (x.rel.clone(), i)).collect();
+                        for (i, _) in &edits {
+                            if let Some(e) = lib.by_path(&st.models[*i].path) {
+                                st.models[*i] = model_item(&lib, e, conf.default_ir.as_deref(), &by_rel);
+                            }
+                        }
+                        // la chaîne relit la correction enregistrée
+                        if st.model.is_some_and(|m| edits.iter().any(|(i, _)| *i == m)) {
+                            first = Action::Play { model: st.model, ir: st.ir };
+                        }
+                    }
                 }
                 Action::SaveBlend(name) => {
                     let file =
@@ -282,6 +380,7 @@ pub fn run(cfg: &Settings, conf: &LoadedConfig, library: &Path, routing: &Routin
             status.in_peak = take_decay(status.in_peak, &meters.in_peak);
             status.out_peak = take_decay(status.out_peak, &meters.out_peak);
             status.load = take(&meters.load).max(status.load * 0.9);
+            status.limiter = take(&meters.limiter).max(status.limiter * 0.85);
             status.xruns = stream.stats().xruns();
             session.terminal.draw(|f| ui::render(&st, &status, f))?;
         }

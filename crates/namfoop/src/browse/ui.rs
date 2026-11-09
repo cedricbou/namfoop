@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
-use super::state::{IrChoice, IrRow, State, Tab};
+use super::state::{Editor, Field, IrChoice, IrRow, State, Tab, FIELDS};
 use crate::recommend::NeedsIr;
 use crate::tui::meter_width;
 
@@ -16,6 +16,8 @@ pub struct Status {
     pub in_peak: f32,
     pub out_peak: f32,
     pub load: f32,
+    /// Réduction de gain du limiteur (dB).
+    pub limiter: f32,
     pub xruns: u64,
     pub loading: bool,
     pub device: String,
@@ -107,7 +109,12 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     cursor_span(i == cur),
                     Span::styled(format!("{:<6}", m.id), Style::new().fg(Color::DarkGray)),
                     badge(m.needs),
-                    Span::raw(format!(" {}", m.label)),
+                    if m.corrected() {
+                        Span::styled("✎", Style::new().fg(Color::Magenta))
+                    } else {
+                        Span::raw(" ")
+                    },
+                    Span::raw(m.label.to_string()),
                     Span::styled(format!("  {}  [{}]", m.detail, m.pack), Style::new().fg(Color::DarkGray)),
                 ];
                 if s.model == Some(rows[i]) {
@@ -180,7 +187,11 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             )));
         }
     }
-    f.render_widget(Paragraph::new(lines).block(Block::bordered()), body);
+    if let Some(ed) = &s.editor {
+        render_editor(s, ed, f, body);
+    } else {
+        f.render_widget(Paragraph::new(lines).block(Block::bordered()), body);
+    }
 
     let model = s
         .model
@@ -194,6 +205,11 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     meters.extend(meter_width(st.in_peak, 12));
     meters.push(Span::raw("   out "));
     meters.extend(meter_width(st.out_peak, 12));
+    meters.push(Span::raw(if st.limiter > 0.05 {
+        format!("   lim -{:.1} dB", st.limiter)
+    } else {
+        "   lim    -   ".to_string()
+    }));
     meters.push(Span::raw(format!("   dsp {:>4.0} %  xruns {}", st.load * 100.0, st.xruns)));
     if st.loading {
         meters.push(Span::styled("  chargement…", Style::new().fg(Color::Yellow)));
@@ -214,9 +230,15 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     );
 
     let keys = match (s.naming.is_some(), s.filtering, s.tab) {
+        _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
+            "tape le texte   Entrée valider   Échap annuler"
+        }
+        _ if s.editor.is_some() => {
+            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer aux modèles filtrés   Échap fermer"
+        }
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler",
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre",
-        (_, _, Tab::Models) => "↑↓ écouter   / filtrer   Tab → IR   q quitter",
+        (_, _, Tab::Models) => "↑↓ écouter   e modifier / calibrer   / filtrer   Tab → IR   q quitter",
         (_, _, Tab::Irs) => "↑↓ écouter   espace ajouter au mélange   / filtrer   Tab → mélange   q quitter",
         (_, _, Tab::Blend) => {
             "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Tab   q"
@@ -226,6 +248,71 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         Paragraph::new(Line::from(Span::styled(format!(" {keys}"), Style::new().fg(Color::DarkGray)))),
         foot,
     );
+}
+
+fn type_help(t: &str) -> &'static str {
+    match crate::recommend::needs_ir(t) {
+        crate::recommend::NeedsIr::No => "baffle inclus : pas d'IR",
+        crate::recommend::NeedsIr::Yes => "sans baffle : IR requise",
+        crate::recommend::NeedsIr::Maybe => "inconnu",
+    }
+}
+
+/// Panneau d'édition : métadonnées du modèle en écoute, valeur du fichier en regard.
+fn render_editor(s: &State, ed: &Editor, f: &mut Frame, area: ratatui::layout::Rect) {
+    let item = &s.models[ed.model];
+    let file = item.meta.as_ref().map(|b| b.1.clone()).unwrap_or_default();
+    let d = &ed.draft;
+    let or_q = |v: &str| if v.is_empty() { "?".to_string() } else { v.to_string() };
+    let ir_name = |i: Option<usize>| {
+        i.map_or("aucune (conseil automatique)".to_string(), |i| {
+            format!("{} {}", s.irs[i].id, s.irs[i].label)
+        })
+    };
+    let mut lines = vec![Line::raw("")];
+    for (k, field) in FIELDS.iter().enumerate() {
+        let on = k == ed.field;
+        let typing = |v: &str| match (&ed.typing, on) {
+            (Some(t), true) => format!("{t}█"),
+            _ => or_q(v),
+        };
+        let (label, value, hint) = match field {
+            Field::Type => (
+                "Type de capture",
+                format!("◀ {} ▶", or_q(&d.gear_type)),
+                format!("{}   (fichier : {})", type_help(&d.gear_type), or_q(&file.gear_type)),
+            ),
+            Field::Input => (
+                "Entrée",
+                format!("◀ {:+.0} dB ▶", d.input_db),
+                "plus = plus de saturation ; s'ajoute à --input-db".to_string(),
+            ),
+            Field::Ir => (
+                "IR préférée",
+                format!("◀ {} ▶", ir_name(d.ir)),
+                "Entrée : prendre l'IR en écoute ; x : aucune".to_string(),
+            ),
+            Field::Make => ("Marque", typing(&d.make), format!("(fichier : {})", or_q(&file.make))),
+            Field::Name => ("Nom", typing(&d.name), format!("(fichier : {})", or_q(&file.name))),
+        };
+        let style = if on { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::new() };
+        lines.push(Line::from(vec![
+            cursor_span(on),
+            Span::styled(format!("{label:<16}"), style),
+            Span::styled(format!("{value:<40}"), style),
+            Span::styled(format!(" {hint}"), Style::new().fg(Color::DarkGray)),
+        ]));
+    }
+    lines.push(Line::raw(""));
+    for t in [
+        "Joue en réglant l'entrée jusqu'au grain voulu (vumètre out et limiteur en bas).",
+        "Baffle inclus ou non ? Compare l'IR « aucune » et une IR : avec un baffle en double, le son",
+        "devient sourd et étouffé ; sans baffle ni IR, il est criard et bourdonnant.",
+    ] {
+        lines.push(Line::from(Span::styled(format!("   {t}"), Style::new().fg(Color::DarkGray))));
+    }
+    let title = format!(" Modifier {} {}  [{}] ", item.id, item.label, item.pack);
+    f.render_widget(Paragraph::new(lines).block(Block::bordered().title(title)), area);
 }
 
 #[cfg(test)]
@@ -263,6 +350,24 @@ mod tests {
         s.on_key(Key::Tab);
         let t = screen(&s);
         assert!(t.contains("alignement automatique : oui") && t.contains("p polarité"), "{t}");
+    }
+
+    #[test]
+    fn editor_panel_shows_fields_and_file_values() {
+        let mut s = sample();
+        for m in s.models.iter_mut() {
+            let file = super::super::state::ModelMeta { gear_type: "amp".into(), ..Default::default() };
+            let mut eff = file.clone();
+            eff.gear_type = "amp_cab".into();
+            m.meta = Some(Box::new((eff, file)));
+        }
+        s.on_key(Key::Char('e'));
+        let t = screen(&s);
+        assert!(t.contains("Modifier m001") && t.contains("◀ amp_cab ▶"), "{t}");
+        assert!(t.contains("baffle inclus : pas d'IR") && t.contains("(fichier : amp)"), "{t}");
+        assert!(t.contains("s enregistrer"), "{t}");
+        s.on_key(Key::Esc);
+        assert!(screen(&s).contains("✎"), "modèle corrigé marqué");
     }
 
     #[test]

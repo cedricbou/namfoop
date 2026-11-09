@@ -30,6 +30,51 @@ pub struct Item {
     pub needs: NeedsIr,
     /// Modèles : index des IR conseillées, meilleure d'abord.
     pub recommended: Vec<usize>,
+    /// Modèles : métadonnées effectives (corrections comprises) et celles du fichier.
+    pub meta: Option<Box<(ModelMeta, ModelMeta)>>,
+}
+
+impl Item {
+    /// Le modèle porte des corrections de l'utilisateur.
+    pub fn corrected(&self) -> bool {
+        self.meta.as_ref().is_some_and(|m| m.0 != m.1)
+    }
+}
+
+/// Métadonnées modifiables d'un modèle (éditeur `e`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ModelMeta {
+    pub gear_type: String,
+    pub make: String,
+    pub name: String,
+    /// Gain d'entrée propre au modèle (dB).
+    pub input_db: f32,
+    /// IR préférée (index dans `irs`).
+    pub ir: Option<usize>,
+}
+
+/// Types de capture proposés par l'éditeur.
+pub const GEAR_TYPES: &[&str] = &["amp", "amp_cab", "full_rig", "pedal", "preamp"];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Field {
+    Type,
+    Input,
+    Ir,
+    Make,
+    Name,
+}
+
+pub const FIELDS: [Field; 5] = [Field::Type, Field::Input, Field::Ir, Field::Make, Field::Name];
+
+/// Éditeur des métadonnées du modèle en écoute.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Editor {
+    pub model: usize,
+    pub field: usize,
+    pub draft: ModelMeta,
+    /// Saisie de texte en cours (marque, nom).
+    pub typing: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,8 +101,13 @@ pub enum IrRow {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Action {
     None,
-    Play { model: Option<usize>, ir: IrChoice },
+    Play {
+        model: Option<usize>,
+        ir: IrChoice,
+    },
     SaveBlend(String),
+    /// Enregistre les métadonnées de ces modèles (`library/overrides.toml`).
+    SaveMeta(Vec<(usize, ModelMeta)>),
     Quit,
 }
 
@@ -73,6 +123,7 @@ pub struct State {
     pub blend: Vec<BlendPart>,
     pub align: bool,
     pub naming: Option<String>,
+    pub editor: Option<Editor>,
     pub message: Option<String>,
     pending: Option<u64>,
     now: u64,
@@ -97,6 +148,7 @@ impl State {
             blend: Vec::new(),
             align: true,
             naming: None,
+            editor: None,
             message: None,
             pending: None,
             now: 0,
@@ -214,7 +266,156 @@ impl State {
         self.moved();
     }
 
+    /// Gain d'entrée à ajouter à l'écoute : brouillon de l'éditeur moins la valeur enregistrée
+    /// (déjà appliquée par la chaîne).
+    pub fn input_offset(&self) -> f32 {
+        match &self.editor {
+            Some(e) if self.model == Some(e.model) => e.draft.input_db - self.saved_meta(e.model).input_db,
+            _ => 0.0,
+        }
+    }
+
+    pub fn saved_meta(&self, m: usize) -> ModelMeta {
+        self.models[m].meta.as_ref().map(|b| b.0.clone()).unwrap_or_default()
+    }
+
+    /// Choix d'IR proposés par l'éditeur : aucune, la préférée, puis les conseillées.
+    pub fn ir_options(&self, m: usize, current: Option<usize>) -> Vec<Option<usize>> {
+        let mut v = vec![None];
+        for i in current.into_iter().chain(self.models[m].recommended.iter().copied().take(8)) {
+            if !v.contains(&Some(i)) {
+                v.push(Some(i));
+            }
+        }
+        v
+    }
+
+    fn open_editor(&mut self) -> Action {
+        let Some(&m) = self.model_rows().get(self.cursor()) else { return Action::None };
+        let draft = self.saved_meta(m);
+        let mut action = Action::None;
+        if self.model != Some(m) {
+            action = self.select_current();
+        }
+        if let Some(i) = draft.ir {
+            if self.ir != IrChoice::Item(i) {
+                self.ir = IrChoice::Item(i);
+                action = self.play();
+            }
+        }
+        self.editor = Some(Editor { model: m, field: 0, draft, typing: None });
+        self.message = None;
+        action
+    }
+
+    fn editor_key(&mut self, key: Key) -> Action {
+        let Some(ed) = self.editor.as_mut() else { return Action::None };
+        if let Some(text) = ed.typing.as_mut() {
+            match key {
+                Key::Enter => {
+                    let t = text.trim().to_string();
+                    match FIELDS[ed.field] {
+                        Field::Make => ed.draft.make = t,
+                        Field::Name => ed.draft.name = t,
+                        _ => {}
+                    }
+                    ed.typing = None;
+                }
+                Key::Esc => ed.typing = None,
+                Key::Backspace => {
+                    text.pop();
+                }
+                Key::Char(c) => text.push(c),
+                _ => {}
+            }
+            return Action::None;
+        }
+        let m = ed.model;
+        match key {
+            Key::Esc | Key::Char('q') => {
+                let revert = ed.draft.input_db != self.saved_meta(m).input_db;
+                self.editor = None;
+                if revert {
+                    return self.play();
+                }
+            }
+            Key::Up => ed.field = ed.field.saturating_sub(1),
+            Key::Down | Key::Tab => ed.field = (ed.field + 1).min(FIELDS.len() - 1),
+            Key::Left | Key::Right | Key::Char('+') | Key::Char('-') | Key::Char('=') => {
+                let dir: i32 = if matches!(key, Key::Left | Key::Char('-')) { -1 } else { 1 };
+                match FIELDS[ed.field] {
+                    Field::Type => {
+                        let pos = GEAR_TYPES.iter().position(|t| *t == ed.draft.gear_type);
+                        let n = GEAR_TYPES.len() as i32;
+                        let next = match pos {
+                            Some(p) => (p as i32 + dir).rem_euclid(n),
+                            None => 0,
+                        };
+                        ed.draft.gear_type = GEAR_TYPES[next as usize].to_string();
+                    }
+                    Field::Input => {
+                        ed.draft.input_db = (ed.draft.input_db + dir as f32).clamp(-36.0, 24.0);
+                        return self.play();
+                    }
+                    Field::Ir => {
+                        let cur = ed.draft.ir;
+                        let saved = self.saved_meta(m).ir;
+                        let opts = self.ir_options(m, saved.or(cur));
+                        let pos = opts.iter().position(|o| *o == cur).unwrap_or(0) as i32;
+                        let next = opts[(pos + dir).rem_euclid(opts.len() as i32) as usize];
+                        let ed = self.editor.as_mut().expect("ouvert");
+                        ed.draft.ir = next;
+                        self.ir = next.map_or(IrChoice::None, IrChoice::Item);
+                        return self.play();
+                    }
+                    Field::Make | Field::Name => {}
+                }
+            }
+            Key::Enter => match FIELDS[ed.field] {
+                Field::Make => ed.typing = Some(ed.draft.make.clone()),
+                Field::Name => ed.typing = Some(ed.draft.name.clone()),
+                Field::Ir => {
+                    // prend l'IR en écoute (choisie dans l'onglet IR) comme préférée
+                    if let IrChoice::Item(i) = self.ir {
+                        ed.draft.ir = Some(i);
+                    }
+                }
+                _ => {}
+            },
+            Key::Char('x') if FIELDS[ed.field] == Field::Ir => ed.draft.ir = None,
+            Key::Char('s') => {
+                let draft = ed.draft.clone();
+                self.editor = None;
+                self.message = Some(format!("{} enregistré", self.models[m].id));
+                return Action::SaveMeta(vec![(m, draft)]);
+            }
+            Key::Char('a') => {
+                // type et entrée appliqués à tous les modèles visibles (filtre)
+                let draft = ed.draft.clone();
+                let (t, db) = (draft.gear_type.clone(), draft.input_db);
+                let rows = self.model_rows();
+                let all: Vec<(usize, ModelMeta)> = rows
+                    .iter()
+                    .map(|&i| {
+                        let mut meta = if i == m { draft.clone() } else { self.saved_meta(i) };
+                        meta.gear_type = t.clone();
+                        meta.input_db = db;
+                        (i, meta)
+                    })
+                    .collect();
+                self.editor = None;
+                self.message = Some(format!("type « {t} » et entrée {db:+.0} dB : {} modèles", all.len()));
+                return Action::SaveMeta(all);
+            }
+            _ => {}
+        }
+        Action::None
+    }
+
     pub fn on_key(&mut self, key: Key) -> Action {
+        if self.editor.is_some() {
+            return self.editor_key(key);
+        }
         // saisie du nom du mélange
         if let Some(name) = self.naming.as_mut() {
             match key {
@@ -284,6 +485,7 @@ impl State {
             Key::PageUp => self.set_cursor(c.saturating_sub(10)),
             Key::PageDown => self.set_cursor(c + 10),
             Key::Enter => return self.select_current(),
+            Key::Char('e') if self.tab == Tab::Models => return self.open_editor(),
             Key::Char(' ') if self.tab == Tab::Irs => {
                 if let Some(IrRow::Ir { index, .. }) = self.ir_rows().get(c) {
                     let index = *index;
@@ -383,6 +585,7 @@ pub mod tests {
             detail: String::new(),
             needs,
             recommended: rec,
+            meta: None,
         }
     }
 
@@ -482,5 +685,81 @@ pub mod tests {
         s.on_key(Key::Char('x'));
         s.on_key(Key::Char('x'));
         assert_eq!(s.ir, IrChoice::None);
+    }
+
+    fn with_meta(mut s: State) -> State {
+        for m in s.models.iter_mut() {
+            let meta = ModelMeta { gear_type: "amp".into(), name: m.label.clone(), ..Default::default() };
+            m.meta = Some(Box::new((meta.clone(), meta)));
+        }
+        s
+    }
+
+    #[test]
+    fn editor_changes_type_input_and_ir_live() {
+        let mut s = with_meta(sample());
+        s.on_key(Key::Down); // 800D
+        let a = s.on_key(Key::Char('e'));
+        assert_eq!(a, Action::Play { model: Some(1), ir: IrChoice::Item(2) }, "ouvre et joue le modèle");
+        assert!(s.editor.is_some());
+        // type : amp -> amp_cab
+        assert_eq!(s.on_key(Key::Right), Action::None);
+        assert_eq!(s.editor.as_ref().unwrap().draft.gear_type, "amp_cab");
+        // entrée : -2 dB, écoutée tout de suite
+        s.on_key(Key::Down);
+        s.on_key(Key::Left);
+        assert_eq!(s.on_key(Key::Left), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        assert_eq!(s.input_offset(), -2.0);
+        // IR : aucune -> 1re conseillée (2) -> 2e (0), jouée
+        s.on_key(Key::Down);
+        assert_eq!(s.on_key(Key::Right), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        assert_eq!(s.on_key(Key::Right), Action::Play { model: Some(1), ir: IrChoice::Item(0) });
+        // marque : saisie
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter);
+        for c in "Mesa".chars() {
+            s.on_key(Key::Char(c));
+        }
+        assert_eq!(s.on_key(Key::Char('q')), Action::None, "q s'écrit pendant la saisie");
+        s.on_key(Key::Backspace);
+        s.on_key(Key::Enter);
+        let Action::SaveMeta(v) = s.on_key(Key::Char('s')) else { panic!("sauvegarde attendue") };
+        assert_eq!(
+            v,
+            vec![(
+                1,
+                ModelMeta {
+                    gear_type: "amp_cab".into(),
+                    make: "Mesa".into(),
+                    name: "800D Modern".into(),
+                    input_db: -2.0,
+                    ir: Some(0),
+                }
+            )]
+        );
+        assert!(s.editor.is_none());
+    }
+
+    #[test]
+    fn editor_escape_reverts_audition_and_apply_to_filtered() {
+        let mut s = with_meta(sample());
+        s.on_key(Key::Char('/'));
+        for c in "a".chars() {
+            s.on_key(Key::Char(c)); // « a » : 800D Modern (MESA), Angel_v2 (Trace), B7K Ultra (Darkglass)
+        }
+        s.on_key(Key::Enter);
+        s.on_key(Key::Char('e'));
+        s.on_key(Key::Down);
+        s.on_key(Key::Right); // entrée +1
+        assert_eq!(s.input_offset(), 1.0);
+        assert!(matches!(s.on_key(Key::Esc), Action::Play { .. }), "Échap : retour au réglage enregistré");
+        assert_eq!(s.input_offset(), 0.0);
+        let n = s.model_rows().len();
+        assert_eq!(n, 3);
+        s.on_key(Key::Char('e'));
+        s.on_key(Key::Right); // amp -> amp_cab
+        let Action::SaveMeta(v) = s.on_key(Key::Char('a')) else { panic!() };
+        assert_eq!(v.len(), n);
+        assert!(v.iter().all(|(_, m)| m.gear_type == "amp_cab"));
     }
 }

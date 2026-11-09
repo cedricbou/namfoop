@@ -142,6 +142,9 @@ enum Cmd {
         /// Taille des modèles slimmable : 0 = le plus léger, 1 = complet
         #[arg(long, default_value_t = 1.0)]
         size: f64,
+        /// Filtre initial de la liste (ex: "PopPunk")
+        #[arg(long)]
+        filter: Option<String>,
         #[command(flatten)]
         routing: router::RoutingArgs,
     },
@@ -192,7 +195,18 @@ fn main() -> Result<()> {
         Cmd::Bench { paths, block, seconds, all_sizes, library } => {
             offline::bench(&paths, &library, audio.rate, block, seconds, all_sizes)
         }
-        Cmd::Import { args } => import::run(&args),
+        Cmd::Import { args } => {
+            let imported = import::run(&args)?;
+            if args.review && !args.dry_run {
+                if imported.is_empty() {
+                    println!("--review : aucun nouveau modèle à revoir");
+                    return Ok(());
+                }
+                let start = browse::Start { only: Some(&imported), edit: true, ..Default::default() };
+                browse::run(&audio, &conf, &args.library, &conf.routing, 1.0, start)?;
+            }
+            Ok(())
+        }
         Cmd::Meta { args } => overrides::run(&args, conf.default_ir.as_deref()),
         Cmd::Models { library } => library::list(&library, conf.default_ir.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
@@ -206,9 +220,10 @@ fn main() -> Result<()> {
             }
             calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
         }
-        Cmd::Browse { library, size, routing } => {
+        Cmd::Browse { library, size, filter, routing } => {
             let routing = routing.apply(&conf.routing);
-            browse::run(&audio, &conf, &library, &routing, size)
+            let start = browse::Start { filter: filter.as_deref(), ..Default::default() };
+            browse::run(&audio, &conf, &library, &routing, size, start)
         }
         Cmd::Setup { library } => setup::run(&audio, cli.audio.backend, &conf, &library),
         Cmd::Ports => backend::jack::list_ports(&audio.client_name),

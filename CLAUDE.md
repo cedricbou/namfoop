@@ -22,8 +22,10 @@ crates/namfoop/   binaire CLI
   router.rs       routage temps réel : entrée basse -> chaîne -> sorties (processed/di/mic/mute)
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
-  browse/         `browse` : state.rs (logique pure + horloge fournie, testée), ui.rs (TestBackend),
-                  mod.rs (index, audio routeur + SwapChain, thread de construction des chaînes)
+  browse/         `browse` : state.rs (logique pure + horloge fournie, testée ; éditeur `e` des
+                  métadonnées avec écoute directe du gain d'entrée), ui.rs (TestBackend), mod.rs
+                  (index, audio routeur + SwapChain, thread de construction, overrides.toml) ;
+                  `import --review` l'ouvre sur les modèles importés (browse::Start)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                   audio.rs (vumètres, bip, test des buffers), devices.rs (cartes par backend)
   live.rs         `run` : chaîne en temps réel, vumètre, charge DSP

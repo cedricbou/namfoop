@@ -395,6 +395,9 @@ Options:
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
+      --review
+          Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
+
       --library <LIBRARY>
           Dossier de la bibliothèque
           
@@ -638,28 +641,31 @@ Options:
           
           [default: 1]
 
-      --bass-in <BASS_IN>
-          Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
-
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
-      --mic-in <MIC_IN>
-          Entrée du micro [défaut : config]
+      --filter <FILTER>
+          Filtre initial de la liste (ex: "PopPunk")
+
+      --bass-in <BASS_IN>
+          Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
+      --mic-in <MIC_IN>
+          Entrée du micro [défaut : config]
+
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --route <N=SOURCE>
-          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
+
+      --route <N=SOURCE>
+          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
