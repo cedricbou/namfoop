@@ -45,6 +45,9 @@ pub struct Config {
     pub limiter: bool,
     /// Enregistrement DI de calibration (relatif au dossier de config si non absolu).
     pub calibration_wav: PathBuf,
+    /// IR préférée (identifiant, chemin ou mots-clés) : conseillée en premier, utilisée par `-i auto`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_ir: Option<String>,
     /// Carte et backend (écrit par `setup`).
     pub audio: AudioConfig,
     /// Affectation des entrées / sorties (écrit par `setup`).
@@ -59,6 +62,7 @@ impl Default for Config {
             target_db: dsp::nam::TARGET_LOUDNESS_DB,
             limiter: true,
             calibration_wav: PathBuf::from("calibration.wav"),
+            default_ir: None,
             audio: AudioConfig::default(),
             routing: crate::router::Routing::default(),
         }
