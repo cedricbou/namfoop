@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#37)
+- Vumètres : repère `┃` sur `in` à la crête de ta calibration (cible − trim) et niveau reçu par le
+  modèle (`→ modèle -30 dB`), dans `browse` et la ligne d'état de `run`. `calibrate` enregistre sa
+  cible (`calibration_target_dbfs`). Guide : section « Lire les vumètres ».
+
 ### Ajouté (#32)
 - `browse` : panneau Spectre à droite de la liste (onglets IR et Mélange, terminal large) avec la
   courbe de l'IR sous le curseur, celle du mélange résultant, et une **référence épinglée** (`c`)

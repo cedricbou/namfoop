@@ -8,7 +8,7 @@ use ratatui::Frame;
 
 use super::state::{Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
 use crate::recommend::NeedsIr;
-use crate::tui::meter_width;
+use crate::tui::{meter_marked, meter_width};
 
 /// Mesures affichées en bas (fournies par la boucle).
 #[derive(Default, Clone)]
@@ -16,6 +16,10 @@ pub struct Status {
     pub in_peak: f32,
     pub out_peak: f32,
     pub load: f32,
+    /// Crête attendue à l'entrée de la carte d'après la calibration (repère sur `in`).
+    pub in_mark: Option<f32>,
+    /// Trim de calibration (dB) : sert à afficher ce que reçoit le modèle.
+    pub trim_db: f32,
     /// Réduction de gain du limiteur (dB).
     pub limiter: f32,
     pub xruns: u64,
@@ -238,7 +242,17 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         IrChoice::Blend => format!("mélange de {} IR", s.blend.len()),
     };
     let mut meters = vec![Span::raw(" in ")];
-    meters.extend(meter_width(st.in_peak, 12));
+    meters.extend(meter_marked(st.in_peak, 12, st.in_mark));
+    if let Some(m) = s.model {
+        // ce que reçoit le modèle : carte + trim + entrée propre (+ essai dans l'éditeur)
+        let model_db = s.saved_meta(m).input_db + s.input_offset();
+        let text = if st.in_peak > 1e-6 {
+            format!(" → modèle {:.0} dB", dsp::gain_to_db(st.in_peak) + st.trim_db + model_db)
+        } else {
+            " → modèle  -inf".to_string()
+        };
+        meters.push(Span::styled(text, Style::new().fg(Color::DarkGray)));
+    }
     meters.push(Span::raw("   out "));
     meters.extend(meter_width(st.out_peak, 12));
     meters.push(Span::raw(if st.limiter > 0.05 {
@@ -587,6 +601,22 @@ mod tests {
         s.on_key(Key::Char('b'));
         let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
         assert!(t.contains("[A/B : IR coupée — b]"), "{t}");
+    }
+
+    #[test]
+    fn input_meter_shows_calibration_mark_and_model_level() {
+        let mut s = sample();
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // un modèle en écoute
+        let st = Status {
+            in_peak: dsp::db_to_gain(-9.0),
+            in_mark: Some(-8.5),
+            trim_db: -21.5,
+            ..Default::default()
+        };
+        let t = crate::tui::screen_text(140, 24, |f| render(&s, &st, f));
+        assert!(t.contains("┃") && t.contains("→ modèle -30 dB"), "{t}");
     }
 
     #[test]

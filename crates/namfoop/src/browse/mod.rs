@@ -320,8 +320,12 @@ pub fn run(
         }
         first = st.on_key(tui::Key::Char('e'));
     }
-    let mut status =
-        ui::Status { device: format!("{} — Échap pour quitter", stream_label(cfg)), ..Default::default() };
+    let mut status = ui::Status {
+        device: format!("{} — Échap pour quitter", stream_label(cfg)),
+        in_mark: conf.config.calibrated_input_peak_dbfs(),
+        trim_db: conf.config.trim_db,
+        ..Default::default()
+    };
     let mut saved: Option<(String, Vec<BlendPart>, bool)> = None; // (id, mélange sauvé, align)
     let start = Instant::now();
     let mut session = tui::Session::start()?;

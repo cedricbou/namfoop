@@ -120,6 +120,38 @@ pub fn meter(level: f32) -> Vec<Span<'static>> {
     meter_width(level, BAR)
 }
 
+/// Position (0..width) d'un niveau en dB sur une barre -60..0 dBFS.
+pub fn meter_pos(db: f32, width: usize) -> usize {
+    ((((db + 60.0) / 60.0).clamp(0.0, 1.0) * width as f32).round() as usize).min(width.saturating_sub(1))
+}
+
+/// Barre de niveau avec un repère `┃` à `mark_db` (crête attendue d'après la calibration).
+pub fn meter_marked(level: f32, width: usize, mark_db: Option<f32>) -> Vec<Span<'static>> {
+    let mut spans = meter_width(level, width);
+    let Some(mark) = mark_db else { return spans };
+    let pos = meter_pos(mark, width);
+    // recompose la barre caractère par caractère (plein / vide), repère inséré
+    let filled = spans[0].content.chars().count();
+    let (fill_style, empty_style) = (spans[0].style, spans[1].style);
+    let text = spans.pop().expect("texte");
+    let mut out: Vec<Span<'static>> = Vec::new();
+    let push = |out: &mut Vec<Span<'static>>, c: char, st: Style| match out.last_mut() {
+        Some(last) if last.style == st => last.content.to_mut().push(c),
+        _ => out.push(Span::styled(c.to_string(), st)),
+    };
+    for k in 0..width {
+        if k == pos {
+            push(&mut out, '┃', Style::new().fg(Color::White));
+        } else if k < filled {
+            push(&mut out, '█', fill_style);
+        } else {
+            push(&mut out, '░', empty_style);
+        }
+    }
+    out.push(text);
+    out
+}
+
 pub fn meter_width(level: f32, width: usize) -> Vec<Span<'static>> {
     let d = db(level);
     let filled = (((d + 60.0) / 60.0).clamp(0.0, 1.0) * width as f32).round() as usize;
@@ -164,5 +196,16 @@ mod tests {
         assert_eq!(spans[0].content.chars().count(), BAR);
         assert_eq!(spans[0].style.fg, Some(Color::Red));
         assert_eq!(meter(0.01)[0].style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn calibration_mark() {
+        assert_eq!(meter_pos(-8.5, 12), 10);
+        assert_eq!(meter_pos(-8.5, 24), 21);
+        assert_eq!(meter_pos(0.0, 12), 11, "jamais hors de la barre");
+        let bar: String = meter_marked(0.1, 12, Some(-8.5)).iter().map(|s| s.content.to_string()).collect();
+        // -20 dBFS : 8 cases pleines, repère en 10e position
+        assert!(bar.starts_with("████████░░┃░"), "{bar}");
+        assert_eq!(meter_marked(0.1, 12, None).len(), 3);
     }
 }
