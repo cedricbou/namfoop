@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#15)
+- Mélanges d'IR (`library/cabs/*.cab.toml`) : plusieurs micros / positions avec gain, alignement
+  temporel automatique et polarité, calculés au chargement (coût live = une IR) ; identifiants
+  `c…`, conseillés en premier par `models` / `-i auto`.
+
 ### Ajouté (#14)
 - Identifiants courts et stables pour chaque modèle (`m…`) et IR (`i…`), affichés par `models`,
   acceptés par `-m` / `-i`.

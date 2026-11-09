@@ -243,6 +243,44 @@ namfoop run -m "ah600smx angel v2" -i "1970 121 lower cap"
 namfoop run -m "800d modern" -i "dg212 sm57"
 ```
 
+### Mélanger plusieurs IR
+
+Les packs multi-micros (ex. le Fender 1970 : 8 micros × haut-parleur haut/bas × 4 positions =
+58 IR) se combinent comme en studio : un micro dynamique pour l'attaque, un ruban pour le corps.
+Un **mélange** est un fichier `library/cabs/<nom>.cab.toml`, utilisable partout où l'on attend une
+IR (`-i`, identifiant `c…`, ou mots-clés) :
+
+```toml
+name = "Fender 70 121 + Beta52"
+align = true          # alignement temporel automatique (défaut : true)
+max_ms = 200          # optionnel, comme --ir-ms
+[[ir]]
+file = "ir/1970 Fender Bassman 2x15 Cabinet Original CTS Speakers/1970 Bassman Cabinet CTS - 121 Lower - Cap.wav"
+gain_db = 0.0
+[[ir]]
+file = "ir/1970 Fender Bassman 2x15 Cabinet Original CTS Speakers/1970 Bassman Cabinet CTS - Beta52 Lower - Cap.wav"
+gain_db = -3.0
+invert = false        # inversion de polarité
+```
+
+- `file` : relatif à la bibliothèque (ou au dossier du fichier), ou chemin absolu.
+- `gain_db` : niveau de chaque IR dans le mélange.
+- `align` : chaque IR est recadrée sur son départ puis ajustée par corrélation sur ±1 ms.
+  Sans cela, deux micros à des distances différentes se combinent en filtre en peigne (creux dans
+  le grave ou les médiums). Le décalage corrigé s'affiche au chargement. Les IR d'un même pack sont
+  souvent déjà alignées : moins de 0,1 ms dans le Fender 1970.
+- `invert` : inverse la polarité d'une IR. namfoop prévient si une IR semble en opposition de
+  phase avec la première.
+
+Le mélange est calculé **une seule fois au chargement**, puis normalisé comme une IR seule : en
+live il ne coûte pas plus cher qu'une IR. Le navigateur (à venir) permettra de créer les mélanges à
+l'oreille. En attendant, écris le fichier à la main et utilise-le :
+
+```sh
+namfoop models                         # le mélange apparaît avec son identifiant c…
+namfoop run -m "800d modern" -i <id du mélange>
+```
+
 ### Taille des modèles (`--size`)
 
 Les modèles récents (format NAM 0.7, « slimmable ») contiennent plusieurs tailles du même son :

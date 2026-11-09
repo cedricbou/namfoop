@@ -23,8 +23,21 @@ impl Default for IrSettings {
     }
 }
 
-/// Prépare les échantillons d'une IR pour `sample_rate` (non temps réel).
+/// Prépare les échantillons d'une IR (`.wav`) ou d'un mélange (`.cab.toml`) pour `sample_rate`
+/// (non temps réel).
 pub fn prepare_ir(path: &Path, sample_rate: u32, s: &IrSettings) -> Result<Vec<f32>> {
+    let (ir, s) = if crate::blend::is_cab_file(path) {
+        let spec = crate::blend::BlendSpec::load(path)?;
+        let s = IrSettings { max_ms: spec.max_ms.unwrap_or(s.max_ms), ..s.clone() };
+        (spec.mix(sample_rate)?, s)
+    } else {
+        (load_raw(path, sample_rate)?, s.clone())
+    };
+    Ok(finish(ir, sample_rate, &s))
+}
+
+/// WAV lu, mixé en mono et rééchantillonné, sans autre traitement.
+pub fn load_raw(path: &Path, sample_rate: u32) -> Result<Vec<f32>> {
     let (mut ir, sr) = wav::read_mono(path)?;
     if ir.is_empty() {
         return Err(Error::Ir(path.display().to_string(), "fichier vide".into()));
@@ -32,6 +45,11 @@ pub fn prepare_ir(path: &Path, sample_rate: u32, s: &IrSettings) -> Result<Vec<f
     if sr != sample_rate {
         ir = resample(&ir, sr, sample_rate);
     }
+    Ok(ir)
+}
+
+/// Troncature avec fondu, puis normalisation 80 Hz – 5 kHz.
+pub fn finish(mut ir: Vec<f32>, sample_rate: u32, s: &IrSettings) -> Vec<f32> {
     let max_len = ((s.max_ms / 1000.0) * sample_rate as f32) as usize;
     if ir.len() > max_len && max_len > 0 {
         ir.truncate(max_len);
@@ -49,7 +67,7 @@ pub fn prepare_ir(path: &Path, sample_rate: u32, s: &IrSettings) -> Result<Vec<f
             ir.iter_mut().for_each(|x| *x /= g);
         }
     }
-    Ok(ir)
+    ir
 }
 
 /// Gain moyen (moyenne quadratique de |H(f)|) sur 80 Hz – 5 kHz, fréquences espacées
@@ -124,7 +142,7 @@ pub struct IrStage {
 impl IrStage {
     pub fn load(path: &Path, sample_rate: u32, max_block: usize, s: &IrSettings) -> Result<Self> {
         let ir = prepare_ir(path, sample_rate, s)?;
-        let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = crate::blend::display_name(path);
         Self::from_samples(&ir, max_block, s.output_db, name)
     }
 

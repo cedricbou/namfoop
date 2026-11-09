@@ -72,12 +72,18 @@ pub fn recommend<'a>(
     let model_text =
         format!("{} {} {} {} {}", meta.gear_make, meta.gear_model, meta.name, model.pack, model.stem);
     let model_brands = brands_in(&model_text);
-    let default = default_ir.and_then(|q| lib.resolve(q, Kind::Ir).ok());
+    let default = default_ir.and_then(|q| lib.resolve_ir(q).ok());
     let mut all: Vec<Suggestion> = lib
-        .of_kind(Kind::Ir)
+        .entries
+        .iter()
+        .filter(|e| matches!(e.kind, Kind::Ir | Kind::Cab))
         .map(|e| {
             let mut score = 0;
             let mut why = Vec::new();
+            if e.kind == Kind::Cab {
+                score += 100;
+                why.push("ton mélange".to_string());
+            }
             if default.as_deref() == Some(e.path.as_path()) {
                 score += 1000;
                 why.push("IR par défaut (config)".to_string());

@@ -1,6 +1,6 @@
 //! Bibliothèque de modèles / IR : index avec identifiants courts, recherche, inventaire.
 //!
-//! Identifiant : une lettre (`m` modèle, `i` IR) + 3 caractères base32 tirés d'un hash FNV-1a du
+//! Identifiant : une lettre (`m` modèle, `i` IR, `c` mélange d'IR) + 3 caractères base32 tirés d'un hash FNV-1a du
 //! chemin relatif à la bibliothèque. Stable tant que le fichier ne bouge pas ; allongé seulement
 //! en cas de collision avec un autre fichier du même type (rare).
 
@@ -24,6 +24,8 @@ pub fn walk(dir: &Path, ext: &str, out: &mut Vec<PathBuf>) {
 pub enum Kind {
     Model,
     Ir,
+    /// Mélange d'IR (`library/cabs/*.cab.toml`).
+    Cab,
 }
 
 impl Kind {
@@ -31,18 +33,21 @@ impl Kind {
         match self {
             Kind::Model => 'm',
             Kind::Ir => 'i',
+            Kind::Cab => 'c',
         }
     }
     fn ext(self) -> &'static str {
         match self {
             Kind::Model => "nam",
             Kind::Ir => "wav",
+            Kind::Cab => "toml",
         }
     }
     fn label(self) -> &'static str {
         match self {
             Kind::Model => "modèle",
             Kind::Ir => "IR",
+            Kind::Cab => "mélange",
         }
     }
 }
@@ -98,9 +103,12 @@ pub struct Library {
 impl Library {
     pub fn scan(root: &Path) -> Self {
         let mut entries = Vec::new();
-        for kind in [Kind::Model, Kind::Ir] {
+        for kind in [Kind::Model, Kind::Ir, Kind::Cab] {
             let mut files = Vec::new();
             walk(root, kind.ext(), &mut files);
+            if kind == Kind::Cab {
+                files.retain(|p| dsp::blend::is_cab_file(p));
+            }
             let mut batch: Vec<Entry> = files
                 .into_iter()
                 .map(|path| {
@@ -110,7 +118,7 @@ impl Library {
                         .and_then(|d| d.file_name())
                         .map(|s| s.to_string_lossy().into_owned())
                         .unwrap_or_default();
-                    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                    let stem = dsp::blend::display_name(&path);
                     Entry { kind, id: String::new(), path, rel, pack, stem }
                 })
                 .collect();
@@ -135,8 +143,19 @@ impl Library {
     /// mots entiers dans le nom de fichier, expression exacte dans le nom, mots entiers dans le
     /// chemin. Le premier critère qui désigne un seul fichier l'emporte.
     pub fn resolve(&self, query: &str, kind: Kind) -> Result<PathBuf> {
+        self.resolve_in(query, &[kind])
+    }
+
+    /// Pour `-i` : mélanges et IR.
+    pub fn resolve_ir(&self, query: &str) -> Result<PathBuf> {
+        self.resolve_in(query, &[Kind::Cab, Kind::Ir])
+    }
+
+    fn resolve_in(&self, query: &str, kinds: &[Kind]) -> Result<PathBuf> {
+        let kind = kinds[kinds.len() - 1];
+        let pool = || self.entries.iter().filter(|e| kinds.contains(&e.kind));
         let q = query.trim();
-        if let Some(e) = self.of_kind(kind).find(|e| e.id.eq_ignore_ascii_case(q)) {
+        if let Some(e) = pool().find(|e| e.id.eq_ignore_ascii_case(q)) {
             return Ok(e.path.clone());
         }
         let p = PathBuf::from(q);
@@ -148,7 +167,7 @@ impl Library {
             bail!("requête vide");
         }
         let hits: Vec<&Entry> =
-            self.of_kind(kind).filter(|e| words.iter().all(|w| e.rel.to_lowercase().contains(w))).collect();
+            pool().filter(|e| words.iter().all(|w| e.rel.to_lowercase().contains(w))).collect();
         if hits.len() > 1 {
             let qtok = tokens(q);
             let phrase = words.join(" ");
@@ -224,10 +243,14 @@ fn assign_ids(batch: &mut [Entry]) {
     }
 }
 
-/// Compatibilité : résolution d'un fichier de la bibliothèque (`ext` = "nam" ou "wav").
+/// Résolution d'un fichier de la bibliothèque : `ext` = "nam" (modèle) ou "wav" (IR ou mélange).
 pub fn resolve(query: &str, library: &Path, ext: &str) -> Result<PathBuf> {
-    let kind = if ext == "nam" { Kind::Model } else { Kind::Ir };
-    Library::scan(library).resolve(query, kind)
+    let lib = Library::scan(library);
+    if ext == "nam" {
+        lib.resolve(query, Kind::Model)
+    } else {
+        lib.resolve_ir(query)
+    }
 }
 
 /// Résumé d'un .nam lu depuis son JSON.
@@ -285,7 +308,7 @@ pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
     let lib = Library::scan(library);
     let models: Vec<&Entry> = lib.of_kind(Kind::Model).collect();
     let irs: Vec<&Entry> = lib.of_kind(Kind::Ir).collect();
-    if models.is_empty() && irs.is_empty() {
+    if models.is_empty() && irs.is_empty() && lib.of_kind(Kind::Cab).next().is_none() {
         bail!("bibliothèque vide : {}", library.display());
     }
     println!("Modèles NAM ({}) — identifiant utilisable avec -m :", models.len());
@@ -310,6 +333,14 @@ pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
                 println!("           {advice}");
             }
             Err(err) => println!("    {:<6} {}  — illisible : {err}", e.id, e.stem),
+        }
+    }
+    let cabs: Vec<&Entry> = lib.of_kind(Kind::Cab).collect();
+    if !cabs.is_empty() {
+        println!("\nMélanges d'IR ({}) — library/cabs/, utilisables avec -i :", cabs.len());
+        for e in &cabs {
+            let parts = dsp::blend::BlendSpec::load(&e.path).map(|s| s.parts.len()).unwrap_or(0);
+            println!("    {:<6} {}  ({parts} IR)", e.id, e.stem);
         }
     }
     println!("\nIR ({}) — identifiant utilisable avec -i :", irs.len());
@@ -409,6 +440,30 @@ pub mod tests {
         }
         let target = &a.entries[2];
         assert_eq!(a.resolve(&target.id.to_uppercase(), Kind::Model).unwrap(), target.path);
+        let _ = std::fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn cabs_are_indexed_and_resolved_with_irs() {
+        let d = fake_library(
+            "cab",
+            &[
+                ("ir/Fender/121 Lower - Cap.wav", ""),
+                (
+                    "cabs/Fender 70 mix.cab.toml",
+                    "name = \"x\"\n[[ir]]\nfile = \"ir/Fender/121 Lower - Cap.wav\"\n",
+                ),
+                ("cabs/notes.toml", ""),
+            ],
+        );
+        let lib = Library::scan(&d);
+        let cabs: Vec<&Entry> = lib.of_kind(Kind::Cab).collect();
+        assert_eq!(cabs.len(), 1, "seuls les .cab.toml");
+        assert_eq!(cabs[0].stem, "Fender 70 mix");
+        assert!(cabs[0].id.starts_with('c'));
+        assert_eq!(lib.resolve_ir("70 mix").unwrap(), cabs[0].path);
+        assert_eq!(lib.resolve_ir(&cabs[0].id).unwrap(), cabs[0].path);
+        assert!(lib.resolve_ir("121 lower").unwrap().ends_with("121 Lower - Cap.wav"));
         let _ = std::fs::remove_dir_all(d);
     }
 

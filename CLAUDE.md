@@ -11,7 +11,8 @@ Doc utilisateur : `README.md`. Plan initial : étapes 1 à 6 ci-dessous.
 crates/nam-sys/   FFI vers NeuralAmpModelerCore (sous-module vendor/, C++20, compilé par build.rs avec cc)
   shim/           API C (nam_shim.h/.cpp) : load, reset, process (f32 <-> double), loudness, slimmable
 crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolver), gain.rs, limiter.rs,
-                  chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs
+                  chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs,
+                  blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement)
   tests/          propriétés de chaîne (indépendance au bloc) et absence d'allocation (assert_no_alloc)
 crates/namfoop/   binaire CLI
   backend/        mod.rs (trait Io : canaux dynamiques ; Processor ; AudioArgs -> Settings), jack.rs,
@@ -22,7 +23,9 @@ crates/namfoop/   binaire CLI
   live.rs         `run` : chaîne en temps réel, vumètre, charge DSP
   offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
   latency.rs      mesure de latence par impulsion (câble de bouclage)
-  library.rs      recherche par mots-clés dans library/, métadonnées .nam
+  library.rs      index de library/ (identifiants m…/i…/c…), recherche (id > chemin > mots entiers >
+                  version de base), métadonnées .nam
+  recommend.rs    besoin d'IR (gear_type) et IR conseillées (marque, baffle basse, mélanges)
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
   config.rs       ~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
                   [audio] (backend, device, buffer...), [routing] (bass_in, mic_in, outputs)

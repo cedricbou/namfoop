@@ -19,8 +19,8 @@ pub struct AmpArgs {
     /// Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
     #[arg(short, long)]
     pub model: Option<String>,
-    /// IR de baffle (.wav) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57")
-    /// ou « auto » (la mieux conseillée pour le modèle)
+    /// IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin,
+    /// mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
     #[arg(short, long)]
     pub ir: Option<String>,
     /// Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
@@ -89,7 +89,7 @@ impl AmpArgs {
         let default_ir = cfg.default_ir.as_deref();
         let ir = match self.ir.as_deref() {
             Some("auto") => self.auto_ir(&lib, model.as_deref(), default_ir)?,
-            Some(q) => Some(lib.resolve(q, Kind::Ir)?),
+            Some(q) => Some(lib.resolve_ir(q)?),
             None => None,
         };
         if let Some(m) = &model {
