@@ -24,7 +24,8 @@ crates/namfoop/   binaire CLI
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
   browse/         `browse` : state.rs (logique pure + horloge fournie, testée ; éditeur `e` des
-                  métadonnées avec écoute directe du gain d'entrée), ui.rs (TestBackend), mod.rs
+                  métadonnées avec écoute directe du gain d'entrée ; A/B b / r et référence c via
+                  effective_ir), ui.rs (TestBackend ; panneau spectre ≥ 130 col.), mod.rs
                   (index, audio routeur + SwapChain, thread de construction, overrides.toml) ;
                   `import --review` l'ouvre sur les modèles importés (browse::Start)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),

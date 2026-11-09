@@ -135,6 +135,14 @@ pub struct State {
     pub naming: Option<String>,
     pub editor: Option<Editor>,
     pub message: Option<String>,
+    /// IR de référence épinglée (`c`), superposée dans le panneau spectre.
+    pub reference: Option<usize>,
+    /// A/B : on écoute la référence au lieu de l'IR choisie (`r`).
+    pub listen_ref: bool,
+    /// A/B : IR coupée, modèle seul ou son direct (`b`).
+    pub bypass: bool,
+    /// Profil du mélange en cours (calculé par la boucle à chaque changement).
+    pub blend_profile: Option<std::sync::Arc<dsp::profile::IrProfile>>,
     pending: Option<u64>,
     now: u64,
 }
@@ -160,6 +168,10 @@ impl State {
             naming: None,
             editor: None,
             message: None,
+            reference: None,
+            listen_ref: false,
+            bypass: false,
+            blend_profile: None,
             pending: None,
             now: 0,
         }
@@ -234,8 +246,63 @@ impl State {
         self.cursor[self.tab_index()].min(self.row_count().saturating_sub(1))
     }
 
+    /// IR réellement écoutée : aucune si coupée (`b`), la référence en écoute B (`r`), sinon le choix.
+    pub fn effective_ir(&self) -> IrChoice {
+        if self.bypass {
+            IrChoice::None
+        } else if let (true, Some(r)) = (self.listen_ref, self.reference) {
+            IrChoice::Item(r)
+        } else {
+            self.ir
+        }
+    }
+
     fn play(&self) -> Action {
-        Action::Play { model: self.model, ir: self.ir }
+        Action::Play { model: self.model, ir: self.effective_ir() }
+    }
+
+    /// Un nouveau choix s'écoute tel quel : fin des A/B en cours.
+    fn fresh(&mut self) {
+        self.listen_ref = false;
+        self.bypass = false;
+    }
+
+    /// IR sous le curseur de l'onglet IR.
+    pub fn ir_at_cursor(&self) -> Option<usize> {
+        match self.ir_rows().get(self.cursor()) {
+            Some(IrRow::Ir { index, .. }) if self.tab == Tab::Irs => Some(*index),
+            _ => None,
+        }
+    }
+
+    /// Touches d'écoute comparée, communes aux onglets et à l'éditeur.
+    fn ab_key(&mut self, key: Key) -> Option<Action> {
+        match key {
+            Key::Char('b') => {
+                self.bypass = !self.bypass;
+                self.message = Some(if self.bypass {
+                    "A/B : IR coupée (b pour la remettre)".into()
+                } else {
+                    "A/B : IR remise".into()
+                });
+                Some(self.play())
+            }
+            Key::Char('r') => {
+                let Some(r) = self.reference else {
+                    self.message = Some("pas de référence : c sur une IR (onglet IR) pour l'épingler".into());
+                    return Some(Action::None);
+                };
+                self.listen_ref = !self.listen_ref;
+                self.bypass = false;
+                self.message = Some(if self.listen_ref {
+                    format!("A/B : B = ◆ {} (r pour revenir)", self.irs[r].label)
+                } else {
+                    "A/B : A = ton choix".into()
+                });
+                Some(self.play())
+            }
+            _ => None,
+        }
     }
 
     /// Applique la sélection courante (modèle ou IR sous le curseur) et demande l'écoute.
@@ -247,6 +314,7 @@ impl State {
                     Some(ModelRow::Model(m)) => *m,
                     Some(ModelRow::Direct) => {
                         self.model = None;
+                        self.fresh();
                         self.message = Some(match self.ir {
                             IrChoice::None => {
                                 "son direct de la basse : choisis une IR (onglet IR) pour l'écouter seule"
@@ -259,6 +327,7 @@ impl State {
                     None => return Action::None,
                 };
                 self.model = Some(m);
+                self.fresh();
                 let needs = self.models[m].needs;
                 match (needs, self.ir) {
                     (NeedsIr::No, IrChoice::Item(_) | IrChoice::Blend) => {
@@ -276,6 +345,7 @@ impl State {
                 self.play()
             }
             Tab::Irs => {
+                self.fresh();
                 match self.ir_rows().get(self.cursor()) {
                     Some(IrRow::NoIr) => self.ir = IrChoice::None,
                     Some(IrRow::Ir { index, .. }) => self.ir = IrChoice::Item(*index),
@@ -369,6 +439,10 @@ impl State {
             return Action::None;
         }
         let m = ed.model;
+        if let Some(a) = self.ab_key(key) {
+            return a;
+        }
+        let Some(ed) = self.editor.as_mut() else { return Action::None };
         match key {
             Key::Esc | Key::Char('q') => {
                 let revert = ed.draft.input_db != self.saved_meta(m).input_db;
@@ -404,6 +478,7 @@ impl State {
                         let ed = self.editor.as_mut().expect("ouvert");
                         ed.draft.ir = next;
                         self.ir = next.map_or(IrChoice::None, IrChoice::Item);
+                        self.fresh();
                         return self.play();
                     }
                     Field::Make | Field::Name => {}
@@ -542,6 +617,24 @@ impl State {
             Key::PageDown => self.set_cursor(c + 10),
             Key::Enter => return self.select_current(),
             Key::Char('e') if self.tab == Tab::Models => return self.open_editor(),
+            Key::Char('c') if self.tab == Tab::Irs => {
+                if let Some(i) = self.ir_at_cursor() {
+                    if self.reference == Some(i) {
+                        self.reference = None;
+                        self.listen_ref = false;
+                        self.message = Some("référence retirée".into());
+                        return self.play();
+                    }
+                    self.reference = Some(i);
+                    self.message =
+                        Some(format!("◆ référence : {} — r pour l'écouter (A/B)", self.irs[i].label));
+                }
+            }
+            Key::Char('b') | Key::Char('r') => {
+                if let Some(a) = self.ab_key(key) {
+                    return a;
+                }
+            }
             Key::Char(' ') if self.tab == Tab::Irs => {
                 if let Some(IrRow::Ir { index, .. }) = self.ir_rows().get(c) {
                     let index = *index;
@@ -592,6 +685,7 @@ impl State {
 
     /// Le mélange a changé : on l'écoute (ou on revient à la dernière IR s'il est vide).
     fn blend_changed(&mut self) -> Action {
+        self.fresh();
         if self.blend.is_empty() {
             if self.ir == IrChoice::Blend {
                 self.ir = IrChoice::None;
@@ -884,5 +978,44 @@ pub mod tests {
         // avec un filtre, la ligne disparaît
         s.filter = "mesa".into();
         assert_eq!(s.model_list(), vec![ModelRow::Model(1)]);
+    }
+
+    #[test]
+    fn reference_and_ab_keys() {
+        let mut s = sample();
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // 800D + IR conseillée 2
+        assert_eq!(s.on_key(Key::Char('r')), Action::None, "pas encore de référence");
+        // b : avec / sans IR
+        assert_eq!(s.on_key(Key::Char('b')), Action::Play { model: Some(1), ir: IrChoice::None });
+        assert_eq!(s.on_key(Key::Char('b')), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        // onglet IR : épingler la 3e ligne (IR 0, conseillée)
+        s.on_key(Key::Tab);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        assert_eq!(s.ir_at_cursor(), Some(0));
+        s.on_key(Key::Char('c'));
+        assert_eq!(s.reference, Some(0));
+        // r : A = IR choisie (2), B = référence (0)
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(1), ir: IrChoice::Item(0) });
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        s.on_key(Key::Char('r')); // en B
+        s.on_key(Key::Char('b')); // coupe : prioritaire
+        assert_eq!(s.effective_ir(), IrChoice::None);
+        // un nouveau choix d'IR s'écoute tel quel
+        s.on_key(Key::Up);
+        assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        assert!(!s.bypass && !s.listen_ref);
+        // c sur la référence la retire
+        s.on_key(Key::Down);
+        s.on_key(Key::Char('c'));
+        assert_eq!(s.reference, None);
+        // b marche aussi dans l'éditeur (décider du type de capture)
+        s.on_key(Key::Left);
+        let mut s = with_meta(s);
+        s.on_key(Key::Char('e'));
+        assert_eq!(s.on_key(Key::Char('b')), Action::Play { model: Some(1), ir: IrChoice::None });
+        assert!(s.editor.is_some());
     }
 }

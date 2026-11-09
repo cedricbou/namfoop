@@ -160,8 +160,7 @@ fn save_cache(root: &Path, c: &Cache) -> Result<()> {
 /// Description d'une IR pour l'affichage.
 #[derive(Clone, Debug)]
 pub struct Described {
-    /// Courbe complète (panneau spectre du navigateur, #32).
-    #[allow(dead_code)]
+    /// Courbe complète (panneau spectre du navigateur).
     pub profile: Arc<IrProfile>,
     pub spark: String,
     pub tags: Vec<String>,
