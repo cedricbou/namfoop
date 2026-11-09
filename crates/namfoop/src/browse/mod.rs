@@ -184,6 +184,7 @@ fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
 }
 
 /// Une demande de chaîne : chemins du modèle et de l'IR (ou du mélange temporaire).
+#[derive(Clone, PartialEq)]
 struct Request {
     model: Option<PathBuf>,
     ir: Option<PathBuf>,
@@ -283,6 +284,12 @@ pub fn run(
             while let Ok(newer) = rx_req.try_recv() {
                 req = newer;
             }
+            let trace_line = format!(
+                "modèle={} ir={} entrée={:+.1}",
+                req.model.as_ref().map_or("-".into(), |p| p.display().to_string()),
+                req.ir.as_ref().map_or("-".into(), |p| p.display().to_string()),
+                req.input_db
+            );
             let built = amp_args(&lib_dir, size, &req)
                 .spec(&conf2, Some(limiter.clone()))
                 .and_then(|spec| Ok(spec.build(rate, MAX_BLOCK)?));
@@ -291,6 +298,7 @@ pub fn run(
                     match handle.send(chain) {
                         Ok(()) => {
                             let _ = tx_built.send(Built::Ok);
+                            trace(&trace_line);
                             break;
                         }
                         Err(c) => {
@@ -308,6 +316,7 @@ pub fn run(
     })?;
 
     let audition = std::env::temp_dir().join(format!("namfoop-audition-{}.cab.toml", std::process::id()));
+    let mut last_req: Option<Request> = None;
     let mut st = State::new(models, irs);
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
@@ -353,12 +362,20 @@ pub fn run(
                             Some(audition.clone())
                         }
                     };
-                    let _ = tx_req.send(Request {
+                    let req = Request {
                         model: model.map(|m| st.models[m].path.clone()),
                         ir,
                         input_db: st.input_offset(),
-                    });
-                    status.loading = true;
+                    };
+                    // même chaîne que la dernière : pas de reconstruction ni de fondu inutile
+                    // (le mélange d'écoute garde son nom de fichier mais change de contenu)
+                    let same =
+                        last_req.as_ref() == Some(&req) && req.ir.as_deref() != Some(audition.as_path());
+                    if !same {
+                        last_req = Some(req.clone());
+                        let _ = tx_req.send(req);
+                        status.loading = true;
+                    }
                 }
                 Action::SaveMeta(edits) => {
                     if let Err(e) = save_meta(library, &st, &edits) {
@@ -373,6 +390,7 @@ pub fn run(
                             }
                         }
                         // la chaîne relit la correction enregistrée
+                        last_req = None;
                         if st.model.is_some_and(|m| edits.iter().any(|(i, _)| *i == m)) {
                             first = Action::Play { model: st.model, ir: st.ir };
                         }
@@ -410,6 +428,17 @@ pub fn run(
         println!("Pour rejouer ce son :\n  {cmd}");
     }
     Ok(())
+}
+
+/// Trace des chaînes installées dans le thread audio (`NAMFOOP_BROWSE_TRACE=<fichier>`) : sert aux
+/// tests de bout en bout (pseudo-terminal), l'écran plein ne laissant passer aucun log.
+fn trace(line: &str) {
+    if let Some(path) = std::env::var_os("NAMFOOP_BROWSE_TRACE") {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            let _ = writeln!(f, "{line}");
+        }
+    }
 }
 
 /// Crête affichée avec retombée douce.

@@ -85,7 +85,8 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
 - `setup` et `browse` sont plein écran : pour les tester de bout en bout, les piloter dans un
   pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
-  `library/` de l'utilisateur. La logique se teste dans `setup::state` / `browse::state`.
+  `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
+  installée dans le thread audio (modèle, IR, entrée) : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.

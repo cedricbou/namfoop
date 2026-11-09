@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
-use super::state::{Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
+use super::state::{AbState, Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
 use crate::recommend::NeedsIr;
 use crate::tui::{meter_marked, meter_width};
 
@@ -43,6 +43,42 @@ fn badge(needs: NeedsIr) -> Span<'static> {
     }
 }
 
+/// Indicateur A/B permanent (en-tête) : quelle IR on entend.
+fn ab_badge(s: &State) -> Vec<Span<'static>> {
+    let on = |t: String, bg: Color| {
+        Span::styled(t, Style::new().fg(Color::Black).bg(bg).add_modifier(Modifier::BOLD))
+    };
+    let off = |t: String| Span::styled(t, Style::new().fg(Color::DarkGray));
+    let name = |i: usize| s.irs[i].label.chars().take(24).collect::<String>();
+    let mut v = vec![Span::styled("A/B ", Style::new().add_modifier(Modifier::BOLD))];
+    match s.ab_state() {
+        AbState::NoReference => v.push(off("c : épingler une référence · b : avec/sans IR".into())),
+        AbState::Same => v.push(Span::styled(
+            format!("◆ {} = IR en cours : choisis-en une autre", name(s.reference.expect("épinglée"))),
+            Style::new().fg(Color::Yellow),
+        )),
+        AbState::Bypass => v.push(on(" IR COUPÉE — b ".into(), Color::Red)),
+        st => {
+            let a = match s.ir {
+                IrChoice::Item(i) => name(i),
+                IrChoice::Blend => "mélange".into(),
+                IrChoice::None => "aucune IR".into(),
+            };
+            let b = format!("◆ {}", name(s.reference.expect("épinglée")));
+            if st == AbState::A {
+                v.extend([on(format!(" A {a} "), Color::Cyan), off(format!("  B {b}  (r)"))]);
+            } else {
+                v.extend([
+                    off(format!("A {a}  ")),
+                    on(format!(" B {b} "), Color::Yellow),
+                    off("  (r)".into()),
+                ]);
+            }
+        }
+    }
+    v
+}
+
 fn playing() -> Span<'static> {
     Span::styled("  ◀ en cours", Style::new().fg(Color::Green).add_modifier(Modifier::BOLD))
 }
@@ -75,14 +111,20 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         Span::styled(format!(" {label} "), style)
     };
     f.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
-            tab(Tab::Models, format!("Modèles ({})", s.models.len())),
-            Span::raw(" "),
-            tab(Tab::Irs, format!("IR ({})", s.irs.len())),
-            Span::raw(" "),
-            tab(Tab::Blend, format!("Mélange ({})", s.blend.len())),
-        ])),
+        Paragraph::new(Line::from(
+            vec![
+                Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
+                tab(Tab::Models, format!("Modèles ({})", s.models.len())),
+                Span::raw(" "),
+                tab(Tab::Irs, format!("IR ({})", s.irs.len())),
+                Span::raw(" "),
+                tab(Tab::Blend, format!("Mélange ({})", s.blend.len())),
+                Span::raw("    "),
+            ]
+            .into_iter()
+            .chain(ab_badge(s))
+            .collect::<Vec<_>>(),
+        )),
         tabs,
     );
 
@@ -159,7 +201,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 match rows[i] {
                     IrRow::NoIr => {
                         spans.push(Span::raw("       aucune IR"));
-                        if s.ir == IrChoice::None {
+                        if s.effective_ir() == IrChoice::None && s.ir == IrChoice::None {
                             spans.push(playing());
                         }
                     }
@@ -193,8 +235,24 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                                 Style::new().fg(Color::Magenta),
                             ));
                         }
-                        if s.ir == IrChoice::Item(index) {
-                            spans.push(playing());
+                        let (chosen, refd) = (s.ir == IrChoice::Item(index), s.reference == Some(index));
+                        match s.ab_state() {
+                            AbState::Bypass if chosen => spans.push(Span::styled(
+                                "  ◀ choisie, IR coupée (b)",
+                                Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
+                            )),
+                            AbState::B if refd => {
+                                spans.push(playing());
+                                spans.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
+                            }
+                            AbState::B if chosen => spans
+                                .push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray))),
+                            AbState::A if chosen => {
+                                spans.push(playing());
+                                spans.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
+                            }
+                            _ if chosen => spans.push(playing()),
+                            _ => {}
                         }
                     }
                 }
@@ -236,7 +294,8 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     let model = s
         .model
         .map_or("son direct (DI)".to_string(), |m| format!("{} {}", s.models[m].id, s.models[m].label));
-    let ir = match s.ir {
+    let ir = match s.effective_ir() {
+        IrChoice::None if s.bypass => "coupée (b)".to_string(),
         IrChoice::None => "aucune".to_string(),
         IrChoice::Item(i) => format!("{} {}", s.irs[i].id, s.irs[i].label),
         IrChoice::Blend => format!("mélange de {} IR", s.blend.len()),
@@ -269,16 +328,6 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             Line::from(vec![
                 Span::styled(" ♪ ", Style::new().fg(Color::Green)),
                 Span::raw(format!("{model}  +  IR : {ir}")),
-                Span::styled(
-                    if s.bypass {
-                        "   [A/B : IR coupée — b]".to_string()
-                    } else if let (true, Some(r)) = (s.listen_ref, s.reference) {
-                        format!("   [A/B : B = ◆ {} — r]", s.irs[r].label)
-                    } else {
-                        String::new()
-                    },
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-                ),
             ]),
             Line::from(meters),
             Line::from(Span::styled(
@@ -597,10 +646,10 @@ mod tests {
         // A/B : l'en-tête le signale
         s.on_key(Key::Char('r'));
         let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
-        assert!(t.contains("[A/B : B = ◆ 121 Lower - Cap — r]"), "{t}");
+        assert!(t.contains(" B ◆ 121 Lower - Cap ") && t.contains("◀ en cours (B)"), "{t}");
         s.on_key(Key::Char('b'));
         let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
-        assert!(t.contains("[A/B : IR coupée — b]"), "{t}");
+        assert!(t.contains(" IR COUPÉE — b ") && t.contains("IR : coupée (b)"), "{t}");
     }
 
     #[test]
