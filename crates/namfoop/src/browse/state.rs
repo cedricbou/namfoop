@@ -9,6 +9,9 @@ use crate::tui::Key;
 /// Délai sans mouvement avant d'écouter l'élément sélectionné (évite de recharger à chaque touche).
 pub const AUDITION_DELAY_MS: u64 = 150;
 
+/// Délai sans changement d'entrée avant de mesurer le grain dans l'éditeur.
+pub const GRAIN_DELAY_MS: u64 = 300;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tab {
     Models,
@@ -133,6 +136,11 @@ pub enum Action {
     SaveBlend(String),
     /// Enregistre les métadonnées de ces modèles (`library/overrides.toml`).
     SaveMeta(Vec<(usize, ModelMeta)>),
+    /// Mesure le grain de ce modèle avec cette entrée propre (éditeur, hors temps réel).
+    MeasureGrain {
+        model: usize,
+        input_db: f32,
+    },
     Quit,
 }
 
@@ -152,6 +160,11 @@ pub struct State {
     pub message: Option<String>,
     /// IR de référence épinglée (`c`), superposée dans le panneau spectre.
     pub reference: Option<usize>,
+    /// Modèle de référence épinglé (`c` dans l'onglet Modèles) ; exclusif avec `reference`.
+    pub ref_model: Option<usize>,
+    /// Éditeur : grain mesuré pour l'entrée en cours d'essai.
+    pub editor_grain: Option<String>,
+    grain_due: Option<u64>,
     /// A/B : on écoute la référence au lieu de l'IR choisie (`r`).
     pub listen_ref: bool,
     /// A/B : IR coupée, modèle seul ou son direct (`b`).
@@ -184,6 +197,9 @@ impl State {
             editor: None,
             message: None,
             reference: None,
+            ref_model: None,
+            editor_grain: None,
+            grain_due: None,
             listen_ref: false,
             bypass: false,
             blend_profile: None,
@@ -217,7 +233,7 @@ impl State {
     }
 
     /// Modèle sous le curseur de l'onglet Modèles (aucun sur la ligne « son direct »).
-    fn model_at_cursor(&self) -> Option<usize> {
+    pub fn model_at_cursor(&self) -> Option<usize> {
         match self.model_list().get(self.cursor()) {
             Some(ModelRow::Model(m)) => Some(*m),
             _ => None,
@@ -261,19 +277,48 @@ impl State {
         self.cursor[self.tab_index()].min(self.row_count().saturating_sub(1))
     }
 
+    /// Modèle réellement écouté : la référence en écoute B (`r`), sinon le choix.
+    pub fn effective_model(&self) -> Option<usize> {
+        match (self.listen_ref, self.ref_model) {
+            (true, Some(m)) => Some(m),
+            _ => self.model,
+        }
+    }
+
     /// IR réellement écoutée : aucune si coupée (`b`), la référence en écoute B (`r`), sinon le choix.
+    /// En A/B de modèles, le modèle B garde l'IR en cours s'il en a besoin, et n'en a pas si son
+    /// baffle est inclus.
     pub fn effective_ir(&self) -> IrChoice {
         if self.bypass {
-            IrChoice::None
-        } else if let (true, Some(r)) = (self.listen_ref, self.reference) {
-            IrChoice::Item(r)
-        } else {
-            self.ir
+            return IrChoice::None;
+        }
+        match (self.listen_ref, self.reference, self.ref_model) {
+            (true, Some(r), _) => IrChoice::Item(r),
+            (true, None, Some(m)) => match (self.models[m].needs, self.ir) {
+                (NeedsIr::No, _) => IrChoice::None,
+                (NeedsIr::Yes, IrChoice::None) => {
+                    self.models[m].recommended.first().map_or(IrChoice::None, |i| IrChoice::Item(*i))
+                }
+                (_, ir) => ir,
+            },
+            _ => self.ir,
         }
     }
 
     fn play(&self) -> Action {
-        Action::Play { model: self.model, ir: self.effective_ir() }
+        Action::Play { model: self.effective_model(), ir: self.effective_ir() }
+    }
+
+    /// Le modèle choisi est la référence, ou une copie identique (même mesure).
+    fn same_model_as_reference(&self, r: usize) -> bool {
+        match self.model {
+            Some(m) if m == r => true,
+            Some(m) => match (&self.models[m].profile, &self.models[r].profile) {
+                (Some(a), Some(b)) => a.profile == b.profile && a.grain == b.grain,
+                _ => false,
+            },
+            None => false,
+        }
     }
 
     /// L'IR choisie est la référence, ou une copie identique (même profil : fichier en double).
@@ -290,6 +335,15 @@ impl State {
 
     /// État de l'A/B pour l'affichage.
     pub fn ab_state(&self) -> AbState {
+        if let (false, Some(rm)) = (self.bypass, self.ref_model) {
+            return if !self.listen_ref && self.same_model_as_reference(rm) {
+                AbState::Same
+            } else if self.listen_ref {
+                AbState::B
+            } else {
+                AbState::A
+            };
+        }
         match (self.bypass, self.reference, self.listen_ref) {
             (true, ..) => AbState::Bypass,
             (false, None, _) => AbState::NoReference,
@@ -325,10 +379,28 @@ impl State {
                 });
                 Some(self.play())
             }
+            Key::Char('r') if self.ref_model.is_some() => {
+                let rm = self.ref_model.expect("vérifié");
+                if !self.listen_ref && self.same_model_as_reference(rm) {
+                    self.message = Some(format!(
+                        "A/B : A et B sont le même modèle (◆ {}) — choisis un autre modèle (↑↓), puis r",
+                        self.models[rm].label
+                    ));
+                    return Some(Action::None);
+                }
+                self.listen_ref = !self.listen_ref;
+                self.bypass = false;
+                self.message = Some(if self.listen_ref {
+                    format!("A/B modèles : B = ◆ {} (r pour revenir)", self.models[rm].label)
+                } else {
+                    "A/B modèles : A = ton choix".into()
+                });
+                Some(self.play())
+            }
             Key::Char('r') => {
                 let Some(r) = self.reference else {
                     self.message =
-                        Some("A/B : pas de référence — c sur une IR (onglet IR) pour l'épingler".into());
+                        Some("A/B : pas de référence — c sur un modèle ou une IR pour l'épingler".into());
                     return Some(Action::None);
                 };
                 if !self.listen_ref && self.same_as_reference(r) {
@@ -403,9 +475,15 @@ impl State {
         }
     }
 
-    /// Horloge (ms) : déclenche l'écoute différée.
+    /// Horloge (ms) : déclenche l'écoute différée et la mesure du grain de l'éditeur.
     pub fn tick(&mut self, now_ms: u64) -> Action {
         self.now = now_ms;
+        if let (Some(t), Some(ed)) = (self.grain_due, &self.editor) {
+            if now_ms >= t + GRAIN_DELAY_MS {
+                self.grain_due = None;
+                return Action::MeasureGrain { model: ed.model, input_db: ed.draft.input_db };
+            }
+        }
         match self.pending {
             Some(t) if now_ms >= t + AUDITION_DELAY_MS => self.select_current(),
             _ => Action::None,
@@ -457,6 +535,8 @@ impl State {
         // un modèle nouvellement choisi prend sa meilleure IR conseillée (la préférée en tête) ;
         // s'il joue déjà, on garde l'IR en écoute (Entrée sur « IR préférée » la retient)
         let action = if self.model != Some(m) { self.select_current() } else { Action::None };
+        self.editor_grain = self.models[m].profile.as_ref().and_then(|d| d.grain.clone());
+        self.grain_due = None;
         self.editor = Some(Editor { model: m, field: 0, draft, typing: None });
         self.message = None;
         action
@@ -513,6 +593,8 @@ impl State {
                     }
                     Field::Input => {
                         ed.draft.input_db = (ed.draft.input_db + dir as f32).clamp(-36.0, 24.0);
+                        self.grain_due = Some(self.now);
+                        self.editor_grain = Some("mesure…".into());
                         return self.play();
                     }
                     Field::Ir => {
@@ -663,7 +745,37 @@ impl State {
             Key::PageDown => self.set_cursor(c + 10),
             Key::Enter => return self.select_current(),
             Key::Char('e') if self.tab == Tab::Models => return self.open_editor(),
+            Key::Char('c') if self.tab == Tab::Models => {
+                if let Some(m) = self.model_at_cursor() {
+                    let was_b = self.listen_ref;
+                    self.reference = None;
+                    self.listen_ref = false;
+                    if self.ref_model == Some(m) {
+                        self.ref_model = None;
+                        self.message = Some("modèle de référence retiré".into());
+                    } else {
+                        self.ref_model = Some(m);
+                        self.message = Some(if self.model == Some(m) {
+                            format!(
+                                "◆ modèle de référence (B) : {} — choisis maintenant un autre modèle (A), puis r",
+                                self.models[m].label
+                            )
+                        } else {
+                            format!(
+                                "◆ modèle de référence (B) : {} — r pour basculer A ↔ B",
+                                self.models[m].label
+                            )
+                        });
+                    }
+                    if was_b {
+                        return self.play();
+                    }
+                }
+            }
             Key::Char('c') if self.tab == Tab::Irs => {
+                if self.ref_model.take().is_some() && self.listen_ref {
+                    self.listen_ref = false;
+                }
                 if let Some(i) = self.ir_at_cursor() {
                     if self.reference == Some(i) {
                         self.reference = None;
@@ -1114,5 +1226,78 @@ pub mod tests {
         assert_eq!(s.ab_state(), AbState::Same);
         assert_eq!(s.on_key(Key::Char('r')), Action::None);
         assert!(s.message.as_deref().unwrap().contains("copies identiques"));
+    }
+
+    fn with_model_profiles(s: &mut State) {
+        for (k, m) in s.models.iter_mut().enumerate() {
+            m.profile = Some(crate::profile::Described {
+                profile: std::sync::Arc::new(dsp::profile::IrProfile {
+                    bands_db: vec![k as f32; 28],
+                    low_cut_hz: 40.0,
+                    high_cut_hz: 6000.0,
+                }),
+                spark: String::new(),
+                tags: vec![],
+                grain: Some(format!("crunch {k} %")),
+            });
+        }
+    }
+
+    #[test]
+    fn model_ab_keeps_or_drops_the_ir() {
+        let mut s = sample();
+        with_model_profiles(&mut s);
+        // modèle de référence : B7K (baffle inclus, ligne 1)
+        s.on_key(Key::Down);
+        s.on_key(Key::Char('c'));
+        assert_eq!(s.ref_model, Some(0));
+        // A : 800D (sans baffle) + IR conseillée 2
+        s.on_key(Key::Down);
+        assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        assert_eq!(s.ab_state(), AbState::A);
+        // B : B7K, sans IR (baffle inclus)
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(0), ir: IrChoice::None });
+        assert_eq!(s.ab_state(), AbState::B);
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        // référence = Angel (sans baffle) : garde l'IR en cours
+        s.on_key(Key::Down);
+        s.on_key(Key::Char('c'));
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(2), ir: IrChoice::Item(2) });
+        // épingler une IR remplace la référence modèle
+        s.on_key(Key::Tab);
+        s.on_key(Key::Down);
+        s.on_key(Key::Char('c'));
+        assert_eq!((s.ref_model, s.listen_ref), (None, false));
+        assert!(s.reference.is_some());
+    }
+
+    #[test]
+    fn model_ab_same_model_is_explained() {
+        let mut s = sample();
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter);
+        s.on_key(Key::Char('c'));
+        assert_eq!(s.ab_state(), AbState::Same);
+        assert_eq!(s.on_key(Key::Char('r')), Action::None);
+        assert!(s.message.as_deref().unwrap().contains("même modèle"));
+    }
+
+    #[test]
+    fn editor_measures_grain_after_a_pause() {
+        let mut s = with_meta(sample());
+        with_model_profiles(&mut s);
+        s.tick(1000);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Char('e'));
+        assert_eq!(s.editor_grain.as_deref(), Some("crunch 1 %"), "grain du cache à l'ouverture");
+        s.on_key(Key::Down); // Entrée
+        s.on_key(Key::Right);
+        s.on_key(Key::Right);
+        assert_eq!(s.editor_grain.as_deref(), Some("mesure…"));
+        assert_eq!(s.tick(1200), Action::None, "pas avant 300 ms");
+        assert_eq!(s.tick(1400), Action::MeasureGrain { model: 1, input_db: 2.0 });
+        assert_eq!(s.tick(2000), Action::None, "une seule mesure");
     }
 }
