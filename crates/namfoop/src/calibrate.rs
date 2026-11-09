@@ -147,6 +147,7 @@ pub fn run(
     }
     let mut conf = Config::load(path)?;
     conf.trim_db = trim;
+    conf.calibration_target_dbfs = Some(target);
     conf.level = LevelMode::Match;
     let wav = conf.calibration_path(path);
     if let Some(d) = wav.parent() {

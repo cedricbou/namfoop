@@ -739,20 +739,58 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 ### La ligne d'état
 
 ```
-  in  -14.2 dB  out  -9.8 dB  lim -1.2 dB  dsp   8.5 %  xruns 0
+  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0
 ```
 
 | Champ | Signification | Que faire |
 |---|---|---|
-| `in` | crête de l'entrée basse | vers -12 / -6 dB en jouant fort. `[CLIP ×n]` : baisse le gain de la carte |
-| `out` | crête de la basse traitée | doit rester sous 0 dB |
+| `in` | crête **brute** de l'entrée basse de la carte, avant tout traitement | voir « Lire les vumètres » ci-dessous. `[CLIP ×n]` : baisse le gain de la carte |
+| `(calib. …)` | crête attendue d'après ta calibration (cible − trim) | en jouant fort, `in` doit l'atteindre |
+| `→ modèle` | ce que reçoit vraiment le modèle : `in` + trim + entrée (`--input-db`, entrée propre au modèle) | autour de -30 dB en jouant fort, après `calibrate` |
+| `out` | crête de la sortie traitée, après le limiteur | ne dépasse jamais -1 dB avec le limiteur |
 | `lim` | réduction de gain du limiteur | s'il travaille souvent, baisse `--master-db` |
 | `dsp` | part du temps disponible utilisée par le traitement (pic) | au-delà de 70 %, risque de craquements |
 | `xruns` | décrochages audio depuis le démarrage | doit rester à 0 |
 | `[CLIP SORTIE]` | échantillons écrêtés en sortie (limiteur désactivé) | baisse `--master-db` |
 
-Au démarrage, une ligne `routage :` rappelle l'entrée de la basse et le rôle de chaque sortie. À
-l'arrêt, un résumé donne la charge DSP maximale, les xruns et les éventuels écrêtages.
+Au démarrage, une ligne `routage :` rappelle l'entrée de la basse et le rôle de chaque sortie, et
+une ligne `calibration :` la crête attendue sur `in`. À l'arrêt, un résumé donne la charge DSP
+maximale, les xruns et les éventuels écrêtages.
+
+### Lire les vumètres
+
+Les deux vumètres (ligne d'état de `run`, bas de l'écran de `browse`) ne mesurent pas le même
+endroit de la chaîne :
+
+```
+carte ──▶ [in] ──▶ trim ──▶ entrée ──▶ modèle ──▶ IR ──▶ niveau (match) ──▶ master ──▶ limiteur ──▶ [out]
+                    (calibrate)  (--input-db, e)
+```
+
+**`in` : ta basse telle que la donne la carte**, avant le trim. Ce n'est **pas** ce que reçoit le
+modèle. Après `calibrate`, le repère `┃` sur la barre de `browse` (ou `(calib. …)` dans `run`)
+marque la crête mesurée pendant la calibration. Par exemple, avec un trim de -21,5 dB et la cible
+de -30 dBFS, le repère est à -8,5 dBFS.
+- En jouant **fort**, la barre atteint le repère, souvent en jaune (au-dessus de -12) : **c'est
+  normal**. Le trim ramène ensuite ta basse à environ -30 dBFS à l'entrée du modèle, ce
+  qu'affiche `→ modèle`.
+- En jouant doucement, la barre descend bien en dessous (-25 à -35 dBFS).
+- **Rouge ou `[CLIP]`** : le préampli de la carte sature, et aucun réglage logiciel ne rattrape ça.
+  Baisse le gain de la carte, **puis relance `calibrate`**.
+- **Toujours loin du repère** en jouant comme d'habitude (5 dB ou plus en dessous) : le gain de la
+  carte ou la basse ont changé depuis la calibration. Relance `calibrate`, sinon les modèles
+  saturent moins que prévu (ou plus, dans le cas inverse).
+
+**`out` : ce qui part vers les sorties « traité »**, après toute la chaîne.
+- En mode `match`, le volume est aligné sur ta basse en direct : `out` reste **du même ordre que
+  `in`**. Il est souvent un peu plus bas sur un son saturé, plus compressé, ou avec une IR sombre.
+  Ça ne veut pas dire que le son est plus faible à l'oreille.
+- Il ne dépasse jamais -1 dBFS : le limiteur l'en empêche, et `lim` montre de combien il réduit.
+  Si `lim` travaille en permanence, baisse `--master-db`. Ne baisse pas l'entrée : elle change le
+  grain, pas le volume.
+
+Échelle : de -60 à 0 dBFS. Vert en dessous de -12, jaune de -12 à -3, rouge au-dessus de -3. La
+barre garde la crête et retombe en douceur. Sans calibration, il n'y a pas de repère.
 
 ### Options de `run`
 
@@ -923,6 +961,7 @@ level = "match"                      # "match", "normalize" ou "raw"           �
 target_db = -18.0                    # cible du mode normalize
 limiter = true                       # limiteur de sortie
 calibration_wav = "calibration.wav"  # enregistrement de calibration (relatif à ce dossier)
+calibration_target_dbfs = -30.0     # crête visée lors de calibrate (repère des vumètres)
 default_ir = "dg212 sm57"            # optionnel : IR préférée (identifiant ou mots-clés), -i auto
 
 [audio]                              # — setup

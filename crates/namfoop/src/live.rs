@@ -102,6 +102,11 @@ pub fn run(
     take(&meters.load); // ignore les premiers callbacks (à froid)
     log::info!("en route, Ctrl+C pour quitter");
     let mut max_load = 0.0f32;
+    let to_model_db = spec.trim_db + spec.nam.input_db;
+    let mark = conf.config.calibrated_input_peak_dbfs();
+    if let Some(m) = mark {
+        log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
+    }
     loop {
         if rx.recv_timeout(Duration::from_millis(500)).is_ok() {
             break;
@@ -116,9 +121,15 @@ pub fn run(
             let ic = meters.in_clips.load(Ordering::Relaxed);
             let oc = meters.out_clips.load(Ordering::Relaxed);
             eprint!(
-                "\r  in {} dB{}  out {} dB  lim {}  dsp {:>5.1} %  xruns {}{}   ",
+                "\r  in {} dB{}{}{}  out {} dB  lim {}  dsp {:>5.1} %  xruns {}{}   ",
                 db(i),
                 if ic > 0 { format!(" [CLIP ×{ic}]") } else { String::new() },
+                mark.map_or(String::new(), |m| format!(" (calib. {m:.1})")),
+                if spec.model.is_some() && i > 1e-6 {
+                    format!(" → modèle {:.0} dB", dsp::gain_to_db(i) + to_model_db)
+                } else {
+                    String::new()
+                },
                 db(o),
                 if gr > 0.05 { format!("-{gr:>4.1} dB") } else { "   -   ".into() },
                 l * 100.0,
