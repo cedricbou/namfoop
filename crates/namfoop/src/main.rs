@@ -9,6 +9,7 @@ mod library;
 mod live;
 mod offline;
 mod overrides;
+mod profile;
 mod recommend;
 mod router;
 mod setup;

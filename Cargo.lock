@@ -506,6 +506,7 @@ dependencies = [
  "log",
  "nam-sys",
  "rtrb",
+ "rustfft",
  "serde",
  "thiserror 2.0.21",
  "toml",

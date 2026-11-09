@@ -645,7 +645,14 @@ fn print_report(
             println!("  {d}");
         }
     }
-    if lib.is_some() {
+    if let Some(l) = &lib {
+        let profiles = crate::profile::Profiles::load(l, |_| {});
+        if profiles.computed > 0 {
+            println!(
+                "{} IR profilées (mini-spectre et étiquettes : `namfoop models`, `namfoop browse`).",
+                profiles.computed
+            );
+        }
         println!("\nSuite : `namfoop models` (identifiants, IR conseillées) ou `namfoop browse` (écoute).");
     }
     Ok(())

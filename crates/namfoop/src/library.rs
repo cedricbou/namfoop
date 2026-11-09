@@ -7,10 +7,39 @@
 use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
 
+/// Ordre « naturel » : les nombres sont comparés comme des nombres (Mix 2 < Mix 10), le texte
+/// sans tenir compte de la casse.
+pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    fn chunks(s: &str) -> Vec<(bool, String)> {
+        let mut v: Vec<(bool, String)> = Vec::new();
+        for c in s.chars() {
+            let d = c.is_ascii_digit();
+            match v.last_mut() {
+                Some((kind, text)) if *kind == d => text.push(c),
+                _ => v.push((d, c.to_string())),
+            }
+        }
+        v
+    }
+    let (ca, cb) = (chunks(a), chunks(b));
+    for ((da, ta), (db, tb)) in ca.iter().zip(&cb) {
+        let o = if *da && *db {
+            let (na, nb) = (ta.trim_start_matches('0'), tb.trim_start_matches('0'));
+            na.len().cmp(&nb.len()).then_with(|| na.cmp(nb))
+        } else {
+            ta.to_lowercase().cmp(&tb.to_lowercase())
+        };
+        if o != std::cmp::Ordering::Equal {
+            return o;
+        }
+    }
+    ca.len().cmp(&cb.len()).then_with(|| a.cmp(b))
+}
+
 pub fn walk(dir: &Path, ext: &str, out: &mut Vec<PathBuf>) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
-    entries.sort();
+    entries.sort_by(|a, b| natural_cmp(&a.to_string_lossy(), &b.to_string_lossy()));
     for p in entries {
         if p.is_dir() {
             walk(&p, ext, out);
@@ -407,15 +436,20 @@ pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
             Err(err) => println!("    {:<6} {}  — illisible : {err}", e.id, e.stem),
         }
     }
+    let profiles = crate::profile::Profiles::load_verbose(&lib);
     let cabs: Vec<&Entry> = lib.of_kind(Kind::Cab).collect();
     if !cabs.is_empty() {
         println!("\nMélanges d'IR ({}) — library/cabs/, utilisables avec -i :", cabs.len());
         for e in &cabs {
             let parts = dsp::blend::BlendSpec::load(&e.path).map(|s| s.parts.len()).unwrap_or(0);
-            println!("    {:<6} {}  ({parts} IR)", e.id, e.stem);
+            let prof = profiles.by_rel.get(&e.rel).map(|d| format!("  {}  {}", d.spark, d.tags.join(", ")));
+            println!("    {:<6} {}  ({parts} IR){}", e.id, e.stem, prof.unwrap_or_default());
         }
     }
-    println!("\nIR ({}) — identifiant utilisable avec -i :", irs.len());
+    println!(
+        "\nIR ({}) — identifiant utilisable avec -i ; mini-spectre 40 Hz → 13 kHz et écarts au reste du pack :",
+        irs.len()
+    );
     let mut last_pack = None;
     for e in &irs {
         if last_pack != Some(&e.pack) {
@@ -423,7 +457,10 @@ pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
             println!("  [{}] {n} IR", e.pack);
             last_pack = Some(&e.pack);
         }
-        println!("    {:<6} {}", e.id, e.stem);
+        match profiles.by_rel.get(&e.rel) {
+            Some(d) => println!("    {:<6} {}  {}  {}", e.id, e.stem, d.spark, d.tags.join(", ")),
+            None => println!("    {:<6} {}", e.id, e.stem),
+        }
     }
     Ok(())
 }
@@ -464,6 +501,13 @@ pub mod tests {
 
     fn name(lib: &Library, q: &str) -> Result<String> {
         lib.resolve(q, Kind::Model).map(|p| p.file_stem().unwrap().to_string_lossy().into_owned())
+    }
+
+    #[test]
+    fn natural_order() {
+        let mut v = vec!["Mix 10", "Mix 2", "mix 1", "Mix 11", "Cab10_Mix1", "Cab1_Mix3", "Cab1_Mix1"];
+        v.sort_by(|a, b| natural_cmp(a, b));
+        assert_eq!(v, ["Cab1_Mix1", "Cab1_Mix3", "Cab10_Mix1", "mix 1", "Mix 2", "Mix 10", "Mix 11"]);
     }
 
     #[test]
