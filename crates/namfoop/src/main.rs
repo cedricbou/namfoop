@@ -7,6 +7,7 @@ mod import;
 mod latency;
 mod library;
 mod live;
+mod model_profile;
 mod offline;
 mod overrides;
 mod profile;
@@ -197,7 +198,7 @@ fn main() -> Result<()> {
             offline::bench(&paths, &library, audio.rate, block, seconds, all_sizes)
         }
         Cmd::Import { args } => {
-            let imported = import::run(&args)?;
+            let imported = import::run(&args, &conf)?;
             if args.review && !args.dry_run {
                 if imported.is_empty() {
                     println!("--review : aucun nouveau modèle à revoir");
@@ -208,8 +209,8 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Meta { args } => overrides::run(&args, conf.default_ir.as_deref()),
-        Cmd::Models { library } => library::list(&library, conf.default_ir.as_deref()),
+        Cmd::Meta { args } => overrides::run(&args, &conf),
+        Cmd::Models { library } => library::list(&library, &conf),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let mut routing = conf.routing.clone();
             if let Some(c) = channel {

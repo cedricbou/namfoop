@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#33)
+- Profil sonore et grain des modèles, mesurés avec ta basse (enregistrement de `calibrate`) au
+  niveau réel : grain (clair / crunch / saturé / très saturé, compressé, « casse à +n dB »),
+  courbe tonale (avec l'IR préférée pour les modèles sans baffle), mini-spectre et étiquettes
+  relatives au pack. Affichés par `models`, l'onglet Modèles de `browse`, l'import et `meta`.
+  Cache `library/.cache/model-profiles.json`, recalculé après `calibrate` ou un changement
+  d'entrée.
+
 ### Corrigé (#39)
 - `browse`, A/B : indicateur permanent en haut de l'écran (A / B ◆ / IR COUPÉE, celui qu'on
   entend surligné) et marques `◀ en cours (A)` / `(B)` dans la liste ; `r` explique pourquoi il

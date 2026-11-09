@@ -45,24 +45,21 @@ impl IrProfile {
         let mut buf: Vec<Complex32> =
             (0..n).map(|i| Complex32::new(*ir.get(i).unwrap_or(&0.0), 0.0)).collect();
         rustfft::FftPlanner::<f32>::new().plan_fft_forward(n).process(&mut buf);
-        let bin_hz = sample_rate as f32 / n as f32;
-        let power = |f: f32| {
-            let k = ((f / bin_hz).round() as usize).min(n / 2);
-            buf[k].norm_sqr() as f64
-        };
+        let bins: Vec<f64> = buf[..=n / 2].iter().map(|c| c.norm_sqr() as f64).collect();
+        Self::from_band_power(bands(&bins, n, sample_rate))
+    }
+
+    /// Réponse « tonale » d'un système non linéaire (modèle NAM) : spectre long terme de la sortie
+    /// divisé par celui de l'entrée, par tiers d'octave. Même échelle qu'une IR.
+    pub fn from_transfer(input: &[f32], output: &[f32], sample_rate: u32) -> Self {
+        let (i, o) = (welch(input, FFT_LEN), welch(output, FFT_LEN));
+        let (bi, bo) = (bands(&i, FFT_LEN, sample_rate), bands(&o, FFT_LEN, sample_rate));
+        Self::from_band_power(bo.iter().zip(&bi).map(|(o, i)| o / i.max(1e-30)).collect())
+    }
+
+    /// Puissance par bande -> dB relatifs à la moyenne 80 Hz – 5 kHz, étendues.
+    fn from_band_power(bands_pow: Vec<f64>) -> Self {
         let centers = band_centers();
-        let bands_pow: Vec<f64> = centers
-            .iter()
-            .map(|&fc| {
-                let (lo, hi) =
-                    (fc * 2f32.powf(-1.0 / 6.0), (fc * 2f32.powf(1.0 / 6.0)).min(sample_rate as f32 / 2.0));
-                let (k0, k1) = ((lo / bin_hz).ceil() as usize, (hi / bin_hz).floor() as usize);
-                if k1 < k0 {
-                    return power(fc);
-                }
-                (k0..=k1.min(n / 2)).map(|k| buf[k].norm_sqr() as f64).sum::<f64>() / (k1 - k0 + 1) as f64
-            })
-            .collect();
         let refs: Vec<f64> = centers
             .iter()
             .zip(&bands_pow)
@@ -86,6 +83,83 @@ impl IrProfile {
             .collect();
         v.iter().sum::<f32>() / v.len().max(1) as f32
     }
+}
+
+/// Puissance moyenne par tiers d'octave à partir d'un spectre de puissance (bins 0..=n/2).
+fn bands(bins: &[f64], n: usize, sample_rate: u32) -> Vec<f64> {
+    let bin_hz = sample_rate as f32 / n as f32;
+    let last = bins.len() - 1;
+    band_centers()
+        .iter()
+        .map(|&fc| {
+            let (lo, hi) =
+                (fc * 2f32.powf(-1.0 / 6.0), (fc * 2f32.powf(1.0 / 6.0)).min(sample_rate as f32 / 2.0));
+            let (k0, k1) = ((lo / bin_hz).ceil() as usize, ((hi / bin_hz).floor() as usize).min(last));
+            if k1 < k0 {
+                return bins[((fc / bin_hz).round() as usize).min(last)];
+            }
+            bins[k0..=k1].iter().sum::<f64>() / (k1 - k0 + 1) as f64
+        })
+        .collect()
+}
+
+/// Spectre de puissance moyen (Welch : fenêtres de Hann de `n` points, recouvrement 50 %).
+pub fn welch(x: &[f32], n: usize) -> Vec<f64> {
+    let fft = rustfft::FftPlanner::<f32>::new().plan_fft_forward(n);
+    let win: Vec<f32> =
+        (0..n).map(|i| 0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / n as f32).cos()).collect();
+    let mut acc = vec![0.0f64; n / 2 + 1];
+    let mut buf = vec![Complex32::default(); n];
+    let mut frames = 0;
+    let mut start = 0;
+    loop {
+        for (i, b) in buf.iter_mut().enumerate() {
+            *b = Complex32::new(x.get(start + i).copied().unwrap_or(0.0) * win[i], 0.0);
+        }
+        fft.process(&mut buf);
+        for (a, c) in acc.iter_mut().zip(&buf) {
+            *a += c.norm_sqr() as f64;
+        }
+        frames += 1;
+        start += n / 2;
+        if start + n > x.len() {
+            break;
+        }
+    }
+    acc.iter_mut().for_each(|a| *a /= frames as f64);
+    acc
+}
+
+/// Amplitude d'une fréquence (Goertzel sur une fenêtre de Hann).
+fn tone(x: &[f32], sample_rate: u32, f: f32) -> f64 {
+    let n = x.len();
+    let w = 2.0 * std::f64::consts::PI * f as f64 / sample_rate as f64;
+    let (mut re, mut im) = (0.0f64, 0.0f64);
+    for (k, v) in x.iter().enumerate() {
+        let h = 0.5 - 0.5 * (2.0 * std::f64::consts::PI * k as f64 / n as f64).cos();
+        re += *v as f64 * h * (w * k as f64).cos();
+        im -= *v as f64 * h * (w * k as f64).sin();
+    }
+    (re * re + im * im).sqrt()
+}
+
+/// Taux de distorsion harmonique (harmoniques 2 à 10 rapportées à la fondamentale `f0`), en %.
+/// `x` doit contenir un nombre entier de périodes ou être assez long (la fenêtre limite les fuites).
+pub fn harmonic_distortion(x: &[f32], sample_rate: u32, f0: f32) -> f32 {
+    let fund = tone(x, sample_rate, f0).max(1e-20);
+    let harm: f64 = (2..=10)
+        .map(|k| k as f32 * f0)
+        .filter(|f| *f < sample_rate as f32 / 2.0)
+        .map(|f| tone(x, sample_rate, f).powi(2))
+        .sum();
+    (100.0 * harm.sqrt() / fund) as f32
+}
+
+/// Facteur de crête (dB) : crête / RMS.
+pub fn crest_db(x: &[f32]) -> f32 {
+    let peak = x.iter().fold(0.0f32, |a, v| a.max(v.abs()));
+    let rms = (x.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / x.len().max(1) as f64).sqrt() as f32;
+    20.0 * (peak.max(1e-12) / rms.max(1e-12)).log10()
 }
 
 /// Seuil de l'étendue (dB sous la moyenne 80 Hz – 5 kHz).
@@ -156,6 +230,46 @@ mod tests {
         assert!(p.zone_db(8000.0, 12000.0) < -15.0);
         let p = IrProfile::from_ir(&lr4(100.0, RATE, true, 9600), RATE);
         assert!((p.low_cut_hz / (100.0 / k) - 1.0).abs() < 0.1, "étendue grave {}", p.low_cut_hz);
+    }
+
+    fn noise(len: usize) -> Vec<f32> {
+        let mut seed = 7u32;
+        (0..len)
+            .map(|_| {
+                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                (seed >> 8) as f32 / (1u32 << 24) as f32 - 0.5
+            })
+            .collect()
+    }
+
+    fn convolve(x: &[f32], h: &[f32]) -> Vec<f32> {
+        (0..x.len()).map(|n| h.iter().enumerate().take(n + 1).map(|(k, c)| c * x[n - k]).sum()).collect()
+    }
+
+    #[test]
+    fn transfer_of_identity_is_flat_and_of_filter_matches_ir() {
+        let x = noise(48000);
+        let p = IrProfile::from_transfer(&x, &x, RATE);
+        assert!(p.bands_db.iter().all(|d| d.abs() < 0.01));
+        let h = lr4(2000.0, RATE, false, 2048);
+        let y = convolve(&x, &h);
+        let t = IrProfile::from_transfer(&x, &y, RATE);
+        let r = IrProfile::from_ir(&h, RATE);
+        for (k, (a, b)) in t.bands_db.iter().zip(&r.bands_db).enumerate().take(24) {
+            assert!((a - b).abs() < 1.5, "bande {k} : {a} vs {b}");
+        }
+    }
+
+    #[test]
+    fn distortion_and_crest() {
+        let sine: Vec<f32> = (0..24000)
+            .map(|i| (2.0 * std::f32::consts::PI * 82.0 * i as f32 / 48000.0).sin() * 0.5)
+            .collect();
+        assert!(harmonic_distortion(&sine, RATE, 82.0) < 0.1);
+        let clipped: Vec<f32> = sine.iter().map(|v| (v * 8.0).tanh()).collect();
+        let d = harmonic_distortion(&clipped, RATE, 82.0);
+        assert!(d > 20.0, "tanh poussé : {d} %");
+        assert!((crest_db(&sine) - 3.01).abs() < 0.05);
     }
 
     #[test]

@@ -375,7 +375,7 @@ struct ModelLine {
 }
 
 /// Importe ; renvoie les modèles ajoutés (chemins relatifs à la bibliothèque).
-pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
+pub fn run(a: &ImportArgs, conf: &crate::config::LoadedConfig) -> Result<Vec<String>> {
     let mut incoming = Vec::new();
     let mut skipped = Vec::new();
     for s in &a.sources {
@@ -537,18 +537,29 @@ pub fn run(a: &ImportArgs) -> Result<Vec<String>> {
         overrides.save(&a.library)?;
     }
 
-    print_report(a, &reports, &skipped, corrected, written)?;
+    print_report(a, conf, &reports, &skipped, corrected, written)?;
     Ok(reports.iter().flat_map(|(_, r)| r.models.iter().map(|m| m.rel.clone())).collect())
 }
 
 fn print_report(
     a: &ImportArgs,
+    conf: &crate::config::LoadedConfig,
     reports: &[(String, PackReport)],
     skipped: &[String],
     corrected: usize,
     written: usize,
 ) -> Result<()> {
     let lib = (!a.dry_run).then(|| Library::scan(&a.library));
+    // profils (IR puis modèles, avec ta basse) : calculés ici pour les nouveaux fichiers
+    let profiles = lib.as_ref().map(|l| crate::profile::Profiles::load(l, |_| {}));
+    let model_profiles = match (&lib, &profiles) {
+        (Some(l), Some(p)) => Some(crate::model_profile::ModelProfiles::load(l, conf, p, |n| {
+            if n >= 3 {
+                eprintln!("profilage de {n} modèles avec ton enregistrement de calibration…")
+            }
+        })),
+        _ => None,
+    };
     let mut doubts = Vec::new();
     for (pack, r) in reports {
         println!(
@@ -579,6 +590,11 @@ fn print_report(
                         }
                     }
                 }
+            }
+            if let Some(g) =
+                model_profiles.as_ref().and_then(|p| p.by_rel.get(&m.rel)).and_then(|d| d.grain.as_ref())
+            {
+                what.push_str(&format!(" · {g}"));
             }
             if let Some(n) = &m.note {
                 what.push_str(&format!(" · {n}"));
@@ -645,12 +661,22 @@ fn print_report(
             println!("  {d}");
         }
     }
-    if let Some(l) = &lib {
-        let profiles = crate::profile::Profiles::load(l, |_| {});
-        if profiles.computed > 0 {
+    if lib.is_some() {
+        if let Some(p) = profiles.as_ref().filter(|p| p.computed > 0) {
             println!(
                 "{} IR profilées (mini-spectre et étiquettes : `namfoop models`, `namfoop browse`).",
-                profiles.computed
+                p.computed
+            );
+        }
+        if let Some(p) = model_profiles.as_ref().filter(|p| p.computed > 0) {
+            println!(
+                "{} modèles profilés {} (grain, mini-spectre, étiquettes).",
+                p.computed,
+                if p.synthetic {
+                    "sur un signal de synthèse — lance `namfoop calibrate` pour les mesurer avec ta basse"
+                } else {
+                    "avec ta basse"
+                }
             );
         }
         println!("\nSuite : `namfoop models` (identifiants, IR conseillées) ou `namfoop browse` (écoute).");
@@ -739,16 +765,17 @@ mod tests {
             review: false,
             library: root.clone(),
         };
-        run(&args(true)).unwrap();
+        let conf = crate::config::LoadedConfig::load(None, true).unwrap();
+        run(&args(true), &conf).unwrap();
         assert!(!root.exists(), "--dry-run n'écrit rien");
-        run(&args(false)).unwrap();
+        run(&args(false), &conf).unwrap();
         assert!(root.join("ir/Pack K/Mixes/A.wav").is_file(), "racine commune retirée, sous-dossiers gardés");
         assert!(root.join("ir/Pack K/Mixes/B.wav").is_file());
         assert!(root.join("ir/Pack K/Other/A copy.wav").is_file(), "identique mais importé : pack complet");
         assert!(root.join("docs/Pack K/README.txt").is_file());
         assert!(!root.join("nam/Pack K/broken.nam").exists(), "modèle illisible refusé");
         // réimport : tout est déjà en place, rien ne change
-        run(&args(false)).unwrap();
+        run(&args(false), &conf).unwrap();
         let l = Library::scan(&root);
         assert_eq!(l.of_kind(Kind::Ir).count(), 3);
         assert_eq!(l.of_kind(Kind::Ir).next().unwrap().pack, "Pack K/Mixes");
@@ -757,7 +784,7 @@ mod tests {
         let mut skip = args(false);
         skip.library = root2.clone();
         skip.skip_duplicates = true;
-        run(&skip).unwrap();
+        run(&skip, &conf).unwrap();
         assert!(root2.join("ir/Pack K/Mixes/A.wav").is_file());
         assert!(!root2.join("ir/Pack K/Other/A copy.wav").exists());
     }
@@ -774,14 +801,17 @@ mod tests {
         std::fs::create_dir_all(&src).unwrap();
         std::fs::copy(&model, src.join("Tone_FullRig.nam")).unwrap();
         let root = lib.join("library");
-        run(&ImportArgs {
-            sources: vec![lib.join("Mon Pack")],
-            pack: None,
-            dry_run: false,
-            skip_duplicates: false,
-            review: false,
-            library: root.clone(),
-        })
+        run(
+            &ImportArgs {
+                sources: vec![lib.join("Mon Pack")],
+                pack: None,
+                dry_run: false,
+                skip_duplicates: false,
+                review: false,
+                library: root.clone(),
+            },
+            &crate::config::LoadedConfig::load(None, true).unwrap(),
+        )
         .unwrap();
         let dest = root.join("nam/Mon Pack/Full-Rig/Tone_FullRig.nam");
         assert!(dest.is_file());

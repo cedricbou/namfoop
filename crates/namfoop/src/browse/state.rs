@@ -1103,8 +1103,12 @@ pub mod tests {
             high_cut_hz: 5000.0,
         });
         for i in [0, 2] {
-            s.irs[i].profile =
-                Some(crate::profile::Described { profile: p.clone(), spark: String::new(), tags: vec![] });
+            s.irs[i].profile = Some(crate::profile::Described {
+                profile: p.clone(),
+                spark: String::new(),
+                tags: vec![],
+                grain: None,
+            });
         }
         s.on_key(Key::Char('b'));
         assert_eq!(s.ab_state(), AbState::Same);

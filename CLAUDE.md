@@ -43,6 +43,10 @@ crates/namfoop/   binaire CLI
                   IR fournie avec le pack
   profile.rs      étiquettes des IR relatives au pack (médiane), mini-spectre, cache
                   library/.cache/ir-profiles.json (par empreinte ; profilage ~1 s / 250 IR)
+  model_profile.rs  profil des modèles avec la basse de l'utilisateur (calibration.wav, 4 s les plus
+                  jouées, trim + entrée du modèle) : courbe (from_transfer), grain (THD d'un la
+                  110 Hz à la crête, paliers -18..+18 dB d'un seul tenant), cache par modèle /
+                  entrée / signal, calcul parallèle
   overrides.rs    library/overrides.toml (corrections par empreinte du contenu, jamais dans le .nam)
                   et `meta` (afficher / corriger) ; appliqué par Library::meta partout
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
@@ -212,6 +216,12 @@ sans entrée de changelog.
 - Profil des IR : les 11 « Mix » AMPG 410 de K101 diffèrent de ±2 à ±5 dB par zone (sub, présence,
   air) une fois comparés à la médiane du pack ; une étendue aiguë « à -6 dB » est trompée par le
   creux vers 1 kHz des baffles basse, d'où le seuil -12 dB mesuré depuis les extrémités.
+- Grain des modèles : la THD d'un sinus 110 Hz à la crête calibrée suit le drive de la Rat (0,2 % à
+  1,5 ; 6 % à 6 ; 18 % à 7 ; 28–38 % à 9–10) et le Bassman 800 « presque clair » (0,9 %). La
+  cohérence entrée/sortie sur le jeu réel a été essayée et abandonnée : 55 % pour tous les
+  FullRig / captures micro (réponse longue), 4 % pour une Rat à 1,5. Un mi grave pur sous-estime
+  (beaucoup d'amplis filtrent le grave avant le gain). Coût : 84 modèles komposition en 12 s sur
+  16 threads (A2 ≈ ×30 temps réel, WaveNet 16ch ≈ ×13) ; 55 modèles Tone3000 en 3,4 s.
 - Les IR sont normalisées sur leur gain moyen 80 Hz–5 kHz (normaliser l'énergie totale saturait de
   +15 dB dans le grave).
 
