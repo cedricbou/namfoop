@@ -78,6 +78,16 @@ if [[ "$QUICK" != "--quick" && -d library/nam ]]; then
     fi
   done < <(find library/nam -name '*.nam' -print0 | sort -z)
   echo "$n modèles rendus"
+  if [[ -d library/cabs ]]; then
+    c=0
+    while IFS= read -r -d '' cab; do
+      c=$((c+1))
+      if ! out=$(RUST_LOG=error $BIN render --no-config -i "$cab" 2>&1); then
+        echo "ÉCHEC mélange $cab : $out"; fail=1
+      fi
+    done < <(find library/cabs -name '*.cab.toml' -print0 | sort -z)
+    echo "$c mélange(s) d'IR rendus"
+  fi
   [[ $fail -eq 0 ]] || exit 1
 fi
 

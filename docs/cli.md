@@ -98,7 +98,7 @@ Options:
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
-          IR de baffle (.wav) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
+          IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -209,7 +209,7 @@ Options:
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
-          IR de baffle (.wav) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
+          IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
