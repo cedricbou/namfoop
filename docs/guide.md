@@ -219,7 +219,9 @@ Pour chaque fichier, `import` :
 6. **résume** : identifiant, type, IR conseillée, doublons, refus et points à vérifier.
 
 Relancer un import ne change rien : tout est reconnu comme doublon. `--dry-run` fait toutes les
-vérifications sans rien écrire.
+vérifications sans rien écrire. `--review` ouvre ensuite le navigateur sur les nouveaux modèles,
+éditeur ouvert, pour les écouter et les corriger ou les calibrer en jouant
+([`browse`, touche `e`](#modifier-et-calibrer-un-modèle-e)). Il prend la carte son.
 
 **Type de capture.** Les métadonnées des fichiers sont souvent incomplètes ou fausses. Certains packs
 achetés déclarent `amp` (sans baffle) même pour leurs captures FullRig, ou laissent des valeurs
@@ -231,8 +233,7 @@ cet ordre :
 
 Quand le résultat contredit les métadonnées, la correction est enregistrée et marquée « → corrigé ».
 Quand rien ne permet de trancher, le modèle est listé « à vérifier » avec la commande pour le
-corriger. Écoute-le avec `namfoop browse` : avec baffle, le son est « fini » ; sans baffle, il est
-criard et bourdonnant.
+corriger. Le plus simple est de l'écouter et de le corriger à l'écran : `namfoop browse`, touche `e`.
 
 Les fichiers d'origine ne sont **jamais modifiés** : les corrections vont dans
 `library/overrides.toml`, rangées sous l'**empreinte du contenu** de chaque modèle. Elles
@@ -341,12 +342,52 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
   lettres sont des commandes.
-- En bas : le son en cours, les vumètres, la charge DSP et les xruns. `q` ou Échap quitte.
+- **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un
+  modèle corrigé est marqué ✎.
+- En bas : le son en cours, les vumètres, la réduction du limiteur (`lim`), la charge DSP et les
+  xruns. `q` ou Échap quitte.
 
 En quittant, le navigateur affiche la commande pour rejouer le même son, par exemple
-`namfoop run -m m4jn -i c7k2`. Options : `--library`, `--size` (modèles légers), et le routage
+`namfoop run -m m4jn -i c7k2`. Options : `--library`, `--size` (modèles légers), `--filter`
+(filtre de départ, ex. `--filter PopPunk`), et le routage
 `--bass-in`, `--mic-in`, `--route` ([§ 10](#10-backends-carte-et-routage-en-ligne-de-commande)).
 Sans matériel : `namfoop --backend sim --no-config browse`.
+
+#### Modifier et calibrer un modèle (`e`)
+
+L'éditeur s'ouvre sur le modèle sous le curseur, qui continue de jouer. ↑↓ choisit un champ,
+←→ le change, **et le changement s'entend tout de suite** :
+
+| Champ | ←→ | Pour quoi faire |
+|---|---|---|
+| Type de capture | `amp`, `amp_cab`, `full_rig`, `pedal`, `preamp` | dire si le baffle est inclus (IR ou non) |
+| Entrée | ±1 dB | régler la saturation propre à ce modèle ; s'ajoute à `--input-db` |
+| IR préférée | aucune, puis les conseillées, jouées au fur et à mesure | l'IR par défaut du modèle (`-i auto`, conseils) ; Entrée prend l'IR choisie dans l'onglet IR, `x` l'efface |
+| Marque, Nom | Entrée pour saisir | conseils d'IR de la même marque, affichage |
+
+La valeur lue dans le fichier est rappelée en regard (« fichier : amp »). **`s` enregistre** dans
+`library/overrides.toml`, comme `namfoop meta` ; le `.nam` n'est jamais modifié. **`a` applique**
+le type et l'entrée à **tous les modèles visibles** (ceux du filtre) : filtre `/fullrig`, `e`,
+type `amp_cab`, `a`, et tout le pack est corrigé. Échap ferme sans enregistrer et revient au
+réglage enregistré.
+
+**Calibrer à l'oreille.** Les packs ne sont pas calibrés au même niveau d'entrée (Tone3000,
+packs achetés…). Joue comme sur scène et règle l'entrée jusqu'au grain voulu, en surveillant `out`
+et `lim` en bas. Pour comparer avec un autre modèle, ferme l'éditeur, passe au modèle suivant et
+reviens. Le volume, lui, est aligné par `--level`.
+
+**Baffle inclus ou pas ?** Passe l'IR préférée sur « aucune », puis sur une IR conseillée. Une
+capture **avec** baffle sonne finie sans IR, et sourde avec (deux baffles). Une capture **sans**
+baffle est criarde et bourdonnante sans IR. Règle le type en conséquence. Le son seul ne permet
+pas de le deviner automatiquement : les baffles basse ont souvent un tweeter.
+
+**Après un import** : `namfoop import --review <zip>` importe puis ouvre directement le navigateur
+sur les nouveaux modèles, éditeur ouvert.
+
+```sh
+namfoop import --review ~/Téléchargements/PopPunkBass_NAMA2.zip
+namfoop browse --filter "PopPunk"
+```
 
 ### Mélanger plusieurs IR
 

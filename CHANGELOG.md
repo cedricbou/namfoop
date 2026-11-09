@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#21)
+- `browse` : touche `e`, éditeur du modèle en écoute — type de capture, gain d'entrée propre
+  (entendu tout de suite : calibration à l'oreille), IR préférée (les conseillées défilent en
+  direct), marque, nom ; `s` enregistre dans `library/overrides.toml`, `a` applique le type et
+  l'entrée à tous les modèles filtrés. Modèles corrigés marqués ✎, réduction du limiteur affichée.
+- `namfoop import --review` : ouvre le navigateur sur les modèles importés, éditeur ouvert.
+- `namfoop browse --filter` : filtre de départ.
+
 ### Ajouté (#20)
 - `namfoop import` : importe zips, dossiers et fichiers (rangement par pack avec sous-dossiers,
   notices dans `library/docs/`, fichiers parasites ignorés), écarte les doublons par contenu,
