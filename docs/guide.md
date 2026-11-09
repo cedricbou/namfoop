@@ -382,6 +382,10 @@ point de départ : avec les captures Tone3000, il redonne le son des démos (le 
 presque clair). Les packs vendus ne disent pas toujours à quel niveau ils ont été capturés : c'est
 là que l'oreille décide.
 
+**Dans l'éditeur (`e`)**, le grain est remesuré à chaque réglage de l'entrée : tu vois le modèle
+passer de « clair » à « crunch 2 % » pendant que tu l'entends. « casse à +6 dB » se lit alors à
+partir du réglage en cours.
+
 **Le grain affiché aide** : « clair · casse à +9 dB » veut dire qu'il faut environ +9 dB d'entrée
 pour que ce modèle commence à saturer avec ta basse ; un modèle « saturé 18 % » qui devrait être
 clair (d'après son nom) est trop poussé, essaie -6 dB ([profil des
@@ -621,6 +625,15 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
   **mélange** résultant, où se voient les annulations entre micros. **`c` épingle** l'IR sous le
   curseur comme **référence** (◆, courbe jaune) ; sous le graphique, les écarts par zone entre
   l'IR et la référence (« sub +4 · … · air −2 »). `c` sur la référence la retire.
+- **Onglet Modèles** : chaque modèle affiche son mini-spectre, son **grain** (vert clair, jaune
+  crunch, rouge saturé) et ses étiquettes ([profil des modèles](#profil-sonore-et-grain-des-modèles)).
+  Le panneau Spectre y montre la courbe du modèle sous le curseur (avec son IR), et une ligne
+  « grain : … · ◆ … » compare au modèle de référence.
+- **A/B entre modèles** : dans l'onglet Modèles, **`c`** épingle le modèle sous le curseur (◆).
+  Choisis un autre modèle (A), puis **`r`** pour basculer entre les deux. Le modèle B garde l'IR en
+  cours s'il en a besoin, ou joue sans IR si son baffle est inclus. L'en-tête affiche « A/B
+  modèles ». Épingler une IR (onglet IR) remplace la référence modèle, et inversement : un seul A/B
+  à la fois.
 - **Écoute A/B**, dans tous les onglets et dans l'éditeur :
   - **`b`** coupe ou remet l'IR, pour entendre le modèle (ou ta basse) avec et sans baffle ;
   - **`r`** bascule entre ton choix (A) et la référence épinglée (B), sans perdre la sélection.
@@ -660,7 +673,7 @@ L'éditeur s'ouvre sur le modèle sous le curseur, qui continue de jouer. ↑↓
 | Champ | ←→ | Pour quoi faire |
 |---|---|---|
 | Type de capture | `amp`, `amp_cab`, `full_rig`, `pedal`, `preamp` | dire si le baffle est inclus (IR ou non) |
-| Entrée | ±1 dB | régler la saturation propre à ce modèle ; s'ajoute à `--input-db` |
+| Entrée | ±1 dB | régler la saturation propre à ce modèle ; s'ajoute à `--input-db`. Le **grain** est remesuré avec ta basse 0,3 s après le dernier changement (« grain : crunch 6 % · casse à +3 dB ») |
 | IR préférée | aucune, puis les conseillées, jouées au fur et à mesure | l'IR par défaut du modèle (`-i auto`, conseils) ; Entrée prend l'IR choisie dans l'onglet IR, `x` l'efface |
 | Marque, Nom | Entrée pour saisir | conseils d'IR de la même marque, affichage |
 

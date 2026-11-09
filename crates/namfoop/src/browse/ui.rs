@@ -50,9 +50,30 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
     };
     let off = |t: String| Span::styled(t, Style::new().fg(Color::DarkGray));
     let name = |i: usize| s.irs[i].label.chars().take(24).collect::<String>();
+    let mname = |i: usize| s.models[i].label.chars().take(28).collect::<String>();
+    if let (Some(rm), false) = (s.ref_model, s.bypass) {
+        let mut v = vec![Span::styled("A/B modèles ", Style::new().add_modifier(Modifier::BOLD))];
+        let a = s.model.map_or("son direct".to_string(), mname);
+        let b = format!("◆ {}", mname(rm));
+        match s.ab_state() {
+            AbState::Same => v.push(Span::styled(
+                format!("{b} = modèle en cours : choisis-en un autre"),
+                Style::new().fg(Color::Yellow),
+            )),
+            AbState::B => v.extend([
+                off(format!("A {a}  ")),
+                on(format!(" B {b} "), Color::Yellow),
+                off("  (r)".into()),
+            ]),
+            _ => v.extend([on(format!(" A {a} "), Color::Cyan), off(format!("  B {b}  (r)"))]),
+        }
+        return v;
+    }
     let mut v = vec![Span::styled("A/B ", Style::new().add_modifier(Modifier::BOLD))];
     match s.ab_state() {
-        AbState::NoReference => v.push(off("c : épingler une référence · b : avec/sans IR".into())),
+        AbState::NoReference => {
+            v.push(off("c : épingler un modèle ou une IR de référence · b : avec/sans IR".into()))
+        }
         AbState::Same => v.push(Span::styled(
             format!("◆ {} = IR en cours : choisis-en une autre", name(s.reference.expect("épinglée"))),
             Style::new().fg(Color::Yellow),
@@ -191,13 +212,31 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     cursor_span(i == cur),
                     Span::styled(format!("{:<6}", m.id), Style::new().fg(Color::DarkGray)),
                     badge(m.needs),
-                    if m.corrected() {
+                    if s.ref_model == Some(idx) {
+                        Span::styled("◆", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    } else if m.corrected() {
                         Span::styled("✎", Style::new().fg(Color::Magenta))
                     } else {
                         Span::raw(" ")
                     },
                     Span::raw(format!("{:<w$}", m.label, w = label_w)),
                 ];
+                let (chosen, refd) = (s.model == Some(idx), s.ref_model == Some(idx));
+                match (s.ref_model.is_some(), s.listen_ref) {
+                    (true, true) if refd => {
+                        spans.push(playing());
+                        spans.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
+                    }
+                    (true, true) if chosen => {
+                        spans.push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray)))
+                    }
+                    (true, false) if chosen && !refd => {
+                        spans.push(playing());
+                        spans.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
+                    }
+                    _ if chosen => spans.push(playing()),
+                    _ => {}
+                }
                 if let Some(d) = &m.profile {
                     spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
                     if let Some(g) = &d.grain {
@@ -209,9 +248,6 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     format!("  {}  [{}]", m.detail, m.pack),
                     Style::new().fg(Color::DarkGray),
                 ));
-                if s.model == Some(idx) {
-                    spans.push(playing());
-                }
                 lines.push(Line::from(spans));
             }
         }
@@ -250,24 +286,14 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                             Span::raw("   ")
                         });
                         spans.push(Span::raw(format!("{:<w$}", it.label, w = label_w)));
-                        if let Some(d) = &it.profile {
-                            spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
-                            spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
-                        }
-                        spans
-                            .push(Span::styled(format!("  [{}]", it.pack), Style::new().fg(Color::DarkGray)));
-                        if let Some(p) = in_blend {
-                            spans.push(Span::styled(
-                                format!(
-                                    "  [mélange {:+.0} dB{}]",
-                                    p.gain_db,
-                                    if p.invert { " ø" } else { "" }
-                                ),
-                                Style::new().fg(Color::Magenta),
-                            ));
-                        }
                         let (chosen, refd) = (s.ir == IrChoice::Item(index), s.reference == Some(index));
-                        match s.ab_state() {
+                        // marques A/B propres aux IR (pas pendant un A/B de modèles)
+                        let ab = if s.ref_model.is_some() && !s.bypass {
+                            AbState::NoReference
+                        } else {
+                            s.ab_state()
+                        };
+                        match ab {
                             AbState::Bypass if chosen => spans.push(Span::styled(
                                 "  ◀ choisie, IR coupée (b)",
                                 Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
@@ -284,6 +310,22 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                             }
                             _ if chosen => spans.push(playing()),
                             _ => {}
+                        }
+                        if let Some(d) = &it.profile {
+                            spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
+                            spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
+                        }
+                        spans
+                            .push(Span::styled(format!("  [{}]", it.pack), Style::new().fg(Color::DarkGray)));
+                        if let Some(p) = in_blend {
+                            spans.push(Span::styled(
+                                format!(
+                                    "  [mélange {:+.0} dB{}]",
+                                    p.gain_db,
+                                    if p.invert { " ø" } else { "" }
+                                ),
+                                Style::new().fg(Color::Magenta),
+                            ));
                         }
                     }
                 }
@@ -313,7 +355,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }
     if let Some(ed) = &s.editor {
         render_editor(s, ed, f, body);
-    } else if s.tab != Tab::Models && body.width >= SPECTRUM_MIN_WIDTH {
+    } else if body.width >= SPECTRUM_MIN_WIDTH {
         let [list, spectrum] =
             Layout::horizontal([Constraint::Percentage(58), Constraint::Percentage(42)]).areas(body);
         f.render_widget(Paragraph::new(lines).block(Block::bordered()), list);
@@ -378,7 +420,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         }
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler",
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre",
-        (_, _, Tab::Models) => "↑↓ écouter   e modifier / calibrer   b avec/sans IR   / filtrer   Tab → IR   q",
+        (_, _, Tab::Models) => "↑↓ écouter   e modifier / calibrer   c épingler réf.   r A/B réf.   b avec/sans IR   / filtrer   Tab → IR   q",
         (_, _, Tab::Irs) => {
             "↑↓ écouter   c épingler réf.   r A/B réf.   b avec/sans IR   espace → mélange   / filtrer   Tab   q"
         }
@@ -410,7 +452,15 @@ fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
     let profile_of = |i: usize| s.irs[i].profile.as_ref().map(|d| d.profile.clone());
     // (nom, profil, couleur)
     let mut shown: Vec<(String, std::sync::Arc<dsp::profile::IrProfile>, Color)> = Vec::new();
+    let mprofile = |i: usize| s.models[i].profile.as_ref().map(|d| d.profile.clone());
     match s.tab {
+        Tab::Models => {
+            if let Some(m) = s.model_at_cursor() {
+                if let Some(pr) = mprofile(m) {
+                    shown.push((s.models[m].label.clone(), pr, Color::Cyan));
+                }
+            }
+        }
         Tab::Blend => {
             if let Some(b) = &s.blend_profile {
                 shown.push(("mélange".into(), b.clone(), Color::Magenta));
@@ -429,8 +479,12 @@ fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
             }
         }
     }
-    let reference = s.reference.and_then(|r| profile_of(r).map(|p| (s.irs[r].label.clone(), p)));
-    let [chart_area, info] = Layout::vertical([Constraint::Min(6), Constraint::Length(3)]).areas(area);
+    let reference = if s.tab == Tab::Models {
+        s.ref_model.and_then(|r| mprofile(r).map(|p| (s.models[r].label.clone(), p)))
+    } else {
+        s.reference.and_then(|r| profile_of(r).map(|p| (s.irs[r].label.clone(), p)))
+    };
+    let [chart_area, info] = Layout::vertical([Constraint::Min(6), Constraint::Length(4)]).areas(area);
     let curves: Vec<Vec<(f64, f64)>> =
         shown.iter().map(|(_, p, _)| curve(p)).chain(reference.iter().map(|(_, p)| curve(p))).collect();
     let mut datasets = Vec::new();
@@ -491,7 +545,7 @@ fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
         }
         (Some(_), None) => {
             text.push(Line::from(Span::styled(
-                " c : épingler l'IR sous le curseur comme référence (comparaison)",
+                " c : épingler la ligne sous le curseur comme référence (comparaison)",
                 Style::new().fg(Color::DarkGray),
             )));
         }
@@ -501,6 +555,18 @@ fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
                 Style::new().fg(Color::DarkGray),
             )));
         }
+    }
+    if s.tab == Tab::Models {
+        let grain =
+            |m: usize| s.models[m].profile.as_ref().and_then(|d| d.grain.clone()).unwrap_or("?".into());
+        let mut g = Vec::new();
+        if let Some(m) = s.model_at_cursor() {
+            g.push(Span::raw(format!(" grain : {}", grain(m))));
+        }
+        if let Some(r) = s.ref_model {
+            g.push(Span::styled(format!("  ·  ◆ {}", grain(r)), Style::new().fg(Color::Yellow)));
+        }
+        text.insert(0, Line::from(g));
     }
     f.render_widget(Paragraph::new(text).wrap(ratatui::widgets::Wrap { trim: true }), info);
 }
@@ -540,7 +606,10 @@ fn render_editor(s: &State, ed: &Editor, f: &mut Frame, area: ratatui::layout::R
             Field::Input => (
                 "Entrée",
                 format!("◀ {:+.0} dB ▶", d.input_db),
-                "plus = plus de saturation ; s'ajoute à --input-db".to_string(),
+                match &s.editor_grain {
+                    Some(g) => format!("grain : {g}"),
+                    None => "plus = plus de saturation ; s'ajoute à --input-db".to_string(),
+                },
             ),
             Field::Ir => (
                 "IR préférée",
@@ -699,6 +768,48 @@ mod tests {
         };
         let t = crate::tui::screen_text(140, 24, |f| render(&s, &st, f));
         assert!(t.contains("┃") && t.contains("→ modèle -30 dB"), "{t}");
+    }
+
+    #[test]
+    fn models_tab_spectrum_and_model_ab() {
+        let mut s = sample();
+        for (k, m) in s.models.iter_mut().enumerate() {
+            m.profile = Some(crate::profile::Described {
+                profile: std::sync::Arc::new(dsp::profile::IrProfile {
+                    bands_db: dsp::profile::band_centers()
+                        .iter()
+                        .map(|f| if *f < 80.0 { k as f32 * 3.0 } else { 0.0 })
+                        .collect(),
+                    low_cut_hz: 40.0,
+                    high_cut_hz: 6000.0,
+                }),
+                spark: "▅▆▇▆▅▄▃▃▂▂▁▁".into(),
+                tags: vec!["grave +3".into()],
+                grain: Some(if k == 0 { "saturé 18 %".into() } else { "clair · casse à +9 dB".into() }),
+            });
+        }
+        s.on_key(Key::Down); // B7K
+        s.on_key(Key::Char('c'));
+        s.on_key(Key::Down); // 800D
+        s.on_key(Key::Enter);
+        let t = crate::tui::screen_text(170, 30, |f| render(&s, &Status::default(), f));
+        assert!(
+            t.contains("A/B modèles") && t.contains(" A 800D Modern ") && t.contains("B ◆ B7K Ultra"),
+            "{t}"
+        );
+        assert!(t.contains("clair · casse à +9 dB") && t.contains("Spectre"), "{t}");
+        assert!(t.contains("grain : clair · casse à +9 dB") && t.contains("◆ saturé 18 %"), "{t}");
+        assert!(t.contains("800D Modern vs ◆ B7K Ultra") && t.contains("sub +3"), "{t}");
+        s.on_key(Key::Char('r'));
+        let t = crate::tui::screen_text(170, 30, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("◀ en cours (B)") && t.contains("A (r pour revenir)"), "{t}");
+        // éditeur : grain mesuré affiché sur le champ Entrée
+        s.on_key(Key::Char('r'));
+        s.editor_grain = Some("crunch 4 %".into());
+        s.editor =
+            Some(super::super::state::Editor { model: 1, field: 1, draft: Default::default(), typing: None });
+        let t = crate::tui::screen_text(170, 30, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("grain : crunch 4 %"), "{t}");
     }
 
     #[test]

@@ -324,6 +324,26 @@ pub fn run(
         }
     })?;
 
+    // grain de l'éditeur : mesuré hors temps réel avec la basse de l'utilisateur, la plus récente gagne
+    let (tx_grain, rx_grain) = mpsc::channel::<(usize, f32, PathBuf)>();
+    let (tx_grain_done, rx_grain_done) = mpsc::channel::<(usize, f32, String)>();
+    let conf3 = conf.clone();
+    std::thread::Builder::new().name("namfoop-grain".into()).spawn(move || {
+        let signal = crate::model_profile::Signal::from_config(&conf3);
+        while let Ok(mut job) = rx_grain.recv() {
+            while let Ok(newer) = rx_grain.try_recv() {
+                job = newer;
+            }
+            let (m, input_db, path) = job;
+            let text = match crate::model_profile::measure(&path, &signal, input_db) {
+                Ok(p) => p.grain(),
+                Err(e) => format!("mesure impossible : {e:#}"),
+            };
+            trace(&format!("grain modèle={} entrée={input_db:+.1} {text}", path.display()));
+            let _ = tx_grain_done.send((m, input_db, text));
+        }
+    })?;
+
     let audition = std::env::temp_dir().join(format!("namfoop-audition-{}.cab.toml", std::process::id()));
     let mut last_req: Option<Request> = None;
     let mut st = State::new(models, irs);
@@ -386,6 +406,9 @@ pub fn run(
                         status.loading = true;
                     }
                 }
+                Action::MeasureGrain { model, input_db } => {
+                    let _ = tx_grain.send((model, input_db, st.models[model].path.clone()));
+                }
                 Action::SaveMeta(edits) => {
                     if let Err(e) = save_meta(library, &st, &edits) {
                         st.message = Some(format!("enregistrement impossible : {e:#}"));
@@ -419,6 +442,11 @@ pub fn run(
                     let id = Library::scan(library).by_path(&file).map(|e| e.id.clone()).unwrap_or_default();
                     st.message = Some(format!("mélange sauvé : {id} {name} ({})", file.display()));
                     saved = Some((id, st.blend.clone(), st.align));
+                }
+            }
+            while let Ok((m, input_db, text)) = rx_grain_done.try_recv() {
+                if st.editor.as_ref().is_some_and(|e| e.model == m && e.draft.input_db == input_db) {
+                    st.editor_grain = Some(text);
                 }
             }
             while let Ok(b) = rx_built.try_recv() {

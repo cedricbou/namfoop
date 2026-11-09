@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#42)
+- `browse`, onglet Modèles : panneau Spectre (courbe du modèle avec son IR, référence, écarts par
+  zone, grain comparé) et **A/B entre modèles** (`c` épingle, `r` bascule ; le modèle B garde
+  l'IR si besoin). Indicateur « A/B modèles » dans l'en-tête ; marques A / B à côté des noms.
+- Éditeur `e` : le grain est remesuré avec ta basse quand l'entrée change.
+- `NAMFOOP_BROWSE_TRACE` trace aussi les mesures de grain.
+
 ### Ajouté (#33)
 - Profil sonore et grain des modèles, mesurés avec ta basse (enregistrement de `calibrate`) au
   niveau réel : grain (clair / crunch / saturé / très saturé, compressé, « casse à +n dB »),

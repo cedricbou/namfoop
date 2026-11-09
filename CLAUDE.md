@@ -24,8 +24,8 @@ crates/namfoop/   binaire CLI
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
   browse/         `browse` : state.rs (logique pure + horloge fournie, testée ; éditeur `e` des
-                  métadonnées avec écoute directe du gain d'entrée ; A/B b / r et référence c via
-                  effective_ir), ui.rs (TestBackend ; panneau spectre ≥ 130 col.), mod.rs
+                  métadonnées avec écoute directe du gain d'entrée et grain remesuré ; A/B b / r,
+                  référence c sur une IR ou un modèle via effective_ir / effective_model), ui.rs (TestBackend ; panneau spectre ≥ 130 col.), mod.rs
                   (index, audio routeur + SwapChain, thread de construction, overrides.toml) ;
                   `import --review` l'ouvre sur les modèles importés (browse::Start)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
@@ -90,7 +90,8 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
   pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
-  installée dans le thread audio (modèle, IR, entrée) : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  installée dans le thread audio (modèle, IR, entrée) et chaque grain mesuré par l'éditeur : c'est
+  la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.
