@@ -62,6 +62,7 @@ pub fn index(
     lib: &Library,
     default_ir: Option<&str>,
     profiles: &crate::profile::Profiles,
+    model_profiles: &crate::model_profile::ModelProfiles,
 ) -> (Vec<Item>, Vec<Item>) {
     let mut irs: Vec<Item> = Vec::new();
     let mut by_rel: HashMap<String, usize> = HashMap::new();
@@ -92,7 +93,14 @@ pub fn index(
             });
         }
     }
-    let models = lib.of_kind(Kind::Model).map(|e| model_item(lib, e, default_ir, &by_rel)).collect();
+    let models = lib
+        .of_kind(Kind::Model)
+        .map(|e| {
+            let mut it = model_item(lib, e, default_ir, &by_rel);
+            it.profile = model_profiles.by_rel.get(&e.rel).cloned();
+            it
+        })
+        .collect();
     (models, irs)
 }
 
@@ -243,7 +251,8 @@ pub fn run(
 ) -> Result<()> {
     let lib = Library::scan(library);
     let profiles = crate::profile::Profiles::load_verbose(&lib);
-    let (mut models, irs) = index(&lib, conf.default_ir.as_deref(), &profiles);
+    let model_profiles = crate::model_profile::ModelProfiles::load_verbose(&lib, conf, &profiles);
+    let (mut models, irs) = index(&lib, conf.default_ir.as_deref(), &profiles, &model_profiles);
     if let Some(only) = start_with.only {
         models.retain(|m| only.contains(&m.rel));
     }
@@ -386,8 +395,15 @@ pub fn run(
                             st.irs.iter().enumerate().map(|(i, x)| (x.rel.clone(), i)).collect();
                         for (i, _) in &edits {
                             if let Some(e) = lib.by_path(&st.models[*i].path) {
+                                let profile = st.models[*i].profile.take();
                                 st.models[*i] = model_item(&lib, e, conf.default_ir.as_deref(), &by_rel);
+                                st.models[*i].profile = profile;
                             }
+                        }
+                        // l'entrée ou l'IR ont pu changer : profils remesurés (le reste vient du cache)
+                        let mp = crate::model_profile::ModelProfiles::load(&lib, conf, &profiles, |_| {});
+                        for m in st.models.iter_mut() {
+                            m.profile = mp.by_rel.get(&m.rel).cloned();
                         }
                         // la chaîne relit la correction enregistrée
                         last_req = None;

@@ -79,6 +79,18 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
     v
 }
 
+/// Couleur du grain : clair vert, crunch jaune, saturé rouge.
+fn grain_style(g: &str) -> Style {
+    let c = if g.starts_with("clair") {
+        Color::Green
+    } else if g.starts_with("crunch") {
+        Color::Yellow
+    } else {
+        Color::Red
+    };
+    Style::new().fg(c)
+}
+
 fn playing() -> Span<'static> {
     Span::styled("  ◀ en cours", Style::new().fg(Color::Green).add_modifier(Modifier::BOLD))
 }
@@ -149,6 +161,15 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     match s.tab {
         Tab::Models => {
             let rows = s.model_list();
+            let label_w = rows
+                .iter()
+                .filter_map(|r| match r {
+                    ModelRow::Model(m) => Some(s.models[*m].label.chars().count()),
+                    ModelRow::Direct => None,
+                })
+                .max()
+                .unwrap_or(0)
+                .min(36);
             for i in window(rows.len(), cur, height) {
                 let idx = match rows[i] {
                     ModelRow::Direct => {
@@ -175,9 +196,19 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     } else {
                         Span::raw(" ")
                     },
-                    Span::raw(m.label.to_string()),
-                    Span::styled(format!("  {}  [{}]", m.detail, m.pack), Style::new().fg(Color::DarkGray)),
+                    Span::raw(format!("{:<w$}", m.label, w = label_w)),
                 ];
+                if let Some(d) = &m.profile {
+                    spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
+                    if let Some(g) = &d.grain {
+                        spans.push(Span::styled(format!("  {g}"), grain_style(g)));
+                    }
+                    spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
+                }
+                spans.push(Span::styled(
+                    format!("  {}  [{}]", m.detail, m.pack),
+                    Style::new().fg(Color::DarkGray),
+                ));
                 if s.model == Some(idx) {
                     spans.push(playing());
                 }
@@ -590,6 +621,7 @@ mod tests {
             }),
             spark: "▅▆▇▆▅▄▃▃▂▂▁▁".into(),
             tags: vec!["sub +4".into(), "sombre".into()],
+            grain: None,
         });
         s.on_key(Key::Tab);
         let t = screen(&s);
@@ -618,6 +650,7 @@ mod tests {
                 }),
                 spark: "▅▆▇▆▅▄▃▃▂▂▁▁".into(),
                 tags: vec![],
+                grain: None,
             });
         }
     }

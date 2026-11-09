@@ -164,6 +164,37 @@ pub struct Described {
     pub profile: Arc<IrProfile>,
     pub spark: String,
     pub tags: Vec<String>,
+    /// Modèles : grain (« crunch 6 % · compressé »), absent pour les IR.
+    pub grain: Option<String>,
+}
+
+/// Étiquette chaque profil par rapport à la médiane de son pack (ou de toute la liste si le pack
+/// a moins de 3 éléments). Entrée : (chemin relatif, pack, profil).
+pub fn describe_all(items: Vec<(String, String, IrProfile)>) -> HashMap<String, Described> {
+    let z: Vec<Zones> = items.iter().map(|(_, _, p)| zones(p)).collect();
+    let lib_median = median_zones(&z.iter().collect::<Vec<_>>());
+    let mut packs: HashMap<&str, Vec<&Zones>> = HashMap::new();
+    for ((_, pack, _), z) in items.iter().zip(&z) {
+        packs.entry(pack.as_str()).or_default().push(z);
+    }
+    let pack_median: HashMap<&str, Zones> =
+        packs.iter().map(|(k, v)| (*k, if v.len() >= 3 { median_zones(v) } else { lib_median })).collect();
+    items
+        .iter()
+        .zip(&z)
+        .map(|((rel, pack, p), z)| {
+            let reference = pack_median.get(pack.as_str()).unwrap_or(&lib_median);
+            (
+                rel.clone(),
+                Described {
+                    spark: spark(p),
+                    tags: tags(z, reference, p),
+                    profile: Arc::new(p.clone()),
+                    grain: None,
+                },
+            )
+        })
+        .collect()
 }
 
 /// Profils de toutes les IR et mélanges de la bibliothèque, indexés par chemin relatif.
@@ -201,35 +232,13 @@ impl Profiles {
                 log::warn!("cache des profils non écrit : {e:#}");
             }
         }
-        // zones, puis médianes par pack et de la bibliothèque
-        let found: Vec<(usize, IrProfile, Zones)> = (0..entries.len())
+        let items = (0..entries.len())
             .filter_map(|i| {
                 let p = cache.profiles.get(hashes[i].as_ref()?)?.clone();
-                let z = zones(&p);
-                Some((i, p, z))
+                Some((entries[i].rel.clone(), entries[i].pack.clone(), p))
             })
             .collect();
-        let all: Vec<&Zones> = found.iter().map(|(_, _, z)| z).collect();
-        let lib_median = median_zones(&all);
-        let mut packs: HashMap<&str, Vec<&Zones>> = HashMap::new();
-        for (i, _, z) in &found {
-            packs.entry(entries[*i].pack.as_str()).or_default().push(z);
-        }
-        let pack_median: HashMap<&str, Zones> = packs
-            .iter()
-            .map(|(k, v)| (*k, if v.len() >= 3 { median_zones(v) } else { lib_median }))
-            .collect();
-        let by_rel = found
-            .iter()
-            .map(|(i, p, z)| {
-                let e = entries[*i];
-                let reference = pack_median.get(e.pack.as_str()).unwrap_or(&lib_median);
-                (
-                    e.rel.clone(),
-                    Described { spark: spark(p), tags: tags(z, reference, p), profile: Arc::new(p.clone()) },
-                )
-            })
-            .collect();
+        let by_rel = describe_all(items);
         Self { by_rel, computed }
     }
 

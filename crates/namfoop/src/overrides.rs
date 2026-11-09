@@ -194,7 +194,8 @@ impl MetaArgs {
 }
 
 /// `namfoop meta` : affiche ou corrige les métadonnées d'un ou plusieurs modèles.
-pub fn run(a: &MetaArgs, default_ir: Option<&str>) -> Result<()> {
+pub fn run(a: &MetaArgs, conf: &crate::config::LoadedConfig) -> Result<()> {
+    let default_ir = conf.config.default_ir.as_deref();
     let lib = Library::scan(&a.library);
     let targets: Vec<PathBuf> = if a.all {
         let m: Vec<PathBuf> = lib.matches(&a.model, Kind::Model).iter().map(|e| e.path.clone()).collect();
@@ -237,13 +238,20 @@ pub fn run(a: &MetaArgs, default_ir: Option<&str>) -> Result<()> {
         println!("{} modèle(s) corrigé(s) dans {}", targets.len(), Overrides::path(&a.library).display());
     }
     let lib = Library::scan(&a.library);
+    let irs = crate::profile::Profiles::load_verbose(&lib);
+    let models = crate::model_profile::ModelProfiles::load_verbose(&lib, conf, &irs);
     for p in &targets {
-        show(&lib, p, default_ir)?;
+        show(&lib, p, default_ir, &models)?;
     }
     Ok(())
 }
 
-fn show(lib: &Library, path: &Path, default_ir: Option<&str>) -> Result<()> {
+fn show(
+    lib: &Library,
+    path: &Path,
+    default_ir: Option<&str>,
+    profiles: &crate::model_profile::ModelProfiles,
+) -> Result<()> {
     let raw = crate::library::read_meta(path)?;
     let m = lib.meta(path)?;
     let entry = lib.by_path(path).ok_or_else(|| anyhow::anyhow!("{} hors bibliothèque", path.display()))?;
@@ -263,6 +271,24 @@ fn show(lib: &Library, path: &Path, default_ir: Option<&str>) -> Result<()> {
     println!("  {:<9} {}", "IR", crate::recommend::advice(lib, entry, &m, default_ir));
     if let Some(db) = m.input_db {
         println!("  {:<9} {db:+.1} dB", "entrée");
+    }
+    if let Some(p) = profiles.measures.get(&entry.rel) {
+        println!(
+            "  {:<9} {} — distorsion {:.1} % (la 110 Hz à ta crête), compression {:.1} dB",
+            "grain",
+            p.grain(),
+            p.thd_pct,
+            p.compression_db,
+        );
+    }
+    if let Some(d) = profiles.by_rel.get(&entry.rel) {
+        println!(
+            "  {:<9} {}  {}{}",
+            "profil",
+            d.spark,
+            d.tags.join(", "),
+            profiles.ir_used.get(&entry.rel).map_or(String::new(), |ir| format!("  (avec {ir})"))
+        );
     }
     Ok(())
 }
@@ -305,6 +331,7 @@ mod tests {
                 ("ir/C/cab.wav", ""),
             ],
         );
+        let conf = crate::config::LoadedConfig::load(None, true).unwrap();
         let args = |model: &str, all: bool| MetaArgs {
             model: model.into(),
             all,
@@ -316,19 +343,19 @@ mod tests {
             reset: false,
             library: d.clone(),
         };
-        run(&args("fullrig", true), None).unwrap();
+        run(&args("fullrig", true), &conf).unwrap();
         let ov = Overrides::load(&d).unwrap();
         assert_eq!(ov.model.len(), 2);
         assert!(ov
             .model
             .values()
             .all(|o| o.gear_type.as_deref() == Some("amp_cab") && o.input_db == Some(-3.0)));
-        assert!(run(&args("fullrig", false), None).is_err(), "ambigu sans --all");
+        assert!(run(&args("fullrig", false), &conf).is_err(), "ambigu sans --all");
         let mut reset = args("A_FullRig", false);
         reset.gear_type = None;
         reset.input_db = None;
         reset.reset = true;
-        run(&reset, None).unwrap();
+        run(&reset, &conf).unwrap();
         assert_eq!(Overrides::load(&d).unwrap().model.len(), 1);
     }
 }

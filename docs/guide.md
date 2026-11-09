@@ -382,6 +382,11 @@ point de départ : avec les captures Tone3000, il redonne le son des démos (le 
 presque clair). Les packs vendus ne disent pas toujours à quel niveau ils ont été capturés : c'est
 là que l'oreille décide.
 
+**Le grain affiché aide** : « clair · casse à +9 dB » veut dire qu'il faut environ +9 dB d'entrée
+pour que ce modèle commence à saturer avec ta basse ; un modèle « saturé 18 % » qui devrait être
+clair (d'après son nom) est trop poussé, essaie -6 dB ([profil des
+modèles](#profil-sonore-et-grain-des-modèles)).
+
 **Méthode**, modèle par modèle (ou un modèle représentatif du pack) :
 1. Pars de l'**intention du son** : son nom (`DeepAndClean` doit rester clair, `BrightAndHighGain`
    doit saturer), la notice, ou la démo du vendeur si elle existe.
@@ -516,6 +521,40 @@ peuvent sonner différemment (phase, résonances fines). Le profil est calculé 
 dans `library/.cache/ir-profiles.json`, rangé par empreinte du contenu. Les IR déjà présentes
 sont profilées au premier `models` ou `browse` (environ 1 s pour 250 IR), puis tout est lu dans le
 cache. Ce fichier peut être supprimé sans risque : il se reconstruit.
+
+### Profil sonore et grain des modèles
+
+`namfoop models` (et l'onglet Modèles de `browse`) décrit aussi chaque modèle, **mesuré avec ta
+basse** : l'enregistrement de `calibrate` (les 4 s les plus jouées), joué au niveau que le modèle
+reçoit vraiment (trim + entrée propre du modèle).
+
+```
+    mrzw   PPB_DeepAndClean_DI  — amp | WaveNet 3ch + WaveNet 8ch | -12.1 dB
+           ██▇▅▃▃▁▄▄▄▁▁  clair · casse à +15 dB · sombre, médium creusé  (avec AMPG_SVT410_Mix1)
+    mway   ProCo Rat 2 - D_F_V - 9_9_9  — pedal rock | …
+           ▆██▆▆▇▅▆▆▃▁▁  très saturé 28 % · compressé · brillant, sub +4  (avec …)
+```
+
+- **Grain** (absolu) : distorsion harmonique d'un la (110 Hz) joué à ta crête de jeu.
+  - **clair** (< 2 %), **crunch** (2–8 %), **saturé** (8–20 %), **très saturé** (≥ 20 %) ;
+  - **compressé** : le modèle tasse tes attaques (facteur de crête réduit de 5 dB ou plus) ;
+  - **casse à +9 dB** : pour un son clair, le gain d'entrée à ajouter pour qu'il commence à
+    saturer (3 %). C'est le repère pour régler l'entrée propre du modèle (`namfoop meta
+    --input-db`, ou `e` dans `browse`) ; « ne casse pas » : pas de saturation jusqu'à +18 dB.
+
+  Repères mesurés : un Bassman 800 « presque clair » donne 1 %, une Rat passe de 0,2 % (drive
+  1,5) à 6 % (drive 6) puis à 28 % (drive 9).
+- **Courbe et étiquettes** : comme pour les IR, mini-spectre et écarts au reste du pack. C'est la
+  sortie du modèle divisée par ta basse, soit la « couleur » de l'ampli. Pour un modèle sans
+  baffle, elle inclut l'**IR préférée** (ou la mieux conseillée), indiquée entre parenthèses :
+  c'est ce que tu entends.
+- `namfoop meta <id>` détaille la mesure (distorsion en %, compression en dB).
+
+La mesure est faite une fois (≈ 0,1 s par modèle et par cœur), à l'import ou au premier `models`
+ou `browse`, puis gardée dans `library/.cache/model-profiles.json`. Elle est **refaite
+automatiquement** pour un modèle dont tu changes l'entrée, et pour tous après un nouveau
+`calibrate`. Sans calibration, un signal de synthèse (notes de basse à -30 dBFS) sert de repli,
+et namfoop le signale.
 
 ### Faut-il une IR ?
 

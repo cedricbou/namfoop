@@ -400,8 +400,11 @@ pub fn read_meta(path: &Path) -> Result<NamMeta> {
     })
 }
 
-pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
+pub fn list(library: &Path, conf: &crate::config::LoadedConfig) -> Result<()> {
+    let default_ir = conf.config.default_ir.as_deref();
     let lib = Library::scan(library);
+    let profiles = crate::profile::Profiles::load_verbose(&lib);
+    let model_profiles = crate::model_profile::ModelProfiles::load_verbose(&lib, conf, &profiles);
     let models: Vec<&Entry> = lib.of_kind(Kind::Model).collect();
     let irs: Vec<&Entry> = lib.of_kind(Kind::Ir).collect();
     if models.is_empty() && irs.is_empty() && lib.of_kind(Kind::Cab).next().is_none() {
@@ -430,13 +433,24 @@ pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
                         format!(" | corrigé : {}", m.corrected.join(", "))
                     },
                 );
+                if let Some(d) = model_profiles.by_rel.get(&e.rel) {
+                    println!(
+                        "           {}  {} · {}{}",
+                        d.spark,
+                        d.grain.as_deref().unwrap_or("?"),
+                        d.tags.join(", "),
+                        model_profiles
+                            .ir_used
+                            .get(&e.rel)
+                            .map_or(String::new(), |ir| format!("  (avec {ir})"))
+                    );
+                }
                 let advice = crate::recommend::advice(&lib, e, &m, default_ir);
                 println!("           {advice}");
             }
             Err(err) => println!("    {:<6} {}  — illisible : {err}", e.id, e.stem),
         }
     }
-    let profiles = crate::profile::Profiles::load_verbose(&lib);
     let cabs: Vec<&Entry> = lib.of_kind(Kind::Cab).collect();
     if !cabs.is_empty() {
         println!("\nMélanges d'IR ({}) — library/cabs/, utilisables avec -i :", cabs.len());
