@@ -586,9 +586,17 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
   - **`b`** coupe ou remet l'IR, pour entendre le modèle (ou ta basse) avec et sans baffle ;
   - **`r`** bascule entre ton choix (A) et la référence épinglée (B), sans perdre la sélection.
 
-  L'en-tête affiche « [A/B : IR coupée — b] » ou « [A/B : B = ◆ … — r] ». En mode `match`, le
-  volume est réaligné à chaque bascule : la comparaison se fait **à volume égal**, l'oreille juge
-  le timbre et non le niveau. Choisir une autre IR ou un autre modèle met fin à l'A/B.
+  Un **indicateur A/B** reste affiché en haut à droite, à côté des onglets : `A <ton choix>` et
+  `B ◆ <référence>`. Celui qu'on entend est surligné (A en cyan, B en jaune), et `IR COUPÉE` est
+  en rouge. Dans la liste, `◀ en cours (A)` ou `◀ en cours (B)` marque l'IR jouée.
+
+  Pas à pas : dans l'onglet IR, place-toi sur une IR et `c` (elle devient B). Choisis ensuite une
+  **autre** IR avec ↑↓ (elle devient A), puis `r` pour basculer. Si tu épingles l'IR en cours de
+  lecture, A et B sont la même : l'indicateur le dit, et `r` ne fait rien tant que tu n'as pas
+  choisi une autre IR. Il en va de même pour deux copies identiques d'un même fichier (voir
+  l'import). En mode `match`, le volume est réaligné à chaque bascule : la comparaison se fait
+  **à volume égal**, l'oreille juge le timbre et non le niveau. Choisir une autre IR ou un autre
+  modèle met fin à l'écoute de B (retour à A).
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).

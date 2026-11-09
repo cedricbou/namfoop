@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#39)
+- `browse`, A/B : indicateur permanent en haut de l'écran (A / B ◆ / IR COUPÉE, celui qu'on
+  entend surligné) et marques `◀ en cours (A)` / `(B)` dans la liste ; `r` explique pourquoi il
+  ne fait rien quand la référence est l'IR en cours ou une copie identique ; une chaîne identique
+  à la précédente n'est plus reconstruite (pas de fondu inutile).
+
 ### Ajouté (#37)
 - Vumètres : repère `┃` sur `in` à la crête de ta calibration (cible − trim) et niveau reçu par le
   modèle (`→ modèle -30 dB`), dans `browse` et la ligne d'état de `run`. `calibrate` enregistre sa

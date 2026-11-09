@@ -93,6 +93,21 @@ pub struct BlendPart {
     pub invert: bool,
 }
 
+/// Ce que l'A/B fait entendre (indicateur permanent de l'en-tête).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AbState {
+    /// Pas de référence épinglée.
+    NoReference,
+    /// La référence est l'IR choisie : rien à comparer.
+    Same,
+    /// On entend ton choix.
+    A,
+    /// On entend la référence.
+    B,
+    /// IR coupée (`b`).
+    Bypass,
+}
+
 /// Ligne de l'onglet Modèles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModelRow {
@@ -261,6 +276,29 @@ impl State {
         Action::Play { model: self.model, ir: self.effective_ir() }
     }
 
+    /// L'IR choisie est la référence, ou une copie identique (même profil : fichier en double).
+    fn same_as_reference(&self, r: usize) -> bool {
+        match self.ir {
+            IrChoice::Item(i) if i == r => true,
+            IrChoice::Item(i) => match (&self.irs[i].profile, &self.irs[r].profile) {
+                (Some(a), Some(b)) => a.profile == b.profile,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// État de l'A/B pour l'affichage.
+    pub fn ab_state(&self) -> AbState {
+        match (self.bypass, self.reference, self.listen_ref) {
+            (true, ..) => AbState::Bypass,
+            (false, None, _) => AbState::NoReference,
+            (false, Some(r), _) if self.same_as_reference(r) => AbState::Same,
+            (false, Some(_), false) => AbState::A,
+            (false, Some(_), true) => AbState::B,
+        }
+    }
+
     /// Un nouveau choix s'écoute tel quel : fin des A/B en cours.
     fn fresh(&mut self) {
         self.listen_ref = false;
@@ -289,9 +327,17 @@ impl State {
             }
             Key::Char('r') => {
                 let Some(r) = self.reference else {
-                    self.message = Some("pas de référence : c sur une IR (onglet IR) pour l'épingler".into());
+                    self.message =
+                        Some("A/B : pas de référence — c sur une IR (onglet IR) pour l'épingler".into());
                     return Some(Action::None);
                 };
+                if !self.listen_ref && self.same_as_reference(r) {
+                    self.message = Some(format!(
+                        "A/B : A et B sont la même IR, ou des copies identiques (◆ {}) — choisis une autre IR (↑↓), puis r",
+                        self.irs[r].label
+                    ));
+                    return Some(Action::None);
+                }
                 self.listen_ref = !self.listen_ref;
                 self.bypass = false;
                 self.message = Some(if self.listen_ref {
@@ -626,8 +672,15 @@ impl State {
                         return self.play();
                     }
                     self.reference = Some(i);
-                    self.message =
-                        Some(format!("◆ référence : {} — r pour l'écouter (A/B)", self.irs[i].label));
+                    self.listen_ref = false;
+                    self.message = Some(if self.ir == IrChoice::Item(i) {
+                        format!(
+                            "◆ référence (B) : {} — choisis maintenant une autre IR (A) avec ↑↓, puis r pour comparer",
+                            self.irs[i].label
+                        )
+                    } else {
+                        format!("◆ référence (B) : {} — r pour basculer A ↔ B", self.irs[i].label)
+                    });
                 }
             }
             Key::Char('b') | Key::Char('r') => {
@@ -1017,5 +1070,45 @@ pub mod tests {
         s.on_key(Key::Char('e'));
         assert_eq!(s.on_key(Key::Char('b')), Action::Play { model: Some(1), ir: IrChoice::None });
         assert!(s.editor.is_some());
+    }
+
+    #[test]
+    fn ab_with_reference_equal_to_current_ir_is_explained() {
+        let mut s = sample();
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // 800D, IR conseillée 2 en écoute
+        assert_eq!(s.ab_state(), AbState::NoReference);
+        s.on_key(Key::Tab);
+        s.on_key(Key::Down); // ligne de l'IR 2 (en cours)
+        assert_eq!(s.ir_at_cursor(), Some(2));
+        s.on_key(Key::Char('c'));
+        assert_eq!(s.ab_state(), AbState::Same);
+        assert!(s.message.as_deref().unwrap().contains("choisis maintenant une autre IR"));
+        assert_eq!(s.on_key(Key::Char('r')), Action::None, "rien à comparer");
+        assert!(s.message.as_deref().unwrap().contains("même IR"));
+        // une autre IR choisie : A = 0, B = ◆ 2
+        s.on_key(Key::Down);
+        assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(0) });
+        assert_eq!(s.ab_state(), AbState::A);
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+        assert_eq!(s.ab_state(), AbState::B);
+        assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(1), ir: IrChoice::Item(0) });
+        assert_eq!(s.on_key(Key::Char('b')), Action::Play { model: Some(1), ir: IrChoice::None });
+        assert_eq!(s.ab_state(), AbState::Bypass);
+        // copies identiques (même profil) : rien à comparer non plus
+        let p = std::sync::Arc::new(dsp::profile::IrProfile {
+            bands_db: vec![1.0; 28],
+            low_cut_hz: 40.0,
+            high_cut_hz: 5000.0,
+        });
+        for i in [0, 2] {
+            s.irs[i].profile =
+                Some(crate::profile::Described { profile: p.clone(), spark: String::new(), tags: vec![] });
+        }
+        s.on_key(Key::Char('b'));
+        assert_eq!(s.ab_state(), AbState::Same);
+        assert_eq!(s.on_key(Key::Char('r')), Action::None);
+        assert!(s.message.as_deref().unwrap().contains("copies identiques"));
     }
 }
