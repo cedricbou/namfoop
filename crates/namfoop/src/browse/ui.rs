@@ -234,7 +234,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             "tape le texte   Entrée valider   Échap annuler"
         }
         _ if s.editor.is_some() => {
-            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer aux modèles filtrés   Échap fermer"
+            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer le changement aux modèles filtrés   Échap fermer"
         }
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler",
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre",
