@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#26)
+- Guide : tutoriel d'import pas à pas (import et revue, type de capture à l'oreille, gain
+  d'entrée par rapport à la calibration, volume en mode `match`, corrections en masse).
+
+### Modifié (#26)
+- `browse`, éditeur : `a` n'applique aux modèles filtrés que les champs modifiés (type et/ou
+  entrée), au lieu de recopier les deux.
+- Guide : `--output-db` est sans effet en mode `match` (l'alignement de niveau vient après).
+
 ### Ajouté (#21)
 - `browse` : touche `e`, éditeur du modèle en écoute — type de capture, gain d'entrée propre
   (entendu tout de suite : calibration à l'oreille), IR préférée (les conseillées défilent en

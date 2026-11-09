@@ -266,6 +266,182 @@ namfoop meta <id> --reset                       # oublier les corrections
 
 `namfoop models` signale les modèles corrigés (« corrigé : type, IR »).
 
+### Tutoriel : d'un zip acheté à un son prêt pour la scène
+
+Exemple suivi : les packs komposition101 rangés dans `nam/komposition101/` (deux packs de modèles
+avec versions DI et FullRig, un pack d'IR). La méthode vaut pour tout pack, Tone3000 compris.
+
+**Avant de commencer** : `namfoop setup` et `namfoop calibrate` sont faits
+([§ 5](#5-configurer-la-carte--lassistant), [§ 7](#7-calibrer-sa-basse)). La calibration sert de
+référence à tous les réglages d'entrée ci-dessous.
+
+#### Import ou revue : deux étapes distinctes
+
+| | `namfoop import` | la revue (`browse`, touche `e`) |
+|---|---|---|
+| Rôle | ranger et **vérifier automatiquement** les fichiers | **écouter** et ajuster à l'oreille |
+| Carte son | non utilisée | prise (le son joue) |
+| Ce qu'il décide | rangement, doublons, fichiers refusés, type de capture d'après le nom, IR fournie avec le pack | type de capture douteux, gain d'entrée propre au modèle, IR préférée, nom, marque |
+| Quand | une fois par pack | après l'import, ou n'importe quand plus tard |
+| Obligatoire ? | oui | non : sans revue, les modèles sont jouables avec les réglages par défaut |
+
+`namfoop import --review` enchaîne les deux : il importe, puis ouvre le navigateur sur les
+nouveaux modèles, éditeur ouvert. C'est un raccourci, pas une autre façon d'importer. La revue se
+refait ensuite à tout moment avec `namfoop browse` (touche `e`) ou `namfoop meta`.
+
+#### Étape 1 — Voir ce que l'import va faire
+
+```sh
+namfoop import --dry-run nam/komposition101
+```
+
+Rien n'est écrit. Lis le résumé, pack par pack :
+
+```
+[PopPunkBass_NAMA2] modèles : 52 nouveaux · IR : 0 nouvelles · docs : 2 · doublons : 13 · refusés : 0
+      -      DI/PPB_ChunkyBass_DI.nam  — sans baffle (nom « di »)
+      -      Full-Rig/PPB_ChunkyBass_FullRig.nam  — baffle inclus (nom « fullrig ») → corrigé
+    doublons ignorés (contenu déjà présent) : AMPG_SVT410_Mix1.wav, … (+12)
+```
+
+- **sans baffle / baffle inclus** et entre parenthèses **d'où vient la décision** (nom du fichier,
+  dossier, ou métadonnées) ;
+- **→ corrigé** : les métadonnées du fichier disaient autre chose (ici `amp` pour un FullRig) ;
+  la correction sera enregistrée ;
+- **⚠ à vérifier** : rien ne permet de trancher, il faudra écouter (étape 3) ;
+- **doublons** : fichiers déjà présents (souvent les mêmes IR livrées dans plusieurs packs) ;
+- **refusés** : fichiers illisibles ou muets, avec la raison.
+
+#### Étape 2 — Importer
+
+```sh
+namfoop import nam/komposition101
+```
+
+Le même résumé s'affiche, avec les **identifiants** (`m…`) et l'IR conseillée de chaque modèle
+sans baffle. Les notices des packs sont copiées dans `library/docs/<pack>/` : lis-les, elles
+donnent parfois le niveau de calibration ou les intentions des sons.
+
+Le pack est utilisable dès maintenant : `namfoop run -m <id> -i auto`. La suite sert à affiner.
+
+#### Étape 3 — Vérifier le type de capture (si l'import en a signalé)
+
+Ouvre le navigateur filtré sur le pack, puis l'éditeur :
+
+```sh
+namfoop browse --filter "PopPunk"
+```
+
+Place-toi sur le modèle, `e`, descends sur **IR préférée** et fais défiler avec ←→ : « aucune »,
+puis les IR conseillées, qui jouent au fur et à mesure.
+- Le son est **fini sans IR** et devient **sourd, étouffé** avec une IR : le baffle est inclus.
+  Remonte sur **Type de capture**, choisis `amp_cab`.
+- Le son est **criard, bourdonnant, « râpeux » sans IR** et naturel avec : il n'y a pas de baffle.
+  Choisis `amp`.
+
+`s` enregistre. Le modèle porte alors la marque ✎ dans la liste.
+
+#### Étape 4 — Trouver le bon gain d'entrée
+
+Le **gain d'entrée** décide du **grain** (clair, crunch, saturé). Il s'additionne en trois
+couches, de la plus globale à la plus fine :
+
+```
+basse ─▶ trim (calibrate)  ─▶ --input-db (session)  ─▶ entrée du modèle (e / meta)  ─▶ modèle NAM ─▶ IR
+         toute la config       une commande run         ce modèle, enregistrée
+```
+
+| Réglage | Portée | Où il est rangé | Sert à |
+|---|---|---|---|
+| trim | ta basse + ta carte, tous les modèles | config (`calibrate`) | ramener ta basse au niveau de référence (crêtes à -30 dBFS à l'entrée des modèles) |
+| `--input-db` | une session | rien (option) | essayer, ou pousser un morceau précis |
+| entrée du modèle | un modèle, ou un pack avec `a` / `--all` | `library/overrides.toml` | corriger un modèle calibré différemment des autres |
+
+**0 dB dans l'éditeur veut dire « ta basse arrive au niveau de la calibration ».** C'est le bon
+point de départ : avec les captures Tone3000, il redonne le son des démos (le Bassman 800 reste
+presque clair). Les packs vendus ne disent pas toujours à quel niveau ils ont été capturés : c'est
+là que l'oreille décide.
+
+**Méthode**, modèle par modèle (ou un modèle représentatif du pack) :
+1. Pars de l'**intention du son** : son nom (`DeepAndClean` doit rester clair, `BrightAndHighGain`
+   doit saturer), la notice, ou la démo du vendeur si elle existe.
+2. Dans l'éditeur, sur **Entrée**, joue ton passage **le plus appuyé**. Un son clair qui casse :
+   ← (moins). Un son saturé qui manque de mordant : → (plus). Par pas de 1 dB, ça s'entend
+   immédiatement.
+3. Vérifie en jouant **doucement** : le grain doit suivre ton attaque comme sur un vrai ampli.
+4. `s` enregistre.
+
+Repères : les corrections utiles tiennent en général entre -12 et +6 dB. Au-delà, le problème est
+ailleurs : recalibre (`namfoop calibrate`) ou vérifie le gain de la carte. Si **tous** les modèles
+te semblent trop saturés, ne corrige pas modèle par modèle : relance `calibrate`, ou baisse
+`--target` de calibration.
+
+#### Et le volume de sortie ?
+
+**Tu n'as rien à régler par modèle.** En mode `level = "match"` (celui que `calibrate` active),
+namfoop recalcule le volume **à chaque chargement**. Ton enregistrement de calibration passe dans
+la chaîne complète (entrée, modèle, IR), et un gain ramène le résultat au volume de ta basse en
+direct. Conséquences :
+
+- changer l'entrée change le **grain**, pas le volume ;
+- `--output-db` est sans effet en mode `match`, puisque l'alignement vient après lui. Il ne sert
+  qu'en `normalize` et `raw` ;
+- les conseils du type « monte la sortie de 8 à 10 dB » des notices (komposition101 par exemple)
+  visent les lecteurs sans alignement : ignore-les ici ;
+- le volume général se règle avec `--master-db`, et `lim` en bas du navigateur montre si le
+  limiteur travaille (s'il est souvent actif, baisse le master, pas l'entrée).
+
+Limite actuelle : l'alignement égalise l'énergie (RMS). À énergie égale, un son clair peut
+paraître un peu moins fort qu'un son saturé. Le temps qu'un volume propre à chaque modèle arrive
+([issue #25](https://github.com/cedricbou/namfoop/issues/25)), compense avec `--master-db`.
+
+#### Étape 5 — Corriger en masse
+
+**À l'écran.** Le filtre (`/`) choisit les modèles ; **ce qui est visible est ce qui sera
+modifié**. Ouvre l'éditeur sur l'un d'eux (`e`), change le type **ou** l'entrée, puis `a` :
+seuls les champs que tu as changés sont recopiés sur tous les modèles visibles. Les autres champs
+de chaque modèle (son type, son IR…) restent les siens. Exemples :
+- tout un pack un peu trop chaud : `/` `poppunk`, `e`, Entrée à -3, `a` ;
+- les deux versions d'un même son (même ampli, même réglage d'entrée en général) :
+  `/` `chunkybass`, `e`, réglage, `a` ;
+- des FullRig mal déclarés : `/` `fullrig`, `e`, type `amp_cab`, `a`.
+
+Attention aux mots courts : le filtre cherche des **morceaux** de mots, et `di` trouve aussi
+« **Di**rty ». Regarde la liste avant d'appuyer sur `a`.
+
+**En ligne de commande**, avec `namfoop meta … --all` : les mots-clés désignent tous les modèles
+dont le **chemin** les contient. Lance d'abord la commande **sans option** pour voir la liste
+concernée, puis avec la correction :
+
+```sh
+namfoop meta "poppunk" --all                     # liste ce qui sera touché
+namfoop meta "poppunk" --all --input-db -3       # applique
+namfoop meta "zeroamps full-rig" --all --type amp-cab
+```
+
+Contrairement à `a` à l'écran, `meta --all` applique **toutes** les options données.
+
+#### Étape 6 — Choisir l'IR des modèles sans baffle
+
+L'import a déjà retenu l'IR fournie avec le pack comme **IR préférée** (`-i auto` la prend).
+Pour en changer : dans l'éditeur, champ **IR préférée**, ←→ parmi les conseillées. Ou choisis
+n'importe quelle IR dans l'onglet IR (y compris un de tes mélanges), reviens sur le modèle, `e`,
+Entrée sur **IR préférée**. En ligne de commande : `namfoop meta <id> --ir "<mots-clés>"`.
+
+#### Étape 7 — Vérifier et jouer
+
+```sh
+namfoop meta <id>                 # ce qui est retenu : type, entrée, IR (valeur du fichier entre parenthèses)
+namfoop run -m <id> -i auto
+```
+
+Au démarrage, `run` affiche ce qu'il applique : `entrée propre au modèle -3.0 dB`, puis la ligne
+`NAM …` avec l'entrée **totale** (trim + `--input-db` + entrée du modèle), puis
+`niveau aligné sur le DI : +x dB`.
+
+Pour repartir de zéro sur un modèle : `namfoop meta <id> --reset`. Tes corrections ne touchent
+jamais aux fichiers achetés, et survivent à un réimport.
+
 ### Inventaire : `namfoop models`
 
 ```sh
@@ -367,9 +543,10 @@ L'éditeur s'ouvre sur le modèle sous le curseur, qui continue de jouer. ↑↓
 
 La valeur lue dans le fichier est rappelée en regard (« fichier : amp »). **`s` enregistre** dans
 `library/overrides.toml`, comme `namfoop meta` ; le `.nam` n'est jamais modifié. **`a` applique**
-le type et l'entrée à **tous les modèles visibles** (ceux du filtre) : filtre `/fullrig`, `e`,
-type `amp_cab`, `a`, et tout le pack est corrigé. Échap ferme sans enregistrer et revient au
-réglage enregistré.
+ce que tu as changé (le type et/ou l'entrée) à **tous les modèles visibles** (ceux du filtre) :
+filtre `/fullrig`, `e`, type `amp_cab`, `a`, et tout le pack est corrigé ; les champs que tu n'as
+pas changés restent ceux de chaque modèle. Échap ferme sans enregistrer et revient au réglage
+enregistré. Pas à pas : [tutoriel d'import](#tutoriel--dun-zip-acheté-à-un-son-prêt-pour-la-scène).
 
 **Calibrer à l'oreille.** Les packs ne sont pas calibrés au même niveau d'entrée (Tone3000,
 packs achetés…). Joue comme sur scène et règle l'entrée jusqu'au grain voulu, en surveillant `out`
@@ -519,7 +696,8 @@ Plus toutes les options de son du [§ 9](#9-régler-le-son-et-le-volume).
 ### Saturation : `--input-db`
 
 Comme le gain d'un ampli : `--input-db 6` pousse le modèle, `--input-db -6` l'éclaircit. Il
-s'ajoute au trim de calibration, et se règle **par modèle**.
+s'ajoute au trim de calibration et à l'entrée propre du modèle (enregistrée avec `namfoop meta`
+ou l'éditeur de `browse`), pour cette session seulement.
 
 ```sh
 namfoop run -m "bassman 800" --input-db 4
@@ -540,7 +718,10 @@ Les captures sortent à des niveaux très différents (de -14 à -40 dB). Trois 
 | `normalize` | (défaut sans calibration) la loudness annoncée par le modèle est ramenée à `--target-db` (-18 dB, la convention NAM) |
 | `raw` | sortie brute du modèle, sans correction |
 
-`--output-db` ajoute un gain après le modèle, `--master-db` règle le volume final.
+`--master-db` règle le volume final. `--output-db` ajoute un gain juste après le modèle : utile
+en `normalize` et `raw`, mais **sans effet en `match`**, dont l'alignement vient après. Le grain
+d'un modèle se règle par l'entrée (`--input-db`, ou l'entrée propre au modèle :
+[tutoriel d'import](#tutoriel--dun-zip-acheté-à-un-son-prêt-pour-la-scène)).
 
 ### IR : `--ir-ms`
 

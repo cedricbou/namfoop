@@ -293,16 +293,9 @@ impl State {
     fn open_editor(&mut self) -> Action {
         let Some(&m) = self.model_rows().get(self.cursor()) else { return Action::None };
         let draft = self.saved_meta(m);
-        let mut action = Action::None;
-        if self.model != Some(m) {
-            action = self.select_current();
-        }
-        if let Some(i) = draft.ir {
-            if self.ir != IrChoice::Item(i) {
-                self.ir = IrChoice::Item(i);
-                action = self.play();
-            }
-        }
+        // un modèle nouvellement choisi prend sa meilleure IR conseillée (la préférée en tête) ;
+        // s'il joue déjà, on garde l'IR en écoute (Entrée sur « IR préférée » la retient)
+        let action = if self.model != Some(m) { self.select_current() } else { Action::None };
         self.editor = Some(Editor { model: m, field: 0, draft, typing: None });
         self.message = None;
         action
@@ -390,21 +383,39 @@ impl State {
                 return Action::SaveMeta(vec![(m, draft)]);
             }
             Key::Char('a') => {
-                // type et entrée appliqués à tous les modèles visibles (filtre)
+                // seuls les champs type / entrée modifiés dans l'éditeur sont appliqués à tous les
+                // modèles visibles (filtre) : changer l'entrée ne touche pas au type, et inversement
                 let draft = ed.draft.clone();
-                let (t, db) = (draft.gear_type.clone(), draft.input_db);
-                let rows = self.model_rows();
-                let all: Vec<(usize, ModelMeta)> = rows
+                let saved = self.saved_meta(m);
+                let set_type = draft.gear_type != saved.gear_type;
+                let set_input = draft.input_db != saved.input_db;
+                if !set_type && !set_input {
+                    self.message = Some("rien à appliquer : change d'abord le type ou l'entrée".into());
+                    return Action::None;
+                }
+                let all: Vec<(usize, ModelMeta)> = self
+                    .model_rows()
                     .iter()
                     .map(|&i| {
                         let mut meta = if i == m { draft.clone() } else { self.saved_meta(i) };
-                        meta.gear_type = t.clone();
-                        meta.input_db = db;
+                        if set_type {
+                            meta.gear_type = draft.gear_type.clone();
+                        }
+                        if set_input {
+                            meta.input_db = draft.input_db;
+                        }
                         (i, meta)
                     })
                     .collect();
+                let mut what = Vec::new();
+                if set_type {
+                    what.push(format!("type « {} »", draft.gear_type));
+                }
+                if set_input {
+                    what.push(format!("entrée {:+.0} dB", draft.input_db));
+                }
                 self.editor = None;
-                self.message = Some(format!("type « {t} » et entrée {db:+.0} dB : {} modèles", all.len()));
+                self.message = Some(format!("{} appliqué(s) à {} modèles", what.join(" et "), all.len()));
                 return Action::SaveMeta(all);
             }
             _ => {}
@@ -760,6 +771,34 @@ pub mod tests {
         s.on_key(Key::Right); // amp -> amp_cab
         let Action::SaveMeta(v) = s.on_key(Key::Char('a')) else { panic!() };
         assert_eq!(v.len(), n);
-        assert!(v.iter().all(|(_, m)| m.gear_type == "amp_cab"));
+        assert!(v.iter().all(|(_, m)| m.gear_type == "amp_cab" && m.input_db == 0.0), "type seul");
+        // entrée seule : le type de chaque modèle est gardé
+        s.models[2].meta.as_mut().unwrap().0.gear_type = "pedal".into();
+        s.on_key(Key::Char('e'));
+        assert_eq!(s.on_key(Key::Char('a')), Action::None, "rien de modifié");
+        s.on_key(Key::Down);
+        s.on_key(Key::Left);
+        let Action::SaveMeta(v) = s.on_key(Key::Char('a')) else { panic!() };
+        assert!(v.iter().all(|(_, m)| m.input_db == -1.0));
+        assert!(v.iter().any(|(_, m)| m.gear_type == "pedal") && v.iter().any(|(_, m)| m.gear_type == "amp"));
+    }
+
+    #[test]
+    fn ir_chosen_in_ir_tab_becomes_preferred() {
+        let mut s = with_meta(sample());
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // 800D, IR conseillée 2
+        s.on_key(Key::Tab);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // IR 1 (non conseillée)
+        assert_eq!(s.ir, IrChoice::Item(1));
+        s.on_key(Key::Left);
+        assert_eq!(s.on_key(Key::Char('e')), Action::None, "même modèle : le son ne change pas");
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // champ IR préférée : prend l'IR en écoute
+        assert_eq!(s.editor.as_ref().unwrap().draft.ir, Some(1));
     }
 }
