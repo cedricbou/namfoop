@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#20)
+- `namfoop import` : importe zips, dossiers et fichiers (rangement par pack avec sous-dossiers,
+  notices dans `library/docs/`, fichiers parasites ignorés), écarte les doublons par contenu,
+  vérifie chaque modèle (chargé et joué) et chaque IR, déduit le type de capture du nom et des
+  dossiers (`DI`, `FullRig`…) quand les métadonnées sont fausses, retient l'IR fournie avec le
+  pack comme IR préférée. Remplace `scripts/import-tone3000.sh`.
+- `namfoop meta` : affiche et corrige les métadonnées d'un modèle (type de capture, marque, nom,
+  gain d'entrée propre, IR préférée), aussi en groupe (`--all`). Corrections dans
+  `library/overrides.toml`, par empreinte du contenu : les fichiers d'origine ne sont jamais modifiés.
+- Les valeurs de remplissage des métadonnées (`T3K-Null`, `tz-make`…) sont traitées comme absentes.
+
+### Modifié (#20)
+- Le « pack » d'un fichier inclut ses sous-dossiers (`PopPunkBass_NAMA2/DI`).
+
 ### Ajouté (#16)
 - `namfoop browse` : navigateur plein écran qui joue en direct — modèles (badge IR incluse /
   requise), IR conseillées en tête, filtre, écoute après 150 ms d'arrêt, création de mélanges à

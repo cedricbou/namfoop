@@ -59,7 +59,8 @@ pub struct Entry {
     pub path: PathBuf,
     /// Chemin relatif à la bibliothèque (avec `/`).
     pub rel: String,
-    /// Dossier parent (le « pack »).
+    /// Dossier du fichier sous `nam/`, `ir/` ou `cabs/` (le « pack », sous-dossiers compris :
+    /// « PopPunkBass_NAMA2/DI »).
     pub pack: String,
     /// Nom de fichier sans extension.
     pub stem: String,
@@ -98,6 +99,18 @@ pub fn tokens(s: &str) -> Vec<String> {
 pub struct Library {
     pub root: PathBuf,
     pub entries: Vec<Entry>,
+    /// Corrections de l'utilisateur (`library/overrides.toml`).
+    pub overrides: crate::overrides::Overrides,
+}
+
+/// Pack d'un fichier : son dossier relatif, sans le premier niveau `nam/`, `ir/` ou `cabs/`.
+fn pack_of(rel: &str) -> String {
+    let mut parts: Vec<&str> = rel.split('/').collect();
+    parts.pop();
+    if parts.len() > 1 && ["nam", "ir", "cabs"].contains(&parts[0]) {
+        parts.remove(0);
+    }
+    parts.join("/")
 }
 
 impl Library {
@@ -113,11 +126,7 @@ impl Library {
                 .into_iter()
                 .map(|path| {
                     let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
-                    let pack = path
-                        .parent()
-                        .and_then(|d| d.file_name())
-                        .map(|s| s.to_string_lossy().into_owned())
-                        .unwrap_or_default();
+                    let pack = pack_of(&rel);
                     let stem = dsp::blend::display_name(&path);
                     Entry { kind, id: String::new(), path, rel, pack, stem }
                 })
@@ -125,7 +134,33 @@ impl Library {
             assign_ids(&mut batch);
             entries.extend(batch);
         }
-        Self { root: root.to_path_buf(), entries }
+        let overrides = crate::overrides::Overrides::load(root).unwrap_or_else(|e| {
+            log::warn!("{e:#} : corrections ignorées");
+            Default::default()
+        });
+        Self { root: root.to_path_buf(), entries, overrides }
+    }
+
+    /// Métadonnées d'un modèle, corrections de l'utilisateur appliquées.
+    pub fn meta(&self, path: &Path) -> Result<NamMeta> {
+        let mut m = read_meta(path)?;
+        if !self.overrides.is_empty() {
+            if let Some(o) = self.overrides.model.get(&content_hash(path)?) {
+                o.apply(&mut m);
+            }
+        }
+        Ok(m)
+    }
+
+    /// Tous les fichiers dont le chemin contient tous les mots (pour les actions groupées).
+    pub fn matches(&self, query: &str, kind: Kind) -> Vec<&Entry> {
+        let words: Vec<String> = query.to_lowercase().split_whitespace().map(String::from).collect();
+        self.of_kind(kind).filter(|e| words.iter().all(|w| e.rel.to_lowercase().contains(w))).collect()
+    }
+
+    /// Chemin relatif à la bibliothèque (pour l'écrire dans un fichier de la bibliothèque).
+    pub fn relative(&self, path: &Path) -> String {
+        self.by_path(path).map(|e| e.rel.clone()).unwrap_or_else(|| path.display().to_string())
     }
 
     pub fn of_kind(&self, kind: Kind) -> impl Iterator<Item = &Entry> {
@@ -243,6 +278,21 @@ fn assign_ids(batch: &mut [Entry]) {
     }
 }
 
+/// Empreinte du contenu d'un fichier (FNV-1a 64 bits, hexadécimal) : identifie un modèle quel que
+/// soit son nom ou son emplacement (corrections, doublons à l'import).
+pub fn content_hash(path: &Path) -> Result<String> {
+    Ok(bytes_hash(&std::fs::read(path)?))
+}
+
+pub fn bytes_hash(data: &[u8]) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in data {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{h:016x}")
+}
+
 /// Résolution d'un fichier de la bibliothèque : `ext` = "nam" (modèle) ou "wav" (IR ou mélange).
 pub fn resolve(query: &str, library: &Path, ext: &str) -> Result<PathBuf> {
     let lib = Library::scan(library);
@@ -253,7 +303,8 @@ pub fn resolve(query: &str, library: &Path, ext: &str) -> Result<PathBuf> {
     }
 }
 
-/// Résumé d'un .nam lu depuis son JSON.
+/// Résumé d'un .nam lu depuis son JSON (et éventuellement corrigé, voir [`Library::meta`]).
+#[derive(Clone, Debug, Default)]
 pub struct NamMeta {
     pub name: String,
     pub gear_type: String,
@@ -262,6 +313,21 @@ pub struct NamMeta {
     pub tone_type: String,
     pub sizes: Vec<String>,
     pub loudness: Option<f64>,
+    /// Réglage d'entrée propre au modèle (dB, correction de l'utilisateur), ajouté à `--input-db`.
+    pub input_db: Option<f32>,
+    /// IR préférée pour ce modèle (chemin relatif à la bibliothèque, correction de l'utilisateur).
+    pub ir: Option<String>,
+    /// Champs corrigés par l'utilisateur (affichage).
+    pub corrected: Vec<&'static str>,
+}
+
+/// Valeurs de remplissage laissées par certains outils d'entraînement : équivalent à « absent ».
+pub fn placeholder(v: &str) -> bool {
+    let l = v.trim().to_lowercase();
+    l.is_empty()
+        || ["null", "none", "unknown", "n/a", "-", "?"].contains(&l.as_str())
+        || l.starts_with("t3k-null")
+        || l.starts_with("tz-")
 }
 
 fn wavenet_channels(model: &serde_json::Value) -> String {
@@ -283,7 +349,7 @@ fn wavenet_channels(model: &serde_json::Value) -> String {
 pub fn read_meta(path: &Path) -> Result<NamMeta> {
     let v: serde_json::Value = serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?;
     let m = &v["metadata"];
-    let s = |k: &str| m[k].as_str().unwrap_or("").to_string();
+    let s = |k: &str| m[k].as_str().filter(|v| !placeholder(v)).unwrap_or("").trim().to_string();
     let arch = v["architecture"].as_str().unwrap_or("?");
     let sizes = if arch == "SlimmableContainer" {
         v["config"]["submodels"]
@@ -301,6 +367,7 @@ pub fn read_meta(path: &Path) -> Result<NamMeta> {
         tone_type: s("tone_type"),
         sizes,
         loudness: m["loudness"].as_f64(),
+        ..Default::default()
     })
 }
 
@@ -318,16 +385,21 @@ pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
             println!("  [{}]", e.pack);
             last_pack = Some(&e.pack);
         }
-        match read_meta(&e.path) {
+        match lib.meta(&e.path) {
             Ok(m) => {
                 println!(
-                    "    {:<6} {}  — {} {} | {} | {}",
+                    "    {:<6} {}  — {} {} | {} | {}{}",
                     e.id,
                     e.stem,
-                    m.gear_type,
+                    if m.gear_type.is_empty() { "type ?" } else { &m.gear_type },
                     m.tone_type,
                     m.sizes.join(" + "),
                     m.loudness.map_or("loudness ?".into(), |l| format!("{l:.1} dB")),
+                    if m.corrected.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" | corrigé : {}", m.corrected.join(", "))
+                    },
                 );
                 let advice = crate::recommend::advice(&lib, e, &m, default_ir);
                 println!("           {advice}");

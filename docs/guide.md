@@ -180,17 +180,92 @@ Pour essayer l'assistant sans matériel : `namfoop --backend sim --no-config set
 namfoop cherche les sons dans `library/` (option `--library` pour un autre dossier) :
 
 ```
-library/nam/<pack>/*.nam     modèles
-library/ir/<pack>/*.wav      réponses impulsionnelles de baffle
+library/nam/<pack>/…/*.nam   modèles
+library/ir/<pack>/…/*.wav    réponses impulsionnelles de baffle
+library/docs/<pack>/…        notices des packs (README…)
+library/cabs/*.cab.toml      tes mélanges d'IR
+library/overrides.toml       tes corrections de métadonnées
 ```
 
-**Importer des zips Tone3000** téléchargés en vrac dans `nam/` :
+Ce dossier n'est jamais versionné : les droits des modèles et IR (Tone3000, packs achetés)
+appartiennent à leurs auteurs.
+
+### Importer des sons : `namfoop import`
+
+Donne-lui des zips, des dossiers ou des fichiers `.nam` / `.wav`, tels que téléchargés :
 
 ```sh
-scripts/import-tone3000.sh nam library
+namfoop import ~/Téléchargements/PopPunkBass_NAMA2.zip
+namfoop import nam/                      # chaque zip du dossier devient un pack
+namfoop import --dry-run nam/komposition101
+namfoop import --pack "Mes IR" cab1.wav cab2.wav
 ```
 
-**Inventaire** :
+Pour chaque fichier, `import` :
+
+1. **range** : modèles dans `library/nam/<pack>/`, IR dans `library/ir/<pack>/`, notices dans
+   `library/docs/<pack>/`. Le pack porte le nom du zip ou du dossier (ou `--pack`). Les
+   sous-dossiers du pack sont gardés (`DI/`, `Full-Rig/`…), et le dossier racine du zip est retiré.
+   Les fichiers parasites (`desktop.ini`, `__MACOSX`…) sont ignorés ;
+2. **écarte les doublons** : un fichier dont le **contenu** est déjà dans la bibliothèque n'est pas
+   recopié. C'est fréquent : les éditeurs glissent les mêmes IR dans plusieurs packs ;
+3. **vérifie** : chaque modèle est chargé et joué (refusé s'il est illisible, muet ou s'il produit
+   des valeurs invalides). Chaque IR est lue, et refusée si elle est vide, muette ou dure plus de
+   10 s (une démo, pas une IR) ;
+4. **détermine le type de capture** (baffle inclus ou non, voir ci-dessous) et corrige les
+   métadonnées fausses ;
+5. **retient l'IR du pack** : si le pack fournit des IR, la première (un mélange « Mix » de
+   préférence) devient l'**IR préférée** de ses modèles sans baffle ;
+6. **résume** : identifiant, type, IR conseillée, doublons, refus et points à vérifier.
+
+Relancer un import ne change rien : tout est reconnu comme doublon. `--dry-run` fait toutes les
+vérifications sans rien écrire.
+
+**Type de capture.** Les métadonnées des fichiers sont souvent incomplètes ou fausses. Certains packs
+achetés déclarent `amp` (sans baffle) même pour leurs captures FullRig, ou laissent des valeurs
+de remplissage (`T3K-Null`, `tz-make`), que namfoop traite comme absentes. `import` décide dans
+cet ordre :
+- le **nom du fichier** : `DI`, `FullRig`, `Full Rig`, `amp cab`, `no cab`… ;
+- puis les **dossiers** : `Full-Rig Profiles/`, `DI/`… ;
+- puis les **métadonnées**.
+
+Quand le résultat contredit les métadonnées, la correction est enregistrée et marquée « → corrigé ».
+Quand rien ne permet de trancher, le modèle est listé « à vérifier » avec la commande pour le
+corriger. Écoute-le avec `namfoop browse` : avec baffle, le son est « fini » ; sans baffle, il est
+criard et bourdonnant.
+
+Les fichiers d'origine ne sont **jamais modifiés** : les corrections vont dans
+`library/overrides.toml`, rangées sous l'**empreinte du contenu** de chaque modèle. Elles
+survivent à un renommage, à un déplacement ou à un réimport du pack.
+
+### Corriger un modèle : `namfoop meta`
+
+`namfoop meta` affiche ce que namfoop sait d'un modèle (valeur du fichier entre parenthèses quand
+elle a été corrigée), et le corrige :
+
+```sh
+namfoop meta <id>                               # afficher
+namfoop meta <id> --type amp-cab                # baffle inclus : pas d'IR
+namfoop meta fullrig --all --type amp-cab       # tous les modèles dont le chemin contient « fullrig »
+namfoop meta <id> --input-db -6                 # ce modèle sature trop : -6 dB à son entrée
+namfoop meta <id> --ir "ampg 410 mix 1"         # son IR préférée
+namfoop meta <id> --reset                       # oublier les corrections
+```
+
+- `--type` : `amp` (ampli seul), `amp-cab` (ampli + baffle), `full-rig`, `pedal`, `preamp`.
+  Décide si une IR est nécessaire ;
+- `--make` : la marque de l'ampli, utilisée pour conseiller les IR de la même marque ; `--name` :
+  le nom affiché ;
+- `--input-db` : un gain d'entrée **propre au modèle**, ajouté à `--input-db` de `run` / `browse`.
+  Pratique pour aligner des packs calibrés différemment ; `--input-db 0` le retire ;
+- `--ir` : l'**IR préférée** du modèle, en tête des conseils et choisie par `-i auto` ;
+- `--all` : applique la correction à **tous** les modèles qui contiennent les mots-clés (sans
+  `--all`, les mots-clés doivent désigner un seul modèle) ;
+- `--reset` : efface les corrections du ou des modèles.
+
+`namfoop models` signale les modèles corrigés (« corrigé : type, IR »).
+
+### Inventaire : `namfoop models`
 
 ```sh
 namfoop models
@@ -217,8 +292,9 @@ Pour un modèle qui en a besoin, namfoop **conseille des IR**. Il cherche d'abor
 (un ampli Mesa avec un baffle Mesa), et préfère les baffles basse (8x10, 4x10, 2x15…) aux baffles
 guitare (4x12, V30…). Une seule IR par pack figure en tête de liste. `-i auto` prend la première
 conseillée (ou aucune si le baffle est inclus). `run` sans `-i` sur un tel modèle affiche les
-trois meilleures suggestions. Pour imposer ta préférée, mets `default_ir` dans la config
-([§ 13](#13-le-fichier-de-configuration)).
+trois meilleures suggestions. Pour imposer ta préférée partout, mets `default_ir` dans la config
+([§ 13](#13-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
+(l'IR préférée du modèle passe avant tout le reste).
 
 ```sh
 namfoop run -m "800d modern" -i auto
@@ -517,7 +593,8 @@ modèles slimmable. À lancer sur la machine de scène (ex. le Pi) pour savoir q
 
 ### `namfoop models` et `namfoop ports`
 
-`namfoop models` liste la bibliothèque ([§ 6](#6-la-bibliothèque-de-sons)). `namfoop ports` liste
+`namfoop models` liste la bibliothèque ([§ 6](#6-la-bibliothèque-de-sons)) ; `namfoop import` et
+`namfoop meta` la remplissent et la corrigent. `namfoop ports` liste
 les ports JACK audio et MIDI.
 
 ---
@@ -609,7 +686,16 @@ note le modèle et l'IR concernés et ouvre une issue.
 avec les identifiants. Ajoute un mot, ou donne l'identifiant (`-m m4jn`).
 
 **« capture amp sans baffle : ajoute une IR ».** Le modèle ne contient pas de baffle : sans IR, le
-son est très agressif. Ajoute `-i auto` ou une des IR conseillées.
+son est très agressif. Ajoute `-i auto` ou une des IR conseillées. Si le modèle contient en fait
+son baffle (métadonnées fausses), corrige-le : `namfoop meta <id> --type amp-cab`.
+
+**Un pack acheté sonne plus fort ou plus saturé que les autres.** Les packs sont calibrés
+différemment. Le volume est déjà aligné par `--level` ; pour la saturation, donne au modèle (ou
+au pack, avec `--all`) un gain d'entrée propre : `namfoop meta <mots-clés> --all --input-db -6`.
+
+**`import` refuse un modèle « sortie invalide » ou « illisible ».** Le fichier est corrompu, ou son
+architecture n'est pas reconnue par la version de NeuralAmpModelerCore de namfoop. Signale-le dans
+une issue avec le nom du pack.
 
 **Le son de l'ordinateur n'arrive pas dans le casque de la table.** Voir le
 [§ 2](#2-matériel-et-câblage) : le retour USB doit passer par une tranche qui alimente l'aux.

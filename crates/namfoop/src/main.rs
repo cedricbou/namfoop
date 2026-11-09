@@ -3,10 +3,12 @@ mod backend;
 mod browse;
 mod calibrate;
 mod config;
+mod import;
 mod latency;
 mod library;
 mod live;
 mod offline;
+mod overrides;
 mod recommend;
 mod router;
 mod setup;
@@ -35,6 +37,7 @@ use crate::config::LoadedConfig;
         namfoop run -m \"800d modern\" -i \"dg212 sm57\" --route 2=di\n  \
         namfoop render -m b7k -o /tmp/out.wav\n  \
         namfoop bench --all-sizes\n  \
+        namfoop import ~/Téléchargements/pack.zip\n  \
         namfoop models\n\n\
         Réglages enregistrés dans ~/.config/namfoop/config.toml ; les options priment."
 )]
@@ -99,6 +102,16 @@ enum Cmd {
         /// Dossier de la bibliothèque
         #[arg(long, default_value = "library")]
         library: PathBuf,
+    },
+    /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, doublons, type de capture
+    Import {
+        #[command(flatten)]
+        args: import::ImportArgs,
+    },
+    /// Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
+    Meta {
+        #[command(flatten)]
+        args: overrides::MetaArgs,
     },
     /// Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
     Models {
@@ -179,6 +192,8 @@ fn main() -> Result<()> {
         Cmd::Bench { paths, block, seconds, all_sizes, library } => {
             offline::bench(&paths, &library, audio.rate, block, seconds, all_sizes)
         }
+        Cmd::Import { args } => import::run(&args),
+        Cmd::Meta { args } => overrides::run(&args, conf.default_ir.as_deref()),
         Cmd::Models { library } => library::list(&library, conf.default_ir.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let mut routing = conf.routing.clone();
