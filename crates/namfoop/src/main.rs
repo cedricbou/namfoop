@@ -6,6 +6,7 @@ mod latency;
 mod library;
 mod live;
 mod offline;
+mod recommend;
 mod router;
 mod setup;
 
@@ -96,7 +97,7 @@ enum Cmd {
         #[arg(long, default_value = "library")]
         library: PathBuf,
     },
-    /// Liste les modèles et IR de la bibliothèque
+    /// Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
     Models {
         /// Dossier de la bibliothèque
         #[arg(default_value = "library")]
@@ -164,7 +165,7 @@ fn main() -> Result<()> {
         Cmd::Bench { paths, block, seconds, all_sizes, library } => {
             offline::bench(&paths, &library, audio.rate, block, seconds, all_sizes)
         }
-        Cmd::Models { library } => library::list(&library),
+        Cmd::Models { library } => library::list(&library, conf.default_ir.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let mut routing = conf.routing.clone();
             if let Some(c) = channel {
@@ -195,7 +196,7 @@ fn check_args(cli: &Cli) -> Result<()> {
             if let Some(q) = &a.model {
                 library::resolve(q, &a.library, "nam")?;
             }
-            if let Some(q) = &a.ir {
+            if let Some(q) = a.ir.as_deref().filter(|q| *q != "auto") {
                 library::resolve(q, &a.library, "wav")?;
             }
         }

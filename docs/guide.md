@@ -193,32 +193,53 @@ scripts/import-tone3000.sh nam library
 
 ```sh
 namfoop models
-#  [Darkglass B7K Ultra]
-#    Darkglass Drive - Microtubes B7K Ultra  — amp_cab overdrive | WaveNet 3ch + WaveNet 8ch | -39.7 dB
+#  [MESA _ BOOGIE BASS 800D]
+#    m4jn   MESA BASS 800D - SEND - MODERN ROCK METAL  — amp bass | WaveNet 3ch + WaveNet 8ch | -17.5 dB
+#           IR requise — conseillée : iwqk Mesa Powerhouse 410 (SM57 + MD421) (même marque (mesa), baffle basse)
+#  ...
+#  [1970 Fender Bassman 2x15 Cabinet Original CTS Speakers] 58 IR
+#    idw7   1970 Bassman Cabinet CTS - 121 Lower - Cap Edge
 ```
 
-Pour chaque modèle : le **type de capture**, le style, les **tailles** disponibles et la loudness.
+Pour chaque modèle : son **identifiant**, le **type de capture**, le style, les **tailles**
+disponibles, la loudness, et si une **IR** est nécessaire. Pour chaque IR : son identifiant.
 
 ### Faut-il une IR ?
 
 | Type | Contenu de la capture | IR |
 |---|---|---|
 | `amp_cab` | ampli **et** baffle micro (la plupart des rigs Tone3000) | **non**, namfoop prévient si tu en ajoutes une |
-| `amp` | ampli seul (ex. MESA 800D « SEND ») | **oui** |
+| `amp` | ampli seul (ex. MESA 800D « SEND », Trace Elliot AH600SMX) | **oui** |
 | `pedal` | pédale seule (ex. Rat) | oui, ou un autre modèle d'ampli plus tard |
+
+Pour un modèle qui en a besoin, namfoop **conseille des IR**. Il cherche d'abord la même marque
+(un ampli Mesa avec un baffle Mesa), et préfère les baffles basse (8x10, 4x10, 2x15…) aux baffles
+guitare (4x12, V30…). Une seule IR par pack figure en tête de liste. `-i auto` prend la première
+conseillée (ou aucune si le baffle est inclus). `run` sans `-i` sur un tel modèle affiche les
+trois meilleures suggestions. Pour imposer ta préférée, mets `default_ir` dans la config
+([§ 13](#13-le-fichier-de-configuration)).
+
+```sh
+namfoop run -m "800d modern" -i auto
+```
 
 ### Désigner un modèle ou une IR
 
 `-m` (`--model`) et `-i` (`--ir`) acceptent :
 
+- un **identifiant** affiché par `namfoop models` (`m…` pour un modèle, `i…` pour une IR) : le plus
+  sûr pour cibler un fichier précis. Il ne change pas quand tu ajoutes d'autres fichiers ;
 - un **chemin** : `-m "library/nam/Darkglass B7K Ultra/Darkglass Drive - Microtubes B7K Ultra.nam"` ;
 - des **mots-clés** : tous doivent apparaître dans le chemin, sans tenir compte des majuscules.
-  Si plusieurs fichiers correspondent, celui dont le nom contient l'**expression exacte** gagne ;
-  sinon namfoop affiche la liste des candidats pour que tu précises.
+  Si plusieurs fichiers correspondent, namfoop départage dans l'ordre : les mots entiers dans le
+  nom du fichier, l'expression exacte, les mots entiers dans le chemin, puis la version « de
+  base ». Ainsi `angel` désigne « GP12SMX Angel », et `angel v2` désigne « GP12SMX Angel_v2 ». Si
+  le doute subsiste, namfoop affiche les candidats **avec leur identifiant**.
 
 ```sh
 namfoop run -m b7k
 namfoop run -m "ultra lo sm57"
+namfoop run -m "ah600smx angel v2" -i "1970 121 lower cap"
 namfoop run -m "800d modern" -i "dg212 sm57"
 ```
 
@@ -459,6 +480,7 @@ level = "match"                      # "match", "normalize" ou "raw"           �
 target_db = -18.0                    # cible du mode normalize
 limiter = true                       # limiteur de sortie
 calibration_wav = "calibration.wav"  # enregistrement de calibration (relatif à ce dossier)
+default_ir = "dg212 sm57"            # optionnel : IR préférée (identifiant ou mots-clés), -i auto
 
 [audio]                              # — setup
 backend = "alsa"
@@ -513,8 +535,11 @@ tient la carte. Ferme-la, ou utilise le backend JACK.
 **Plus de son PipeWire sur l'iTwo après un plantage dur.** Le profil est resté sur « off » :
 `pactl set-card-profile <nom de la carte> pro-audio`.
 
-**« … est ambigu ».** Plusieurs fichiers correspondent aux mots-clés : namfoop affiche la liste,
-ajoute un mot ou donne le chemin.
+**« … est ambigu ».** Plusieurs fichiers correspondent aux mots-clés : namfoop affiche la liste
+avec les identifiants. Ajoute un mot, ou donne l'identifiant (`-m m4jn`).
+
+**« capture amp sans baffle : ajoute une IR ».** Le modèle ne contient pas de baffle : sans IR, le
+son est très agressif. Ajoute `-i auto` ou une des IR conseillées.
 
 **Le son de l'ordinateur n'arrive pas dans le casque de la table.** Voir le
 [§ 2](#2-matériel-et-câblage) : le retour USB doit passer par une tranche qui alimente l'aux.

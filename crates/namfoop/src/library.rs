@@ -1,4 +1,8 @@
-//! Bibliothèque de modèles / IR : recherche par nom partiel et inventaire.
+//! Bibliothèque de modèles / IR : index avec identifiants courts, recherche, inventaire.
+//!
+//! Identifiant : une lettre (`m` modèle, `i` IR) + 3 caractères base32 tirés d'un hash FNV-1a du
+//! chemin relatif à la bibliothèque. Stable tant que le fichier ne bouge pas ; allongé seulement
+//! en cas de collision avec un autre fichier du même type (rare).
 
 use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
@@ -16,64 +20,222 @@ pub fn walk(dir: &Path, ext: &str, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Résout un fichier : chemin existant, sinon recherche insensible à la casse dans la
-/// bibliothèque (tous les mots doivent apparaître dans le chemin). Si plusieurs fichiers
-/// correspondent, celui dont le nom contient l'expression exacte l'emporte (s'il est seul).
-pub fn resolve(query: &str, library: &Path, ext: &str) -> Result<PathBuf> {
-    let p = PathBuf::from(query);
-    if p.is_file() {
-        return Ok(p);
-    }
-    let mut all = Vec::new();
-    walk(library, ext, &mut all);
-    let words: Vec<String> = query.to_lowercase().split_whitespace().map(String::from).collect();
-    let hits: Vec<&PathBuf> = all
-        .iter()
-        .filter(|f| {
-            let s = f.strip_prefix(library).unwrap_or(f).to_string_lossy().to_lowercase();
-            words.iter().all(|w| s.contains(w))
-        })
-        .collect();
-    let hits = if hits.len() > 1 {
-        let phrase = words.join(" ");
-        let exact: Vec<&PathBuf> = hits
-            .iter()
-            .copied()
-            .filter(|f| {
-                let stem = f.file_stem().unwrap_or_default().to_string_lossy().to_lowercase();
-                stem.split_whitespace().collect::<Vec<_>>().join(" ").contains(&phrase)
-            })
-            .collect();
-        if exact.len() == 1 {
-            exact
-        } else {
-            hits
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    Model,
+    Ir,
+}
+
+impl Kind {
+    fn prefix(self) -> char {
+        match self {
+            Kind::Model => 'm',
+            Kind::Ir => 'i',
         }
-    } else {
-        hits
-    };
-    match hits.as_slice() {
-        [one] => Ok((*one).clone()),
-        [] => bail!("aucun .{ext} ne correspond à « {query} » dans {}", library.display()),
-        many => {
-            let list: Vec<String> = many
-                .iter()
-                .take(15)
-                .map(|f| format!("  {}", f.strip_prefix(library).unwrap_or(f).display()))
-                .collect();
-            bail!(
-                "« {query} » est ambigu ({} fichiers .{ext}), précise :\n{}{}",
-                many.len(),
-                list.join("\n"),
-                if many.len() > 15 { "\n  ..." } else { "" }
-            )
+    }
+    fn ext(self) -> &'static str {
+        match self {
+            Kind::Model => "nam",
+            Kind::Ir => "wav",
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Kind::Model => "modèle",
+            Kind::Ir => "IR",
         }
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Entry {
+    pub kind: Kind,
+    pub id: String,
+    pub path: PathBuf,
+    /// Chemin relatif à la bibliothèque (avec `/`).
+    pub rel: String,
+    /// Dossier parent (le « pack »).
+    pub pack: String,
+    /// Nom de fichier sans extension.
+    pub stem: String,
+}
+
+const B32: &[u8] = b"0123456789abcdefghjkmnpqrstvwxyz";
+
+fn fnv1a(s: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in s.bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+fn b32(mut h: u64, n: usize) -> String {
+    (0..n)
+        .map(|_| {
+            let c = B32[(h & 31) as usize] as char;
+            h >>= 5;
+            c
+        })
+        .collect()
+}
+
+/// Mots d'un texte (alphanumériques), en minuscules : « Angel_v2 » -> [angel, v2].
+pub fn tokens(s: &str) -> Vec<String> {
+    s.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|t| !t.is_empty())
+        .map(String::from)
+        .collect()
+}
+
+pub struct Library {
+    pub root: PathBuf,
+    pub entries: Vec<Entry>,
+}
+
+impl Library {
+    pub fn scan(root: &Path) -> Self {
+        let mut entries = Vec::new();
+        for kind in [Kind::Model, Kind::Ir] {
+            let mut files = Vec::new();
+            walk(root, kind.ext(), &mut files);
+            let mut batch: Vec<Entry> = files
+                .into_iter()
+                .map(|path| {
+                    let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+                    let pack = path
+                        .parent()
+                        .and_then(|d| d.file_name())
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                    Entry { kind, id: String::new(), path, rel, pack, stem }
+                })
+                .collect();
+            assign_ids(&mut batch);
+            entries.extend(batch);
+        }
+        Self { root: root.to_path_buf(), entries }
+    }
+
+    pub fn of_kind(&self, kind: Kind) -> impl Iterator<Item = &Entry> {
+        self.entries.iter().filter(move |e| e.kind == kind)
+    }
+
+    pub fn by_path(&self, path: &Path) -> Option<&Entry> {
+        let canon = |p: &Path| std::fs::canonicalize(p).ok();
+        let target = canon(path)?;
+        self.entries.iter().find(|e| canon(&e.path).as_ref() == Some(&target))
+    }
+
+    /// Résout une requête : identifiant, puis chemin existant, puis mots-clés.
+    /// Si plusieurs fichiers contiennent tous les mots, on départage dans l'ordre :
+    /// mots entiers dans le nom de fichier, expression exacte dans le nom, mots entiers dans le
+    /// chemin. Le premier critère qui désigne un seul fichier l'emporte.
+    pub fn resolve(&self, query: &str, kind: Kind) -> Result<PathBuf> {
+        let q = query.trim();
+        if let Some(e) = self.of_kind(kind).find(|e| e.id.eq_ignore_ascii_case(q)) {
+            return Ok(e.path.clone());
+        }
+        let p = PathBuf::from(q);
+        if p.is_file() {
+            return Ok(p);
+        }
+        let words: Vec<String> = q.to_lowercase().split_whitespace().map(String::from).collect();
+        if words.is_empty() {
+            bail!("requête vide");
+        }
+        let hits: Vec<&Entry> =
+            self.of_kind(kind).filter(|e| words.iter().all(|w| e.rel.to_lowercase().contains(w))).collect();
+        if hits.len() > 1 {
+            let qtok = tokens(q);
+            let phrase = words.join(" ");
+            let tiers: [&dyn Fn(&Entry) -> bool; 3] = [
+                &|e| {
+                    let t = tokens(&e.stem);
+                    qtok.iter().all(|w| t.contains(w))
+                },
+                &|e| e.stem.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ").contains(&phrase),
+                &|e| {
+                    let t = tokens(&e.rel);
+                    qtok.iter().all(|w| t.contains(w))
+                },
+            ];
+            for tier in tiers {
+                let narrowed: Vec<&Entry> = hits.iter().copied().filter(|e| tier(e)).collect();
+                if narrowed.len() == 1 {
+                    return Ok(narrowed[0].path.clone());
+                }
+            }
+            // dernier départage, le cas « v2 » : un nom dont tous les mots se retrouvent dans
+            // chacun des autres candidats (« Angel » ⊂ « Angel_v2 ») est la version de base.
+            // « Ultra Lo » / « Ultra Hi » restent ambigus : aucun n'est inclus dans l'autre.
+            let toks: Vec<Vec<String>> = hits.iter().map(|e| tokens(&e.stem)).collect();
+            let base: Vec<usize> = (0..hits.len())
+                .filter(|&i| (0..hits.len()).all(|j| j == i || toks[i].iter().all(|t| toks[j].contains(t))))
+                .collect();
+            if let [i] = base.as_slice() {
+                return Ok(hits[*i].path.clone());
+            }
+        }
+        match hits.as_slice() {
+            [one] => Ok(one.path.clone()),
+            [] => bail!(
+                "aucun {} ne correspond à « {q} » dans {} (identifiants : `namfoop models`)",
+                kind.label(),
+                self.root.display()
+            ),
+            many => {
+                let list: Vec<String> =
+                    many.iter().take(15).map(|e| format!("  {}  {}", e.id, e.rel)).collect();
+                bail!(
+                    "« {q} » est ambigu ({} {}s), précise ou donne l'identifiant :\n{}{}",
+                    many.len(),
+                    kind.label(),
+                    list.join("\n"),
+                    if many.len() > 15 { "\n  ..." } else { "" }
+                )
+            }
+        }
+    }
+}
+
+/// Identifiants : 3 caractères, allongés pour les entrées en collision (même type).
+fn assign_ids(batch: &mut [Entry]) {
+    let hashes: Vec<u64> = batch.iter().map(|e| fnv1a(&e.rel)).collect();
+    let mut done = vec![false; batch.len()];
+    for n in 3..=12 {
+        let codes: Vec<String> = hashes.iter().map(|h| b32(*h, n)).collect();
+        let mut count: std::collections::HashMap<&str, usize> = Default::default();
+        for c in &codes {
+            *count.entry(c).or_default() += 1;
+        }
+        for i in 0..batch.len() {
+            if !done[i] && (count[codes[i].as_str()] == 1 || n == 12) {
+                batch[i].id = format!("{}{}", batch[i].kind.prefix(), codes[i]);
+                done[i] = true;
+            }
+        }
+        if done.iter().all(|d| *d) {
+            break;
+        }
+    }
+}
+
+/// Compatibilité : résolution d'un fichier de la bibliothèque (`ext` = "nam" ou "wav").
+pub fn resolve(query: &str, library: &Path, ext: &str) -> Result<PathBuf> {
+    let kind = if ext == "nam" { Kind::Model } else { Kind::Ir };
+    Library::scan(library).resolve(query, kind)
+}
+
 /// Résumé d'un .nam lu depuis son JSON.
 pub struct NamMeta {
+    pub name: String,
     pub gear_type: String,
+    pub gear_make: String,
+    pub gear_model: String,
     pub tone_type: String,
     pub sizes: Vec<String>,
     pub loudness: Option<f64>,
@@ -109,83 +271,164 @@ pub fn read_meta(path: &Path) -> Result<NamMeta> {
         vec![wavenet_channels(&v)]
     };
     Ok(NamMeta {
+        name: s("name"),
         gear_type: s("gear_type"),
+        gear_make: s("gear_make"),
+        gear_model: s("gear_model"),
         tone_type: s("tone_type"),
         sizes,
         loudness: m["loudness"].as_f64(),
     })
 }
 
-pub fn list(library: &Path) -> Result<()> {
-    let mut nams = Vec::new();
-    walk(library, "nam", &mut nams);
-    let mut irs = Vec::new();
-    walk(library, "wav", &mut irs);
-    if nams.is_empty() && irs.is_empty() {
+pub fn list(library: &Path, default_ir: Option<&str>) -> Result<()> {
+    let lib = Library::scan(library);
+    let models: Vec<&Entry> = lib.of_kind(Kind::Model).collect();
+    let irs: Vec<&Entry> = lib.of_kind(Kind::Ir).collect();
+    if models.is_empty() && irs.is_empty() {
         bail!("bibliothèque vide : {}", library.display());
     }
-    println!("Modèles NAM ({}) :", nams.len());
-    let mut last_dir = None;
-    for p in &nams {
-        let dir = p.parent().map(Path::to_path_buf);
-        if dir != last_dir {
-            println!(
-                "  [{}]",
-                dir.as_deref().and_then(|d| d.file_name()).unwrap_or_default().to_string_lossy()
-            );
-            last_dir = dir;
+    println!("Modèles NAM ({}) — identifiant utilisable avec -m :", models.len());
+    let mut last_pack = None;
+    for e in &models {
+        if last_pack != Some(&e.pack) {
+            println!("  [{}]", e.pack);
+            last_pack = Some(&e.pack);
         }
-        let file = p.file_stem().unwrap_or_default().to_string_lossy();
-        match read_meta(p) {
-            Ok(m) => println!(
-                "    {file}  — {} {} | {} | {}",
-                m.gear_type,
-                m.tone_type,
-                m.sizes.join(" + "),
-                m.loudness.map_or("loudness ?".into(), |l| format!("{l:.1} dB")),
-            ),
-            Err(e) => println!("    {file}  — illisible : {e}"),
+        match read_meta(&e.path) {
+            Ok(m) => {
+                println!(
+                    "    {:<6} {}  — {} {} | {} | {}",
+                    e.id,
+                    e.stem,
+                    m.gear_type,
+                    m.tone_type,
+                    m.sizes.join(" + "),
+                    m.loudness.map_or("loudness ?".into(), |l| format!("{l:.1} dB")),
+                );
+                let advice = crate::recommend::advice(&lib, e, &m, default_ir);
+                println!("           {advice}");
+            }
+            Err(err) => println!("    {:<6} {}  — illisible : {err}", e.id, e.stem),
         }
     }
-    println!("\nIR ({}) :", irs.len());
-    let mut by_dir: std::collections::BTreeMap<String, usize> = Default::default();
-    for p in &irs {
-        let d = p.parent().and_then(|d| d.file_name()).unwrap_or_default().to_string_lossy().into_owned();
-        *by_dir.entry(d).or_default() += 1;
-    }
-    for (d, n) in by_dir {
-        println!("  [{d}] {n} IR");
+    println!("\nIR ({}) — identifiant utilisable avec -i :", irs.len());
+    let mut last_pack = None;
+    for e in &irs {
+        if last_pack != Some(&e.pack) {
+            let n = irs.iter().filter(|x| x.pack == e.pack).count();
+            println!("  [{}] {n} IR", e.pack);
+            last_pack = Some(&e.pack);
+        }
+        println!("    {:<6} {}", e.id, e.stem);
     }
     Ok(())
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
-    fn lib() -> PathBuf {
-        let d = std::env::temp_dir().join(format!("namfoop-lib-{}", std::process::id()));
-        let pack = d.join("nam/Ampeg SVT");
-        std::fs::create_dir_all(&pack).unwrap();
-        for f in
-            ["Ampeg SVT - Ultra Lo SM57", "Ampeg SVT - Gain 10 Ultra Lo and Hi SM57", "Ampeg SVT - MD 421"]
-        {
-            std::fs::write(pack.join(format!("{f}.nam")), "{}").unwrap();
+    /// Bibliothèque factice : (chemin relatif, contenu).
+    pub fn fake_library(tag: &str, files: &[(&str, &str)]) -> PathBuf {
+        // dossier unique par appel : les tests tournent en parallèle
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let d = std::env::temp_dir().join(format!("namfoop-lib-{tag}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        for (rel, content) in files {
+            let p = d.join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, content).unwrap();
         }
         d
     }
 
+    fn svt() -> PathBuf {
+        fake_library(
+            "svt",
+            &[
+                ("nam/Ampeg SVT/Ampeg SVT - Ultra Lo SM57.nam", "{}"),
+                ("nam/Ampeg SVT/Ampeg SVT - Ultra Hi SM57.nam", "{}"),
+                ("nam/Ampeg SVT/Ampeg SVT - Gain 10 Ultra Lo and Hi SM57.nam", "{}"),
+                ("nam/Ampeg SVT/Ampeg SVT - MD 421.nam", "{}"),
+                ("nam/Laney/GP12SMX Angel.nam", "{}"),
+                ("nam/Laney/GP12SMX Angel_v2.nam", "{}"),
+                ("nam/Laney v2 pack/Scooped.nam", "{}"),
+            ],
+        )
+    }
+
+    fn name(lib: &Library, q: &str) -> Result<String> {
+        lib.resolve(q, Kind::Model).map(|p| p.file_stem().unwrap().to_string_lossy().into_owned())
+    }
+
     #[test]
     fn keyword_resolution() {
-        let d = lib();
-        let name =
-            |q: &str| resolve(q, &d, "nam").map(|p| p.file_stem().unwrap().to_string_lossy().into_owned());
-        assert_eq!(name("md 421").unwrap(), "Ampeg SVT - MD 421");
+        let d = svt();
+        let lib = Library::scan(&d);
+        assert_eq!(name(&lib, "md 421").unwrap(), "Ampeg SVT - MD 421");
         // deux fichiers contiennent tous les mots, un seul contient l'expression exacte
-        assert_eq!(name("ultra lo sm57").unwrap(), "Ampeg SVT - Ultra Lo SM57");
-        assert_eq!(name("ULTRA LO SM57").unwrap(), "Ampeg SVT - Ultra Lo SM57");
-        assert!(name("sm57").is_err(), "ambigu");
-        assert!(name("b7k").is_err(), "absent");
+        assert_eq!(name(&lib, "ultra lo sm57").unwrap(), "Ampeg SVT - Ultra Lo SM57");
+        assert_eq!(name(&lib, "ULTRA LO SM57").unwrap(), "Ampeg SVT - Ultra Lo SM57");
+        assert!(name(&lib, "sm57").is_err(), "ambigu");
+        assert!(name(&lib, "b7k").is_err(), "absent");
         let _ = std::fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn whole_words_beat_substrings() {
+        let d = svt();
+        let lib = Library::scan(&d);
+        // « v2 » est un mot entier du nom de fichier Angel_v2, pas d'Angel (ni du pack « v2 pack »)
+        assert_eq!(name(&lib, "angel v2").unwrap(), "GP12SMX Angel_v2");
+        // sans « v2 » : le nom sans mot superflu l'emporte
+        assert_eq!(name(&lib, "angel").unwrap(), "GP12SMX Angel");
+        assert_eq!(name(&lib, "laney angel").unwrap(), "GP12SMX Angel");
+        let err = name(&lib, "sm57").unwrap_err().to_string();
+        assert!(err.contains(" m"), "les candidats affichent leur identifiant : {err}");
+        let _ = std::fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn ids_are_stable_unique_and_resolvable() {
+        let d = svt();
+        let a = Library::scan(&d);
+        let ids: Vec<&str> = a.entries.iter().map(|e| e.id.as_str()).collect();
+        let mut sorted = ids.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(sorted.len(), ids.len(), "identifiants uniques");
+        assert!(ids.iter().all(|i| i.starts_with('m') && i.len() >= 4));
+        // ajouter un fichier ne change pas les identifiants existants (hors collision)
+        std::fs::write(d.join("nam/Laney/Other.nam"), "{}").unwrap();
+        let b = Library::scan(&d);
+        for e in &a.entries {
+            let same = b.entries.iter().find(|x| x.rel == e.rel).unwrap();
+            assert_eq!(same.id, e.id);
+        }
+        let target = &a.entries[2];
+        assert_eq!(a.resolve(&target.id.to_uppercase(), Kind::Model).unwrap(), target.path);
+        let _ = std::fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn colliding_ids_are_lengthened() {
+        let mut batch: Vec<Entry> = (0..3000)
+            .map(|i| Entry {
+                kind: Kind::Ir,
+                id: String::new(),
+                path: PathBuf::new(),
+                rel: format!("ir/p/{i}.wav"),
+                pack: "p".into(),
+                stem: i.to_string(),
+            })
+            .collect();
+        assign_ids(&mut batch);
+        let mut ids: Vec<&str> = batch.iter().map(|e| e.id.as_str()).collect();
+        ids.sort();
+        let n = ids.len();
+        ids.dedup();
+        assert_eq!(ids.len(), n, "3000 IR : identifiants uniques malgré les collisions à 3 caractères");
     }
 }

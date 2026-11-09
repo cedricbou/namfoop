@@ -11,14 +11,16 @@ use dsp::ir::IrSettings;
 use dsp::nam::NamSettings;
 
 use crate::config::{LevelMode, LoadedConfig};
-use crate::library;
+use crate::library::{self, Kind, Library};
+use crate::recommend::{needs_ir, recommend, NeedsIr};
 
 #[derive(Clone, Debug, clap::Args)]
 pub struct AmpArgs {
-    /// Modèle NAM : chemin, ou mots-clés cherchés dans la bibliothèque (ex: "b7k")
+    /// Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
     #[arg(short, long)]
     pub model: Option<String>,
-    /// IR de baffle (.wav) : chemin ou mots-clés (ex: "dg212 sm57")
+    /// IR de baffle (.wav) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57")
+    /// ou « auto » (la mieux conseillée pour le modèle)
     #[arg(short, long)]
     pub ir: Option<String>,
     /// Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
@@ -54,20 +56,65 @@ pub struct AmpArgs {
 }
 
 impl AmpArgs {
+    /// `-i auto` : la première IR conseillée, ou aucune si le modèle inclut déjà son baffle.
+    fn auto_ir(
+        &self,
+        lib: &Library,
+        model: Option<&std::path::Path>,
+        default_ir: Option<&str>,
+    ) -> Result<Option<PathBuf>> {
+        let Some(m) = model else { anyhow::bail!("-i auto demande un modèle (-m)") };
+        let meta = library::read_meta(m)?;
+        if needs_ir(&meta.gear_type) == NeedsIr::No {
+            log::info!("-i auto : capture « {} », baffle inclus, pas d'IR", meta.gear_type);
+            return Ok(None);
+        }
+        let entry = lib
+            .by_path(m)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("modèle hors bibliothèque : -i auto impossible"))?;
+        let sugg = recommend(lib, &entry, &meta, default_ir);
+        let s = sugg.first().ok_or_else(|| anyhow::anyhow!("aucune IR dans la bibliothèque"))?;
+        log::info!("-i auto : {} {} ({})", s.entry.id, s.entry.stem, s.reason);
+        Ok(Some(s.entry.path.clone()))
+    }
+
     /// Construit la description de chaîne à partir des options et de la config (`cfg`, avec son
     /// chemin pour retrouver l'enregistrement de calibration). `limiter_meter` reçoit la
     /// réduction de gain du limiteur.
     pub fn spec(&self, file: &LoadedConfig, limiter_meter: Option<Arc<AtomicU32>>) -> Result<AmpSpec> {
         let cfg = &file.config;
-        let model = self.model.as_deref().map(|q| library::resolve(q, &self.library, "nam")).transpose()?;
-        let ir = self.ir.as_deref().map(|q| library::resolve(q, &self.library, "wav")).transpose()?;
-        if let (Some(m), Some(_)) = (&model, &ir) {
+        let lib = Library::scan(&self.library);
+        let model = self.model.as_deref().map(|q| lib.resolve(q, Kind::Model)).transpose()?;
+        let default_ir = cfg.default_ir.as_deref();
+        let ir = match self.ir.as_deref() {
+            Some("auto") => self.auto_ir(&lib, model.as_deref(), default_ir)?,
+            Some(q) => Some(lib.resolve(q, Kind::Ir)?),
+            None => None,
+        };
+        if let Some(m) = &model {
             if let Ok(meta) = library::read_meta(m) {
-                if meta.gear_type.contains("cab") {
-                    log::warn!(
+                match (needs_ir(&meta.gear_type), &ir) {
+                    (NeedsIr::No, Some(_)) => log::warn!(
                         "le modèle est une capture « {} » (baffle inclus) : l'IR ajoute un 2e baffle",
                         meta.gear_type
-                    );
+                    ),
+                    (NeedsIr::Yes, None) => {
+                        let entry = lib.by_path(m).cloned();
+                        let sugg =
+                            entry.as_ref().map(|e| recommend(&lib, e, &meta, default_ir)).unwrap_or_default();
+                        let list: Vec<String> = sugg
+                            .iter()
+                            .take(3)
+                            .map(|s| format!("{} {} [{}]", s.entry.id, s.entry.stem, s.entry.pack))
+                            .collect();
+                        log::warn!(
+                            "capture « {} » sans baffle : ajoute une IR (-i auto, ou -i <id>). Conseillées : {}",
+                            meta.gear_type,
+                            if list.is_empty() { "aucune IR dans la bibliothèque".into() } else { list.join(" ; ") }
+                        );
+                    }
+                    _ => {}
                 }
             }
         }

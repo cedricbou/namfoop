@@ -18,7 +18,7 @@ Commands:
   run        Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
   render     Traite un WAV hors ligne avec la même chaîne que `run`
   bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
-  models     Liste les modèles et IR de la bibliothèque
+  models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
   setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
   ports      Liste les ports JACK (audio + MIDI)
@@ -92,13 +92,13 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
   -m, --model <MODEL>
-          Modèle NAM : chemin, ou mots-clés cherchés dans la bibliothèque (ex: "b7k")
+          Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
       --device <DEVICE>
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
-          IR de baffle (.wav) : chemin ou mots-clés (ex: "dg212 sm57")
+          IR de baffle (.wav) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -203,13 +203,13 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
   -m, --model <MODEL>
-          Modèle NAM : chemin, ou mots-clés cherchés dans la bibliothèque (ex: "b7k")
+          Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
       --device <DEVICE>
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
-          IR de baffle (.wav) : chemin ou mots-clés (ex: "dg212 sm57")
+          IR de baffle (.wav) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -361,7 +361,7 @@ Options:
 ## namfoop models
 
 ```text
-Liste les modèles et IR de la bibliothèque
+Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
 
 Usage: namfoop models [OPTIONS] [LIBRARY]
 

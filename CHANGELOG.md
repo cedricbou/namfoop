@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#14)
+- Identifiants courts et stables pour chaque modèle (`m…`) et IR (`i…`), affichés par `models`,
+  acceptés par `-m` / `-i`.
+- `models` indique si chaque modèle a besoin d'une IR et conseille la meilleure (même marque,
+  baffle basse) ; `-i auto` ; `run` avertit quand une capture sans baffle est jouée sans IR ;
+  `default_ir` dans la config.
+
+### Modifié (#14)
+- Recherche par mots-clés : mots entiers prioritaires, et version « de base » préférée
+  (`angel` -> « Angel », `angel v2` -> « Angel_v2 ») ; les candidats ambigus affichent leur
+  identifiant.
+
 ### Ajouté
 - `namfoop setup` : assistant plein écran (backend, carte, vumètres par entrée, bip par sortie,
   test automatique des buffers), qui enregistre `[audio]` et `[routing]` dans la config.
