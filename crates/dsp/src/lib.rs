@@ -11,6 +11,7 @@ pub mod gain;
 pub mod ir;
 pub mod limiter;
 pub mod nam;
+pub mod swap;
 pub mod wav;
 
 pub use chain::Chain;

@@ -13,6 +13,7 @@ En bref, après l'installation :
 ```sh
 namfoop setup         # une fois : carte, entrées, sorties, buffer (assistant plein écran)
 namfoop calibrate     # une fois : niveau de ta basse
+namfoop browse        # choisir modèle, IR, mélange en jouant
 namfoop run -m b7k    # jouer
 ```
 
@@ -243,6 +244,34 @@ namfoop run -m "ah600smx angel v2" -i "1970 121 lower cap"
 namfoop run -m "800d modern" -i "dg212 sm57"
 ```
 
+### Choisir son son en jouant : `namfoop browse`
+
+```sh
+namfoop browse
+```
+
+Le navigateur plein écran **joue en direct**, avec la carte et le routage de `setup`. Le son
+change **sans coupure ni clic**, par un fondu de 20 ms.
+
+- **Onglet Modèles** : identifiant, badge « IR incluse » ou « IR requise », type de capture.
+  ↑↓ écoute le modèle sous le curseur, après 150 ms d'arrêt (on peut défiler vite sans tout
+  recharger). Pour un modèle sans baffle, la meilleure IR conseillée est posée d'office. Pour une
+  capture qui inclut son baffle, l'IR est retirée.
+- **Onglet IR** (Tab) : « aucune IR », puis les IR conseillées pour le modèle (★), puis toutes les
+  autres. Dans un pack, le début commun des noms est masqué : on lit « 121 Lower - Cap » au lieu de
+  « 1970 Bassman Cabinet CTS - 121 Lower - Cap ». **Espace** ajoute ou retire l'IR du mélange.
+- **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
+  polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
+  s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
+- **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
+  lettres sont des commandes.
+- En bas : le son en cours, les vumètres, la charge DSP et les xruns. `q` ou Échap quitte.
+
+En quittant, le navigateur affiche la commande pour rejouer le même son, par exemple
+`namfoop run -m m4jn -i c7k2`. Options : `--library`, `--size` (modèles légers), et le routage
+`--bass-in`, `--mic-in`, `--route` ([§ 10](#10-backends-carte-et-routage-en-ligne-de-commande)).
+Sans matériel : `namfoop --backend sim --no-config browse`.
+
 ### Mélanger plusieurs IR
 
 Les packs multi-micros (ex. le Fender 1970 : 8 micros × haut-parleur haut/bas × 4 positions =
@@ -273,8 +302,8 @@ invert = false        # inversion de polarité
   phase avec la première.
 
 Le mélange est calculé **une seule fois au chargement**, puis normalisé comme une IR seule : en
-live il ne coûte pas plus cher qu'une IR. Le navigateur (à venir) permettra de créer les mélanges à
-l'oreille. En attendant, écris le fichier à la main et utilise-le :
+live il ne coûte pas plus cher qu'une IR. Le plus simple pour en créer un : `namfoop browse`
+(ci-dessus), à l'oreille. On peut aussi écrire le fichier à la main :
 
 ```sh
 namfoop models                         # le mélange apparaît avec son identifiant c…
@@ -572,6 +601,9 @@ tient la carte. Ferme-la, ou utilise le backend JACK.
 
 **Plus de son PipeWire sur l'iTwo après un plantage dur.** Le profil est resté sur « off » :
 `pactl set-card-profile <nom de la carte> pro-audio`.
+
+**Clic ou coupure en changeant de son dans `browse`.** Ce n'est pas normal (le fondu est de 20 ms) :
+note le modèle et l'IR concernés et ouvre une issue.
 
 **« … est ambigu ».** Plusieurs fichiers correspondent aux mots-clés : namfoop affiche la liste
 avec les identifiants. Ajoute un mot, ou donne l'identifiant (`-m m4jn`).

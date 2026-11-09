@@ -48,3 +48,19 @@ fn amp_chain_does_not_allocate_in_process() {
     assert_no_alloc(|| chain.process(&mut big));
     let _ = std::fs::remove_file(ir);
 }
+
+#[test]
+fn hot_swap_does_not_allocate_in_process() {
+    use dsp::Stage;
+    let build = |m: &str| AmpSpec { model: Some(example(m)), ..Default::default() }.build(48000, 64).unwrap();
+    let (mut rt, mut ctl) = dsp::swap::swap_pair(build("wavenet.nam"), 48000, 64, 10.0);
+    let mut buf = vec![0.1f32; 64];
+    for round in 0..3 {
+        // construction (allocations) côté contrôle, hors du bloc surveillé
+        assert!(ctl.send(build(if round % 2 == 0 { "lstm.nam" } else { "wavenet.nam" })).is_ok());
+        for _ in 0..20 {
+            assert_no_alloc(|| rt.process(&mut buf));
+        }
+        assert_eq!(ctl.collect(), 1, "ancienne chaîne rendue et libérée côté contrôle");
+    }
+}

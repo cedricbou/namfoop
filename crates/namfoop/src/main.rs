@@ -1,5 +1,6 @@
 mod amp;
 mod backend;
+mod browse;
 mod calibrate;
 mod config;
 mod latency;
@@ -9,6 +10,7 @@ mod offline;
 mod recommend;
 mod router;
 mod setup;
+mod tui;
 
 #[cfg(all(test, debug_assertions))]
 #[global_allocator]
@@ -28,6 +30,7 @@ use crate::config::LoadedConfig;
     after_help = "Exemples :\n  \
         namfoop setup              (une fois : carte, entrées, sorties, buffer)\n  \
         namfoop calibrate          (une fois : règle le niveau de ta basse)\n  \
+        namfoop browse             (choisir modèle / IR / mélange en jouant)\n  \
         namfoop run -m b7k\n  \
         namfoop run -m \"800d modern\" -i \"dg212 sm57\" --route 2=di\n  \
         namfoop render -m b7k -o /tmp/out.wav\n  \
@@ -118,6 +121,17 @@ enum Cmd {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
+    Browse {
+        /// Dossier de la bibliothèque
+        #[arg(long, default_value = "library")]
+        library: PathBuf,
+        /// Taille des modèles slimmable : 0 = le plus léger, 1 = complet
+        #[arg(long, default_value_t = 1.0)]
+        size: f64,
+        #[command(flatten)]
+        routing: router::RoutingArgs,
+    },
     /// Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
     Setup {
         /// Dossier de la bibliothèque (un modèle sert de charge réaliste au test des buffers)
@@ -176,6 +190,10 @@ fn main() -> Result<()> {
                 log::warn!("--no-config : rien ne sera sauvé");
             }
             calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
+        }
+        Cmd::Browse { library, size, routing } => {
+            let routing = routing.apply(&conf.routing);
+            browse::run(&audio, &conf, &library, &routing, size)
         }
         Cmd::Setup { library } => setup::run(&audio, cli.audio.backend, &conf, &library),
         Cmd::Ports => backend::jack::list_ports(&audio.client_name),

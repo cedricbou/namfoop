@@ -20,6 +20,7 @@ Commands:
   bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
   models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
+  browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
   setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
   ports      Liste les ports JACK (audio + MIDI)
   latency    Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
@@ -66,6 +67,7 @@ Options:
 Exemples :
   namfoop setup              (une fois : carte, entrées, sorties, buffer)
   namfoop calibrate          (une fois : règle le niveau de ta basse)
+  namfoop browse             (choisir modèle / IR / mélange en jouant)
   namfoop run -m b7k
   namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
   namfoop render -m b7k -o /tmp/out.wav
@@ -450,6 +452,68 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop browse
+
+```text
+Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
+
+Usage: namfoop browse [OPTIONS]
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon jack]
+
+          Possible values:
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --library <LIBRARY>
+          Dossier de la bibliothèque
+          
+          [default: library]
+
+      --device <DEVICE>
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --size <SIZE>
+          Taille des modèles slimmable : 0 = le plus léger, 1 = complet
+          
+          [default: 1]
+
+      --bass-in <BASS_IN>
+          Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --mic-in <MIC_IN>
+          Entrée du micro [défaut : config]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --route <N=SOURCE>
+          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK

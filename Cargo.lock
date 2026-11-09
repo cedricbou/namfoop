@@ -487,6 +487,7 @@ dependencies = [
  "hound",
  "log",
  "nam-sys",
+ "rtrb",
  "serde",
  "thiserror 2.0.21",
  "toml",
