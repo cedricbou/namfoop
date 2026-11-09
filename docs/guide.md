@@ -529,7 +529,10 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
 - **Onglet Modèles** : identifiant, badge « IR incluse » ou « IR requise », type de capture.
   ↑↓ écoute le modèle sous le curseur, après 150 ms d'arrêt (on peut défiler vite sans tout
   recharger). Pour un modèle sans baffle, la meilleure IR conseillée est posée d'office. Pour une
-  capture qui inclut son baffle, l'IR est retirée.
+  capture qui inclut son baffle, l'IR est retirée. La première ligne, **son direct (DI, sans
+  modèle)**, joue ta basse telle quelle : choisis-la puis une IR dans l'onglet IR pour **écouter
+  une IR seule** (comparer les micros d'un pack, préparer un mélange). L'IR en cours est gardée
+  quand tu passes sur cette ligne. Elle disparaît quand un filtre est actif.
 - **Onglet IR** (Tab) : « aucune IR », puis les IR conseillées pour le modèle (★), puis toutes les
   autres. Dans un pack, le début commun des noms est masqué : on lit « 121 Lower - Cap » au lieu de
   « 1970 Bassman Cabinet CTS - 121 Lower - Cap ». **Espace** ajoute ou retire l'IR du mélange.

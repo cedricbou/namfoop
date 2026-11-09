@@ -91,6 +91,14 @@ pub struct BlendPart {
     pub invert: bool,
 }
 
+/// Ligne de l'onglet Modèles.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelRow {
+    /// Son direct de la basse (DI), sans modèle : pour écouter les IR seules.
+    Direct,
+    Model(usize),
+}
+
 /// Ligne de l'onglet IR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IrRow {
@@ -169,6 +177,24 @@ impl State {
         (0..self.models.len()).filter(|&i| matches(&self.models[i], &w)).collect()
     }
 
+    /// Lignes de l'onglet Modèles : « son direct (DI) » (sans filtre), puis les modèles visibles.
+    pub fn model_list(&self) -> Vec<ModelRow> {
+        let mut rows = Vec::new();
+        if self.filter.trim().is_empty() {
+            rows.push(ModelRow::Direct);
+        }
+        rows.extend(self.model_rows().into_iter().map(ModelRow::Model));
+        rows
+    }
+
+    /// Modèle sous le curseur de l'onglet Modèles (aucun sur la ligne « son direct »).
+    fn model_at_cursor(&self) -> Option<usize> {
+        match self.model_list().get(self.cursor()) {
+            Some(ModelRow::Model(m)) => Some(*m),
+            _ => None,
+        }
+    }
+
     /// Lignes de l'onglet IR : « aucune IR », les conseillées pour le modèle courant, puis le reste.
     pub fn ir_rows(&self) -> Vec<IrRow> {
         let w = self.words();
@@ -196,7 +222,7 @@ impl State {
 
     fn row_count(&self) -> usize {
         match self.tab {
-            Tab::Models => self.model_rows().len(),
+            Tab::Models => self.model_list().len(),
             Tab::Irs => self.ir_rows().len(),
             Tab::Blend => self.blend.len(),
         }
@@ -215,7 +241,21 @@ impl State {
         self.pending = None;
         match self.tab {
             Tab::Models => {
-                let Some(&m) = self.model_rows().get(self.cursor()) else { return Action::None };
+                let m = match self.model_list().get(self.cursor()) {
+                    Some(ModelRow::Model(m)) => *m,
+                    Some(ModelRow::Direct) => {
+                        self.model = None;
+                        self.message = Some(match self.ir {
+                            IrChoice::None => {
+                                "son direct de la basse : choisis une IR (onglet IR) pour l'écouter seule"
+                                    .into()
+                            }
+                            _ => "son direct de la basse + IR (sans modèle)".into(),
+                        });
+                        return self.play();
+                    }
+                    None => return Action::None,
+                };
                 self.model = Some(m);
                 let needs = self.models[m].needs;
                 match (needs, self.ir) {
@@ -291,7 +331,10 @@ impl State {
     }
 
     fn open_editor(&mut self) -> Action {
-        let Some(&m) = self.model_rows().get(self.cursor()) else { return Action::None };
+        let Some(m) = self.model_at_cursor() else {
+            self.message = Some("son direct : pas de modèle à modifier".into());
+            return Action::None;
+        };
         let draft = self.saved_meta(m);
         // un modèle nouvellement choisi prend sa meilleure IR conseillée (la préférée en tête) ;
         // s'il joue déjà, on garde l'IR en écoute (Entrée sur « IR préférée » la retient)
@@ -568,8 +611,13 @@ impl State {
 
     /// Ligne de commande équivalente (affichée en quittant).
     pub fn command_line(&self, saved_blend_id: Option<&str>) -> Option<String> {
-        let m = self.model?;
-        let mut cmd = format!("namfoop run -m {}", self.models[m].id);
+        if self.model.is_none() && self.ir == IrChoice::None {
+            return None;
+        }
+        let mut cmd = "namfoop run".to_string();
+        if let Some(m) = self.model {
+            cmd += &format!(" -m {}", self.models[m].id);
+        }
         match self.ir {
             IrChoice::Item(i) => cmd += &format!(" -i {}", self.irs[i].id),
             IrChoice::Blend => match saved_blend_id {
@@ -618,6 +666,7 @@ pub mod tests {
     fn audition_after_delay_and_auto_ir() {
         let mut s = sample();
         s.tick(1000);
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down); // 800D
         assert_eq!(s.tick(1100), Action::None, "pas encore : délai de 150 ms");
         let a = s.tick(1160);
@@ -630,6 +679,7 @@ pub mod tests {
     #[test]
     fn ir_tab_lists_recommended_first_and_filters() {
         let mut s = sample();
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down);
         s.on_key(Key::Enter); // 800D
         s.on_key(Key::Tab);
@@ -661,6 +711,7 @@ pub mod tests {
     #[test]
     fn build_and_save_a_blend() {
         let mut s = sample();
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down);
         s.on_key(Key::Enter);
         s.on_key(Key::Tab); // IR
@@ -709,6 +760,7 @@ pub mod tests {
     #[test]
     fn editor_changes_type_input_and_ir_live() {
         let mut s = with_meta(sample());
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down); // 800D
         let a = s.on_key(Key::Char('e'));
         assert_eq!(a, Action::Play { model: Some(1), ir: IrChoice::Item(2) }, "ouvre et joue le modèle");
@@ -786,6 +838,7 @@ pub mod tests {
     #[test]
     fn ir_chosen_in_ir_tab_becomes_preferred() {
         let mut s = with_meta(sample());
+        s.on_key(Key::Down); // ligne « son direct »
         s.on_key(Key::Down);
         s.on_key(Key::Enter); // 800D, IR conseillée 2
         s.on_key(Key::Tab);
@@ -800,5 +853,33 @@ pub mod tests {
         s.on_key(Key::Down);
         s.on_key(Key::Enter); // champ IR préférée : prend l'IR en écoute
         assert_eq!(s.editor.as_ref().unwrap().draft.ir, Some(1));
+    }
+
+    #[test]
+    fn direct_row_plays_irs_without_model() {
+        let mut s = sample();
+        assert_eq!(s.model_list()[0], ModelRow::Direct);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.on_key(Key::Enter); // 800D + IR conseillée
+        assert_eq!(s.model, Some(1));
+        s.on_key(Key::Up);
+        s.on_key(Key::Up);
+        assert_eq!(
+            s.on_key(Key::Enter),
+            Action::Play { model: None, ir: IrChoice::Item(2) },
+            "IR gardée, sans modèle"
+        );
+        s.on_key(Key::Tab);
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        assert_eq!(s.on_key(Key::Enter), Action::Play { model: None, ir: IrChoice::Item(1) });
+        assert_eq!(s.command_line(None).unwrap(), "namfoop run -i i002");
+        s.on_key(Key::Left);
+        assert_eq!(s.on_key(Key::Char('e')), Action::None, "pas d'éditeur sans modèle");
+        assert!(s.editor.is_none());
+        // avec un filtre, la ligne disparaît
+        s.filter = "mesa".into();
+        assert_eq!(s.model_list(), vec![ModelRow::Model(1)]);
     }
 }
