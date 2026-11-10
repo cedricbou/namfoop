@@ -12,8 +12,9 @@ cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
 
 RULES='
-nam-sys : seulement thiserror cc
-dsp     : interdit alsa jack clap ratatui libc namfoop
+nam-sys  : seulement thiserror cc
+dsp      : interdit alsa jack clap ratatui libc namfoop audio-io
+audio-io : interdit clap ratatui dsp namfoop toml nam-sys
 '
 
 cargo metadata --format-version 1 --no-deps --offline 2>/dev/null >/dev/null \

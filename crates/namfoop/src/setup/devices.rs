@@ -3,15 +3,15 @@
 use anyhow::Result;
 
 use super::state::DeviceInfo;
-use crate::backend::alsa::{self, ProbeError};
-use crate::backend::Kind;
+use audio_io::alsa::{self, ProbeError};
+use audio_io::Kind;
 
 pub fn list(kind: Kind, client_name: &str) -> Result<Vec<DeviceInfo>> {
     Ok(match kind {
         Kind::Alsa => alsa_devices(),
         Kind::Jack => {
-            let client = crate::backend::jack::open_client(&format!("{client_name}-setup"))?;
-            crate::backend::jack::devices(&client)
+            let client = audio_io::jack::open_client(&format!("{client_name}-setup"))?;
+            audio_io::jack::devices(&client)
                 .into_iter()
                 .map(|(name, n_in, n_out)| DeviceInfo {
                     id: name.clone(),
@@ -25,7 +25,7 @@ pub fn list(kind: Kind, client_name: &str) -> Result<Vec<DeviceInfo>> {
         Kind::Sim => ["2x2", "14x12"]
             .iter()
             .map(|d| {
-                let (i, o) = crate::backend::sim::parse_device(Some(d)).expect("constante valide");
+                let (i, o) = audio_io::sim::parse_device(Some(d)).expect("constante valide");
                 DeviceInfo {
                     id: d.to_string(),
                     label: format!("carte simulée {d}"),

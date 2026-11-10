@@ -1,0 +1,14 @@
+[package]
+name = "audio-io"
+description = "Accès aux cartes son de namfoop (ALSA direct, JACK, carte simulée), sans CLI ni DSP"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+jack.workspace = true
+alsa.workspace = true
+libc.workspace = true
+log.workspace = true
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"

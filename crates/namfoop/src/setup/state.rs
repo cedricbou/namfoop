@@ -1,9 +1,9 @@
 //! Logique de l'assistant, sans terminal ni audio : touches -> transitions + actions à exécuter.
 //! Toute la navigation et les affectations sont testées ici ; `mod.rs` exécute les actions.
 
-use crate::backend::Kind;
 use crate::config::{AudioConfig, Config};
 use crate::router::{OutputRoute, Routing, Source};
+use audio_io::Kind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {

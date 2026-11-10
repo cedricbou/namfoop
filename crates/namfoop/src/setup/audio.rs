@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::state::BufferTest;
-use crate::backend::{self, Io, Settings, Stream};
 use crate::live::{fetch_max, take};
+use audio_io::{Io, Settings, Stream};
 
 const MAX_CH: usize = 64;
 const BEEP_SECS: f32 = 0.4;
@@ -30,7 +30,7 @@ impl Monitor {
         let rate = cfg.rate as f32;
         let beep_len = (BEEP_SECS * rate) as usize;
         let (mut beep_ch, mut beep_pos) = (usize::MAX, 0usize);
-        let stream = backend::start_with(
+        let stream = audio_io::start_with(
             cfg,
             move |io: &mut dyn Io| {
                 for c in 0..io.n_in().min(MAX_CH) {
@@ -101,7 +101,7 @@ pub fn buffer_test(
                 }
             };
             let mut scratch = vec![0.0f32; 8192];
-            let result = backend::start_with(
+            let result = audio_io::start_with(
                 &cfg,
                 move |io: &mut dyn Io| {
                     if let Some(ch) = chain.as_mut() {

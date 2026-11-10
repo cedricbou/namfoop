@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
-use crate::backend::{self, Io};
 use crate::config::LoadedConfig;
 use crate::router::{Router, Routing};
+use audio_io::Io;
 
 /// Taille max de bloc pour laquelle la chaîne est préparée (au-delà : découpage interne).
 const MAX_BLOCK: usize = 1024;
@@ -50,7 +50,7 @@ pub fn db(x: f32) -> String {
 }
 
 pub fn run(
-    cfg: &backend::Settings,
+    cfg: &audio_io::Settings,
     conf: &LoadedConfig,
     amp: &AmpArgs,
     routing: &Routing,
@@ -69,7 +69,7 @@ pub fn run(
     let m = meters.clone();
     let frame_secs = 1.0f32 / cfg.rate as f32;
 
-    let stream = backend::start(cfg, move |io: &mut dyn Io| {
+    let stream = audio_io::start(cfg, move |io: &mut dyn Io| {
         let t0 = Instant::now();
         let st = router.process(io, |buf| chain.process(buf));
         if st.in_clips > 0 {

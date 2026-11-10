@@ -21,7 +21,7 @@ pub enum LevelMode {
 #[serde(default)]
 pub struct AudioConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub backend: Option<crate::backend::Kind>,
+    pub backend: Option<audio_io::Kind>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -174,7 +174,7 @@ mod tests {
         use crate::router::{OutputRoute, Source};
         let p = std::env::temp_dir().join(format!("namfoop-cfg-audio-{}.toml", std::process::id()));
         let mut c = Config::default();
-        c.audio.backend = Some(crate::backend::Kind::Alsa);
+        c.audio.backend = Some(audio_io::Kind::Alsa);
         c.audio.device = Some("hw:iTwo".into());
         c.audio.buffer = Some(48);
         c.routing.bass_in = 1;

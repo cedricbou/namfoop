@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
-use crate::backend::{self, Io, Settings};
 use crate::config::LoadedConfig;
 use crate::library::{content_hash, Kind, Library};
 use crate::live::{fetch_max, take};
@@ -26,6 +25,7 @@ use crate::overrides::{ModelOverride, Overrides};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
 use crate::router::{Router, Routing};
 use crate::tui;
+use audio_io::{Io, Settings};
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
@@ -267,7 +267,7 @@ pub fn run(
     let check = Router::new(routing, MAX_BLOCK)?;
     let m = meters.clone();
     let frame_secs = 1.0 / cfg.rate as f32;
-    let stream = backend::start_with(
+    let stream = audio_io::start_with(
         cfg,
         move |io: &mut dyn Io| {
             let t0 = Instant::now();

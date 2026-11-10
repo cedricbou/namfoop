@@ -4,7 +4,7 @@
 use anyhow::{bail, Result};
 use std::time::Duration;
 
-use crate::backend::{self, Io};
+use audio_io::Io;
 
 const THRESHOLD: f32 = 0.05;
 const AMPLITUDE: f32 = 0.7;
@@ -14,7 +14,7 @@ enum Event {
     Timeout,
 }
 
-pub fn run(cfg: &backend::Settings, out_ch: usize, in_ch: usize, count: u32) -> Result<()> {
+pub fn run(cfg: &audio_io::Settings, out_ch: usize, in_ch: usize, count: u32) -> Result<()> {
     if out_ch == 0 || in_ch == 0 {
         bail!("les canaux sont numérotés à partir de 1");
     }
@@ -29,7 +29,7 @@ pub fn run(cfg: &backend::Settings, out_ch: usize, in_ch: usize, count: u32) -> 
     let mut next_emit: u64 = sr; // 1 s de stabilisation
     let mut emitted_at: Option<u64> = None;
 
-    let stream = backend::start(cfg, move |io: &mut dyn Io| {
+    let stream = audio_io::start(cfg, move |io: &mut dyn Io| {
         io.silence();
         if ic >= io.n_in() || oc >= io.n_out() {
             return; // vérifié après le démarrage

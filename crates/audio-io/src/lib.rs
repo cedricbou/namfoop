@@ -4,16 +4,15 @@
 //! Le nombre de canaux est celui de la carte (iTwo : 2/2, Soundcraft MTK : 14/12...).
 
 pub mod alsa;
+mod error;
 pub mod jack;
 pub mod rt;
 pub mod sim;
 
-use anyhow::Result;
+pub use error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-
-use crate::config::Config as FileConfig;
 
 /// Accès aux buffers d'un cycle audio. Canaux numérotés à partir de 0.
 pub trait Io {
@@ -74,7 +73,8 @@ where
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum, Serialize, Deserialize)]
+/// Backend audio (l'aide de la CLI est dans le binaire, `BackendArg`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     /// JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
@@ -83,31 +83,6 @@ pub enum Kind {
     Alsa,
     /// Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
     Sim,
-}
-
-/// Options audio globales de la ligne de commande. Sans option : valeur de la config
-/// (`namfoop setup`), sinon valeur par défaut.
-#[derive(Clone, Debug, Default, clap::Args)]
-pub struct AudioArgs {
-    /// Backend audio [défaut : config, sinon jack]
-    #[arg(long, value_enum, global = true)]
-    pub backend: Option<Kind>,
-    /// Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou
-    /// canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
-    #[arg(long, global = true)]
-    pub device: Option<String>,
-    /// Taille de buffer / période en frames [défaut : config, sinon 64]
-    #[arg(long, global = true)]
-    pub buffer: Option<u32>,
-    /// Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
-    #[arg(long, global = true)]
-    pub periods: Option<u32>,
-    /// Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-    #[arg(long, global = true)]
-    pub rate: Option<u32>,
-    /// Nom du client JACK
-    #[arg(long, default_value = "namfoop", global = true)]
-    pub client_name: String,
 }
 
 /// Réglages audio effectifs (CLI > config > défaut).
@@ -122,21 +97,15 @@ pub struct Settings {
 }
 
 impl Default for Settings {
+    /// Valeurs par défaut de la CLI quand ni option ni config ne disent rien.
     fn default() -> Self {
-        AudioArgs { client_name: "namfoop".into(), ..Default::default() }.resolve(&FileConfig::default())
-    }
-}
-
-impl AudioArgs {
-    pub fn resolve(&self, file: &FileConfig) -> Settings {
-        let a = &file.audio;
         Settings {
-            backend: self.backend.or(a.backend).unwrap_or(Kind::Jack),
-            device: self.device.clone().or_else(|| a.device.clone()),
-            buffer: self.buffer.or(a.buffer).unwrap_or(64),
-            periods: self.periods.or(a.periods).unwrap_or(3),
-            rate: self.rate.or(a.rate).unwrap_or(48000),
-            client_name: self.client_name.clone(),
+            backend: Kind::Jack,
+            device: None,
+            buffer: 64,
+            periods: 3,
+            rate: 48000,
+            client_name: "namfoop".into(),
         }
     }
 }

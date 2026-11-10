@@ -3,13 +3,13 @@
 //! faible (~ -60 dBFS), autres entrées silencieuses. Les sorties sont jetées.
 //! Device : "NxM" (N entrées, M sorties), défaut "2x2".
 
-use anyhow::{bail, Result};
+use crate::error::{bail, Result};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use super::{rt, Processor, Settings, Stats, Stream, VecIo};
+use crate::{rt, Processor, Settings, Stats, Stream, VecIo};
 
 pub struct SimStream {
     running: Arc<AtomicBool>,

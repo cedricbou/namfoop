@@ -22,9 +22,12 @@ crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolve
                   SwapChain fond en ~20 ms, l'ancienne repart vers le contrôle — jamais libérée en RT)
   tests/          propriétés de chaîne (indépendance au bloc), absence d'allocation (assert_no_alloc),
                   rendus de référence golden.rs + golden/*.toml (RMS, crête, enveloppe 50 ms)
+crates/audio-io/  accès à la carte, sans clap, config ni DSP (voir crates/audio-io/CLAUDE.md) :
+                  lib.rs (trait Io : canaux dynamiques ; Processor ; Settings ; start), error.rs
+                  (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off »),
+                  sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
 crates/namfoop/   binaire CLI
-  backend/        mod.rs (trait Io : canaux dynamiques ; Processor ; AudioArgs -> Settings), jack.rs,
-                  alsa.rs (direct, streams liés, probe), sim.rs (carte simulée), rt.rs
+  cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut)
   router.rs       routage temps réel : entrée basse -> chaîne -> sorties (processed/di/mic/mute)
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
@@ -125,7 +128,7 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 ## Les backends
 
 Tout changement qui touche l'audio doit marcher sur **JACK et ALSA** (testé sur le matériel) et sur
-**sim** (sans matériel, utilisable par les agents). Le DSP est commun (trait `backend::Io`, nombre de
+**sim** (sans matériel, utilisable par les agents). Le DSP est commun (trait `audio_io::Io`, nombre de
 canaux de la carte) ; seuls l'accès à la carte et le threading diffèrent.
 - `pw-jack` n'est jamais nécessaire (relance automatique avec la libjack PipeWire si besoin,
   `jack::open_client`) : ne pas l'utiliser dans les docs ni les scripts (vérifié par check-docs.sh).
@@ -206,8 +209,7 @@ sans entrée de changelog.
 
 ## Faits mesurés (à garder à jour)
 
-- Latence aller-retour iTwo (PC) : ALSA 48×3 = 5,2 ms ; JACK/PipeWire 64 = 6,5–7 ms. Plancher matériel
-  ~1–2 ms (USB + convertisseurs). 32 et 16 frames : xruns massifs avec l'iTwo.
+- Latence et buffers des backends (iTwo, ALSA 48×3 = 5,2 ms) : `crates/audio-io/CLAUDE.md`.
 - Bench x86 (bloc 64, 48 kHz) : WaveNet 3 canaux ≈ 21 µs (1,6 % du budget), 8 canaux ≈ 42 µs (3,2 %).
 - Bibliothèque : 55 modèles, tous au format NAM 0.7.0 `SlimmableContainer` (WaveNet 3ch + 8ch,
   `--size 0` = 3ch), loudness entre -14 et -40 dB (d'où la normalisation à -18 dB). 144 IR, surtout

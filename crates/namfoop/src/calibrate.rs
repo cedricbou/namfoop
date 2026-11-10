@@ -12,8 +12,8 @@ use std::path::Path;
 
 use crate::router::{Router, Routing};
 
-use crate::backend::{self, Io};
 use crate::config::{Config, LevelMode};
+use audio_io::Io;
 
 pub const DEFAULT_TARGET_DBFS: f32 = -30.0;
 const SILENCE: f32 = 0.003; // ~ -50 dBFS
@@ -60,7 +60,7 @@ fn trim_silence(x: &[f32], rate: u32) -> &[f32] {
 /// `routing` : la basse est lue sur `routing.bass_in` et renvoyée en direct (DI) sur les sorties
 /// « basse traitée » du routage, pour que le bassiste s'entende là où il s'entend d'habitude.
 pub fn run(
-    cfg: &backend::Settings,
+    cfg: &audio_io::Settings,
     path: &Path,
     seconds: f64,
     target: f32,
@@ -73,7 +73,7 @@ pub fn run(
     let check = Router::new(routing, 1024)?;
     let capacity = cfg.rate as usize * 2;
     let (mut tx, mut rx) = rtrb::RingBuffer::<f32>::new(capacity);
-    let stream = backend::start(cfg, move |io: &mut dyn Io| {
+    let stream = audio_io::start(cfg, move |io: &mut dyn Io| {
         if ch < io.n_in() {
             let src = io.input(ch);
             if let Ok(chunk) = tx.write_chunk_uninit(src.len()) {

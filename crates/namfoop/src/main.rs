@@ -1,7 +1,7 @@
 mod amp;
-mod backend;
 mod browse;
 mod calibrate;
+mod cli_audio;
 mod config;
 mod import;
 mod latency;
@@ -45,7 +45,7 @@ use crate::config::LoadedConfig;
 )]
 struct Cli {
     #[command(flatten)]
-    audio: backend::AudioArgs,
+    audio: cli_audio::AudioArgs,
 
     /// Fichier de config [défaut : ~/.config/namfoop/config.toml]
     #[arg(long, global = true)]
@@ -227,8 +227,8 @@ fn main() -> Result<()> {
             let start = browse::Start { filter: filter.as_deref(), ..Default::default() };
             browse::run(&audio, &conf, &library, &routing, size, start)
         }
-        Cmd::Setup { library } => setup::run(&audio, cli.audio.backend, &conf, &library),
-        Cmd::Ports => backend::jack::list_ports(&audio.client_name),
+        Cmd::Setup { library } => setup::run(&audio, cli.audio.backend.map(Into::into), &conf, &library),
+        Cmd::Ports => Ok(audio_io::jack::list_ports(&audio.client_name)?),
         Cmd::Latency { out_ch, in_ch, count } => latency::run(&audio, out_ch, in_ch, count),
     }
 }
