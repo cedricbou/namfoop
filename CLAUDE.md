@@ -5,6 +5,10 @@ le sondier et les in-ears, presets pilotés par MIDI, cible PC Linux et Raspberr
 propriétaire joue de la basse sur scène : **la fiabilité en live et la latence priment sur tout**.
 Doc utilisateur : `README.md`. Plan initial : étapes 1 à 6 ci-dessous.
 
+**Architecture : lire d'abord [`docs/architecture.md`](docs/architecture.md)** (crates, sens des
+dépendances, règles vérifiées par `scripts/check-arch.sh`) et les décisions prises dans
+[`docs/adr/`](docs/adr/) (ne pas les rouvrir sans nouvelle mesure). Découpage en cours : #47.
+
 ## Disposition
 
 ```
@@ -56,11 +60,12 @@ crates/namfoop/   binaire CLI
   calibrate.rs    `calibrate` : enregistre le DI, calcule le trim, active le niveau « match »
 scripts/check.sh          vérification sans matériel (À FAIRE PASSER AVANT TOUT COMMIT)
 scripts/check-docs.sh     cohérence code <-> docs (appelé par check.sh)
+scripts/check-arch.sh     sens des dépendances entre crates, table de règles en tête (appelé par check.sh)
 scripts/gen-cli-doc.sh    régénère docs/cli.md
 scripts/install-hooks.sh  hooks : pre-commit (refus sur main + check.sh --quick), commit-msg (Refs #n),
                           pre-push (refus vers main)
 scripts/feature.sh        cycle issue -> branche -> PR -> merge (start | pr | merge | status)
-docs/                     guide.md (utilisateur), cli.md (généré)
+docs/                     guide.md (utilisateur), cli.md (généré), architecture.md, adr/ (décisions)
 .github/workflows/        CI : check.yml (check.sh --quick, sans bibliothèque de sons),
                           pr-rules.yml (issue référencée, nom de branche, CHANGELOG)
 .github/ISSUE_TEMPLATE/   modèles d'issue (fonctionnalité, bug) ; pull_request_template.md

@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#49)
+- `docs/architecture.md`, décisions d'architecture (`docs/adr/`) et contrôle du sens des
+  dépendances entre crates (`scripts/check-arch.sh`, appelé par `check.sh`).
+
 ### Interne (#48)
 - Rendus de référence du son (`crates/dsp/tests/golden.rs`) : filet de non-régression avant le
   découpage en crates.
