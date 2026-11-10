@@ -42,7 +42,6 @@ impl From<&ImportArgs> for library::import::ImportArgs {
             pack: a.pack.clone(),
             dry_run: a.dry_run,
             skip_duplicates: a.skip_duplicates,
-            review: a.review,
             library: a.library.clone(),
         }
     }
