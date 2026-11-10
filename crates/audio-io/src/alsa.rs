@@ -2,14 +2,14 @@
 //! latence fixe = (periods + 1) × période + conversion de la carte.
 //! Si PipeWire tient la carte, son profil est passé à « off » le temps de la session.
 
+use crate::error::{bail, Context, Error, Result};
 use alsa::pcm::{Access, Format, HwParams, State, PCM};
 use alsa::{Direction, ValueOr};
-use anyhow::{bail, Context, Result};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use super::{rt, Processor, Settings, Stats, Stream, VecIo};
+use crate::{rt, Processor, Settings, Stats, Stream, VecIo};
 
 const DEFAULT_DEVICE: &str = "hw:iTwo";
 const S32_SCALE: f32 = 2147483648.0; // 2^31
@@ -294,8 +294,8 @@ impl Stream for AlsaStream {
     }
 }
 
-fn is_busy(e: &anyhow::Error) -> bool {
-    e.downcast_ref::<alsa::Error>().is_some_and(|a| a.errno() == libc::EBUSY)
+fn is_busy(e: &Error) -> bool {
+    e.alsa().is_some_and(|a| a.errno() == libc::EBUSY)
 }
 
 /// Libère la carte tenue par PipeWire (profil « off ») et restaure le profil au drop.

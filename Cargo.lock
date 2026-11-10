@@ -130,6 +130,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "audio-io"
+version = "0.1.0"
+dependencies = [
+ "alsa",
+ "jack",
+ "libc",
+ "log",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1028,14 +1040,13 @@ dependencies = [
 name = "namfoop"
 version = "0.1.0"
 dependencies = [
- "alsa",
  "anyhow",
  "assert_no_alloc",
+ "audio-io",
  "clap",
  "ctrlc",
  "dsp",
  "env_logger",
- "jack",
  "libc",
  "log",
  "nam-sys",

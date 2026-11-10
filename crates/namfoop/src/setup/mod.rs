@@ -16,9 +16,9 @@ use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use crate::backend::{Kind, Settings};
 use crate::config::LoadedConfig;
 use crate::tui::{self, Key};
+use audio_io::{Kind, Settings};
 use state::{Action, State};
 
 /// Premier modèle de la bibliothèque : charge réaliste pendant le test des buffers.

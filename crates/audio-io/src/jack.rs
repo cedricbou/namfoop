@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
+use crate::error::{bail, Context, Result};
 use jack::{AudioIn, AudioOut, Control, PortFlags};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use super::{rt, Io, Processor, Settings, Stats, Stream};
+use crate::{rt, Io, Processor, Settings, Stats, Stream};
 
 pub const AUDIO_TYPE: &str = "32 bit float mono audio";
 pub const MIDI_TYPE: &str = "8 bit raw midi";

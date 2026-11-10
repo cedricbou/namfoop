@@ -33,10 +33,10 @@ ne dépend d'aucune crate du projet ; aucune crate de bibliothèque n'utilise `c
 
 ## État actuel
 
-Trois crates : `nam-sys`, `dsp`, et le binaire `namfoop` qui porte encore les backends, le
-routeur, la bibliothèque et les écrans (voir « Disposition » dans `CLAUDE.md`). Les crates
-`audio-io`, `engine`, `model` et `library` seront extraites une par une (#50 à #57), à comportement
-constant, sous le filet des rendus de référence (`crates/dsp/tests/golden.rs`).
+Quatre crates : `nam-sys`, `dsp`, `audio-io` (backends ALSA, JACK, sim, extraits en #50) et le
+binaire `namfoop` qui porte encore le routeur, la bibliothèque et les écrans (voir « Disposition »
+dans `CLAUDE.md`). Les crates `engine`, `model` et `library` seront extraites une par une (#52 à
+#57), à comportement constant, sous le filet des rendus de référence (`crates/dsp/tests/golden.rs`).
 
 ## Règles vérifiées
 
@@ -47,4 +47,5 @@ dev-dependencies). Chaque issue qui crée une crate ajoute ses règles à la tab
 | Crate     | Règle                                                       | Depuis |
 |-----------|-------------------------------------------------------------|--------|
 | `nam-sys` | seulement `thiserror` (+ `cc` en build)                     | #49    |
-| `dsp`     | interdit `alsa`, `jack`, `clap`, `ratatui`, `libc`, `namfoop` | #49    |
+| `dsp`     | interdit `alsa`, `jack`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io` | #49, #50 |
+| `audio-io` | interdit `clap`, `ratatui`, `dsp`, `nam-sys`, `namfoop`, `toml` | #50    |

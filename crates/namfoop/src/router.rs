@@ -5,7 +5,7 @@
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::backend::Io;
+use audio_io::Io;
 
 /// Ce qu'une sortie reçoit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
@@ -237,7 +237,7 @@ impl Router {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::VecIo;
+    use audio_io::VecIo;
 
     fn io_buffers(n_in: usize, n_out: usize, frames: usize) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
         let ins = (0..n_in).map(|c| vec![0.1 * (c + 1) as f32; frames]).collect();

@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#50)
+- Les backends audio (ALSA, JACK, sim) sortent du binaire dans la crate `audio-io`, sans clap ni
+  config ; aucun changement de comportement.
+
 ### Interne (#49)
 - `docs/architecture.md`, décisions d'architecture (`docs/adr/`) et contrôle du sens des
   dépendances entre crates (`scripts/check-arch.sh`, appelé par `check.sh`).
