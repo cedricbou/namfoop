@@ -106,9 +106,8 @@ impl Outcome {
     }
 }
 
-/// Importe et renvoie le bilan. La config n'est pas utilisée par l'import lui-même (les profils
-/// sont calculés à l'affichage du bilan, par le binaire).
-pub fn run(a: &ImportArgs, _conf: &model::LoadedConfig) -> Result<Outcome> {
+/// Importe et renvoie le bilan (les profils sont calculés à l'affichage du bilan, par le binaire).
+pub fn run(a: &ImportArgs) -> Result<Outcome> {
     let mut incoming = Vec::new();
     let mut skipped = Vec::new();
     for s in &a.sources {
@@ -354,17 +353,16 @@ mod tests {
             review: false,
             library: root.clone(),
         };
-        let conf = model::LoadedConfig::load(None, true).unwrap();
-        run(&args(true), &conf).unwrap();
+        run(&args(true)).unwrap();
         assert!(!root.exists(), "--dry-run n'écrit rien");
-        run(&args(false), &conf).unwrap();
+        run(&args(false)).unwrap();
         assert!(root.join("ir/Pack K/Mixes/A.wav").is_file(), "racine commune retirée, sous-dossiers gardés");
         assert!(root.join("ir/Pack K/Mixes/B.wav").is_file());
         assert!(root.join("ir/Pack K/Other/A copy.wav").is_file(), "identique mais importé : pack complet");
         assert!(root.join("docs/Pack K/README.txt").is_file());
         assert!(!root.join("nam/Pack K/broken.nam").exists(), "modèle illisible refusé");
         // réimport : tout est déjà en place, rien ne change
-        run(&args(false), &conf).unwrap();
+        run(&args(false)).unwrap();
         let l = Library::scan(&root);
         assert_eq!(l.of_kind(Kind::Ir).count(), 3);
         assert_eq!(l.of_kind(Kind::Ir).next().unwrap().pack, "Pack K/Mixes");
@@ -373,7 +371,7 @@ mod tests {
         let mut skip = args(false);
         skip.library = root2.clone();
         skip.skip_duplicates = true;
-        run(&skip, &conf).unwrap();
+        run(&skip).unwrap();
         assert!(root2.join("ir/Pack K/Mixes/A.wav").is_file());
         assert!(!root2.join("ir/Pack K/Other/A copy.wav").exists());
     }
@@ -390,17 +388,14 @@ mod tests {
         std::fs::create_dir_all(&src).unwrap();
         std::fs::copy(&model, src.join("Tone_FullRig.nam")).unwrap();
         let root = lib.join("library");
-        run(
-            &ImportArgs {
-                sources: vec![lib.join("Mon Pack")],
-                pack: None,
-                dry_run: false,
-                skip_duplicates: false,
-                review: false,
-                library: root.clone(),
-            },
-            &model::LoadedConfig::load(None, true).unwrap(),
-        )
+        run(&ImportArgs {
+            sources: vec![lib.join("Mon Pack")],
+            pack: None,
+            dry_run: false,
+            skip_duplicates: false,
+            review: false,
+            library: root.clone(),
+        })
         .unwrap();
         let dest = root.join("nam/Mon Pack/Full-Rig/Tone_FullRig.nam");
         assert!(dest.is_file());

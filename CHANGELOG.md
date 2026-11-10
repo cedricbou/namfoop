@@ -6,6 +6,9 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#71)
+- `library::import::run` et `library::overrides::run` ne prennent plus la config, inutilisée.
+
 ### Ajouté (#58)
 - Profils de carte (`profiles/itwo.toml`, `~/.config/namfoop/profiles/`) : device, buffer,
   périodes, entrée basse et contrôles mixer `[[mixer]]` réglés à l'ouverture (ALSA). Reconnus
