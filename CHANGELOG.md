@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#24)
+- `scripts/feature.sh merge` lancé juste après `pr` attend que les checks de la CI apparaissent au
+  lieu d'échouer (« no checks reported »).
+
 ### Interne (#74)
 - `library::import::ImportArgs` n'a plus le champ `review`, propre à la commande du binaire.
 
