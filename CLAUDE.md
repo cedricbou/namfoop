@@ -24,7 +24,7 @@ crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolve
                   rendus de référence golden.rs + golden/*.toml (RMS, crête, enveloppe 50 ms)
 crates/audio-io/  accès à la carte, sans clap, config ni DSP (voir crates/audio-io/CLAUDE.md) :
                   lib.rs (trait Io : canaux dynamiques ; Processor ; Settings ; start), error.rs
-                  (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off »),
+                  (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off » ; alsa/format.rs : S32 / S24_3 / S24 / S16),
                   sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
 crates/namfoop/   binaire CLI
   cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut)

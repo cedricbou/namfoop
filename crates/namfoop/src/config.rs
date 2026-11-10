@@ -24,6 +24,9 @@ pub struct AudioConfig {
     pub backend: Option<audio_io::Kind>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
+    /// Device ALSA de capture s'il diffère de `device`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_device: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub buffer: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]

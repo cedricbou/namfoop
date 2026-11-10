@@ -437,6 +437,12 @@ impl State {
         c.audio = AudioConfig {
             backend: Some(self.kind()),
             device: self.device().map(|d| d.id.clone()),
+            // setup ne règle pas de capture séparée : gardée tant que la carte ne change pas
+            capture_device: base
+                .audio
+                .capture_device
+                .clone()
+                .filter(|_| base.audio.device == self.device().map(|d| d.id.clone())),
             buffer: self.chosen_buffer(),
             periods: (self.kind() == Kind::Alsa).then_some(self.periods),
             rate: Some(rate),

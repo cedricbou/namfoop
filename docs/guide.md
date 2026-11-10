@@ -928,12 +928,28 @@ commande (`namfoop --backend alsa --buffer 64 run -m b7k`).
 
 - `--device` : la carte. En JACK, son nom ou une partie (`iTwo`) ; en ALSA, le device (`hw:iTwo`,
   `hw:MTK`) ; en simulé, les canaux (`4x6` = 4 entrées, 6 sorties).
+- `--capture-device` (ALSA) : device de capture, si l'entrée n'est pas sur le même device que la
+  sortie (certains HAT I2S exposent la capture sur un autre device, ou une carte sert d'entrée et
+  une autre de sortie). Par défaut, le même que `--device`. Avec deux cartes différentes, leurs
+  horloges ne sont pas liées : namfoop prévient, et une dérive (xruns réguliers après quelques
+  minutes) est possible. Préférer une seule carte sur scène.
 - `--buffer` : taille de période en frames. JACK n'accepte que des puissances de 2 (32, 64...).
   Avec l'iTwo : 48 en ALSA, 64 en JACK ; 32 et en dessous provoquent des xruns.
 - `--periods` : nombre de périodes côté ALSA (3 par défaut, meilleur compromis mesuré).
 - `--rate` : fréquence d'échantillonnage (48000 ; les modèles sont entraînés à 48 kHz). En JACK,
   c'est le serveur qui décide : namfoop refuse de démarrer s'il tourne à une autre fréquence.
 - `--client-name` : nom du client JACK (pour lancer plusieurs instances).
+
+**Formats ALSA.** namfoop essaie dans l'ordre `S32_LE`, `S24_3LE`, `S24_LE` puis `S16_LE`, pour la
+capture et la lecture séparément, et garde le premier accepté par la carte (ligne « format ALSA »
+au démarrage). L'iTwo reste en `S32_LE` ; beaucoup de cartes USB Behringer n'acceptent que
+`S24_3LE`, et les HAT I2S souvent `S16_LE` ou `S24_LE`. Si aucun ne passe, namfoop le dit
+(« aucun format supporté par la carte ») : essayer `plughw:` au lieu de `hw:` (conversion par ALSA,
+un peu plus de latence).
+
+```sh
+namfoop --backend alsa --device hw:1,0 --capture-device hw:1,1 --buffer 48 latency
+```
 
 **En ALSA, si PipeWire utilise la carte**, namfoop coupe son profil le temps de la session et le
 remet à l'arrêt, y compris en cas de plantage. Seul un `kill -9` peut laisser le profil sur « off »
@@ -1027,6 +1043,7 @@ default_ir = "dg212 sm57"            # optionnel : IR préférée (identifiant o
 [audio]                              # — setup
 backend = "alsa"
 device = "hw:iTwo"
+# capture_device = "hw:1,1"          # optionnel (ALSA) : capture sur un autre device
 buffer = 48
 periods = 3
 rate = 48000

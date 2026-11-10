@@ -3,6 +3,10 @@
 //!
 //! Le nombre de canaux est celui de la carte (iTwo : 2/2, Soundcraft MTK : 14/12...).
 
+#[cfg(test)]
+#[global_allocator]
+static ALLOC: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
+
 pub mod alsa;
 mod error;
 pub mod jack;
@@ -90,6 +94,8 @@ pub enum Kind {
 pub struct Settings {
     pub backend: Kind,
     pub device: Option<String>,
+    /// Device ALSA de capture, s'il diffère de `device` (ALSA seulement).
+    pub capture_device: Option<String>,
     pub buffer: u32,
     pub periods: u32,
     pub rate: u32,
@@ -102,6 +108,7 @@ impl Default for Settings {
         Settings {
             backend: Kind::Jack,
             device: None,
+            capture_device: None,
             buffer: 64,
             periods: 3,
             rate: 48000,
@@ -134,6 +141,9 @@ pub trait Stream {
 
 /// Démarre un flux. `quiet` : pas de log d'info (assistant plein écran).
 pub fn start_with(cfg: &Settings, processor: impl Processor, quiet: bool) -> Result<Box<dyn Stream>> {
+    if cfg.capture_device.is_some() && cfg.backend != Kind::Alsa {
+        log::warn!("device de capture séparé ignoré : ALSA seulement");
+    }
     let stream: Box<dyn Stream> = match cfg.backend {
         Kind::Jack => Box::new(jack::JackStream::start(cfg, processor)?),
         Kind::Alsa => Box::new(alsa::AlsaStream::start(cfg, processor)?),

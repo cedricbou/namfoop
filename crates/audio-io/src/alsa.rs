@@ -2,9 +2,12 @@
 //! latence fixe = (periods + 1) × période + conversion de la carte.
 //! Si PipeWire tient la carte, son profil est passé à « off » le temps de la session.
 
+pub mod format;
+
 use crate::error::{bail, Context, Error, Result};
-use alsa::pcm::{Access, Format, HwParams, State, PCM};
+use alsa::pcm::{Access, HwParams, State, PCM};
 use alsa::{Direction, ValueOr};
+use format::SampleFormat;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -12,7 +15,6 @@ use std::thread::JoinHandle;
 use crate::{rt, Processor, Settings, Stats, Stream, VecIo};
 
 const DEFAULT_DEVICE: &str = "hw:iTwo";
-const S32_SCALE: f32 = 2147483648.0; // 2^31
 
 pub struct AlsaStream {
     running: Arc<AtomicBool>,
@@ -23,7 +25,8 @@ pub struct AlsaStream {
     n_in: usize,
     n_out: usize,
     device: String,
-    _pw: Option<PipewireRelease>,
+    capture_device: String,
+    _pw: Vec<PipewireRelease>,
 }
 
 struct Pcms {
@@ -33,6 +36,8 @@ struct Pcms {
     playback_frames: usize,
     ch_in: usize,
     ch_out: usize,
+    fmt_in: SampleFormat,
+    fmt_out: SampleFormat,
 }
 
 /// Nombre de canaux à ouvrir : celui de la carte pour un device `hw:` (fixe en général),
@@ -42,10 +47,27 @@ fn channels(hwp: &HwParams) -> Result<u32> {
     Ok(if max <= 64 { max } else { min.max(2) })
 }
 
-fn setup(pcm: &PCM, rate: u32, period: u32, periods: u32) -> Result<(u32, usize, usize, usize)> {
+/// Premier format de `SampleFormat::PREFERENCE` accepté par la carte.
+fn negotiate(hwp: &HwParams) -> Result<SampleFormat> {
+    let Some(f) = SampleFormat::PREFERENCE.into_iter().find(|f| hwp.test_format(f.alsa()).is_ok()) else {
+        bail!("aucun format supporté par la carte (essayés : S32_LE, S24_3LE, S24_LE, S16_LE)")
+    };
+    hwp.set_format(f.alsa())?;
+    Ok(f)
+}
+
+struct Setup {
+    rate: u32,
+    period: usize,
+    buffer: usize,
+    channels: usize,
+    format: SampleFormat,
+}
+
+fn setup(pcm: &PCM, rate: u32, period: u32, periods: u32) -> Result<Setup> {
     let hwp = HwParams::any(pcm)?;
     hwp.set_access(Access::RWInterleaved)?;
-    hwp.set_format(Format::s32()).context("format S32 non supporté par la carte")?;
+    let format = negotiate(&hwp)?;
     let ch = channels(&hwp)?;
     hwp.set_channels(ch)?;
     hwp.set_rate(rate, ValueOr::Nearest)?;
@@ -62,7 +84,7 @@ fn setup(pcm: &PCM, rate: u32, period: u32, periods: u32) -> Result<(u32, usize,
     // le démarrage est déclenché explicitement (streams liés)
     swp.set_start_threshold(i32::MAX as alsa::pcm::Frames)?;
     pcm.sw_params(&swp)?;
-    Ok((got_rate, got_period, got_buffer, ch as usize))
+    Ok(Setup { rate: got_rate, period: got_period, buffer: got_buffer, channels: ch as usize, format })
 }
 
 /// Nombre de canaux d'un device dans une direction, sans le démarrer.
@@ -111,12 +133,14 @@ pub fn cards() -> Vec<(String, String)> {
     out
 }
 
-fn open(device: &str, cfg: &Settings) -> Result<Pcms> {
+fn open(device: &str, capture_device: &str, cfg: &Settings) -> Result<Pcms> {
     let playback = PCM::new(device, Direction::Playback, false)?;
-    let capture = PCM::new(device, Direction::Capture, false)?;
-    let (rate_p, period_p, buf_p, ch_out) = setup(&playback, cfg.rate, cfg.buffer, cfg.periods)?;
+    let capture = PCM::new(capture_device, Direction::Capture, false)?;
+    let p = setup(&playback, cfg.rate, cfg.buffer, cfg.periods)?;
     // côté capture, un buffer plus grand n'ajoute pas de latence et absorbe les à-coups
-    let (rate_c, period_c, _, ch_in) = setup(&capture, cfg.rate, cfg.buffer, cfg.periods.max(4))?;
+    let c = setup(&capture, cfg.rate, cfg.buffer, cfg.periods.max(4))?;
+    let (rate_p, period_p, rate_c, period_c) = (p.rate, p.period, c.rate, c.period);
+    log::info!("format ALSA : capture {}, lecture {}", c.format.name(), p.format.name());
     if rate_p != rate_c || period_p != period_c {
         bail!("capture/playback incompatibles : {rate_c}/{period_c} vs {rate_p}/{period_p}");
     }
@@ -125,12 +149,26 @@ fn open(device: &str, cfg: &Settings) -> Result<Pcms> {
     }
     if let Err(e) = capture.link(&playback) {
         log::warn!("snd_pcm_link impossible ({e}) : démarrage séparé, latence moins stable");
+        if capture_device != device {
+            log::warn!(
+                "capture ({capture_device}) et lecture ({device}) sur deux cartes : horloges distinctes, dérive possible"
+            );
+        }
     }
-    Ok(Pcms { capture, playback, period: period_p, playback_frames: buf_p, ch_in, ch_out })
+    Ok(Pcms {
+        capture,
+        playback,
+        period: period_p,
+        playback_frames: p.buffer,
+        ch_in: c.channels,
+        ch_out: p.channels,
+        fmt_in: c.format,
+        fmt_out: p.format,
+    })
 }
 
 /// Pré-remplit le playback de silence puis démarre les deux flux.
-fn prime_and_start(p: &Pcms, io: &alsa::pcm::IO<i32>, silence: &[i32]) -> alsa::Result<()> {
+fn prime_and_start(p: &Pcms, io: &alsa::pcm::IO<u8>, silence: &[u8]) -> alsa::Result<()> {
     p.playback.prepare()?;
     if p.capture.state() != State::Prepared {
         p.capture.prepare()?;
@@ -138,7 +176,7 @@ fn prime_and_start(p: &Pcms, io: &alsa::pcm::IO<i32>, silence: &[i32]) -> alsa::
     let mut left = p.playback_frames;
     while left > 0 {
         let n = left.min(p.period);
-        left -= io.writei(&silence[..n * p.ch_out])?;
+        left -= io.writei(&silence[..n * p.ch_out * p.fmt_out.bytes()])?;
     }
     p.playback.start()?;
     if p.capture.state() == State::Prepared {
@@ -150,16 +188,23 @@ fn prime_and_start(p: &Pcms, io: &alsa::pcm::IO<i32>, silence: &[i32]) -> alsa::
 impl AlsaStream {
     pub fn start(cfg: &Settings, mut processor: impl Processor) -> Result<Self> {
         let device = cfg.device.clone().unwrap_or_else(|| DEFAULT_DEVICE.into());
-        let mut pw = None;
-        let pcms = match open(&device, cfg) {
+        let capture_device = cfg.capture_device.clone().unwrap_or_else(|| device.clone());
+        let mut pw = Vec::new();
+        let pcms = match open(&device, &capture_device, cfg) {
             Ok(p) => p,
             Err(e) if is_busy(&e) => {
-                pw = PipewireRelease::acquire(&device)?;
-                if pw.is_none() {
+                let mut devices = vec![device.as_str()];
+                if capture_device != device {
+                    devices.push(&capture_device);
+                }
+                for d in devices {
+                    pw.extend(PipewireRelease::acquire(d)?);
+                }
+                if pw.is_empty() {
                     return Err(e).context(format!("{device} occupé par une autre application"));
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));
-                open(&device, cfg).with_context(|| format!("ouverture de {device}"))?
+                open(&device, &capture_device, cfg).with_context(|| format!("ouverture de {device}"))?
             }
             Err(e) => return Err(e).with_context(|| format!("ouverture de {device}")),
         };
@@ -185,7 +230,18 @@ impl AlsaStream {
             })?;
         ready_rx.recv().context("thread audio mort au démarrage")??;
 
-        Ok(Self { running, thread: Some(thread), stats, rate, period, n_in, n_out, device, _pw: pw })
+        Ok(Self {
+            running,
+            thread: Some(thread),
+            stats,
+            rate,
+            period,
+            n_in,
+            n_out,
+            device,
+            capture_device,
+            _pw: pw,
+        })
     }
 }
 
@@ -197,19 +253,14 @@ fn audio_loop(
     ready: std::sync::mpsc::Sender<Result<()>>,
 ) {
     let (n, ci, co) = (p.period, p.ch_in, p.ch_out);
-    let mut raw_in = vec![0i32; n * ci];
-    let mut raw_out = vec![0i32; n * co];
-    let silence = vec![0i32; n * co];
+    let (bi, bo) = (ci * p.fmt_in.bytes(), co * p.fmt_out.bytes()); // octets par frame
+    let mut raw_in = vec![0u8; n * bi];
+    let mut raw_out = vec![0u8; n * bo];
+    let silence = vec![0u8; n * bo];
     let mut ins = vec![vec![0f32; n]; ci];
     let mut outs = vec![vec![0f32; n]; co];
 
-    let (cap, play) = match (p.capture.io_i32(), p.playback.io_i32()) {
-        (Ok(c), Ok(pl)) => (c, pl),
-        (Err(e), _) | (_, Err(e)) => {
-            let _ = ready.send(Err(e.into()));
-            return;
-        }
-    };
+    let (cap, play) = (p.capture.io_bytes(), p.playback.io_bytes());
     if let Err(e) = prime_and_start(&p, &play, &silence) {
         let _ = ready.send(Err(e.into()));
         return;
@@ -230,7 +281,7 @@ fn audio_loop(
         // lecture d'une période complète
         let mut got = 0;
         while got < n {
-            match cap.readi(&mut raw_in[got * ci..]) {
+            match cap.readi(&mut raw_in[got * bi..]) {
                 Ok(k) => got += k,
                 Err(e) => {
                     recover(e);
@@ -238,20 +289,12 @@ fn audio_loop(
                 }
             }
         }
-        for (f, frame) in raw_in.chunks_exact(ci).enumerate() {
-            for (c, v) in frame.iter().enumerate() {
-                ins[c][f] = *v as f32 / S32_SCALE;
-            }
-        }
+        p.fmt_in.decode(&raw_in, &mut ins, n);
         processor.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: n });
-        for (f, frame) in raw_out.chunks_exact_mut(co).enumerate() {
-            for (c, v) in frame.iter_mut().enumerate() {
-                *v = (outs[c][f].clamp(-1.0, 1.0) * (S32_SCALE - 128.0)) as i32;
-            }
-        }
+        p.fmt_out.encode(&outs, &mut raw_out, n);
         let mut done = 0;
         while done < n {
-            match play.writei(&raw_out[done * co..]) {
+            match play.writei(&raw_out[done * bo..]) {
                 Ok(k) => done += k,
                 Err(e) => {
                     recover(e);
@@ -287,7 +330,11 @@ impl Stream for AlsaStream {
         self.n_out
     }
     fn description(&self) -> String {
-        format!("ALSA « {} »", self.device)
+        if self.capture_device == self.device {
+            format!("ALSA « {} »", self.device)
+        } else {
+            format!("ALSA « {} » (capture « {} »)", self.device, self.capture_device)
+        }
     }
     fn stats(&self) -> &Arc<Stats> {
         &self.stats
