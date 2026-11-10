@@ -172,6 +172,11 @@ les vérifie au démarrage et avertit (il ne modifie jamais le système lui-mêm
 namfoop --cpu 3 run -m b7k
 ```
 
+Le calcul se fait en mode *flush-to-zero* (thread audio, `render`, `bench`) : les nombres
+minuscules d'un son qui s'éteint (queue d'IR, de delay, de réverbe) sont ramenés à zéro au lieu de
+ralentir le processeur pendant les silences ; c'est inaudible. Une ligne « dénormalisés » au
+démarrage le confirme.
+
 Chaque chaîne est aussi préchauffée avant d'entrer en jeu (bruit puis silence, au buffer réel),
 pour que le premier passage du modèle et de l'IR ne tombe pas sur le thread audio.
 

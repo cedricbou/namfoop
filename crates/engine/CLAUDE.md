@@ -17,6 +17,8 @@ une seule fois mlock / cœur dédié (#3), presets (#6), MIDI (#7) et reprise su
 - `raw::start(settings, callback, quiet)` : **réservé aux outils de mesure et de configuration**
   (`setup`, `latency`) ; tout le reste passe par `Engine`. `scripts/check-arch.sh` refuse tout
   `audio_io::start` hors d'`engine` / `audio-io` ;
+- `rt::flush_denormals()` : flush-to-zero du thread courant (FTZ + DAZ x86_64, FZ aarch64), appelé
+  au premier callback d'`Engine` et de `raw` (#78) ; `render` et `bench` l'appellent aussi ;
 - `rt` : réglages temps réel du processus, une fois par `start` / `raw::start` (#3) : `mlockall`
   seulement si `memlock` est illimité (sinon `MCL_FUTURE` ferait échouer des allocations),
   avertissement si le gouverneur n'est pas `performance`, `prewarm` (0,25 s de bruit puis 0,5 s
@@ -39,6 +41,15 @@ dans le callback ET refusé dans `start`. Tests : `callback_does_not_allocate` (
 **Tester** : `cargo test -p engine` (chemin Engine = chaîne nue en régime établi, session `sim`
 avec deux chaînes successives, routage refusé), puis
 `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`.
+
+## Faits mesurés
+
+- Dénormalisés (#78) : `audio-io` activait déjà le flush-to-zero dans les threads ALSA, JACK et sim
+  (`rt::disable_denormals`) ; `engine` le refait au premier callback (tout backend futur couvert).
+  Mesuré hors ligne (`render`, b7k + IR dg212, bloc 48) : impulsion puis 10 s de silence en
+  0,36 s CPU (×28 temps réel) avant comme après, IR seule de 2 s en 0,026 s avant comme après ;
+  sorties identiques octet pour octet. NAM et la convolution ne produisent donc pas de
+  dénormalisés ici : le correctif sert aux effets IIR, delay, réverbe (#5).
 
 ## Dette connue
 
