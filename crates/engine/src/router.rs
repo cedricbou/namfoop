@@ -140,6 +140,11 @@ impl Router {
         Ok(())
     }
 
+    /// Entrée de la basse (à partir de 0).
+    pub fn bass(&self) -> usize {
+        self.bass
+    }
+
     pub fn describe(&self) -> String {
         let mut s = format!("basse = entrée {}", self.bass + 1);
         if let Some(m) = self.mic {

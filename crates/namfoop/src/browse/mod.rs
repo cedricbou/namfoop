@@ -23,9 +23,8 @@ use crate::library::{content_hash, Kind, Library};
 use crate::overrides::{ModelOverride, Overrides};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
 use crate::tui;
-use audio_io::{Io, Settings};
-use engine::meters::{fetch_max, take};
-use engine::router::{Router, Routing};
+use audio_io::Settings;
+use engine::{Engine, EngineConfig, Routing};
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
@@ -222,14 +221,6 @@ fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
     }
 }
 
-#[derive(Default)]
-struct Meters {
-    in_peak: AtomicU32,
-    out_peak: AtomicU32,
-    load: AtomicU32,
-    limiter: Arc<AtomicU32>,
-}
-
 /// Ce que le navigateur montre au départ.
 #[derive(Default)]
 pub struct Start<'a> {
@@ -261,33 +252,28 @@ pub fn run(
     }
 
     // audio : routeur + chaîne échangeable (au départ vide = son direct)
-    let meters = Arc::new(Meters::default());
-    let (mut swap, mut handle) = dsp::swap::swap_pair(dsp::Chain::new(), cfg.rate, MAX_BLOCK, FADE_MS);
-    let mut router = Router::new(routing, MAX_BLOCK)?;
-    let check = Router::new(routing, MAX_BLOCK)?;
-    let m = meters.clone();
-    let frame_secs = 1.0 / cfg.rate as f32;
-    let stream = audio_io::start_with(
-        cfg,
-        move |io: &mut dyn Io| {
-            let t0 = Instant::now();
-            let st = router.process(io, |buf| dsp::Stage::process(&mut swap, buf));
-            fetch_max(&m.in_peak, st.in_peak);
-            fetch_max(&m.out_peak, st.out_peak);
-            fetch_max(&m.load, t0.elapsed().as_secs_f32() / (io.frames().max(1) as f32 * frame_secs));
+    let limiter: Arc<AtomicU32> = Arc::default();
+    let mut engine = Engine::start(
+        EngineConfig {
+            audio: cfg.clone(),
+            routing: routing.clone(),
+            max_block: MAX_BLOCK,
+            fade_ms: FADE_MS,
+            quiet: true,
+            limiter_meter: limiter.clone(),
+            input_tap: None,
         },
-        true,
+        dsp::Chain::new(),
     )?;
-    check.validate(stream.n_in(), stream.n_out())?;
-    if stream.sample_rate() != cfg.rate {
-        bail!("le flux tourne à {} Hz, attendu {} Hz (option --rate)", stream.sample_rate(), cfg.rate);
+    if engine.sample_rate() != cfg.rate {
+        bail!("le flux tourne à {} Hz, attendu {} Hz (option --rate)", engine.sample_rate(), cfg.rate);
     }
+    let mut handle = engine.take_chain_sender().expect("pris une seule fois");
 
     // construction des chaînes hors temps réel : la demande la plus récente gagne
     let (tx_req, rx_req) = mpsc::channel::<Request>();
     let (tx_built, rx_built) = mpsc::channel::<Built>();
-    let (conf2, lib_dir, rate, limiter) =
-        (conf.clone(), library.to_path_buf(), cfg.rate, meters.limiter.clone());
+    let (conf2, lib_dir, rate, limiter) = (conf.clone(), library.to_path_buf(), cfg.rate, limiter);
     std::thread::Builder::new().name("namfoop-build".into()).spawn(move || {
         while let Ok(mut req) = rx_req.recv() {
             while let Ok(newer) = rx_req.try_recv() {
@@ -455,16 +441,17 @@ pub fn run(
                     st.message = Some(format!("chargement impossible : {e}"));
                 }
             }
-            status.in_peak = take_decay(status.in_peak, &meters.in_peak);
-            status.out_peak = take_decay(status.out_peak, &meters.out_peak);
-            status.load = take(&meters.load).max(status.load * 0.9);
-            status.limiter = take(&meters.limiter).max(status.limiter * 0.85);
-            status.xruns = stream.stats().xruns();
+            let m = engine.meters();
+            status.in_peak = m.in_peak.max(status.in_peak * 0.85); // retombée douce
+            status.out_peak = m.out_peak.max(status.out_peak * 0.85);
+            status.load = m.load.max(status.load * 0.9);
+            status.limiter = m.limiter_db.max(status.limiter * 0.85);
+            status.xruns = engine.xruns();
             session.terminal.draw(|f| ui::render(&st, &status, f))?;
         }
     })();
     drop(session);
-    drop(stream);
+    drop(engine);
     let _ = std::fs::remove_file(&audition);
     result?;
     let saved_id = saved.filter(|(_, b, a)| *b == st.blend && *a == st.align).map(|(id, ..)| id);
@@ -483,11 +470,6 @@ fn trace(line: &str) {
             let _ = writeln!(f, "{line}");
         }
     }
-}
-
-/// Crête affichée avec retombée douce.
-fn take_decay(shown: f32, a: &AtomicU32) -> f32 {
-    take(a).max(shown * 0.85)
 }
 
 fn stream_label(cfg: &Settings) -> String {

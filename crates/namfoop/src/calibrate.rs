@@ -10,10 +10,9 @@ use std::time::{Duration, Instant};
 
 use std::path::Path;
 
-use engine::router::{Router, Routing};
+use engine::{Engine, EngineConfig, Routing};
 
 use crate::config::{Config, LevelMode};
-use audio_io::Io;
 
 pub const DEFAULT_TARGET_DBFS: f32 = -30.0;
 const SILENCE: f32 = 0.003; // ~ -50 dBFS
@@ -68,22 +67,22 @@ pub fn run(
     save: bool,
 ) -> Result<()> {
     let channel = routing.bass_in;
-    let ch = channel.checked_sub(1).ok_or_else(|| anyhow::anyhow!("canaux numérotés à partir de 1"))?;
-    let mut router = Router::new(routing, 1024)?;
-    let check = Router::new(routing, 1024)?;
-    let capacity = cfg.rate as usize * 2;
-    let (mut tx, mut rx) = rtrb::RingBuffer::<f32>::new(capacity);
-    let stream = audio_io::start(cfg, move |io: &mut dyn Io| {
-        if ch < io.n_in() {
-            let src = io.input(ch);
-            if let Ok(chunk) = tx.write_chunk_uninit(src.len()) {
-                chunk.fill_from_iter(src.iter().copied());
-            }
-        }
-        router.process(io, |_| {}); // chaîne vide : on s'entend en direct
-    })?;
-    check.validate(stream.n_in(), stream.n_out())?;
-    let rate = stream.sample_rate();
+    channel.checked_sub(1).ok_or_else(|| anyhow::anyhow!("canaux numérotés à partir de 1"))?;
+    // chaîne vide : on s'entend en direct ; le tap rend l'entrée basse brute
+    let mut engine = Engine::start(
+        EngineConfig {
+            audio: cfg.clone(),
+            routing: routing.clone(),
+            max_block: 1024,
+            fade_ms: 20.0,
+            quiet: false,
+            limiter_meter: Default::default(),
+            input_tap: Some(cfg.rate as usize * 2),
+        },
+        dsp::Chain::new(),
+    )?;
+    let mut rx = engine.take_input_tap().expect("tap demandé");
+    let rate = engine.sample_rate();
 
     eprintln!(
         "\nCalibration sur l'entrée {channel} : joue FORT ({seconds:.0} s), comme sur tes passages les plus\n\
@@ -118,8 +117,12 @@ pub fn run(
             last_print = Instant::now();
         }
     }
-    drop(stream);
+    let lost = engine.tap_lost();
+    drop(engine);
     eprintln!("\n");
+    if lost > 0 {
+        log::warn!("{lost} échantillon(s) perdu(s) pendant l'enregistrement (machine trop chargée ?)");
+    }
     rec.truncate(total);
 
     let a = analyze(&rec);

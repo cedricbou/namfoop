@@ -4,6 +4,7 @@
 
 mod error;
 pub mod meters;
+pub mod raw;
 pub mod router;
 
 #[cfg(all(test, debug_assertions))]
@@ -14,13 +15,12 @@ pub use error::{Error, Result};
 pub use meters::{Meters, MetersSnapshot};
 pub use router::{OutputRoute, Routing, Source};
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
 use audio_io::{Io, Processor, Stream};
 use dsp::swap::{SwapChain, SwapHandle};
-use error::bail;
 use meters::fetch_max;
 use router::Router;
 
@@ -38,6 +38,15 @@ pub struct EngineConfig {
     /// Compteur de réduction du limiteur : le même `Arc` doit être donné à la chaîne
     /// (`dsp::chain::LimiterSpec::meter`) pour que `meters().limiter_db` le lise.
     pub limiter_meter: Arc<AtomicU32>,
+    /// Tap d'entrée : capacité (échantillons) d'une file où le callback copie l'entrée basse
+    /// brute, à vider hors temps réel ([`Engine::take_input_tap`]). `None` : pas de tap.
+    pub input_tap: Option<usize>,
+}
+
+/// Tap d'entrée côté audio : bloc entier écrit ou bloc compté perdu (jamais d'attente).
+struct Tap {
+    tx: rtrb::Producer<f32>,
+    lost: Arc<AtomicU64>,
 }
 
 /// Callback temps réel : routeur + chaîne échangeable + mesures. Aucune allocation.
@@ -46,11 +55,26 @@ struct Callback {
     swap: SwapChain,
     meters: Arc<Meters>,
     frame_secs: f32,
+    tap: Option<Tap>,
 }
 
 impl Callback {
     fn process(&mut self, io: &mut dyn Io) {
         let t0 = Instant::now();
+        if let Some(tap) = &mut self.tap {
+            let bass = self.router.bass();
+            if bass < io.n_in() {
+                let src = io.input(bass);
+                match tap.tx.write_chunk_uninit(src.len()) {
+                    Ok(chunk) => {
+                        chunk.fill_from_iter(src.iter().copied());
+                    }
+                    Err(_) => {
+                        tap.lost.fetch_add(src.len() as u64, Ordering::Relaxed);
+                    }
+                }
+            }
+        }
         let swap = &mut self.swap;
         let st = self.router.process(io, |buf| dsp::Stage::process(swap, buf));
         let m = &self.meters;
@@ -74,50 +98,104 @@ impl Processor for Callback {
     }
 }
 
+/// Côté contrôle du tap d'entrée.
+struct TapRx {
+    rx: Option<rtrb::Consumer<f32>>,
+    lost: Arc<AtomicU64>,
+}
+
 /// Prépare le callback (hors temps réel).
-fn callback(cfg: &EngineConfig, initial: dsp::Chain, meters: Arc<Meters>) -> Result<(Callback, SwapHandle)> {
+fn callback(
+    cfg: &EngineConfig,
+    initial: dsp::Chain,
+    meters: Arc<Meters>,
+) -> Result<(Callback, SwapHandle, Option<TapRx>)> {
     let router = Router::new(&cfg.routing, cfg.max_block)?;
     let (swap, handle) = dsp::swap::swap_pair(initial, cfg.audio.rate, cfg.max_block, cfg.fade_ms);
-    Ok((Callback { router, swap, meters, frame_secs: 1.0 / cfg.audio.rate as f32 }, handle))
+    let (tap, tap_rx) = match cfg.input_tap {
+        Some(capacity) => {
+            let (tx, rx) = rtrb::RingBuffer::new(capacity);
+            let lost = Arc::new(AtomicU64::new(0));
+            (Some(Tap { tx, lost: lost.clone() }), Some(TapRx { rx: Some(rx), lost }))
+        }
+        None => (None, None),
+    };
+    let cb = Callback { router, swap, meters, frame_secs: 1.0 / cfg.audio.rate as f32, tap };
+    Ok((cb, handle, tap_rx))
+}
+
+/// Envoi de chaînes depuis un autre thread (thread de construction de `browse`).
+pub struct ChainSender(SwapHandle);
+
+impl ChainSender {
+    /// Change de chaîne par fondu ; rend la chaîne si une autre attend encore d'être prise.
+    pub fn send(&mut self, chain: dsp::Chain) -> std::result::Result<(), dsp::Chain> {
+        self.0.send(chain)
+    }
+
+    /// Libère (hors temps réel) les chaînes retirées par le thread audio.
+    pub fn collect(&mut self) -> usize {
+        self.0.collect()
+    }
+
+    /// Plus aucune chaîne en attente côté audio.
+    pub fn idle(&self) -> bool {
+        self.0.idle()
+    }
 }
 
 /// Session en cours ; la carte est rendue au drop.
 pub struct Engine {
     stream: Box<dyn Stream>,
-    handle: SwapHandle,
+    sender: Option<ChainSender>,
     meters: Arc<Meters>,
     description: String,
+    tap: Option<TapRx>,
 }
 
 impl Engine {
-    /// Ouvre la carte, vérifie la fréquence et le routage contre ses canaux, et démarre avec
-    /// `initial` (préparée pour `cfg.audio.rate` et `cfg.max_block`).
+    /// Ouvre la carte, vérifie le routage contre ses canaux, et démarre avec `initial`
+    /// (préparée pour `cfg.audio.rate` et `cfg.max_block`). La fréquence réelle de la carte
+    /// ([`Engine::sample_rate`]) est à vérifier par l'appelant : avec JACK, c'est le serveur qui
+    /// décide, et une chaîne vide (calibration) s'en accommode.
     pub fn start(cfg: EngineConfig, initial: dsp::Chain) -> Result<Engine> {
         let meters = Arc::new(Meters { limiter: cfg.limiter_meter.clone(), ..Default::default() });
-        let (cb, handle) = callback(&cfg, initial, meters.clone())?;
+        let (cb, handle, tap) = callback(&cfg, initial, meters.clone())?;
         let check = Router::new(&cfg.routing, cfg.max_block)?; // validé une fois la carte ouverte
         let description = check.describe();
         let stream = audio_io::start_with(&cfg.audio, cb, cfg.quiet)?;
-        if stream.sample_rate() != cfg.audio.rate {
-            bail!(
-                "le flux tourne à {} Hz mais la chaîne est préparée pour {} Hz (option --rate)",
-                stream.sample_rate(),
-                cfg.audio.rate
-            );
-        }
         check.validate(stream.n_in(), stream.n_out())?;
-        Ok(Engine { stream, handle, meters, description })
+        Ok(Engine { stream, sender: Some(ChainSender(handle)), meters, description, tap })
     }
 
-    /// Change de chaîne par fondu ; rend la chaîne si une autre attend encore d'être prise.
+    /// Change de chaîne par fondu ; rend la chaîne si une autre attend encore d'être prise (ou
+    /// si l'envoi a été confié à un autre thread par [`Engine::take_chain_sender`]).
     /// Les chaînes retirées sont libérées ici, hors temps réel.
     pub fn send_chain(&mut self, chain: dsp::Chain) -> std::result::Result<(), dsp::Chain> {
-        self.handle.send(chain)
+        match &mut self.sender {
+            Some(s) => s.send(chain),
+            None => Err(chain),
+        }
     }
 
     /// Plus aucune chaîne en attente côté audio.
     pub fn idle(&self) -> bool {
-        self.handle.idle()
+        self.sender.as_ref().is_none_or(ChainSender::idle)
+    }
+
+    /// Confie l'envoi des chaînes à un autre thread (une seule fois).
+    pub fn take_chain_sender(&mut self) -> Option<ChainSender> {
+        self.sender.take()
+    }
+
+    /// File du tap d'entrée (une seule fois), si `input_tap` était demandé.
+    pub fn take_input_tap(&mut self) -> Option<rtrb::Consumer<f32>> {
+        self.tap.as_mut()?.rx.take()
+    }
+
+    /// Échantillons du tap perdus parce que la file était pleine (lecture trop lente).
+    pub fn tap_lost(&self) -> u64 {
+        self.tap.as_ref().map_or(0, |t| t.lost.load(Ordering::Relaxed))
     }
 
     /// Lit les mesures et remet les crêtes à zéro.
@@ -170,6 +248,7 @@ mod tests {
             fade_ms: 20.0,
             quiet: true,
             limiter_meter: Arc::default(),
+            input_tap: None,
         }
     }
 
@@ -188,7 +267,7 @@ mod tests {
             })
             .collect();
         let mut bare = spec().build(48000, cfg.max_block).unwrap();
-        let (mut cb, _handle) =
+        let (mut cb, _handle, _) =
             callback(&cfg, spec().build(48000, cfg.max_block).unwrap(), Arc::default()).unwrap();
         for block in input.chunks(64) {
             let mut want = block.to_vec();
@@ -204,14 +283,31 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     fn callback_does_not_allocate() {
-        let cfg = config();
-        let (mut cb, _handle) =
+        let mut cfg = config();
+        cfg.input_tap = Some(64); // plus petit que le bloc : perte comptée, sans allocation
+        let (mut cb, _handle, tap) =
             callback(&cfg, spec().build(48000, cfg.max_block).unwrap(), Arc::default()).unwrap();
         let ins = vec![vec![0.1f32; 256]; 2];
         let mut outs = vec![vec![0.0f32; 256]; 2];
         assert_no_alloc::assert_no_alloc(|| {
             cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 256 });
         });
+        assert_eq!(tap.unwrap().lost.load(Ordering::Relaxed), 256);
+    }
+
+    /// Le tap rend l'entrée basse brute, bloc par bloc.
+    #[test]
+    fn input_tap_copies_bass_input() {
+        let mut cfg = config();
+        cfg.routing.bass_in = 2;
+        cfg.input_tap = Some(1000);
+        let (mut cb, _h, tap) = callback(&cfg, dsp::Chain::new(), Arc::default()).unwrap();
+        let mut rx = tap.unwrap().rx.unwrap();
+        let ins = vec![vec![0.1f32; 64], (0..64).map(|i| i as f32 / 64.0).collect()];
+        let mut outs = vec![vec![0.0f32; 64]; 2];
+        cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 64 });
+        let got: Vec<f32> = std::iter::from_fn(|| rx.pop().ok()).collect();
+        assert_eq!(got, ins[1]);
     }
 
     /// Carte simulée : démarrage, deux chaînes successives, vumètres non nuls, 0 xrun, arrêt.

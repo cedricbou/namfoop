@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#53)
+- `browse`, `calibrate`, `setup` et `latency` passent par `engine` (tap d'entrée pour
+  `calibrate`, porte `engine::raw` pour les outils de mesure) ; seule `engine` ouvre la carte.
+
+### Corrigé (#53)
+- `setup`, test des buffers : l'échec affiche à nouveau sa cause (perdue depuis #50).
+- `calibrate` signale les échantillons perdus si la machine n'a pas suivi l'enregistrement.
+
 ### Interne (#52)
 - Nouvelle crate `engine` (session audio : carte, routage, chaîne échangeable, vumètres) ; `run`
   passe par elle. Le routeur y déménage. Aucun changement de son ni d'affichage.

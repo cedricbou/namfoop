@@ -29,34 +29,38 @@ pub fn run(cfg: &audio_io::Settings, out_ch: usize, in_ch: usize, count: u32) ->
     let mut next_emit: u64 = sr; // 1 s de stabilisation
     let mut emitted_at: Option<u64> = None;
 
-    let stream = audio_io::start(cfg, move |io: &mut dyn Io| {
-        io.silence();
-        if ic >= io.n_in() || oc >= io.n_out() {
-            return; // vérifié après le démarrage
-        }
-        let (input, o) = io.in_out(ic, oc);
-        for (k, (x, y)) in input.iter().zip(o.iter_mut()).enumerate() {
-            let t = frame + k as u64;
-            match emitted_at {
-                Some(e) if x.abs() > THRESHOLD => {
-                    let _ = tx.push(Event::Measured(t - e));
-                    emitted_at = None;
-                    next_emit = t + interval;
-                }
-                Some(e) if t - e > timeout => {
-                    let _ = tx.push(Event::Timeout);
-                    emitted_at = None;
-                    next_emit = t + interval;
-                }
-                None if t >= next_emit => {
-                    *y = AMPLITUDE;
-                    emitted_at = Some(t);
-                }
-                _ => {}
+    let stream = engine::raw::start(
+        cfg,
+        move |io: &mut dyn Io| {
+            io.silence();
+            if ic >= io.n_in() || oc >= io.n_out() {
+                return; // vérifié après le démarrage
             }
-        }
-        frame += input.len() as u64;
-    })?;
+            let (input, o) = io.in_out(ic, oc);
+            for (k, (x, y)) in input.iter().zip(o.iter_mut()).enumerate() {
+                let t = frame + k as u64;
+                match emitted_at {
+                    Some(e) if x.abs() > THRESHOLD => {
+                        let _ = tx.push(Event::Measured(t - e));
+                        emitted_at = None;
+                        next_emit = t + interval;
+                    }
+                    Some(e) if t - e > timeout => {
+                        let _ = tx.push(Event::Timeout);
+                        emitted_at = None;
+                        next_emit = t + interval;
+                    }
+                    None if t >= next_emit => {
+                        *y = AMPLITUDE;
+                        emitted_at = Some(t);
+                    }
+                    _ => {}
+                }
+            }
+            frame += input.len() as u64;
+        },
+        false,
+    )?;
 
     if out_ch > stream.n_out() || in_ch > stream.n_in() {
         bail!("la carte a {} entrée(s) / {} sortie(s)", stream.n_in(), stream.n_out());

@@ -50,3 +50,13 @@ if errors:
     sys.exit(1)
 print(f"{len(deps)} crates, sens des dépendances respecté")
 '
+
+# Seule `engine` ouvre la carte : aucun audio_io::start / start_with ailleurs (#53).
+if hits=$(grep -rnE 'audio_io::(start|start_with)\b' crates --include='*.rs' \
+  | grep -vE '^crates/(engine|audio-io)/'); then
+  echo "✗ flux audio ouvert hors d'engine (passer par engine::Engine ou engine::raw) :" >&2
+  echo "$hits" >&2
+  echo "Voir docs/architecture.md." >&2
+  exit 1
+fi
+echo "carte ouverte seulement par engine"
