@@ -44,11 +44,13 @@ crates/namfoop/   binaire CLI
   cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
-  browse/         `browse` : state.rs (logique pure + horloge fournie, testée ; éditeur `e` des
-                  métadonnées avec écoute directe du gain d'entrée et grain remesuré ; A/B b / r,
-                  référence c sur une IR ou un modèle via effective_ir / effective_model), ui.rs (TestBackend ; panneau spectre ≥ 130 col.), mod.rs
-                  (index, Engine + ChainSender dans le thread de construction, overrides.toml) ;
-                  `import --review` l'ouvre sur les modèles importés (browse::Start)
+  browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod.rs état et
+                  navigation, compare.rs A/B b / r et référence c via effective_ir / effective_model,
+                  editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges,
+                  tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
+                  panneau ≥ 130 col., editor.rs, tests.rs), mod.rs (index, Engine + ChainSender dans
+                  le thread de construction, overrides.toml) ; `import --review` l'ouvre sur les
+                  modèles importés (browse::Start)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                   audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
   live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)

@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#56)
+- `browse/state.rs` et `browse/ui.rs` découpés par sous-fonction (aucun fichier au-delà de 600
+  lignes) ; comportement et rendu inchangés.
+
 ### Interne (#55)
 - Nouvelle crate `library` (index, import, corrections, recommandations, profils) ; `import.rs`
   découpé par responsabilité. Sorties de `models`, `meta` et `import` identiques.
