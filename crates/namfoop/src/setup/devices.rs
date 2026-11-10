@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use super::state::DeviceInfo;
 use audio_io::alsa::{self, ProbeError};
-use audio_io::Kind;
+use model::BackendKind as Kind; // backend de la config ; audio_io::Kind à l'ouverture
 
 pub fn list(kind: Kind, client_name: &str) -> Result<Vec<DeviceInfo>> {
     Ok(match kind {

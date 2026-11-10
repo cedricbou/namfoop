@@ -18,7 +18,8 @@ use std::time::Duration;
 
 use crate::config::LoadedConfig;
 use crate::tui::{self, Key};
-use audio_io::{Kind, Settings};
+use audio_io::Settings;
+use model::BackendKind as Kind; // backend de la config ; audio_io::Kind à l'ouverture
 use state::{Action, State};
 
 /// Premier modèle de la bibliothèque : charge réaliste pendant le test des buffers.
@@ -40,7 +41,7 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
         let mut monitor: Option<audio::Monitor> = None;
         let (tx, rx) = mpsc::channel();
         let settings = |s: &State| Settings {
-            backend: s.kind(),
+            backend: crate::cli_audio::to_audio(s.kind()),
             device: s.device().map(|d| d.id.clone()),
             buffer: if s.kind() == Kind::Jack { 256 } else { 128 }, // vumètres : stabilité avant tout
             ..base.clone()

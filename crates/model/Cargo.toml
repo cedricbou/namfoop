@@ -1,0 +1,11 @@
+[package]
+name = "model"
+description = "Types sérialisables de namfoop (config, routage) et leur lecture / écriture TOML"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+thiserror = "2"

@@ -4,6 +4,7 @@
 use audio_io::{Kind, Settings};
 
 use crate::config::Config as FileConfig;
+use model::BackendKind;
 
 /// Backend audio choisi en ligne de commande.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
@@ -18,11 +19,26 @@ pub enum BackendArg {
 
 impl From<BackendArg> for Kind {
     fn from(b: BackendArg) -> Self {
+        to_audio(b.into())
+    }
+}
+
+impl From<BackendArg> for BackendKind {
+    fn from(b: BackendArg) -> Self {
         match b {
-            BackendArg::Jack => Kind::Jack,
-            BackendArg::Alsa => Kind::Alsa,
-            BackendArg::Sim => Kind::Sim,
+            BackendArg::Jack => BackendKind::Jack,
+            BackendArg::Alsa => BackendKind::Alsa,
+            BackendArg::Sim => BackendKind::Sim,
         }
+    }
+}
+
+/// Backend de la config (`model`) -> backend d'`audio-io`.
+pub fn to_audio(b: BackendKind) -> Kind {
+    match b {
+        BackendKind::Jack => Kind::Jack,
+        BackendKind::Alsa => Kind::Alsa,
+        BackendKind::Sim => Kind::Sim,
     }
 }
 
@@ -60,7 +76,7 @@ impl AudioArgs {
         let a = &file.audio;
         let d = Settings::default();
         Settings {
-            backend: self.backend.map(Kind::from).or(a.backend).unwrap_or(d.backend),
+            backend: self.backend.map(Kind::from).or(a.backend.map(to_audio)).unwrap_or(d.backend),
             device: self.device.clone().or_else(|| a.device.clone()),
             capture_device: self.capture_device.clone().or_else(|| a.capture_device.clone()),
             buffer: self.buffer.or(a.buffer).unwrap_or(d.buffer),

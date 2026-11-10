@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
-use crate::config::LoadedConfig;
+use crate::config::{CalibrationExt, LoadedConfig};
 use crate::library::{content_hash, Kind, Library};
 use crate::overrides::{ModelOverride, Overrides};
 use crate::recommend::{needs_ir, recommend, NeedsIr};

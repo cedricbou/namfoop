@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
-use crate::config::LoadedConfig;
+use crate::config::{CalibrationExt, LoadedConfig};
 use engine::{Engine, EngineConfig, Routing};
 
 /// Taille max de bloc pour laquelle la chaîne est préparée (au-delà : découpage interne).

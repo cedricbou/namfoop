@@ -33,11 +33,11 @@ ne dépend d'aucune crate du projet ; aucune crate de bibliothèque n'utilise `c
 
 ## État actuel
 
-Cinq crates : `nam-sys`, `dsp`, `audio-io` (backends ALSA, JACK, sim, #50), `engine` (session
-audio, routeur, vumètres, #52) et le binaire `namfoop` qui porte encore la bibliothèque et les
+Six crates : `nam-sys`, `dsp`, `audio-io` (backends ALSA, JACK, sim, #50), `engine` (session
+audio, routeur, vumètres, #52), `model` (config et routage sérialisables, #54) et le binaire `namfoop` qui porte encore la bibliothèque et les
 écrans (voir « Disposition » dans `CLAUDE.md`). Toutes les commandes passent par `engine`
-(`Engine`, ou `engine::raw` pour `setup` et `latency`) depuis #53. Les crates `model` et
-`library` suivront (#54, #55), à comportement constant, sous le filet des rendus de référence
+(`Engine`, ou `engine::raw` pour `setup` et `latency`) depuis #53. La crate `library` suivra
+(#55), à comportement constant, sous le filet des rendus de référence
 (`crates/dsp/tests/golden.rs`).
 
 ## Règles vérifiées
@@ -52,4 +52,5 @@ dev-dependencies). Chaque issue qui crée une crate ajoute ses règles à la tab
 | `dsp`     | interdit `alsa`, `jack`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io`, `engine` | #49, #50, #52 |
 | `audio-io` | interdit `clap`, `ratatui`, `dsp`, `nam-sys`, `namfoop`, `toml`, `engine` | #50, #52 |
 | `engine`  | interdit `clap`, `ratatui`, `namfoop`, `toml`, `alsa`, `jack` (la carte passe par `audio-io`) | #52 |
+| `model`   | seulement `serde`, `toml`, `thiserror` (aucune crate du projet) | #54 |
 | tout le code | aucun `audio_io::start` / `start_with` hors d'`engine` et `audio-io` (contrôle textuel) | #53 |

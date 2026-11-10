@@ -26,12 +26,17 @@ crates/audio-io/  accès à la carte, sans clap, config ni DSP (voir crates/audi
                   lib.rs (trait Io : canaux dynamiques ; Processor ; Settings ; start), error.rs
                   (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off » ; alsa/format.rs : S32 / S24_3 / S24 / S16),
                   sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
+crates/model/     types sérialisables, aucune logique (voir crates/model/CLAUDE.md) : config.rs
+                  (~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
+                  [audio] backend / device / buffer..., [routing]), routing.rs (Routing, OutputRoute,
+                  Source) ; tests/ : fichiers de config versionnés relus à l'octet près
 crates/engine/    session audio (voir crates/engine/CLAUDE.md) : Engine::start (carte + routage validé +
                   chaîne échangeable), send_chain / take_chain_sender, tap d'entrée, meters, xruns ;
                   raw.rs (callback sur mesure : setup, latency) ; seule crate qui ouvre la carte ; router.rs (entrée basse -> chaîne ->
                   sorties processed/di/mic/mute, Routing sérialisable), meters.rs (fetch_max, take)
 crates/namfoop/   binaire CLI
-  cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut)
+  cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut),
+                  to_audio (model::BackendKind -> audio_io::Kind)
   cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
@@ -62,8 +67,7 @@ crates/namfoop/   binaire CLI
   overrides.rs    library/overrides.toml (corrections par empreinte du contenu, jamais dans le .nam)
                   et `meta` (afficher / corriger) ; appliqué par Library::meta partout
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
-  config.rs       ~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
-                  [audio] (backend, device, buffer...), [routing] (bass_in, mic_in, outputs)
+  config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
   calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le niveau « match »
 scripts/check.sh          vérification sans matériel (À FAIRE PASSER AVANT TOUT COMMIT)
 scripts/check-docs.sh     cohérence code <-> docs (appelé par check.sh)

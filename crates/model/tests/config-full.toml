@@ -1,0 +1,38 @@
+# namfoop — réglages de l'instrument (écrit par `namfoop calibrate`, modifiable à la main)
+# level : "match" (volume = basse en direct), "normalize" (target_db), "raw"
+# [audio] et [routing] : carte et affectation des entrées / sorties (`namfoop setup`)
+trim_db = -17.5
+level = "match"
+target_db = -16.0
+limiter = false
+calibration_wav = "calibration.wav"
+calibration_target_dbfs = -30.0
+default_ir = "dg212 sm57"
+
+[audio]
+backend = "alsa"
+device = "hw:iTwo"
+capture_device = "hw:iTwo"
+buffer = 48
+periods = 3
+rate = 48000
+
+[routing]
+bass_in = 1
+mic_in = 2
+
+[[routing.outputs]]
+channel = 1
+source = "processed"
+
+[[routing.outputs]]
+channel = 2
+source = "di"
+
+[[routing.outputs]]
+channel = 3
+source = "mic"
+
+[[routing.outputs]]
+channel = 4
+source = "mute"
