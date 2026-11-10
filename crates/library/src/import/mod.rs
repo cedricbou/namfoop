@@ -29,8 +29,6 @@ pub struct ImportArgs {
     pub dry_run: bool,
     /// N'importe pas un fichier identique à un fichier déjà présent ou plus haut dans l'import.
     pub skip_duplicates: bool,
-    /// Le binaire ouvre ensuite le navigateur sur les modèles importés (sans effet ici).
-    pub review: bool,
     /// Dossier de la bibliothèque.
     pub library: PathBuf,
 }
@@ -350,7 +348,6 @@ mod tests {
             pack: None,
             dry_run: dry,
             skip_duplicates: false,
-            review: false,
             library: root.clone(),
         };
         run(&args(true)).unwrap();
@@ -393,7 +390,6 @@ mod tests {
             pack: None,
             dry_run: false,
             skip_duplicates: false,
-            review: false,
             library: root.clone(),
         })
         .unwrap();

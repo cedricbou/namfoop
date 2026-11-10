@@ -6,6 +6,9 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#74)
+- `library::import::ImportArgs` n'a plus le champ `review`, propre à la commande du binaire.
+
 ### Interne (#71)
 - `library::import::run` et `library::overrides::run` ne prennent plus la config, inutilisée.
 
