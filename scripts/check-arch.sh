@@ -13,8 +13,9 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 RULES='
 nam-sys  : seulement thiserror cc
-dsp      : interdit alsa jack clap ratatui libc namfoop audio-io
-audio-io : interdit clap ratatui dsp namfoop toml nam-sys
+dsp      : interdit alsa jack clap ratatui libc namfoop audio-io engine
+audio-io : interdit clap ratatui dsp namfoop toml nam-sys engine
+engine   : interdit clap ratatui namfoop toml alsa jack
 '
 
 cargo metadata --format-version 1 --no-deps --offline 2>/dev/null >/dev/null \

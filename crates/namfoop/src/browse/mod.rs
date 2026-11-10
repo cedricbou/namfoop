@@ -20,12 +20,12 @@ use std::time::{Duration, Instant};
 use crate::amp::AmpArgs;
 use crate::config::LoadedConfig;
 use crate::library::{content_hash, Kind, Library};
-use crate::live::{fetch_max, take};
 use crate::overrides::{ModelOverride, Overrides};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
-use crate::router::{Router, Routing};
 use crate::tui;
 use audio_io::{Io, Settings};
+use engine::meters::{fetch_max, take};
+use engine::router::{Router, Routing};
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;

@@ -1,0 +1,15 @@
+[package]
+name = "engine"
+description = "Session audio de namfoop : carte (audio-io), routage, chaîne échangeable (dsp), vumètres"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+audio-io = { path = "../audio-io" }
+dsp = { path = "../dsp" }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+assert_no_alloc = "1.1"

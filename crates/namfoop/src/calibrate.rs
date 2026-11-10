@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use std::path::Path;
 
-use crate::router::{Router, Routing};
+use engine::router::{Router, Routing};
 
 use crate::config::{Config, LevelMode};
 use audio_io::Io;
@@ -27,7 +27,7 @@ pub struct Analysis {
 
 pub fn analyze(x: &[f32]) -> Analysis {
     let mut abs: Vec<f32> = x.iter().map(|v| v.abs()).collect();
-    let clipped = abs.iter().filter(|a| **a >= crate::router::IN_CLIP).count();
+    let clipped = abs.iter().filter(|a| **a >= engine::router::IN_CLIP).count();
     abs.sort_unstable_by(|a, b| a.total_cmp(b));
     let peak = abs.last().copied().unwrap_or(0.0);
     let robust = abs.get(((abs.len() as f64) * 0.999) as usize).copied().unwrap_or(peak);
@@ -112,7 +112,7 @@ pub fn run(
             eprint!(
                 "\r  {left:>4.1} s   crête {} dB{}      ",
                 crate::live::db(window_peak),
-                if window_peak >= crate::router::IN_CLIP { "  CLIP !" } else { "" }
+                if window_peak >= engine::router::IN_CLIP { "  CLIP !" } else { "" }
             );
             window_peak = 0.0;
             last_print = Instant::now();

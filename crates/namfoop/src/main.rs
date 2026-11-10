@@ -2,6 +2,7 @@ mod amp;
 mod browse;
 mod calibrate;
 mod cli_audio;
+mod cli_routing;
 mod config;
 mod import;
 mod latency;
@@ -12,7 +13,6 @@ mod offline;
 mod overrides;
 mod profile;
 mod recommend;
-mod router;
 mod setup;
 mod tui;
 
@@ -66,7 +66,7 @@ enum Cmd {
         #[command(flatten)]
         amp: amp::AmpArgs,
         #[command(flatten)]
-        routing: router::RoutingArgs,
+        routing: cli_routing::RoutingArgs,
         /// Arrêt automatique après N secondes (tests)
         #[arg(long)]
         seconds: Option<f64>,
@@ -148,7 +148,7 @@ enum Cmd {
         #[arg(long)]
         filter: Option<String>,
         #[command(flatten)]
-        routing: router::RoutingArgs,
+        routing: cli_routing::RoutingArgs,
     },
     /// Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
     Setup {

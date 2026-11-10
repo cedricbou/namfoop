@@ -26,9 +26,12 @@ crates/audio-io/  accès à la carte, sans clap, config ni DSP (voir crates/audi
                   lib.rs (trait Io : canaux dynamiques ; Processor ; Settings ; start), error.rs
                   (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off » ; alsa/format.rs : S32 / S24_3 / S24 / S16),
                   sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
+crates/engine/    session audio (voir crates/engine/CLAUDE.md) : Engine::start (carte + routage validé +
+                  chaîne échangeable), send_chain, meters, xruns ; router.rs (entrée basse -> chaîne ->
+                  sorties processed/di/mic/mute, Routing sérialisable), meters.rs (fetch_max, take)
 crates/namfoop/   binaire CLI
   cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut)
-  router.rs       routage temps réel : entrée basse -> chaîne -> sorties (processed/di/mic/mute)
+  cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
   tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                   redirigé, terminal restauré), meter, screen_text (tests)
   browse/         `browse` : state.rs (logique pure + horloge fournie, testée ; éditeur `e` des
@@ -38,7 +41,7 @@ crates/namfoop/   binaire CLI
                   `import --review` l'ouvre sur les modèles importés (browse::Start)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                   audio.rs (vumètres, bip, test des buffers), devices.rs (cartes par backend)
-  live.rs         `run` : chaîne en temps réel, vumètre, charge DSP
+  live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)
   offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
   latency.rs      mesure de latence par impulsion (câble de bouclage)
   library.rs      index de library/ (identifiants m…/i…/c…), recherche (id > chemin > mots entiers >
@@ -113,7 +116,8 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
 
 ## Règles temps réel (non négociables)
 
-Dans tout `Stage::process`, `Processor::process`, `Router::process` et les callbacks backend :
+Dans tout `Stage::process`, `Processor::process`, `Router::process`, le callback d'`engine` et les
+callbacks backend :
 - aucune allocation (Vec, String, Box, format!, log!), aucun lock, aucune I/O, aucun appel système
   bloquant ; tout est préparé à la construction de l'étage ;
 - les buffers peuvent avoir **n'importe quelle longueur** (JACK 64, ALSA 48, render 1000) : découper

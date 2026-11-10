@@ -121,5 +121,5 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
 #[derive(serde::Serialize)]
 struct ConfigView<'a> {
     audio: &'a crate::config::AudioConfig,
-    routing: &'a crate::router::Routing,
+    routing: &'a engine::router::Routing,
 }

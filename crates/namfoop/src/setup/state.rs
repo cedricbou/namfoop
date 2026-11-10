@@ -2,8 +2,8 @@
 //! Toute la navigation et les affectations sont testées ici ; `mod.rs` exécute les actions.
 
 use crate::config::{AudioConfig, Config};
-use crate::router::{OutputRoute, Routing, Source};
 use audio_io::Kind;
+use engine::router::{OutputRoute, Routing, Source};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {

@@ -57,7 +57,7 @@ pub struct Config {
     /// Carte et backend (écrit par `setup`).
     pub audio: AudioConfig,
     /// Affectation des entrées / sorties (écrit par `setup`).
-    pub routing: crate::router::Routing,
+    pub routing: engine::router::Routing,
 }
 
 impl Default for Config {
@@ -71,7 +71,7 @@ impl Default for Config {
             calibration_target_dbfs: None,
             default_ir: None,
             audio: AudioConfig::default(),
-            routing: crate::router::Routing::default(),
+            routing: engine::router::Routing::default(),
         }
     }
 }
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn audio_and_routing_roundtrip() {
-        use crate::router::{OutputRoute, Source};
+        use engine::router::{OutputRoute, Source};
         let p = std::env::temp_dir().join(format!("namfoop-cfg-audio-{}.toml", std::process::id()));
         let mut c = Config::default();
         c.audio.backend = Some(audio_io::Kind::Alsa);

@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#52)
+- Nouvelle crate `engine` (session audio : carte, routage, chaîne échangeable, vumètres) ; `run`
+  passe par elle. Le routeur y déménage. Aucun changement de son ni d'affichage.
+
 ### Ajouté (#51)
 - ALSA : négociation du format d'échantillon (`S32_LE`, `S24_3LE`, `S24_LE`, `S16_LE`, le premier
   accepté gagne, logué au démarrage) : cartes USB en 24 bits sur 3 octets et HAT I2S en 16 bits.

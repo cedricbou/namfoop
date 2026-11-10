@@ -13,6 +13,7 @@ env_logger.workspace = true
 ctrlc.workspace = true
 libc.workspace = true
 audio-io = { path = "../audio-io" }
+engine = { path = "../engine" }
 dsp = { path = "../dsp" }
 nam-sys = { path = "../nam-sys" }
 serde_json = "1"
