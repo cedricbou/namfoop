@@ -16,7 +16,8 @@ crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolve
                   profile.rs (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB),
                   swap.rs (changement de chaîne à chaud : SwapHandle envoie une Chain construite,
                   SwapChain fond en ~20 ms, l'ancienne repart vers le contrôle — jamais libérée en RT)
-  tests/          propriétés de chaîne (indépendance au bloc) et absence d'allocation (assert_no_alloc)
+  tests/          propriétés de chaîne (indépendance au bloc), absence d'allocation (assert_no_alloc),
+                  rendus de référence golden.rs + golden/*.toml (RMS, crête, enveloppe 50 ms)
 crates/namfoop/   binaire CLI
   backend/        mod.rs (trait Io : canaux dynamiques ; Processor ; AudioArgs -> Settings), jack.rs,
                   alsa.rs (direct, streams liés, probe), sim.rs (carte simulée), rt.rs
@@ -75,6 +76,12 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
 - `scripts/check.sh` : fmt --check, clippy -D warnings, `cargo test` (debug), build release, rendu de
   chaque modèle de `library/` (échec si NaN ou silence ; signale les crêtes > +6 dBFS). `--quick` pour
   sauter la bibliothèque.
+- Rendus de référence (`crates/dsp/tests/golden.rs`, lancé par `cargo test`, donc par
+  `check.sh --quick` et la CI) : signal synthétique dans NAM seul, NAM + IR et la chaîne complète,
+  blocs 16 / 48 / 64 / 1000, comparés à `crates/dsp/tests/golden/*.toml` (tolérance relative 1e-3,
+  enveloppe ±0,05 dB ; un gain de 0,5 dB le fait échouer). Un déplacement de code ne doit JAMAIS
+  les changer. Régénérer (`NAMFOOP_UPDATE_GOLDEN=1 cargo test -p dsp --test golden`) seulement
+  pour un changement de son voulu, en le disant dans la PR.
 - `cargo test` **en debug** : `assert_no_alloc` n'est actif qu'en debug (ou dans le profil `ci`,
   qui garde les assertions). Le C++ NAM est toujours compilé en -O3 (build.rs).
 - Profil `ci` (`NAMFOOP_PROFILE=ci scripts/check.sh`) : tests et binaire compilés une seule fois,
