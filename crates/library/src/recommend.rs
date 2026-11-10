@@ -5,7 +5,7 @@
 //! modèle (cherchée dans tous les champs : certains packs mettent le micro dans `gear_make`),
 //! baffle basse plutôt que guitare, une seule IR par pack dans les premières suggestions.
 
-use crate::library::{tokens, Entry, Kind, Library, NamMeta};
+use crate::{tokens, Entry, Kind, Library, NamMeta};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NeedsIr {
@@ -145,7 +145,7 @@ pub fn advice(lib: &Library, model: &Entry, meta: &NamMeta, default_ir: Option<&
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::library::tests::fake_library;
+    use crate::tests::fake_library;
 
     fn meta(gear_type: &str, make: &str) -> NamMeta {
         NamMeta {

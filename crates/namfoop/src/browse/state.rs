@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 
-use crate::recommend::NeedsIr;
 use crate::tui::Key;
+use library::recommend::NeedsIr;
 
 /// Délai sans mouvement avant d'écouter l'élément sélectionné (évite de recharger à chaque touche).
 pub const AUDITION_DELAY_MS: u64 = 150;
@@ -36,7 +36,7 @@ pub struct Item {
     /// Modèles : métadonnées effectives (corrections comprises) et celles du fichier.
     pub meta: Option<Box<(ModelMeta, ModelMeta)>>,
     /// IR et mélanges : profil sonore (mini-spectre, étiquettes, courbe).
-    pub profile: Option<crate::profile::Described>,
+    pub profile: Option<library::profile::Described>,
 }
 
 impl Item {
@@ -1215,7 +1215,7 @@ pub mod tests {
             high_cut_hz: 5000.0,
         });
         for i in [0, 2] {
-            s.irs[i].profile = Some(crate::profile::Described {
+            s.irs[i].profile = Some(library::profile::Described {
                 profile: p.clone(),
                 spark: String::new(),
                 tags: vec![],
@@ -1230,7 +1230,7 @@ pub mod tests {
 
     fn with_model_profiles(s: &mut State) {
         for (k, m) in s.models.iter_mut().enumerate() {
-            m.profile = Some(crate::profile::Described {
+            m.profile = Some(library::profile::Described {
                 profile: std::sync::Arc::new(dsp::profile::IrProfile {
                     bands_db: vec![k as f32; 28],
                     low_cut_hz: 40.0,

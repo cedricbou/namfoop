@@ -30,6 +30,10 @@ crates/model/     types sérialisables, aucune logique (voir crates/model/CLAUDE
                   (~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
                   [audio] backend / device / buffer..., [routing]), routing.rs (Routing, OutputRoute,
                   Source) ; tests/ : fichiers de config versionnés relus à l'octet près
+crates/library/   bibliothèque de sons, sans carte son (voir crates/library/CLAUDE.md) :
+                  lib.rs (index de library/, identifiants m…/i…/c…, recherche, métadonnées .nam),
+                  import/ (mod.rs : run -> Outcome ; scan.rs, classify.rs, validate.rs),
+                  overrides.rs, recommend.rs, profile.rs, model_profile.rs, error.rs
 crates/engine/    session audio (voir crates/engine/CLAUDE.md) : Engine::start (carte + routage validé +
                   chaîne échangeable), send_chain / take_chain_sender, tap d'entrée, meters, xruns ;
                   raw.rs (callback sur mesure : setup, latency) ; seule crate qui ouvre la carte ; router.rs (entrée basse -> chaîne ->
@@ -50,22 +54,9 @@ crates/namfoop/   binaire CLI
   live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)
   offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
   latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::raw)
-  library.rs      index de library/ (identifiants m…/i…/c…), recherche (id > chemin > mots entiers >
-                  version de base), métadonnées .nam
-  recommend.rs    besoin d'IR (gear_type) et IR conseillées (IR préférée du modèle, marque, baffle
-                  basse, mélanges)
-  import.rs       `import` : zips / dossiers -> library/{nam,ir,docs}/<pack>/, fichiers identiques (empreinte puis
-                  octets) importés quand même et signalés (packs complets ; --skip-duplicates),
-                  validation (modèle joué, IR lue), type de capture (nom > dossiers > métadonnées),
-                  IR fournie avec le pack
-  profile.rs      étiquettes des IR relatives au pack (médiane), mini-spectre, cache
-                  library/.cache/ir-profiles.json (par empreinte ; profilage ~1 s / 250 IR)
-  model_profile.rs  profil des modèles avec la basse de l'utilisateur (calibration.wav, 4 s les plus
-                  jouées, trim + entrée du modèle) : courbe (from_transfer), grain (THD d'un la
-                  110 Hz à la crête, paliers -18..+18 dB d'un seul tenant), cache par modèle /
-                  entrée / signal, calcul parallèle
-  overrides.rs    library/overrides.toml (corrections par empreinte du contenu, jamais dans le .nam)
-                  et `meta` (afficher / corriger) ; appliqué par Library::meta partout
+  import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage)
+  meta_cmd.rs     `meta` : options clap, affichage d'un modèle
+  models_cmd.rs   `models` : inventaire affiché
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
   config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
   calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le niveau « match »
@@ -220,32 +211,11 @@ sans entrée de changelog.
 
 - Latence et buffers des backends (iTwo, ALSA 48×3 = 5,2 ms) : `crates/audio-io/CLAUDE.md`.
 - Bench x86 (bloc 64, 48 kHz) : WaveNet 3 canaux ≈ 21 µs (1,6 % du budget), 8 canaux ≈ 42 µs (3,2 %).
-- Bibliothèque : 55 modèles, tous au format NAM 0.7.0 `SlimmableContainer` (WaveNet 3ch + 8ch,
-  `--size 0` = 3ch), loudness entre -14 et -40 dB (d'où la normalisation à -18 dB). 144 IR, surtout
-  48 kHz mono, quelques-unes en 44,1 / 96 kHz (rééchantillonnées au chargement), jusqu'à 6 s (tronquées
-  à 200 ms).
 - Niveau d'entrée : les captures Tone3000 n'ont pas d'`input_level_dbu`. Avec la basse de
   l'utilisateur dans l'iTwo (crête ~ -12 dBFS), il a fallu -18 dB d'entrée pour retrouver le son des
   démos (Bassman 800 « presque clair », THD < 5 % jusqu'à -6 dBFS de sinus) -> cible de calibration :
   crête robuste (99,9e centile) à -30 dBFS à l'entrée des modèles.
-- Métadonnées des packs achetés (komposition101, 84 modèles) : `gear_type = amp` partout, FullRig
-  compris ; marque / modèle `T3K-Null`, `tz-make` ; pas d'`input_level_dbu` ; loudness -9 à -13 dB.
-  Seul le nom (`_DI`, `_FullRig`) ou le dossier (`Full-Rig Profiles/`) est fiable. Les mêmes IR sont
-  livrées dans plusieurs packs (25 copies exactes sur 266, dont une au sein d'un même pack :
-  MBP2 Cab8_Mix2 = Cab10_Mix3). Formats NAM 0.7.0 A2 SlimmableContainer et
-  0.5.4 WaveNet, IR float 32 bits mono/stéréo : tout se charge.
-- Deviner « baffle inclus » par le son NE MARCHE PAS en basse : pente aigus (6–10 kHz) / médium
-  (300–1500 Hz) sur bruit blanc, de -30 à -1 dB pour les FullRig comme pour les DI, et même au sein
-  d'une paire DI/FullRig du même son l'écart va de -7 à +10 dB (baffles basse avec tweeter). Abandonné.
-- Profil des IR : les 11 « Mix » AMPG 410 de K101 diffèrent de ±2 à ±5 dB par zone (sub, présence,
-  air) une fois comparés à la médiane du pack ; une étendue aiguë « à -6 dB » est trompée par le
-  creux vers 1 kHz des baffles basse, d'où le seuil -12 dB mesuré depuis les extrémités.
-- Grain des modèles : la THD d'un sinus 110 Hz à la crête calibrée suit le drive de la Rat (0,2 % à
-  1,5 ; 6 % à 6 ; 18 % à 7 ; 28–38 % à 9–10) et le Bassman 800 « presque clair » (0,9 %). La
-  cohérence entrée/sortie sur le jeu réel a été essayée et abandonnée : 55 % pour tous les
-  FullRig / captures micro (réponse longue), 4 % pour une Rat à 1,5. Un mi grave pur sous-estime
-  (beaucoup d'amplis filtrent le grave avant le gain). Coût : 84 modèles komposition en 12 s sur
-  16 threads (A2 ≈ ×30 temps réel, WaveNet 16ch ≈ ×13) ; 55 modèles Tone3000 en 3,4 s.
+- Bibliothèque (packs, métadonnées, profils des IR et des modèles, grain) : `crates/library/CLAUDE.md`.
 - Les IR sont normalisées sur leur gain moyen 80 Hz–5 kHz (normaliser l'énergie totale saturait de
   +15 dB dans le grave).
 

@@ -25,7 +25,7 @@ use state::{Action, State};
 /// Premier modèle de la bibliothèque : charge réaliste pendant le test des buffers.
 fn load_for_buffer_test(library: &Path) -> Option<dsp::chain::AmpSpec> {
     let mut models = Vec::new();
-    crate::library::walk(library, "nam", &mut models);
+    library::walk(library, "nam", &mut models);
     models.into_iter().next().map(|m| dsp::chain::AmpSpec { model: Some(m), ..Default::default() })
 }
 

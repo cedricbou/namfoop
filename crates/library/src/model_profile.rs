@@ -16,7 +16,7 @@
 //! Le résultat (sans l'IR) est gardé dans `library/.cache/model-profiles.json`, indexé par modèle,
 //! entrée totale et signal : refaire `calibrate` ou changer l'entrée d'un modèle le recalcule.
 
-use anyhow::Result;
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -26,10 +26,10 @@ use std::sync::Mutex;
 use dsp::chain::{AmpSpec, Level};
 use dsp::profile::{crest_db, harmonic_distortion, IrProfile, RATE};
 
-use crate::config::LoadedConfig;
-use crate::library::{bytes_hash, content_hash, Entry, Kind, Library};
 use crate::profile::{describe_all, Described, Profiles};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
+use crate::{bytes_hash, content_hash, Entry, Kind, Library};
+use model::LoadedConfig;
 
 const VERSION: u32 = 3;
 const WINDOW_S: f32 = 4.0;

@@ -5,7 +5,7 @@
 //! médiane du pack (ou de la bibliothèque si le pack a moins de 3 IR) : dans un pack de 11 « Mix »
 //! numérotés, elles disent ce qui distingue chacun des autres.
 
-use anyhow::Result;
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use dsp::profile::IrProfile;
 
-use crate::library::{content_hash, Kind, Library};
+use crate::{content_hash, Kind, Library};
 
 /// Zones lues par les étiquettes : (nom, de, à) en Hz.
 pub const ZONES: [(&str, f32, f32); 7] = [
@@ -323,7 +323,7 @@ mod tests {
 
     #[test]
     fn cache_is_filled_once_and_follows_content() {
-        let d = crate::library::tests::fake_library("profiles", &[]);
+        let d = crate::tests::fake_library("profiles", &[]);
         let ir_dir = d.join("ir/Pack");
         std::fs::create_dir_all(&ir_dir).unwrap();
         let mut ir = vec![0.0f32; 2400];
