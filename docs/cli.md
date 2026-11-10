@@ -40,6 +40,9 @@ Options:
       --device <DEVICE>
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
@@ -105,13 +108,16 @@ Options:
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --input-db <INPUT_DB>
           Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
           
           [default: 0]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --output-db <OUTPUT_DB>
           Gain après le modèle (dB)
@@ -121,16 +127,8 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
-      --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
 
       --level <LEVEL>
           Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
@@ -140,17 +138,25 @@ Options:
           - normalize: Loudness du modèle ramenée à `target_db` (convention NAM)
           - raw:       Sortie brute du modèle
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
 
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-limiter
           Désactive le limiteur de sortie
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -216,13 +222,16 @@ Options:
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --input-db <INPUT_DB>
           Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
           
           [default: 0]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --output-db <OUTPUT_DB>
           Gain après le modèle (dB)
@@ -232,16 +241,8 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
-      --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
 
       --level <LEVEL>
           Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
@@ -251,17 +252,25 @@ Options:
           - normalize: Loudness du modèle ramenée à `target_db` (convention NAM)
           - raw:       Sortie brute du modèle
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
 
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-limiter
           Désactive le limiteur de sortie
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -334,6 +343,9 @@ Options:
       --all-sizes
           Mesure chaque taille des modèles slimmable
 
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
@@ -392,14 +404,14 @@ Options:
       --dry-run
           Vérifie et affiche le résultat sans rien écrire
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --skip-duplicates
           N'importe pas un fichier identique (octet par octet) à un fichier déjà dans la bibliothèque ou plus haut dans l'import. Par défaut il est importé quand même, pour que chaque pack reste complet, et signalé
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
@@ -408,6 +420,9 @@ Options:
           Dossier de la bibliothèque
           
           [default: library]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
@@ -463,20 +478,26 @@ Options:
           - pedal:    Pédale : une IR est nécessaire
           - preamp:   Préampli : une IR est nécessaire
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --make <MAKE>
           Marque de l'ampli (aide au choix des IR conseillées)
 
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
       --name <NAME>
           Nom affiché
+
+      --input-db <INPUT_DB>
+          Gain d'entrée propre au modèle (dB), ajouté à --input-db ; 0 pour l'annuler
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
-      --input-db <INPUT_DB>
-          Gain d'entrée propre au modèle (dB), ajouté à --input-db ; 0 pour l'annuler
+      --ir <IR>
+          IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
@@ -486,14 +507,11 @@ Options:
           
           [default: namfoop]
 
-      --ir <IR>
-          IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
+      --reset
+          Efface toutes les corrections de ce(s) modèle(s)
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
-      --reset
-          Efface toutes les corrections de ce(s) modèle(s)
 
       --library <LIBRARY>
           Dossier de la bibliothèque
@@ -531,6 +549,9 @@ Options:
 
       --device <DEVICE>
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -585,11 +606,14 @@ Options:
           
           [default: -30]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --channel <CHANNEL>
           Entrée de la carte où est branchée la basse [défaut : config (setup), sinon 1]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --dry-run
           Analyse seulement, ne sauve rien
@@ -644,8 +668,8 @@ Options:
           
           [default: 1]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --filter <FILTER>
           Filtre initial de la liste (ex: "PopPunk")
@@ -653,22 +677,25 @@ Options:
       --bass-in <BASS_IN>
           Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --mic-in <MIC_IN>
           Entrée du micro [défaut : config]
 
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --route <N=SOURCE>
+          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
-
-      --route <N=SOURCE>
-          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -703,6 +730,9 @@ Options:
 
       --device <DEVICE>
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -746,6 +776,9 @@ Options:
 
       --device <DEVICE>
           Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -800,13 +833,16 @@ Options:
           
           [default: 2]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --count <COUNT>
           Nombre de mesures
           
           [default: 10]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]

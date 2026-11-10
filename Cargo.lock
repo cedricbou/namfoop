@@ -134,6 +134,7 @@ name = "audio-io"
 version = "0.1.0"
 dependencies = [
  "alsa",
+ "assert_no_alloc",
  "jack",
  "libc",
  "log",

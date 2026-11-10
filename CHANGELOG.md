@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#51)
+- ALSA : négociation du format d'échantillon (`S32_LE`, `S24_3LE`, `S24_LE`, `S16_LE`, le premier
+  accepté gagne, logué au démarrage) : cartes USB en 24 bits sur 3 octets et HAT I2S en 16 bits.
+- `--capture-device` (config `[audio] capture_device`) : capture ALSA sur un autre device que la
+  lecture.
+
 ### Interne (#50)
 - Les backends audio (ALSA, JACK, sim) sortent du binaire dans la crate `audio-io`, sans clap ni
   config ; aucun changement de comportement.

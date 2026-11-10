@@ -10,7 +10,7 @@ binaire (`crates/namfoop/src/cli_audio.rs`), qui produit un `Settings`. Erreurs 
 (`error.rs`) ; les messages sont ceux que voit l'utilisateur, ne pas les changer au passage.
 
 **Fichiers.** `lib.rs` (traits `Io`, `Processor`, `Stream`, `VecIo`, `Stats`, `Settings`, `start`,
-`start_with`), `alsa.rs` (streams liés, sonde `cards` / `probe_channels` / `proc_usb_channels`,
+`start_with`), `alsa.rs` (streams liés, `--capture-device` séparé, sonde `cards` / `probe_channels` / `proc_usb_channels`,
 profil PipeWire mis à « off » puis restauré, y compris sur panic), `jack.rs` (relance avec la
 libjack PipeWire si besoin : `pw-jack` n'est jamais nécessaire), `sim.rs` (basse synthétique sur
 l'entrée 1, bruit sur la 2), `rt.rs` (SCHED_FIFO 80, RLIMIT_RTTIME, dénormaux).
@@ -27,7 +27,8 @@ et ALSA.
 
 - Latence aller-retour iTwo (PC) : ALSA 48×3 = 5,2 ms ; JACK/PipeWire 64 = 6,5–7 ms. Plancher
   matériel ~1–2 ms (USB + convertisseurs). 32 et 16 frames : xruns massifs avec l'iTwo.
-- ALSA : format `S32` entrelacé imposé (négociation prévue en #51) ; côté capture, au moins 4
-  périodes (n'ajoute pas de latence, absorbe les à-coups).
+- ALSA : format négocié dans `alsa/format.rs` (S32_LE > S24_3LE > S24_LE > S16_LE, chaque sens
+  séparément ; iTwo = S32_LE, conversion S32 identique à l'ancienne, test à l'appui) ; côté
+  capture, au moins 4 périodes (n'ajoute pas de latence, absorbe les à-coups).
 - `start_with` attend 500 ms puis remet les xruns à zéro : PipeWire change de quantum juste après
   l'activation, les premiers callbacks sont à froid.

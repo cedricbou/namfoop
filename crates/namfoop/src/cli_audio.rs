@@ -37,6 +37,10 @@ pub struct AudioArgs {
     /// canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
     #[arg(long, global = true)]
     pub device: Option<String>,
+    /// Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la
+    /// sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+    #[arg(long, global = true)]
+    pub capture_device: Option<String>,
     /// Taille de buffer / période en frames [défaut : config, sinon 64]
     #[arg(long, global = true)]
     pub buffer: Option<u32>,
@@ -58,6 +62,7 @@ impl AudioArgs {
         Settings {
             backend: self.backend.map(Kind::from).or(a.backend).unwrap_or(d.backend),
             device: self.device.clone().or_else(|| a.device.clone()),
+            capture_device: self.capture_device.clone().or_else(|| a.capture_device.clone()),
             buffer: self.buffer.or(a.buffer).unwrap_or(d.buffer),
             periods: self.periods.or(a.periods).unwrap_or(d.periods),
             rate: self.rate.or(a.rate).unwrap_or(d.rate),
