@@ -29,6 +29,9 @@ fi
 step "submodules"
 git submodule update --init --recursive -q
 
+step "sens des dépendances entre crates (docs/architecture.md)"
+scripts/check-arch.sh
+
 if (( LINT )); then
   step "format"
   cargo fmt --all --check
