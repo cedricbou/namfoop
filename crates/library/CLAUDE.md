@@ -48,3 +48,12 @@ vrai .nam est nécessaire.
   FullRig / captures micro (réponse longue), 4 % pour une Rat à 1,5. Un mi grave pur sous-estime
   (beaucoup d'amplis filtrent le grave avant le gain). Coût : 84 modèles komposition en 12 s sur
   16 threads (A2 ≈ ×30 temps réel, WaveNet 16ch ≈ ×13) ; 55 modèles Tone3000 en 3,4 s.
+
+## Carte détaillée (reprise du `CLAUDE.md` racine)
+
+```
+crates/library/   bibliothèque de sons, sans carte son (voir crates/library/CLAUDE.md) :
+                  lib.rs (index de library/, identifiants m…/i…/c…, recherche, métadonnées .nam),
+                  import/ (mod.rs : run -> Outcome ; scan.rs, classify.rs, validate.rs),
+                  overrides.rs, recommend.rs, profile.rs, model_profile.rs, error.rs
+```

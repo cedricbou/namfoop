@@ -21,3 +21,12 @@ optionnels), jamais de renommage ni de changement de type sans alias serde. `tes
 l'octet près : un échec veut dire que le format a changé.
 
 **Tester** : `cargo test -p model`.
+
+## Carte détaillée (reprise du `CLAUDE.md` racine)
+
+```
+crates/model/     types sérialisables, aucune logique (voir crates/model/CLAUDE.md) : config.rs
+                  (~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
+                  [audio] backend / device / buffer..., [routing]), routing.rs (Routing, OutputRoute,
+                  Source) ; tests/ : fichiers de config versionnés relus à l'octet près
+```

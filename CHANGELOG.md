@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#57)
+- Un `CLAUDE.md` par crate, `CLAUDE.md` racine allégé (carte, commandes, cycle) ; `check-docs.sh`
+  vérifie un `CLAUDE.md` par crate et la taille des fichiers (> 1 000 lignes refusé) ; champ
+  « Crates touchées » dans les modèles d'issue.
+
 ### Interne (#56)
 - `browse/state.rs` et `browse/ui.rs` découpés par sous-fonction (aucun fichier au-delà de 600
   lignes) ; comportement et rendu inchangés.

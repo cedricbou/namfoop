@@ -2,15 +2,17 @@
 
 Page de repère pour les agents et les humains : où est quoi, qui a le droit de dépendre de qui, et
 pourquoi. Les décisions déjà prises sont dans [`docs/adr/`](adr/) : ne pas les rouvrir sans
-nouvelle mesure. Le découpage est suivi dans l'issue #47.
+nouvelle mesure. Le découpage a été fait dans l'issue #47 (PR #59 à #68).
 
-## Architecture cible
+## Architecture
+
+C'est l'état réel du code (vérifié par `scripts/check-arch.sh`), pas une cible.
 
 ```
 namfoop  (binaire : CLI, écrans, une fonction mince par commande)
-  ├─> engine   (session audio : routeur, swap, vumètres, tap, presets / MIDI plus tard)  ─> audio-io, dsp, model
+  ├─> engine   (session audio : routeur, swap, vumètres, tap d'entrée ; raw pour les mesures)  ─> audio-io, dsp, model
   ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model
-  └─> model    (types sérialisables : config, routage, presets, profils de carte)
+  └─> model    (types sérialisables : config, routage ; presets et profils de carte à venir)
 audio-io (ALSA, JACK, sim, priorité RT ; ni clap, ni config, ni DSP)
 dsp      (étages mono, chaîne, swap, analyses hors ligne)  ─> nam-sys (FFI C++ NAM)
 ```
@@ -31,15 +33,14 @@ Les dépendances ne vont que **vers le bas**. La CLI pilote, `engine` fait sonne
 Règles clés : `dsp` et `audio-io` ne se connaissent pas ; seule `engine` ouvre la carte ; `model`
 ne dépend d'aucune crate du projet ; aucune crate de bibliothèque n'utilise `clap` ni `ratatui`.
 
-## État actuel
+## Où en est-on
 
-Sept crates : `nam-sys`, `dsp`, `audio-io` (backends ALSA, JACK, sim, #50), `engine` (session
-audio, routeur, vumètres, #52), `model` (config et routage sérialisables, #54), `library`
-(bibliothèque de sons, import, profils, #55) et le binaire `namfoop` (CLI et écrans ; voir
-« Disposition » dans `CLAUDE.md`). Toutes les commandes passent par `engine` (`Engine`, ou
-`engine::raw` pour `setup` et `latency`) depuis #53. Restent le découpage de `browse` (#56) et un
-`CLAUDE.md` par crate avec garde-fous de taille (#57), à comportement constant, sous le filet des
-rendus de référence (`crates/dsp/tests/golden.rs`).
+Les sept crates existent ; chacune a son `CLAUDE.md` (responsabilité, API, interdits, règles,
+faits mesurés, tests), cité par la carte du `CLAUDE.md` racine. Toutes les commandes passent par
+`engine` (`Engine`, ou `engine::raw` pour `setup` et `latency`). Aucun fichier `.rs` hors tests ne
+dépasse 1 000 lignes (avertissement au-delà de 600, `scripts/check-docs.sh`). Le son est protégé
+par les rendus de référence (`crates/dsp/tests/golden.rs`). À venir sur cette base : profils de
+carte (#58), puis #3, presets (#6), MIDI (#7), service de scène (#46).
 
 ## Règles vérifiées
 
@@ -56,3 +57,4 @@ dev-dependencies). Chaque issue qui crée une crate ajoute ses règles à la tab
 | `model`   | seulement `serde`, `toml`, `thiserror` (aucune crate du projet) | #54 |
 | `library` | interdit `audio-io`, `engine`, `clap`, `ratatui`, `alsa`, `jack` | #55 |
 | tout le code | aucun `audio_io::start` / `start_with` hors d'`engine` et `audio-io` (contrôle textuel) | #53 |
+| toutes     | un `CLAUDE.md` par crate, cité dans la carte racine et ici ; `.rs` > 1 000 lignes refusé (`check-docs.sh`) | #57 |
