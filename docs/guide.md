@@ -141,10 +141,18 @@ pour les voir).
 Sur scène, un seul buffer en retard s'entend. Quatre réglages du système comptent ; namfoop
 les vérifie au démarrage et avertit (il ne modifie jamais le système lui-même) :
 
-- **Priorité** : le thread audio ALSA passe en SCHED_FIFO 80 si tu en as le droit, sinon il la
-  demande à rtkit, qui plafonne à 20 et coupe un thread qui tourne plus de 200 ms d'affilée. La
-  voie normale : installer `realtime-privileges` et s'ajouter au groupe `realtime` (ou `audio`
-  selon la distribution), puis se reconnecter. Sur le Pi : `LimitRTPRIO` dans le service systemd.
+- **Priorité** (le réglage qui compte le plus) : le thread audio ALSA passe en SCHED_FIFO 80 si tu
+  en as le droit, sinon il la demande à rtkit, qui plafonne à 20 et coupe un thread qui tourne
+  plus de 200 ms d'affilée. Mesuré sur PC : à 20, un buffer sur 1 000 prend 3 à 6 fois le temps
+  habituel et quelques-uns débordent chaque minute ; à 80, plus aucun ne dépasse la moitié du
+  temps disponible. La voie normale : installer `realtime-privileges` et s'ajouter au groupe
+  `realtime` (ou `audio` selon la distribution), puis se reconnecter. namfoop avertit s'il n'a que
+  la priorité de rtkit. Sur le Pi : `LimitRTPRIO` dans le service systemd.
+
+  ```sh
+  sudo pacman -S realtime-privileges && sudo usermod -aG realtime $USER   # puis se reconnecter
+  ```
+
 - **Mémoire verrouillée** : avec une limite `memlock` illimitée, namfoop verrouille sa mémoire
   (`mlockall`) : plus de défaut de page en jouant. Le groupe `realtime` l'accorde ; sinon, une
   ligne `@realtime - memlock unlimited` dans `/etc/security/limits.d/`. Avec une limite finie,
