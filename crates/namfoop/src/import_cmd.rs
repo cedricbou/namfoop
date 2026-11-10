@@ -50,7 +50,7 @@ impl From<&ImportArgs> for library::import::ImportArgs {
 
 /// Importe, affiche le bilan ; renvoie les modèles ajoutés (chemins relatifs à la bibliothèque).
 pub fn run(a: &ImportArgs, conf: &LoadedConfig) -> Result<Vec<String>> {
-    let out = library::import::run(&a.into(), conf)?;
+    let out = library::import::run(&a.into())?;
     print_report(a, conf, &out)?;
     Ok(out.imported_models())
 }

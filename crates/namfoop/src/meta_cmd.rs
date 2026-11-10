@@ -85,7 +85,7 @@ impl From<&MetaArgs> for library::overrides::MetaArgs {
 /// `namfoop meta` : affiche ou corrige les métadonnées d'un ou plusieurs modèles.
 pub fn run(a: &MetaArgs, conf: &LoadedConfig) -> Result<()> {
     let default_ir = conf.config.default_ir.as_deref();
-    let out = library::overrides::run(&a.into(), conf)?;
+    let out = library::overrides::run(&a.into())?;
     if out.edited {
         println!("{} modèle(s) corrigé(s) dans {}", out.targets.len(), Overrides::path(&a.library).display());
     }

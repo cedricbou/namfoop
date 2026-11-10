@@ -186,8 +186,8 @@ pub struct MetaOutcome {
 }
 
 /// `namfoop meta` : résout les modèles visés et écrit les corrections demandées (l'affichage est
-/// dans le binaire ; la config n'est pas utilisée ici).
-pub fn run(a: &MetaArgs, _conf: &model::LoadedConfig) -> Result<MetaOutcome> {
+/// dans le binaire).
+pub fn run(a: &MetaArgs) -> Result<MetaOutcome> {
     let lib = Library::scan(&a.library);
     let targets: Vec<PathBuf> = if a.all {
         let m: Vec<PathBuf> = lib.matches(&a.model, Kind::Model).iter().map(|e| e.path.clone()).collect();
@@ -269,7 +269,6 @@ mod tests {
                 ("ir/C/cab.wav", ""),
             ],
         );
-        let conf = model::LoadedConfig::load(None, true).unwrap();
         let args = |model: &str, all: bool| MetaArgs {
             model: model.into(),
             all,
@@ -281,19 +280,19 @@ mod tests {
             reset: false,
             library: d.clone(),
         };
-        run(&args("fullrig", true), &conf).unwrap();
+        run(&args("fullrig", true)).unwrap();
         let ov = Overrides::load(&d).unwrap();
         assert_eq!(ov.model.len(), 2);
         assert!(ov
             .model
             .values()
             .all(|o| o.gear_type.as_deref() == Some("amp_cab") && o.input_db == Some(-3.0)));
-        assert!(run(&args("fullrig", false), &conf).is_err(), "ambigu sans --all");
+        assert!(run(&args("fullrig", false)).is_err(), "ambigu sans --all");
         let mut reset = args("A_FullRig", false);
         reset.gear_type = None;
         reset.input_db = None;
         reset.reset = true;
-        run(&reset, &conf).unwrap();
+        run(&reset).unwrap();
         assert_eq!(Overrides::load(&d).unwrap().model.len(), 1);
     }
 }
