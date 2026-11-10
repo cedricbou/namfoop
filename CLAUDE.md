@@ -27,7 +27,8 @@ crates/audio-io/  accès à la carte, sans clap, config ni DSP (voir crates/audi
                   (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off » ; alsa/format.rs : S32 / S24_3 / S24 / S16),
                   sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
 crates/engine/    session audio (voir crates/engine/CLAUDE.md) : Engine::start (carte + routage validé +
-                  chaîne échangeable), send_chain, meters, xruns ; router.rs (entrée basse -> chaîne ->
+                  chaîne échangeable), send_chain / take_chain_sender, tap d'entrée, meters, xruns ;
+                  raw.rs (callback sur mesure : setup, latency) ; seule crate qui ouvre la carte ; router.rs (entrée basse -> chaîne ->
                   sorties processed/di/mic/mute, Routing sérialisable), meters.rs (fetch_max, take)
 crates/namfoop/   binaire CLI
   cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut)
@@ -37,13 +38,13 @@ crates/namfoop/   binaire CLI
   browse/         `browse` : state.rs (logique pure + horloge fournie, testée ; éditeur `e` des
                   métadonnées avec écoute directe du gain d'entrée et grain remesuré ; A/B b / r,
                   référence c sur une IR ou un modèle via effective_ir / effective_model), ui.rs (TestBackend ; panneau spectre ≥ 130 col.), mod.rs
-                  (index, audio routeur + SwapChain, thread de construction, overrides.toml) ;
+                  (index, Engine + ChainSender dans le thread de construction, overrides.toml) ;
                   `import --review` l'ouvre sur les modèles importés (browse::Start)
   setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
-                  audio.rs (vumètres, bip, test des buffers), devices.rs (cartes par backend)
+                  audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
   live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)
   offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
-  latency.rs      mesure de latence par impulsion (câble de bouclage)
+  latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::raw)
   library.rs      index de library/ (identifiants m…/i…/c…), recherche (id > chemin > mots entiers >
                   version de base), métadonnées .nam
   recommend.rs    besoin d'IR (gear_type) et IR conseillées (IR préférée du modèle, marque, baffle
@@ -63,7 +64,7 @@ crates/namfoop/   binaire CLI
   amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
   config.rs       ~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
                   [audio] (backend, device, buffer...), [routing] (bass_in, mic_in, outputs)
-  calibrate.rs    `calibrate` : enregistre le DI, calcule le trim, active le niveau « match »
+  calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le niveau « match »
 scripts/check.sh          vérification sans matériel (À FAIRE PASSER AVANT TOUT COMMIT)
 scripts/check-docs.sh     cohérence code <-> docs (appelé par check.sh)
 scripts/check-arch.sh     sens des dépendances entre crates, table de règles en tête (appelé par check.sh)

@@ -7,8 +7,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::state::BufferTest;
-use audio_io::{Io, Settings, Stream};
+use audio_io::{Io, Settings};
 use engine::meters::{fetch_max, take};
+use engine::raw::RawSession;
 
 const MAX_CH: usize = 64;
 const BEEP_SECS: f32 = 0.4;
@@ -16,7 +17,7 @@ const BEEP_AMP: f32 = 0.1; // -20 dBFS
 
 /// Flux ouvert sur la carte choisie : publie la crête de chaque entrée, joue des bips.
 pub struct Monitor {
-    stream: Box<dyn Stream>,
+    stream: RawSession,
     levels: Arc<Vec<AtomicU32>>,
     /// 0 = rien ; c + 1 = bip demandé sur la sortie c (remis à 0 par le thread audio).
     beep: Arc<AtomicU32>,
@@ -30,7 +31,7 @@ impl Monitor {
         let rate = cfg.rate as f32;
         let beep_len = (BEEP_SECS * rate) as usize;
         let (mut beep_ch, mut beep_pos) = (usize::MAX, 0usize);
-        let stream = audio_io::start_with(
+        let stream = engine::raw::start(
             cfg,
             move |io: &mut dyn Io| {
                 for c in 0..io.n_in().min(MAX_CH) {
@@ -101,7 +102,7 @@ pub fn buffer_test(
                 }
             };
             let mut scratch = vec![0.0f32; 8192];
-            let result = audio_io::start_with(
+            let result = engine::raw::start(
                 &cfg,
                 move |io: &mut dyn Io| {
                     if let Some(ch) = chain.as_mut() {
@@ -125,7 +126,8 @@ pub fn buffer_test(
                     drop(stream);
                     t
                 }
-                Err(e) => BufferTest::Failed(format!("{e:#}")),
+                // anyhow : la cause (erreur ALSA...) s'affiche après le message
+                Err(e) => BufferTest::Failed(format!("{:#}", anyhow::Error::from(e))),
             };
             let _ = tx.send((i, test));
             std::thread::sleep(Duration::from_millis(300)); // PipeWire reprend la carte

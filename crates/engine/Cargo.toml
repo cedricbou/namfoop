@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 audio-io = { path = "../audio-io" }
 dsp = { path = "../dsp" }
+rtrb.workspace = true
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 

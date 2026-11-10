@@ -1,6 +1,6 @@
 //! `namfoop run` : la chaîne ampli en temps réel, avec vumètre et charge DSP.
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -43,9 +43,17 @@ pub fn run(
             fade_ms: FADE_MS,
             quiet: false,
             limiter_meter: limiter,
+            input_tap: None,
         },
         chain,
     )?;
+    if engine.sample_rate() != cfg.rate {
+        bail!(
+            "le flux tourne à {} Hz mais la chaîne est préparée pour {} Hz (option --rate)",
+            engine.sample_rate(),
+            cfg.rate
+        );
+    }
     log::info!("routage : {}", engine.describe());
 
     let (tx, rx) = std::sync::mpsc::channel();

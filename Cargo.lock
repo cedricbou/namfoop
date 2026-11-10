@@ -538,6 +538,7 @@ dependencies = [
  "assert_no_alloc",
  "audio-io",
  "dsp",
+ "rtrb",
  "serde",
  "thiserror 2.0.21",
 ]
