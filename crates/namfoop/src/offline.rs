@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::amp::AmpArgs;
-use crate::library;
 
 /// Signal d'entrée de référence fourni avec NeuralAmpModelerCore (48 kHz, mono).
 pub fn default_input() -> PathBuf {

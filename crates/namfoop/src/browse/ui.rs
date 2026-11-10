@@ -7,8 +7,8 @@ use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 
 use super::state::{AbState, Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
-use crate::recommend::NeedsIr;
 use crate::tui::{meter_marked, meter_width};
+use library::recommend::NeedsIr;
 
 /// Mesures affichées en bas (fournies par la boucle).
 #[derive(Default, Clone)]
@@ -531,8 +531,8 @@ fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
     let mut text = Vec::new();
     match (shown.last(), &reference) {
         (Some((name, p, _)), Some((rname, r))) => {
-            let (a, b) = (crate::profile::zones(p), crate::profile::zones(r));
-            let parts: Vec<String> = crate::profile::ZONES
+            let (a, b) = (library::profile::zones(p), library::profile::zones(r));
+            let parts: Vec<String> = library::profile::ZONES
                 .iter()
                 .enumerate()
                 .map(|(k, (z, ..))| format!("{z} {:+.0}", a[k] - b[k]))
@@ -572,10 +572,10 @@ fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
 }
 
 fn type_help(t: &str) -> &'static str {
-    match crate::recommend::needs_ir(t) {
-        crate::recommend::NeedsIr::No => "baffle inclus : pas d'IR",
-        crate::recommend::NeedsIr::Yes => "sans baffle : IR requise",
-        crate::recommend::NeedsIr::Maybe => "inconnu",
+    match library::recommend::needs_ir(t) {
+        library::recommend::NeedsIr::No => "baffle inclus : pas d'IR",
+        library::recommend::NeedsIr::Yes => "sans baffle : IR requise",
+        library::recommend::NeedsIr::Maybe => "inconnu",
     }
 }
 
@@ -682,7 +682,7 @@ mod tests {
     #[test]
     fn ir_rows_show_spark_and_tags() {
         let mut s = sample();
-        s.irs[0].profile = Some(crate::profile::Described {
+        s.irs[0].profile = Some(library::profile::Described {
             profile: std::sync::Arc::new(dsp::profile::IrProfile {
                 bands_db: vec![0.0; 28],
                 low_cut_hz: 40.0,
@@ -700,7 +700,7 @@ mod tests {
     fn with_profiles(s: &mut State) {
         for (k, it) in s.irs.iter_mut().enumerate() {
             let tilt = k as f32 * 3.0;
-            it.profile = Some(crate::profile::Described {
+            it.profile = Some(library::profile::Described {
                 profile: std::sync::Arc::new(dsp::profile::IrProfile {
                     bands_db: dsp::profile::band_centers()
                         .iter()
@@ -774,7 +774,7 @@ mod tests {
     fn models_tab_spectrum_and_model_ab() {
         let mut s = sample();
         for (k, m) in s.models.iter_mut().enumerate() {
-            m.profile = Some(crate::profile::Described {
+            m.profile = Some(library::profile::Described {
                 profile: std::sync::Arc::new(dsp::profile::IrProfile {
                     bands_db: dsp::profile::band_centers()
                         .iter()

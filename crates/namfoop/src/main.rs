@@ -4,15 +4,12 @@ mod calibrate;
 mod cli_audio;
 mod cli_routing;
 mod config;
-mod import;
+mod import_cmd;
 mod latency;
-mod library;
 mod live;
-mod model_profile;
+mod meta_cmd;
+mod models_cmd;
 mod offline;
-mod overrides;
-mod profile;
-mod recommend;
 mod setup;
 mod tui;
 
@@ -108,12 +105,12 @@ enum Cmd {
     /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
     Import {
         #[command(flatten)]
-        args: import::ImportArgs,
+        args: import_cmd::ImportArgs,
     },
     /// Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
     Meta {
         #[command(flatten)]
-        args: overrides::MetaArgs,
+        args: meta_cmd::MetaArgs,
     },
     /// Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
     Models {
@@ -198,7 +195,7 @@ fn main() -> Result<()> {
             offline::bench(&paths, &library, audio.rate, block, seconds, all_sizes)
         }
         Cmd::Import { args } => {
-            let imported = import::run(&args, &conf)?;
+            let imported = import_cmd::run(&args, &conf)?;
             if args.review && !args.dry_run {
                 if imported.is_empty() {
                     println!("--review : aucun nouveau modèle à revoir");
@@ -209,8 +206,8 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Meta { args } => overrides::run(&args, &conf),
-        Cmd::Models { library } => library::list(&library, &conf),
+        Cmd::Meta { args } => meta_cmd::run(&args, &conf),
+        Cmd::Models { library } => models_cmd::list(&library, &conf),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let mut routing = conf.routing.clone();
             if let Some(c) = channel {

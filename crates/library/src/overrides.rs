@@ -5,12 +5,12 @@
 //! renommage, un déplacement ou un réimport. Écrites par `namfoop import` (type de capture deviné)
 //! et `namfoop meta` (à la main) ; lues par `models`, `run`, `render`, `browse` et `-i auto`.
 
-use anyhow::{bail, Context, Result};
+use crate::error::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use crate::library::{content_hash, Kind, Library, NamMeta};
+use crate::{content_hash, Kind, Library, NamMeta};
 
 pub const FILE: &str = "overrides.toml";
 
@@ -125,18 +125,13 @@ impl Overrides {
     }
 }
 
-/// Types de capture acceptés par `namfoop meta --type`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+/// Types de capture qu'on peut écrire avec `namfoop meta`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GearType {
-    /// Ampli seul, sans baffle (DI) : une IR est nécessaire
     Amp,
-    /// Ampli + baffle (micro compris) : pas d'IR
     AmpCab,
-    /// Chaîne complète avec baffle : pas d'IR
     FullRig,
-    /// Pédale : une IR est nécessaire
     Pedal,
-    /// Préampli : une IR est nécessaire
     Preamp,
 }
 
@@ -152,38 +147,28 @@ impl GearType {
     }
 }
 
-#[derive(Clone, Debug, clap::Args)]
+/// Corrections demandées par `namfoop meta` (options de la ligne de commande : binaire).
+#[derive(Clone, Debug)]
 pub struct MetaArgs {
-    /// Modèle : identifiant, chemin ou mots-clés
+    /// Modèle : identifiant, chemin ou mots-clés.
     pub model: String,
-    /// Applique à tous les modèles qui contiennent les mots-clés (ex: "fullrig")
-    #[arg(long)]
+    /// Tous les modèles qui contiennent les mots-clés.
     pub all: bool,
-    /// Type de capture (décide s'il faut une IR)
-    #[arg(long = "type", value_enum)]
     pub gear_type: Option<GearType>,
-    /// Marque de l'ampli (aide au choix des IR conseillées)
-    #[arg(long)]
     pub make: Option<String>,
-    /// Nom affiché
-    #[arg(long)]
     pub name: Option<String>,
-    /// Gain d'entrée propre au modèle (dB), ajouté à --input-db ; 0 pour l'annuler
-    #[arg(long, allow_hyphen_values = true)]
+    /// Gain d'entrée propre au modèle (dB) ; 0 l'annule.
     pub input_db: Option<f32>,
-    /// IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
-    #[arg(long)]
+    /// IR préférée (identifiant, chemin ou mots-clés).
     pub ir: Option<String>,
-    /// Efface toutes les corrections de ce(s) modèle(s)
-    #[arg(long)]
+    /// Efface toutes les corrections de ce(s) modèle(s).
     pub reset: bool,
-    /// Dossier de la bibliothèque
-    #[arg(long, default_value = "library")]
     pub library: PathBuf,
 }
 
 impl MetaArgs {
-    fn edits(&self) -> bool {
+    /// Au moins une correction demandée (sinon : affichage seul).
+    pub fn edits(&self) -> bool {
         self.gear_type.is_some()
             || self.make.is_some()
             || self.name.is_some()
@@ -193,9 +178,16 @@ impl MetaArgs {
     }
 }
 
-/// `namfoop meta` : affiche ou corrige les métadonnées d'un ou plusieurs modèles.
-pub fn run(a: &MetaArgs, conf: &crate::config::LoadedConfig) -> Result<()> {
-    let default_ir = conf.config.default_ir.as_deref();
+/// Modèles visés par `namfoop meta`, après corrections éventuelles.
+pub struct MetaOutcome {
+    pub targets: Vec<PathBuf>,
+    /// Des corrections ont été écrites dans `overrides.toml`.
+    pub edited: bool,
+}
+
+/// `namfoop meta` : résout les modèles visés et écrit les corrections demandées (l'affichage est
+/// dans le binaire ; la config n'est pas utilisée ici).
+pub fn run(a: &MetaArgs, _conf: &model::LoadedConfig) -> Result<MetaOutcome> {
     let lib = Library::scan(&a.library);
     let targets: Vec<PathBuf> = if a.all {
         let m: Vec<PathBuf> = lib.matches(&a.model, Kind::Model).iter().map(|e| e.path.clone()).collect();
@@ -235,68 +227,14 @@ pub fn run(a: &MetaArgs, conf: &crate::config::LoadedConfig) -> Result<()> {
         }
         ov.model.retain(|_, o| !o.is_empty());
         ov.save(&a.library)?;
-        println!("{} modèle(s) corrigé(s) dans {}", targets.len(), Overrides::path(&a.library).display());
     }
-    let lib = Library::scan(&a.library);
-    let irs = crate::profile::Profiles::load_verbose(&lib);
-    let models = crate::model_profile::ModelProfiles::load_verbose(&lib, conf, &irs);
-    for p in &targets {
-        show(&lib, p, default_ir, &models)?;
-    }
-    Ok(())
-}
-
-fn show(
-    lib: &Library,
-    path: &Path,
-    default_ir: Option<&str>,
-    profiles: &crate::model_profile::ModelProfiles,
-) -> Result<()> {
-    let raw = crate::library::read_meta(path)?;
-    let m = lib.meta(path)?;
-    let entry = lib.by_path(path).ok_or_else(|| anyhow::anyhow!("{} hors bibliothèque", path.display()))?;
-    let field = |label: &str, raw: &str, eff: &str| {
-        let shown = |v: &str| if v.is_empty() { "?".to_string() } else { v.to_string() };
-        if raw == eff {
-            println!("  {label:<9} {}", shown(eff));
-        } else {
-            println!("  {label:<9} {}   (fichier : {})", shown(eff), shown(raw));
-        }
-    };
-    println!("{}  {}", entry.id, entry.rel);
-    field("type", &raw.gear_type, &m.gear_type);
-    field("marque", &raw.gear_make, &m.gear_make);
-    field("modèle", &raw.gear_model, &m.gear_model);
-    field("nom", &raw.name, &m.name);
-    println!("  {:<9} {}", "IR", crate::recommend::advice(lib, entry, &m, default_ir));
-    if let Some(db) = m.input_db {
-        println!("  {:<9} {db:+.1} dB", "entrée");
-    }
-    if let Some(p) = profiles.measures.get(&entry.rel) {
-        println!(
-            "  {:<9} {} — distorsion {:.1} % (la 110 Hz à ta crête), compression {:.1} dB",
-            "grain",
-            p.grain(),
-            p.thd_pct,
-            p.compression_db,
-        );
-    }
-    if let Some(d) = profiles.by_rel.get(&entry.rel) {
-        println!(
-            "  {:<9} {}  {}{}",
-            "profil",
-            d.spark,
-            d.tags.join(", "),
-            profiles.ir_used.get(&entry.rel).map_or(String::new(), |ir| format!("  (avec {ir})"))
-        );
-    }
-    Ok(())
+    Ok(MetaOutcome { targets, edited: a.edits() })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::library::tests::fake_library;
+    use crate::tests::fake_library;
 
     const NAM: &str = r#"{"metadata":{"gear_type":"amp","gear_make":"T3K-Null","name":"x"}}"#;
 
@@ -331,7 +269,7 @@ mod tests {
                 ("ir/C/cab.wav", ""),
             ],
         );
-        let conf = crate::config::LoadedConfig::load(None, true).unwrap();
+        let conf = model::LoadedConfig::load(None, true).unwrap();
         let args = |model: &str, all: bool| MetaArgs {
             model: model.into(),
             all,

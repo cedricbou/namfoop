@@ -11,8 +11,8 @@ use dsp::ir::IrSettings;
 use dsp::nam::NamSettings;
 
 use crate::config::{LevelMode, LoadedConfig};
-use crate::library::{Kind, Library};
-use crate::recommend::{needs_ir, recommend, NeedsIr};
+use library::recommend::{needs_ir, recommend, NeedsIr};
+use library::{Kind, Library};
 
 /// Mode de volume choisi en ligne de commande (`model::LevelMode` dans la config).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]

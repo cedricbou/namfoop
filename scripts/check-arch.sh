@@ -17,6 +17,7 @@ dsp      : interdit alsa jack clap ratatui libc namfoop audio-io engine
 audio-io : interdit clap ratatui dsp namfoop toml nam-sys engine
 engine   : interdit clap ratatui namfoop toml alsa jack
 model    : seulement serde toml thiserror
+library  : interdit audio-io engine clap ratatui alsa jack
 '
 
 cargo metadata --format-version 1 --no-deps --offline 2>/dev/null >/dev/null \

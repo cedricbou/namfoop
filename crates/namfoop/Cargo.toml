@@ -16,6 +16,7 @@ audio-io = { path = "../audio-io" }
 engine = { path = "../engine" }
 dsp = { path = "../dsp" }
 model = { path = "../model" }
+library = { path = "../library" }
 nam-sys = { path = "../nam-sys" }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }

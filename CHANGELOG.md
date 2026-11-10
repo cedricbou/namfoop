@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#55)
+- Nouvelle crate `library` (index, import, corrections, recommandations, profils) ; `import.rs`
+  découpé par responsabilité. Sorties de `models`, `meta` et `import` identiques.
+
 ### Interne (#54)
 - Nouvelle crate `model` : types de la config (`config.toml`) et du routage, lecture / écriture
   TOML. Format du fichier inchangé (test de relecture à l'octet près).

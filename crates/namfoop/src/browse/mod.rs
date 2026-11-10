@@ -19,12 +19,12 @@ use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
 use crate::config::{CalibrationExt, LoadedConfig};
-use crate::library::{content_hash, Kind, Library};
-use crate::overrides::{ModelOverride, Overrides};
-use crate::recommend::{needs_ir, recommend, NeedsIr};
 use crate::tui;
 use audio_io::Settings;
 use engine::{Engine, EngineConfig, Routing};
+use library::overrides::{ModelOverride, Overrides};
+use library::recommend::{needs_ir, recommend, NeedsIr};
+use library::{content_hash, Kind, Library};
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
@@ -60,8 +60,8 @@ fn strip(stem: &str, n: usize) -> String {
 pub fn index(
     lib: &Library,
     default_ir: Option<&str>,
-    profiles: &crate::profile::Profiles,
-    model_profiles: &crate::model_profile::ModelProfiles,
+    profiles: &library::profile::Profiles,
+    model_profiles: &library::model_profile::ModelProfiles,
 ) -> (Vec<Item>, Vec<Item>) {
     let mut irs: Vec<Item> = Vec::new();
     let mut by_rel: HashMap<String, usize> = HashMap::new();
@@ -106,16 +106,16 @@ pub fn index(
 /// Ligne d'un modèle : badge IR, IR conseillées, métadonnées (corrigées et du fichier).
 fn model_item(
     lib: &Library,
-    e: &crate::library::Entry,
+    e: &library::Entry,
     default_ir: Option<&str>,
     by_rel: &HashMap<String, usize>,
 ) -> Item {
     let ir_index = |q: &str| {
         lib.resolve_ir(q).ok().and_then(|p| lib.by_path(&p)).and_then(|x| by_rel.get(&x.rel)).copied()
     };
-    let (needs, detail, recommended, meta) = match (lib.meta(&e.path), crate::library::read_meta(&e.path)) {
+    let (needs, detail, recommended, meta) = match (lib.meta(&e.path), library::read_meta(&e.path)) {
         (Ok(m), Ok(raw)) => {
-            let edit = |x: &crate::library::NamMeta, ir: Option<usize>| ModelMeta {
+            let edit = |x: &library::NamMeta, ir: Option<usize>| ModelMeta {
                 gear_type: x.gear_type.clone(),
                 make: x.gear_make.clone(),
                 name: x.name.clone(),
@@ -169,7 +169,7 @@ fn save_meta(library: &Path, st: &State, edits: &[(usize, ModelMeta)]) -> Result
         };
         ov.set(&content_hash(&item.path)?, o);
     }
-    ov.save(library)
+    Ok(ov.save(library)?)
 }
 
 fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
@@ -241,8 +241,8 @@ pub fn run(
     start_with: Start,
 ) -> Result<()> {
     let lib = Library::scan(library);
-    let profiles = crate::profile::Profiles::load_verbose(&lib);
-    let model_profiles = crate::model_profile::ModelProfiles::load_verbose(&lib, conf, &profiles);
+    let profiles = library::profile::Profiles::load_verbose(&lib);
+    let model_profiles = library::model_profile::ModelProfiles::load_verbose(&lib, conf, &profiles);
     let (mut models, irs) = index(&lib, conf.default_ir.as_deref(), &profiles, &model_profiles);
     if let Some(only) = start_with.only {
         models.retain(|m| only.contains(&m.rel));
@@ -315,13 +315,13 @@ pub fn run(
     let (tx_grain_done, rx_grain_done) = mpsc::channel::<(usize, f32, String)>();
     let conf3 = conf.clone();
     std::thread::Builder::new().name("namfoop-grain".into()).spawn(move || {
-        let signal = crate::model_profile::Signal::from_config(&conf3);
+        let signal = library::model_profile::Signal::from_config(&conf3);
         while let Ok(mut job) = rx_grain.recv() {
             while let Ok(newer) = rx_grain.try_recv() {
                 job = newer;
             }
             let (m, input_db, path) = job;
-            let text = match crate::model_profile::measure(&path, &signal, input_db) {
+            let text = match library::model_profile::measure(&path, &signal, input_db) {
                 Ok(p) => p.grain(),
                 Err(e) => format!("mesure impossible : {e:#}"),
             };
@@ -410,7 +410,7 @@ pub fn run(
                             }
                         }
                         // l'entrée ou l'IR ont pu changer : profils remesurés (le reste vient du cache)
-                        let mp = crate::model_profile::ModelProfiles::load(&lib, conf, &profiles, |_| {});
+                        let mp = library::model_profile::ModelProfiles::load(&lib, conf, &profiles, |_| {});
                         for m in st.models.iter_mut() {
                             m.profile = mp.by_rel.get(&m.rel).cloned();
                         }
