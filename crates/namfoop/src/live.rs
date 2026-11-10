@@ -62,6 +62,7 @@ pub fn run(
     })?;
     let start = Instant::now();
     engine.meters(); // ignore les premiers callbacks (à froid)
+    engine.clear_load_history();
     log::info!("en route, Ctrl+C pour quitter");
     let mut max_load = 0.0f32;
     let to_model_db = spec.trim_db + spec.nam.input_db;
@@ -100,6 +101,7 @@ pub fn run(
         }
     }
     let xruns = engine.xruns();
+    let load = engine.load_summary();
     let m = engine.meters();
     drop(engine);
     if !quiet {
@@ -112,6 +114,17 @@ pub fn run(
     if oc > 0 {
         log::warn!("{oc} échantillon(s) de sortie écrêté(s) : baisser --master-db ou activer le limiteur");
     }
+    let h = load;
+    log::info!(
+        "charge DSP par callback : médiane {:.0} %, p99 {:.0} %, p99,9 {:.0} % ; au-delà de 50 % : {}, de 80 % : {}, de 100 % : {} (sur {})",
+        h.p50 * 100.0,
+        h.p99 * 100.0,
+        h.p999 * 100.0,
+        h.over50,
+        h.over80,
+        h.over100,
+        h.callbacks
+    );
     log::info!("arrêt : charge DSP max {:.1} %, {xruns} xrun(s)", max_load * 100.0);
     Ok(())
 }

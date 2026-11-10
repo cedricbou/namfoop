@@ -431,10 +431,9 @@ impl State {
         self.buffers.get(self.buf_cursor).map(|b| b.frames)
     }
 
-    /// Config résultante : `base` dont [audio] et [routing] sont remplacés.
+    /// Config : `base`, [audio] et [routing] remplacés (profil, capture gardés si même carte ; cpu gardé).
     pub fn to_config(&self, base: &Config, rate: u32) -> Config {
         let mut c = base.clone();
-        // profil (choisi par setup::run) et capture séparée : gardés si la carte ne change pas
         let same = |v: &Option<String>| {
             v.clone().filter(|_| base.audio.device == self.device().map(|d| d.id.clone()))
         };
@@ -446,6 +445,7 @@ impl State {
             buffer: self.chosen_buffer(),
             periods: (self.kind() == Kind::Alsa).then_some(self.periods),
             rate: Some(rate),
+            cpu: base.audio.cpu,
         };
         c.routing = Routing {
             bass_in: self.bass_in.unwrap_or(0) + 1,

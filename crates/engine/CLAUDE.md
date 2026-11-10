@@ -17,6 +17,11 @@ une seule fois mlock / cœur dédié (#3), presets (#6), MIDI (#7) et reprise su
 - `raw::start(settings, callback, quiet)` : **réservé aux outils de mesure et de configuration**
   (`setup`, `latency`) ; tout le reste passe par `Engine`. `scripts/check-arch.sh` refuse tout
   `audio_io::start` hors d'`engine` / `audio-io` ;
+- `rt` : réglages temps réel du processus, une fois par `start` / `raw::start` (#3) : `mlockall`
+  seulement si `memlock` est illimité (sinon `MCL_FUTURE` ferait échouer des allocations),
+  avertissement si le gouverneur n'est pas `performance`, `prewarm` (0,25 s de bruit puis 0,5 s
+  de silence au bloc réel) pour la chaîne initiale et chaque `send_chain` / `ChainSender::send` ;
+  `meters::LoadHistogram` (charge de chaque callback, pas de 1 %) -> `load_summary()` ;
 - `router` (`Routing`, `OutputRoute`, `Source` avec `FromStr`, `Router`), `meters` (`Meters`,
   `fetch_max`, `take`).
 
@@ -37,8 +42,11 @@ avec deux chaînes successives, routage refusé), puis
 
 ## Dette connue
 
-- Pics de charge DSP en `run` (15–50 % max contre 3 % de moyenne au bench) : tester `mlockall`,
-  gouverneur CPU `performance`, préchauffage des modèles (#3, à faire ici une seule fois).
+- Pics de charge DSP en `run` (#3). Mesuré sur PC (iTwo, ALSA 48×3, b7k 8 canaux + IR dg212,
+  60 s, gouverneur `powersave`, rtkit FIFO 20, memlock 8 Mio) : médiane 9–10 %, p99 20–29 %,
+  p99,9 32–64 %, 0 à 9 buffers au-delà de 100 % par minute (max 73–237 %), 0 xrun. Épingler le
+  thread (`--cpu`) ne change rien de net ; gouverneur `performance`, memlock illimité et groupe
+  `realtime` restent à mesurer avec l'utilisateur (ils demandent sudo).
 
 ## Carte détaillée (reprise du `CLAUDE.md` racine)
 

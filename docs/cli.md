@@ -49,6 +49,9 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
@@ -130,6 +133,9 @@ Options:
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
 
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
       --level <LEVEL>
           Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
 
@@ -141,22 +147,19 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
+      --target-db <TARGET_DB>
+          Cible du mode normalize (dB)
+
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
 
-      --target-db <TARGET_DB>
-          Cible du mode normalize (dB)
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --no-limiter
           Désactive le limiteur de sortie
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -167,6 +170,9 @@ Options:
           Longueur max de l'IR (ms)
           
           [default: 200]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --master-db <MASTER_DB>
           Volume final (dB)
@@ -244,6 +250,9 @@ Options:
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
 
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
       --level <LEVEL>
           Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
 
@@ -255,22 +264,19 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
+      --target-db <TARGET_DB>
+          Cible du mode normalize (dB)
+
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
 
-      --target-db <TARGET_DB>
-          Cible du mode normalize (dB)
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --no-limiter
           Désactive le limiteur de sortie
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -281,6 +287,9 @@ Options:
           Longueur max de l'IR (ms)
           
           [default: 200]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --master-db <MASTER_DB>
           Volume final (dB)
@@ -357,6 +366,9 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
@@ -423,6 +435,9 @@ Options:
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
@@ -496,27 +511,30 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
       --ir <IR>
           IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
+      --reset
+          Efface toutes les corrections de ce(s) modèle(s)
+
       --client-name <CLIENT_NAME>
           Nom du client JACK
           
           [default: namfoop]
 
-      --reset
-          Efface toutes les corrections de ce(s) modèle(s)
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --library <LIBRARY>
           Dossier de la bibliothèque
           
           [default: library]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
@@ -558,6 +576,9 @@ Options:
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
@@ -620,6 +641,9 @@ Options:
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
@@ -686,11 +710,14 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
-      --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --route <N=SOURCE>
           Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK
@@ -740,6 +767,9 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
 
@@ -785,6 +815,9 @@ Options:
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
@@ -846,6 +879,9 @@ Options:
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]

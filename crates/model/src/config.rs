@@ -51,6 +51,9 @@ pub struct AudioConfig {
     pub periods: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<u32>,
+    /// Cœur dédié au thread audio (ALSA).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu: Option<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

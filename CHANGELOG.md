@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#3)
+- `run` : répartition de la charge DSP par buffer à l'arrêt (médiane, p99, p99,9, buffers au-delà
+  de 50 / 80 / 100 %).
+- Réglages temps réel au démarrage : mémoire verrouillée si la limite le permet, avertissements
+  (mémoire non verrouillée, gouverneur CPU), préchauffage de chaque chaîne au buffer réel, pile du
+  thread audio préchargée ; `--cpu` / `[audio] cpu` épingle le thread audio sur un cœur.
+
 ### Corrigé (#24)
 - `scripts/feature.sh merge` lancé juste après `pr` attend que les checks de la CI apparaissent au
   lieu d'échouer (« no checks reported »).

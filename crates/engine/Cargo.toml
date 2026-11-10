@@ -10,6 +10,8 @@ audio-io = { path = "../audio-io" }
 dsp = { path = "../dsp" }
 model = { path = "../model" }
 rtrb.workspace = true
+libc.workspace = true
+log.workspace = true
 thiserror = "2"
 
 [dev-dependencies]
