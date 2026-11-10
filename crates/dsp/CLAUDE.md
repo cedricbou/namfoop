@@ -69,7 +69,14 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 - Les IR sont normalisées sur leur gain moyen 80 Hz–5 kHz (normaliser l'énergie totale saturait de
   +15 dB dans le grave).
 
+- Effets (#81, `bench --fx`, bloc 64, x86) : `gain` 0,02 µs, `gate` 0,15 µs (0,01 % du budget),
+  `comp` 0,85 µs (0,06 %). Comp : détecteur de crête à relâche fixe de 10 ms, puis réduction lissée
+  en dB (attaque / relâche) ; simulé à -6 dBFS, ratio 4, seuil -20 : 10,4 dB de réduction à 1 kHz
+  pour 10,5 visés, 9,8 dB à 41 Hz (l'enveloppe redescend entre deux crêtes d'un mi grave).
+
 ## Dette connue
+
+- `comp` n'a pas de détecteur RMS (crête seulement) : à ajouter si le besoin se confirme à l'écoute.
 
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
   un lookahead de ~1 ms serait plus propre mais ajoute de la latence.

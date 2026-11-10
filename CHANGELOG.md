@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#81)
+- Effets `gate` (seuil, hystérésis, attaque, maintien, relâche, plage) et `comp` (seuil, ratio,
+  genou doux, attaque, relâche, makeup, mix pour la compression parallèle).
+
 ### Ajouté (#80)
 - Effets en ligne de commande : `--pre` / `--post` (répétables, `nom:param=valeur`) pour `run`
   et `render`, `namfoop fx [nom]` (catalogue et paramètres), `namfoop bench --fx` ; ligne

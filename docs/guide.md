@@ -980,6 +980,38 @@ namfoop bench --fx --block 48
 
 Au chargement, une ligne `chaîne :` rappelle l'ordre réel des étages.
 
+#### `gate` : silence entre les notes
+
+Un modèle saturé amplifie le souffle de la basse et des micros : entre deux notes, ça chuinte.
+Le gate coupe quand le signal passe sous `threshold`, et rouvre dès qu'on rejoue.
+
+- Réglage de départ : `gate:threshold=-50`, puis monter le seuil jusqu'à ce que le souffle
+  disparaisse sans manger les notes jouées doucement.
+- `hysteresis` : il se referme quelques dB sous le seuil d'ouverture (pas de battement sur une note
+  qui s'éteint) ; `hold` le garde ouvert un instant ; `release` long (100–300 ms) préserve les fins
+  de notes ; `range` : de combien il baisse une fois fermé (-80 : silence).
+- Piège : placé **avant** le modèle (`--pre`), il agit sur le DI, propre, et coupe le souffle que le
+  modèle aurait amplifié ; placé après, il doit composer avec la saturation.
+
+```sh
+namfoop run -m b7k -i "dg212 sm57" --pre gate:threshold=-50,release=200
+```
+
+#### `comp` : tenir le niveau
+
+Égalise les notes (slap, attaques au médiator, jeu aux doigts irrégulier). Au-delà de `threshold`,
+le niveau monte `ratio` fois moins vite ; `makeup` remonte ensuite le tout.
+
+- Réglage de départ : `comp:threshold=-24,ratio=4,attack=10,release=100` ; un `attack` plus long
+  (20–30 ms) laisse passer le claquement du slap, un `release` court fait « pomper ».
+- `mix` < 100 : compression parallèle, le son direct garde ses attaques sous le son tassé.
+- Piège : avant le modèle, il change la saturation (les notes fortes saturent moins) ; après, il
+  agit sur le son final, comme sur une console. Détecteur de crête, sans lookahead (aucune latence).
+
+```sh
+namfoop render -m b7k -i "dg212 sm57" --post comp:threshold=-24,ratio=4,makeup=4 -o comp.wav
+```
+
 ---
 
 ## 10. Backends, carte et routage en ligne de commande
