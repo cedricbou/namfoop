@@ -8,7 +8,9 @@
 //! Ajouter un effet : un fichier qui implémente [`Effect`], une variante de [`FxSpec`] et une ligne
 //! dans [`catalog`] (voir `crates/dsp/CLAUDE.md`, « Ajouter un effet »).
 
+pub mod comp;
 pub mod gain;
+pub mod gate;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -75,6 +77,8 @@ pub trait Effect: Clone + Default {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum FxSpec {
     Gain(gain::GainParams),
+    Gate(gate::GateParams),
+    Comp(comp::CompParams),
 }
 
 /// Applique `$body` à l'effet contenu, quel que soit son type.
@@ -82,13 +86,15 @@ macro_rules! with_effect {
     ($spec:expr, $e:ident => $body:expr) => {
         match $spec {
             FxSpec::Gain($e) => $body,
+            FxSpec::Gate($e) => $body,
+            FxSpec::Comp($e) => $body,
         }
     };
 }
 
 /// Un exemplaire par défaut de chaque effet.
 pub fn catalog() -> Vec<FxSpec> {
-    vec![FxSpec::Gain(Default::default())]
+    vec![FxSpec::Gain(Default::default()), FxSpec::Gate(Default::default()), FxSpec::Comp(Default::default())]
 }
 
 fn kind_of<E: Effect>(_: &E) -> &'static str {
@@ -211,8 +217,10 @@ mod tests {
     fn catalog_covers_every_variant() {
         let index = |f: &FxSpec| match f {
             FxSpec::Gain(_) => 0,
+            FxSpec::Gate(_) => 1,
+            FxSpec::Comp(_) => 2,
         };
-        const COUNT: usize = 1;
+        const COUNT: usize = 3;
         let mut seen = [false; COUNT];
         for f in catalog() {
             seen[index(&f)] = true;

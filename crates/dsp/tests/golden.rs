@@ -214,3 +214,20 @@ fn golden_full_chain() {
     check("full", &spec);
     let _ = std::fs::remove_file(ir);
 }
+
+/// Effet seul (sans modèle) sur le signal de référence : `golden/fx-<nom>.toml`.
+fn check_fx(fx: &str) {
+    let spec = AmpSpec { pre: vec![fx.parse().unwrap()], level: Level::Raw, ..Default::default() };
+    let name = format!("fx-{}", fx.split(':').next().unwrap());
+    check(&name, &spec);
+}
+
+#[test]
+fn golden_fx_gate() {
+    check_fx("gate:threshold=-30");
+}
+
+#[test]
+fn golden_fx_comp() {
+    check_fx("comp:threshold=-24,ratio=4");
+}
