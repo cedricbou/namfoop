@@ -113,6 +113,41 @@ fn bench_model(path: &Path, size: Option<f64>, rate: u32, block: usize, seconds:
     })
 }
 
+/// `bench --fx` : chaque effet du catalogue aux défauts, µs par bloc et part du budget.
+pub fn bench_fx(rate: u32, block: usize, seconds: f64) -> Result<()> {
+    engine::rt::flush_denormals();
+    let budget = block as f64 / rate as f64 * 1e6;
+    println!(
+        "Bench des effets : {rate} Hz, bloc {block} (budget {budget:.0} µs), {seconds} s d'audio, 1 cœur\n"
+    );
+    println!("{:>9} {:>9} {:>7}  effet", "moy µs", "max µs", "charge");
+    let mut seed = 0x1234_5678u32;
+    let input: Vec<f32> = (0..block * 64)
+        .map(|_| {
+            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+            ((seed >> 8) as f32 / (1u32 << 24) as f32 - 0.5) * 0.6
+        })
+        .collect();
+    let blocks = ((seconds * rate as f64) / block as f64).ceil() as usize;
+    for fx in dsp::fx::catalog() {
+        let mut st = fx.build(rate, block)?;
+        let mut buf = vec![0.0f32; block];
+        let (mut total, mut worst) = (0.0f64, 0.0f64);
+        for b in 0..blocks {
+            let off = (b % 64) * block;
+            buf.copy_from_slice(&input[off..off + block]);
+            let t = Instant::now();
+            st.process(&mut buf);
+            let dt = t.elapsed().as_secs_f64();
+            total += dt;
+            worst = worst.max(dt);
+        }
+        let mean = total / blocks as f64 * 1e6;
+        println!("{:>9.2} {:>9.1} {:>6.2}%  {}", mean, worst * 1e6, mean / budget * 100.0, fx.kind());
+    }
+    Ok(())
+}
+
 pub fn bench(
     paths: &[PathBuf],
     library: &Path,

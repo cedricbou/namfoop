@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#80)
+- Effets en ligne de commande : `--pre` / `--post` (répétables, `nom:param=valeur`) pour `run`
+  et `render`, `namfoop fx [nom]` (catalogue et paramètres), `namfoop bench --fx` ; ligne
+  `chaîne :` au chargement. Sans effet, le son ne change pas (au bit près).
+
 ### Interne (#79)
 - Socle des effets `dsp::fx` (`FxSpec`, paramètres décrits, catalogue, mini-syntaxe, TOML) avec
   l'effet `gain` et des tests génériques sur tout le catalogue ; ADR 0005 « Effets et chaînes ».

@@ -10,6 +10,8 @@ use dsp::chain::{AmpSpec, Level, LimiterSpec};
 use dsp::ir::IrSettings;
 use dsp::nam::NamSettings;
 
+use dsp::fx::FxSpec;
+
 use crate::config::{LevelMode, LoadedConfig};
 use library::recommend::{needs_ir, recommend, NeedsIr};
 use library::{Kind, Library};
@@ -71,9 +73,22 @@ pub struct AmpArgs {
     /// Volume final (dB)
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub master_db: f32,
+    /// Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,...
+    /// (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
+    #[arg(long = "pre", value_name = "FX", value_parser = parse_fx)]
+    pub pre: Vec<FxSpec>,
+    /// Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans
+    /// l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
+    #[arg(long = "post", value_name = "FX", value_parser = parse_fx)]
+    pub post: Vec<FxSpec>,
     /// Dossier de la bibliothèque (modèles et IR)
     #[arg(long, default_value = "library")]
     pub library: PathBuf,
+}
+
+/// Mini-syntaxe d'un effet pour clap (message d'erreur de `FxSpec`).
+fn parse_fx(s: &str) -> std::result::Result<FxSpec, String> {
+    s.parse::<FxSpec>().map_err(|e| format!("{e} (liste et paramètres : namfoop fx)"))
 }
 
 impl AmpArgs {
@@ -174,6 +189,8 @@ impl AmpArgs {
             },
             ir,
             ir_settings: IrSettings { max_ms: self.ir_ms, ..Default::default() },
+            pre: self.pre.clone(),
+            post: self.post.clone(),
             level,
             master_db: self.master_db,
             limiter: (cfg.limiter && !self.no_limiter)

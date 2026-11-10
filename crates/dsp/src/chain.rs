@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
+use crate::fx::FxSpec;
 use crate::gain::Gain;
 use crate::ir::{IrSettings, IrStage};
 use crate::limiter::Limiter;
@@ -22,6 +23,12 @@ impl Chain {
 
     pub fn push(&mut self, s: impl Stage + 'static) -> &mut Self {
         self.stages.push(Box::new(s));
+        self
+    }
+
+    /// Ajoute un étage déjà en boîte (effets construits par `FxSpec::build`).
+    pub fn push_boxed(&mut self, s: Box<dyn Stage>) -> &mut Self {
+        self.stages.push(s);
         self
     }
 
@@ -80,8 +87,8 @@ impl Default for LimiterSpec {
     }
 }
 
-/// Description d'une chaîne « ampli » : [trim -> NAM] -> IR -> niveau -> master -> limiteur.
-/// C'est le format du proto, avant les presets TOML.
+/// Description d'une chaîne « ampli » : trim -> effets `pre` -> NAM -> IR -> effets `post` -> niveau
+/// -> master -> limiteur. C'est le format du proto, avant les presets TOML.
 #[derive(Clone, Debug, Default)]
 pub struct AmpSpec {
     /// Gain global d'entrée (dB) propre à l'instrument (basse + carte son), avant le modèle.
@@ -91,6 +98,10 @@ pub struct AmpSpec {
     pub nam: NamSettings,
     pub ir: Option<PathBuf>,
     pub ir_settings: IrSettings,
+    /// Effets après le trim, avant le modèle (ils changent ce que le modèle reçoit, donc sa saturation).
+    pub pre: Vec<FxSpec>,
+    /// Effets après l'IR, avant le niveau, le master et le limiteur.
+    pub post: Vec<FxSpec>,
     pub level: Level,
     /// Volume final (dB).
     pub master_db: f32,
@@ -102,12 +113,61 @@ fn rms(x: &[f32]) -> f64 {
 }
 
 impl AmpSpec {
+    /// Ordre des étages, pour les logs : `gain:db=-6 › [NAM b7k › IR dg212] › niveau DI › limiteur`.
+    pub fn describe(&self) -> String {
+        let stem = |p: &PathBuf| {
+            p.file_stem().map_or_else(|| p.display().to_string(), |s| s.to_string_lossy().into())
+        };
+        let mut parts: Vec<String> = self.pre.iter().map(|f| f.to_string()).collect();
+        let core: Vec<String> = [
+            self.model.as_ref().map(|m| format!("NAM {}", stem(m))),
+            self.ir.as_ref().map(|i| format!("IR {}", stem(i))),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        if !core.is_empty() {
+            parts.push(format!("[{}]", core.join(" › ")));
+        }
+        parts.extend(self.post.iter().map(|f| f.to_string()));
+        match self.level {
+            Level::Match { .. } => parts.push("niveau DI".into()),
+            Level::Normalize { target_db } if self.model.is_some() => {
+                parts.push(format!("normalisé {target_db} dB"))
+            }
+            _ => {}
+        }
+        if self.master_db != 0.0 {
+            parts.push(format!("master {:+.1} dB", self.master_db));
+        }
+        if self.limiter.is_some() {
+            parts.push("limiteur".into());
+        }
+        if parts.is_empty() {
+            "direct".into()
+        } else {
+            parts.join(" › ")
+        }
+    }
+
     /// Construit la chaîne (non temps réel : charge les fichiers, alloue).
     pub fn build(&self, sample_rate: u32, max_block: usize) -> Result<Chain> {
         let mut chain = Chain::new();
+        // Sans effet `pre`, le trim est appliqué par l'étage NAM (chaîne d'avant les effets, au bit
+        // près) ; avec des effets `pre`, il devient un étage à part, avant eux.
+        if !self.pre.is_empty() {
+            if self.model.is_some() && self.trim_db != 0.0 {
+                chain.push(Gain::db(self.trim_db, "trim"));
+            }
+            for fx in &self.pre {
+                chain.push_boxed(fx.build(sample_rate, max_block)?);
+            }
+        }
         if let Some(m) = &self.model {
             let mut nam = self.nam.clone();
-            nam.input_db += self.trim_db;
+            if self.pre.is_empty() {
+                nam.input_db += self.trim_db;
+            }
             nam.normalize_to = match self.level {
                 Level::Normalize { target_db } => Some(target_db),
                 Level::Raw | Level::Match { .. } => None,
@@ -149,6 +209,12 @@ impl AmpSpec {
                 st.len as f32 * 1000.0 / sample_rate as f32
             );
             chain.push(st);
+        }
+        for fx in &self.post {
+            chain.push_boxed(fx.build(sample_rate, max_block)?);
+        }
+        if !self.pre.is_empty() || !self.post.is_empty() {
+            log::info!("chaîne : {}", self.describe());
         }
         if let (Level::Match { reference, sample_rate: ref_sr }, false) = (&self.level, chain.is_empty()) {
             let reference: Vec<f32> = if *ref_sr == sample_rate {
