@@ -7,7 +7,8 @@ mince par commande, qui appelle `engine` (audio), `library` (sons), `model` (con
 ```
 crates/namfoop/   binaire CLI
 cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config > défaut),
-                to_audio (model::BackendKind -> audio_io::Kind)
+                to_audio (model::BackendKind -> audio_io::Kind) ; profil de carte (card_profile,
+                detect, settings, base_routing : CLI > config > profil > défaut, ALSA seulement)
 cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)

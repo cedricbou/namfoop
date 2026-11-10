@@ -434,15 +434,15 @@ impl State {
     /// Config résultante : `base` dont [audio] et [routing] sont remplacés.
     pub fn to_config(&self, base: &Config, rate: u32) -> Config {
         let mut c = base.clone();
+        // profil (choisi par setup::run) et capture séparée : gardés si la carte ne change pas
+        let same = |v: &Option<String>| {
+            v.clone().filter(|_| base.audio.device == self.device().map(|d| d.id.clone()))
+        };
         c.audio = AudioConfig {
             backend: Some(self.kind()),
             device: self.device().map(|d| d.id.clone()),
-            // setup ne règle pas de capture séparée : gardée tant que la carte ne change pas
-            capture_device: base
-                .audio
-                .capture_device
-                .clone()
-                .filter(|_| base.audio.device == self.device().map(|d| d.id.clone())),
+            profile: same(&base.audio.profile),
+            capture_device: same(&base.audio.capture_device),
             buffer: self.chosen_buffer(),
             periods: (self.kind() == Kind::Alsa).then_some(self.periods),
             rate: Some(rate),

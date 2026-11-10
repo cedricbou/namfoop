@@ -176,10 +176,12 @@ fn main() -> Result<()> {
         return check_args(&cli);
     }
     let conf = LoadedConfig::load(cli.config.clone(), cli.no_config)?;
-    let audio = cli.audio.resolve(&conf);
+    // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
+    let audio = || cli_audio::settings(&cli.audio, &conf);
     match cli.cmd {
         Cmd::Run { amp, routing, seconds, quiet } => {
-            let routing = routing.apply(&conf.routing);
+            let (audio, profile) = audio()?;
+            let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             live::run(&audio, &conf, &amp, &routing, seconds, quiet)
         }
         Cmd::Render { amp, input, output, block } => {
@@ -192,7 +194,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Cmd::Bench { paths, block, seconds, all_sizes, library } => {
-            offline::bench(&paths, &library, audio.rate, block, seconds, all_sizes)
+            offline::bench(&paths, &library, cli.audio.resolve(&conf).rate, block, seconds, all_sizes)
         }
         Cmd::Import { args } => {
             let imported = import_cmd::run(&args, &conf)?;
@@ -202,14 +204,17 @@ fn main() -> Result<()> {
                     return Ok(());
                 }
                 let start = browse::Start { only: Some(&imported), edit: true, ..Default::default() };
-                browse::run(&audio, &conf, &args.library, &conf.routing, 1.0, start)?;
+                let (audio, profile) = audio()?;
+                let routing = cli_audio::base_routing(&conf, profile.as_ref());
+                browse::run(&audio, &conf, &args.library, &routing, 1.0, start)?;
             }
             Ok(())
         }
         Cmd::Meta { args } => meta_cmd::run(&args, &conf),
         Cmd::Models { library } => models_cmd::list(&library, &conf),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
-            let mut routing = conf.routing.clone();
+            let (audio, profile) = audio()?;
+            let mut routing = cli_audio::base_routing(&conf, profile.as_ref());
             if let Some(c) = channel {
                 routing.bass_in = c;
             }
@@ -220,13 +225,14 @@ fn main() -> Result<()> {
             calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
         }
         Cmd::Browse { library, size, filter, routing } => {
-            let routing = routing.apply(&conf.routing);
+            let (audio, profile) = audio()?;
+            let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             let start = browse::Start { filter: filter.as_deref(), ..Default::default() };
             browse::run(&audio, &conf, &library, &routing, size, start)
         }
-        Cmd::Setup { library } => setup::run(&audio, cli.audio.backend.map(Into::into), &conf, &library),
-        Cmd::Ports => Ok(audio_io::jack::list_ports(&audio.client_name)?),
-        Cmd::Latency { out_ch, in_ch, count } => latency::run(&audio, out_ch, in_ch, count),
+        Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),
+        Cmd::Ports => Ok(audio_io::jack::list_ports(&cli.audio.client_name)?),
+        Cmd::Latency { out_ch, in_ch, count } => latency::run(&audio()?.0, out_ch, in_ch, count),
     }
 }
 

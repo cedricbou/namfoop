@@ -10,7 +10,8 @@ binaire (`crates/namfoop/src/cli_audio.rs`), qui produit un `Settings`. Erreurs 
 (`error.rs`) ; les messages sont ceux que voit l'utilisateur, ne pas les changer au passage.
 
 **Fichiers.** `lib.rs` (traits `Io`, `Processor`, `Stream`, `VecIo`, `Stats`, `Settings`, `start`,
-`start_with`), `alsa.rs` (streams liés, `--capture-device` séparé, sonde `cards` / `probe_channels` / `proc_usb_channels`,
+`start_with`), `alsa.rs` (streams liés, `--capture-device` séparé, `alsa/mixer.rs` : contrôles `Settings.mixer` réglés à
+l'ouverture, avertissement si absents, sonde `cards` / `probe_channels` / `proc_usb_channels`,
 profil PipeWire mis à « off » puis restauré, y compris sur panic), `jack.rs` (relance avec la
 libjack PipeWire si besoin : `pw-jack` n'est jamais nécessaire), `sim.rs` (basse synthétique sur
 l'entrée 1, bruit sur la 2), `rt.rs` (SCHED_FIFO 80, RLIMIT_RTTIME, dénormaux).

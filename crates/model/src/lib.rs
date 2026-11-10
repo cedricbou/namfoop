@@ -2,10 +2,12 @@
 //! écriture TOML, **aucune autre logique** (voir `CLAUDE.md` de la crate). Ne dépend d'aucune
 //! autre crate du projet.
 
+pub mod card;
 pub mod config;
 mod error;
 pub mod routing;
 
+pub use card::{CardProfile, MixerSetting};
 pub use config::{default_path, dir, AudioConfig, BackendKind, Config, LevelMode, LoadedConfig};
 pub use error::{Error, Result};
 pub use routing::{OutputRoute, Routing, Source};

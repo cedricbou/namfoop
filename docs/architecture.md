@@ -39,8 +39,9 @@ Les sept crates existent ; chacune a son `CLAUDE.md` (responsabilité, API, inte
 faits mesurés, tests), cité par la carte du `CLAUDE.md` racine. Toutes les commandes passent par
 `engine` (`Engine`, ou `engine::raw` pour `setup` et `latency`). Aucun fichier `.rs` hors tests ne
 dépasse 1 000 lignes (avertissement au-delà de 600, `scripts/check-docs.sh`). Le son est protégé
-par les rendus de référence (`crates/dsp/tests/golden.rs`). À venir sur cette base : profils de
-carte (#58), puis #3, presets (#6), MIDI (#7), service de scène (#46).
+par les rendus de référence (`crates/dsp/tests/golden.rs`). Les profils de carte (#58) sont des
+données (`profiles/*.toml`, `model::card`) ; `audio-io` ne reçoit qu'une liste de contrôles mixer
+dans `Settings`. À venir sur cette base : #3, presets (#6), MIDI (#7), service de scène (#46).
 
 ## Règles vérifiées
 

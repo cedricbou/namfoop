@@ -3,8 +3,8 @@
 
 use audio_io::{Kind, Settings};
 
-use crate::config::Config as FileConfig;
-use model::BackendKind;
+use crate::config::{Config as FileConfig, LoadedConfig};
+use model::{BackendKind, CardProfile};
 
 /// Backend audio choisi en ligne de commande.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
@@ -72,19 +72,86 @@ pub struct AudioArgs {
 }
 
 impl AudioArgs {
+    /// Réglages sans profil de carte : CLI > config > défaut.
     pub fn resolve(&self, file: &FileConfig) -> Settings {
+        self.resolve_with(file, None)
+    }
+
+    /// CLI > config > profil de carte > défaut. Le profil (device, buffer, périodes, fréquence,
+    /// contrôles mixer) ne s'applique qu'au backend ALSA : JACK a ses propres noms de carte et
+    /// n'accepte que des buffers en puissance de 2.
+    pub fn resolve_with(&self, file: &FileConfig, profile: Option<&CardProfile>) -> Settings {
         let a = &file.audio;
         let d = Settings::default();
+        let backend = self.backend.map(Kind::from).or(a.backend.map(to_audio)).unwrap_or(d.backend);
+        let p = profile.filter(|_| backend == Kind::Alsa);
         Settings {
-            backend: self.backend.map(Kind::from).or(a.backend.map(to_audio)).unwrap_or(d.backend),
-            device: self.device.clone().or_else(|| a.device.clone()),
+            backend,
+            device: self
+                .device
+                .clone()
+                .or_else(|| a.device.clone())
+                .or_else(|| p.and_then(|p| p.device.clone())),
             capture_device: self.capture_device.clone().or_else(|| a.capture_device.clone()),
-            buffer: self.buffer.or(a.buffer).unwrap_or(d.buffer),
-            periods: self.periods.or(a.periods).unwrap_or(d.periods),
-            rate: self.rate.or(a.rate).unwrap_or(d.rate),
+            mixer: p.map_or(Vec::new(), |p| {
+                p.mixer.iter().map(|m| (m.control.clone(), m.value.clone())).collect()
+            }),
+            buffer: self.buffer.or(a.buffer).or(p.and_then(|p| p.buffer)).unwrap_or(d.buffer),
+            periods: self.periods.or(a.periods).or(p.and_then(|p| p.periods)).unwrap_or(d.periods),
+            rate: self.rate.or(a.rate).or(p.and_then(|p| p.rate)).unwrap_or(d.rate),
             client_name: self.client_name.clone(),
         }
     }
+
+    /// Backend retenu (CLI > config > défaut).
+    pub fn backend_kind(&self, file: &FileConfig) -> Kind {
+        self.backend
+            .map(Kind::from)
+            .or(file.audio.backend.map(to_audio))
+            .unwrap_or(Settings::default().backend)
+    }
+}
+
+/// Profil de carte : celui de la config (`[audio] profile`), sinon celui qui reconnaît une carte
+/// ALSA branchée. Aucun avec `--no-config` (réglages reproductibles) ni en carte simulée.
+pub fn card_profile(conf: &LoadedConfig, backend: Kind) -> anyhow::Result<Option<(String, CardProfile)>> {
+    if conf.ignored || backend == Kind::Sim {
+        return Ok(None);
+    }
+    let dir = model::card::user_dir(&conf.path);
+    let all = model::card::all_profiles(Some(&dir))?;
+    if let Some(id) = &conf.audio.profile {
+        return Ok(Some((id.clone(), model::card::find(&all, id, &dir)?)));
+    }
+    Ok(detect(&all, &audio_io::alsa::cards()))
+}
+
+/// Premier profil qui reconnaît une des cartes (identifiant « hw:… », nom).
+pub fn detect(all: &[(String, CardProfile)], cards: &[(String, String)]) -> Option<(String, CardProfile)> {
+    all.iter().find(|(_, p)| cards.iter().any(|(id, name)| p.matches(id) || p.matches(name))).cloned()
+}
+
+/// Réglages audio d'une commande qui ouvre la carte, avec le profil retenu (logué).
+pub fn settings(args: &AudioArgs, conf: &LoadedConfig) -> anyhow::Result<(Settings, Option<CardProfile>)> {
+    let profile = card_profile(conf, args.backend_kind(conf))?;
+    if let Some((id, p)) = &profile {
+        if args.backend_kind(conf) == Kind::Alsa {
+            log::info!("profil de carte « {id} » ({})", p.name);
+        }
+    }
+    let p = profile.map(|(_, p)| p);
+    Ok((args.resolve_with(conf, p.as_ref()), p))
+}
+
+/// Routage de base : celui de la config, ou l'entrée basse du profil si la config n'en dit rien.
+pub fn base_routing(conf: &FileConfig, profile: Option<&CardProfile>) -> model::Routing {
+    let mut r = conf.routing.clone();
+    if r == model::Routing::default() {
+        if let Some(b) = profile.and_then(|p| p.bass_in) {
+            r.bass_in = b;
+        }
+    }
+    r
 }
 
 #[cfg(test)]
@@ -102,5 +169,65 @@ mod tests {
             (d.backend, d.device, d.buffer, d.periods, d.rate, d.client_name)
         );
         assert_eq!((d.backend, d.buffer, d.periods, d.rate), (Kind::Jack, 64, 3, 48000));
+    }
+
+    fn profile() -> CardProfile {
+        CardProfile {
+            name: "Carte".into(),
+            match_name: "Carte".into(),
+            device: Some("hw:Carte".into()),
+            buffer: Some(48),
+            periods: Some(2),
+            bass_in: Some(2),
+            mixer: vec![model::MixerSetting { control: "Capture".into(), value: "80%".into() }],
+            ..Default::default()
+        }
+    }
+
+    /// CLI > config > profil > défaut, et le profil ne vaut que pour ALSA.
+    #[test]
+    fn priority_cli_config_profile_default() {
+        let p = profile();
+        let mut file = FileConfig::default();
+        file.audio.backend = Some(BackendKind::Alsa);
+        let args = AudioArgs { client_name: "namfoop".into(), ..Default::default() };
+        let s = args.resolve_with(&file, Some(&p));
+        assert_eq!((s.device.as_deref(), s.buffer, s.periods, s.rate), (Some("hw:Carte"), 48, 2, 48000));
+        assert_eq!(s.mixer, vec![("Capture".to_string(), "80%".to_string())]);
+        file.audio.buffer = Some(128);
+        assert_eq!(args.resolve_with(&file, Some(&p)).buffer, 128, "la config prime sur le profil");
+        let cli = AudioArgs { buffer: Some(32), ..args.clone() };
+        assert_eq!(cli.resolve_with(&file, Some(&p)).buffer, 32, "la CLI prime sur tout");
+        let jack = AudioArgs { backend: Some(BackendArg::Jack), ..args.clone() };
+        let s = jack.resolve_with(&FileConfig::default(), Some(&p));
+        assert_eq!((s.device, s.buffer, s.mixer.len()), (None, 64, 0), "JACK : profil ignoré");
+    }
+
+    #[test]
+    fn detection_and_bass_input() {
+        let all = vec![("carte".to_string(), profile())];
+        let cards =
+            vec![("hw:MTK".to_string(), "Soundcraft".to_string()), ("hw:Carte".into(), "Ma Carte".into())];
+        assert_eq!(detect(&all, &cards).map(|(id, _)| id).as_deref(), Some("carte"));
+        assert!(detect(&all, &cards[..1]).is_none());
+        let p = profile();
+        assert_eq!(base_routing(&FileConfig::default(), Some(&p)).bass_in, 2);
+        let mut file = FileConfig::default();
+        file.routing.bass_in = 1;
+        file.routing.mic_in = Some(2);
+        assert_eq!(base_routing(&file, Some(&p)).bass_in, 1, "routage de la config gardé");
+    }
+
+    #[test]
+    fn no_profile_without_config_and_unknown_profile_is_explained() {
+        let conf = LoadedConfig::load(None, true).unwrap();
+        assert!(card_profile(&conf, Kind::Alsa).unwrap().is_none(), "--no-config : pas de profil");
+        let d = std::env::temp_dir().join(format!("namfoop-cardprof-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("config.toml"), "[audio]\nprofile = \"hat\"\n").unwrap();
+        let conf = LoadedConfig::load(Some(d.join("config.toml")), false).unwrap();
+        let err = card_profile(&conf, Kind::Alsa).unwrap_err().to_string();
+        assert!(err.contains("profil de carte inconnu « hat »") && err.contains("itwo"), "{err}");
+        let _ = std::fs::remove_dir_all(d);
     }
 }

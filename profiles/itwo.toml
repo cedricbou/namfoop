@@ -1,0 +1,9 @@
+# Profil de carte livré avec namfoop (valeurs mesurées, voir crates/audio-io/CLAUDE.md).
+# Copier dans ~/.config/namfoop/profiles/ pour le modifier : le profil de l'utilisateur prime.
+name = "PreSonus AudioBox iTwo"
+match = "iTwo"            # nom ALSA de la carte (/proc/asound/<id>)
+device = "hw:iTwo"
+buffer = 48               # ALSA direct, 3 périodes : 5,2 ms aller-retour, sans xrun
+periods = 3
+bass_in = 1
+measured_latency_ms = 5.2
