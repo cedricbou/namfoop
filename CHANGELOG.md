@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#48)
+- Rendus de référence du son (`crates/dsp/tests/golden.rs`) : filet de non-régression avant le
+  découpage en crates.
+
 ### Ajouté (#42)
 - `browse`, onglet Modèles : panneau Spectre (courbe du modèle avec son IR, référence, écarts par
   zone, grain comparé) et **A/B entre modèles** (`c` épingle, `r` bascule ; le modèle B garde
