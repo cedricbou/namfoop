@@ -1,4 +1,5 @@
-//! Réglages du thread temps réel : priorité SCHED_FIFO et flush-to-zero des dénormaux.
+//! Réglages du thread temps réel : priorité SCHED_FIFO, flush-to-zero des dénormaux, cœur
+//! dédié et pile préchargée (#3).
 
 /// Active FTZ/DAZ : les dénormaux font exploser le coût CPU des filtres IIR / réverbes.
 pub fn disable_denormals() {
@@ -55,4 +56,37 @@ fn via_rtkit(priority: i32) -> Option<i32> {
         .map(|o| o.status.success())
         .unwrap_or(false);
     ok.then_some(priority)
+}
+
+/// Épingle le thread courant sur le cœur `cpu` (prépare `isolcpus` sur le Pi). À appeler au
+/// démarrage du thread audio, avant le régime établi.
+pub fn pin_current_thread(cpu: usize) -> bool {
+    unsafe {
+        let mut set: libc::cpu_set_t = std::mem::zeroed();
+        libc::CPU_SET(cpu, &mut set);
+        libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set) == 0
+    }
+}
+
+/// Touche 256 Kio de pile : les pages sont présentes avant le premier callback (pas de défaut
+/// de page en jouant ; verrouillées si `mlockall` est actif).
+#[inline(never)]
+pub fn prefault_stack() {
+    let mut buf = [0u8; 256 * 1024];
+    for i in (0..buf.len()).step_by(4096) {
+        buf[i] = 1;
+    }
+    std::hint::black_box(&buf);
+}
+
+/// Réglages communs au démarrage d'un thread audio que namfoop crée lui-même (ALSA, sim).
+pub fn setup_audio_thread(cpu: Option<usize>) {
+    if let Some(c) = cpu {
+        if pin_current_thread(c) {
+            log::info!("thread audio épinglé sur le cœur {c}");
+        } else {
+            log::warn!("impossible d'épingler le thread audio sur le cœur {c}");
+        }
+    }
+    prefault_stack();
 }

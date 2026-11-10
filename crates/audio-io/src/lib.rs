@@ -99,6 +99,8 @@ pub struct Settings {
     /// Contrôles mixer ALSA (nom, valeur) réglés à l'ouverture (ALSA seulement), ex.
     /// (« Capture », « 80% ») : voir `alsa::mixer::parse_value`.
     pub mixer: Vec<(String, String)>,
+    /// Cœur sur lequel épingler le thread audio (ALSA, sim ; avec JACK c'est le serveur qui décide).
+    pub cpu: Option<usize>,
     pub buffer: u32,
     pub periods: u32,
     pub rate: u32,
@@ -113,6 +115,7 @@ impl Default for Settings {
             device: None,
             capture_device: None,
             mixer: Vec::new(),
+            cpu: None,
             buffer: 64,
             periods: 3,
             rate: 48000,
@@ -147,6 +150,9 @@ pub trait Stream {
 pub fn start_with(cfg: &Settings, processor: impl Processor, quiet: bool) -> Result<Box<dyn Stream>> {
     if cfg.capture_device.is_some() && cfg.backend != Kind::Alsa {
         log::warn!("device de capture séparé ignoré : ALSA seulement");
+    }
+    if cfg.cpu.is_some() && cfg.backend == Kind::Jack {
+        log::warn!("--cpu ignoré avec JACK : le thread audio appartient au serveur");
     }
     if !cfg.mixer.is_empty() && cfg.backend != Kind::Alsa {
         log::warn!("contrôles mixer du profil ignorés : ALSA seulement (régler la carte avec alsamixer)");

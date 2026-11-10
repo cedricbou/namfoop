@@ -6,6 +6,7 @@ mod error;
 pub mod meters;
 pub mod raw;
 pub mod router;
+pub mod rt;
 
 #[cfg(all(test, debug_assertions))]
 #[global_allocator]
@@ -89,6 +90,7 @@ impl Callback {
         // part du temps disponible (durée du buffer) passée dans le DSP
         let load = t0.elapsed().as_secs_f32() / (io.frames().max(1) as f32 * self.frame_secs);
         fetch_max(&m.load, load);
+        m.load_hist.record(load);
     }
 }
 
@@ -125,22 +127,32 @@ fn callback(
 }
 
 /// Envoi de chaînes depuis un autre thread (thread de construction de `browse`).
-pub struct ChainSender(SwapHandle);
+pub struct ChainSender {
+    handle: SwapHandle,
+    /// Bloc et fréquence réels de la carte, pour le préchauffage.
+    block: usize,
+    rate: u32,
+}
 
 impl ChainSender {
-    /// Change de chaîne par fondu ; rend la chaîne si une autre attend encore d'être prise.
-    pub fn send(&mut self, chain: dsp::Chain) -> std::result::Result<(), dsp::Chain> {
-        self.0.send(chain)
+    /// Préchauffe la chaîne puis la fait entrer par fondu ; la rend, sans l'avoir préchauffée, si
+    /// une autre attend encore d'être prise.
+    pub fn send(&mut self, mut chain: dsp::Chain) -> std::result::Result<(), dsp::Chain> {
+        if !self.handle.idle() {
+            return Err(chain);
+        }
+        rt::prewarm(&mut chain, self.block, self.rate);
+        self.handle.send(chain)
     }
 
     /// Libère (hors temps réel) les chaînes retirées par le thread audio.
     pub fn collect(&mut self) -> usize {
-        self.0.collect()
+        self.handle.collect()
     }
 
     /// Plus aucune chaîne en attente côté audio.
     pub fn idle(&self) -> bool {
-        self.0.idle()
+        self.handle.idle()
     }
 }
 
@@ -158,14 +170,17 @@ impl Engine {
     /// (préparée pour `cfg.audio.rate` et `cfg.max_block`). La fréquence réelle de la carte
     /// ([`Engine::sample_rate`]) est à vérifier par l'appelant : avec JACK, c'est le serveur qui
     /// décide, et une chaîne vide (calibration) s'en accommode.
-    pub fn start(cfg: EngineConfig, initial: dsp::Chain) -> Result<Engine> {
+    pub fn start(cfg: EngineConfig, mut initial: dsp::Chain) -> Result<Engine> {
+        rt::prepare_process(cfg.audio.cpu);
+        rt::prewarm(&mut initial, cfg.audio.buffer as usize, cfg.audio.rate);
         let meters = Arc::new(Meters { limiter: cfg.limiter_meter.clone(), ..Default::default() });
         let (cb, handle, tap) = callback(&cfg, initial, meters.clone())?;
         let check = Router::new(&cfg.routing, cfg.max_block)?; // validé une fois la carte ouverte
         let description = check.describe();
         let stream = audio_io::start_with(&cfg.audio, cb, cfg.quiet)?;
         check.validate(stream.n_in(), stream.n_out())?;
-        Ok(Engine { stream, sender: Some(ChainSender(handle)), meters, description, tap })
+        let sender = ChainSender { handle, block: stream.buffer_size() as usize, rate: stream.sample_rate() };
+        Ok(Engine { stream, sender: Some(sender), meters, description, tap })
     }
 
     /// Change de chaîne par fondu ; rend la chaîne si une autre attend encore d'être prise (ou
@@ -201,6 +216,16 @@ impl Engine {
     /// Lit les mesures et remet les crêtes à zéro.
     pub fn meters(&self) -> MetersSnapshot {
         self.meters.take()
+    }
+
+    /// Répartition de la charge des callbacks depuis le dernier `clear_load_history`.
+    pub fn load_summary(&self) -> meters::LoadSummary {
+        self.meters.load_hist.summary()
+    }
+
+    /// Oublie la charge mesurée jusqu'ici (callbacks à froid du démarrage).
+    pub fn clear_load_history(&self) {
+        self.meters.load_hist.clear();
     }
 
     pub fn xruns(&self) -> u64 {

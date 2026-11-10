@@ -75,8 +75,10 @@ impl SimStream {
         let running = Arc::new(AtomicBool::new(true));
         let stats = Arc::new(Stats::default());
         let (r, s) = (running.clone(), stats.clone());
+        let cpu = cfg.cpu;
         let thread = std::thread::Builder::new().name("namfoop-sim".into()).spawn(move || {
             rt::disable_denormals();
+            rt::setup_audio_thread(cpu);
             let n = period as usize;
             let mut ins = vec![vec![0f32; n]; n_in];
             let mut outs = vec![vec![0f32; n]; n_out];

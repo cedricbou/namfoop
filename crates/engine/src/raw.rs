@@ -11,5 +11,6 @@ pub type RawSession = Box<dyn Stream>;
 
 /// Ouvre la carte avec un callback sur mesure. `quiet` : pas de log d'info (écrans plein écran).
 pub fn start(settings: &Settings, processor: impl Processor, quiet: bool) -> Result<RawSession> {
+    crate::rt::prepare_process(settings.cpu);
     Ok(audio_io::start_with(settings, processor, quiet)?)
 }

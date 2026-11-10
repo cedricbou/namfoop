@@ -63,6 +63,10 @@ pub struct AudioArgs {
     /// Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
     #[arg(long, global = true)]
     pub periods: Option<u32>,
+    /// Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi
+    /// [défaut : config, sinon aucun]
+    #[arg(long, global = true)]
+    pub cpu: Option<usize>,
     /// Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
     #[arg(long, global = true)]
     pub rate: Option<u32>,
@@ -99,6 +103,7 @@ impl AudioArgs {
             buffer: self.buffer.or(a.buffer).or(p.and_then(|p| p.buffer)).unwrap_or(d.buffer),
             periods: self.periods.or(a.periods).or(p.and_then(|p| p.periods)).unwrap_or(d.periods),
             rate: self.rate.or(a.rate).or(p.and_then(|p| p.rate)).unwrap_or(d.rate),
+            cpu: self.cpu.or(a.cpu),
             client_name: self.client_name.clone(),
         }
     }

@@ -138,8 +138,34 @@ pour les voir).
 
 ### Temps réel
 
-Le backend ALSA demande la priorité temps réel (SCHED_FIFO) à rtkit, sans configuration. Pour une
-priorité plus élevée : installer `realtime-privileges` et s'ajouter au groupe `realtime`.
+Sur scène, un seul buffer en retard s'entend. Quatre réglages du système comptent ; namfoop
+les vérifie au démarrage et avertit (il ne modifie jamais le système lui-même) :
+
+- **Priorité** : le thread audio ALSA passe en SCHED_FIFO 80 si tu en as le droit, sinon il la
+  demande à rtkit, qui plafonne à 20 et coupe un thread qui tourne plus de 200 ms d'affilée. La
+  voie normale : installer `realtime-privileges` et s'ajouter au groupe `realtime` (ou `audio`
+  selon la distribution), puis se reconnecter. Sur le Pi : `LimitRTPRIO` dans le service systemd.
+- **Mémoire verrouillée** : avec une limite `memlock` illimitée, namfoop verrouille sa mémoire
+  (`mlockall`) : plus de défaut de page en jouant. Le groupe `realtime` l'accorde ; sinon, une
+  ligne `@realtime - memlock unlimited` dans `/etc/security/limits.d/`. Avec une limite finie,
+  rien n'est verrouillé (« mémoire non verrouillée »).
+- **Gouverneur du processeur** : en `powersave` (défaut de beaucoup de distributions), la
+  fréquence redescend entre deux buffers et la charge fait des pics. Pour jouer :
+
+  ```sh
+  sudo cpupower frequency-set -g performance   # jusqu'au prochain redémarrage
+  ```
+
+- **Cœur dédié** : `--cpu N` (ou `[audio] cpu = N`) épingle le thread audio sur un cœur (ALSA,
+  carte simulée ; avec JACK, le thread appartient au serveur). Utile surtout avec `isolcpus` sur
+  le Pi, qui réserve ce cœur à namfoop.
+
+```sh
+namfoop --cpu 3 run -m b7k
+```
+
+Chaque chaîne est aussi préchauffée avant d'entrer en jeu (bruit puis silence, au buffer réel),
+pour que le premier passage du modèle et de l'IR ne tombe pas sur le thread audio.
 
 ---
 
@@ -815,7 +841,10 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 
 Au démarrage, une ligne `routage :` rappelle l'entrée de la basse et le rôle de chaque sortie, et
 une ligne `calibration :` la crête attendue sur `in`. À l'arrêt, un résumé donne la charge DSP
-maximale, les xruns et les éventuels écrêtages.
+maximale, les xruns et les éventuels écrêtages, et la répartition de la charge par buffer :
+médiane, p99 (1 buffer sur 100 au-dessus), p99,9, et le nombre de buffers au-delà de 50 %, 80 %
+et 100 % du temps disponible. Au-delà de 100 %, le buffer a pris du retard : la marge des
+périodes ALSA l'absorbe, jusqu'au xrun.
 
 ### Lire les vumètres
 

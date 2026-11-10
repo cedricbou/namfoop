@@ -221,6 +221,7 @@ impl AlsaStream {
 
         let (r, s) = (running.clone(), stats.clone());
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
+        let cpu = cfg.cpu;
         let thread = std::thread::Builder::new()
             .name("namfoop-audio".into())
             .spawn(move || {
@@ -231,6 +232,7 @@ impl AlsaStream {
                     ),
                 }
                 rt::disable_denormals();
+                rt::setup_audio_thread(cpu);
                 audio_loop(pcms, &mut processor, &r, &s, ready_tx);
             })?;
         ready_rx.recv().context("thread audio mort au démarrage")??;
