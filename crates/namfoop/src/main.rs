@@ -4,6 +4,7 @@ mod calibrate;
 mod cli_audio;
 mod cli_routing;
 mod config;
+mod fx_cmd;
 mod import_cmd;
 mod latency;
 mod live;
@@ -98,6 +99,9 @@ enum Cmd {
         /// Mesure chaque taille des modèles slimmable
         #[arg(long)]
         all_sizes: bool,
+        /// Mesure les effets du catalogue (aux réglages par défaut) au lieu des modèles
+        #[arg(long)]
+        fx: bool,
         /// Dossier de la bibliothèque
         #[arg(long, default_value = "library")]
         library: PathBuf,
@@ -111,6 +115,11 @@ enum Cmd {
     Meta {
         #[command(flatten)]
         args: meta_cmd::MetaArgs,
+    },
+    /// Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
+    Fx {
+        /// Nom d'un effet (ex: gain) : ses paramètres, unités, plages, défauts
+        name: Option<String>,
     },
     /// Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
     Models {
@@ -193,8 +202,13 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Bench { paths, block, seconds, all_sizes, library } => {
-            offline::bench(&paths, &library, cli.audio.resolve(&conf).rate, block, seconds, all_sizes)
+        Cmd::Bench { paths, block, seconds, all_sizes, fx, library } => {
+            let rate = cli.audio.resolve(&conf).rate;
+            if fx {
+                offline::bench_fx(rate, block, seconds)
+            } else {
+                offline::bench(&paths, &library, rate, block, seconds, all_sizes)
+            }
         }
         Cmd::Import { args } => {
             let imported = import_cmd::run(&args, &conf)?;
@@ -212,6 +226,7 @@ fn main() -> Result<()> {
         }
         Cmd::Meta { args } => meta_cmd::run(&args, &conf),
         Cmd::Models { library } => models_cmd::list(&library, &conf),
+        Cmd::Fx { name } => fx_cmd::run(name.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let (audio, profile) = audio()?;
             let mut routing = cli_audio::base_routing(&conf, profile.as_ref());
@@ -261,6 +276,33 @@ fn check_args(cli: &Cli) -> Result<()> {
 mod tests {
     use super::*;
     use clap::CommandFactory;
+
+    /// Erreurs de syntaxe des effets : chacune dit quoi corriger.
+    #[test]
+    fn fx_syntax_errors_help() {
+        let err = |fx: &str| match Cli::try_parse_from(["namfoop", "render", "--post", fx]) {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("{fx} accepté"),
+        };
+        assert!(err("fuzz").contains("effet « fuzz » inconnu (gain"), "{}", err("fuzz"));
+        assert!(err("gain:vol=3").contains("paramètre « vol » inconnu (db)"));
+        assert!(err("gain:db=99").contains("hors plage (-60 … 24 dB)"));
+        assert!(err("gain:db=99").contains("namfoop fx"));
+        let ok = Cli::try_parse_from([
+            "namfoop",
+            "render",
+            "--pre",
+            "gain:db=-6",
+            "--post",
+            "gain",
+            "--post",
+            "gain:db=3",
+        ])
+        .unwrap();
+        let Cmd::Render { amp, .. } = ok.cmd else { panic!() };
+        assert_eq!(amp.pre.len(), 1);
+        assert_eq!(amp.post.iter().map(|f| f.to_string()).collect::<Vec<_>>(), ["gain", "gain:db=3"]);
+    }
 
     fn walk(cmd: &clap::Command, path: &str, missing: &mut Vec<String>) {
         for a in cmd.get_arguments() {

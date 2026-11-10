@@ -951,6 +951,35 @@ est normalisé sur 80 Hz – 5 kHz.
 Actif par défaut à -1 dBFS, sans latence ajoutée : il empêche l'écrêtage numérique dur quand un
 modèle sort trop fort. `--no-limiter` le désactive (la ligne d'état signale alors `[CLIP SORTIE]`).
 
+### Effets : `--pre`, `--post`, `namfoop fx`
+
+Des effets peuvent entourer le modèle, pour les écouter et les régler avant les presets :
+
+```
+trim › effets --pre › modèle NAM › IR › effets --post › niveau › master › limiteur
+```
+
+- `--pre FX` : avant le modèle (après le trim). Le modèle reçoit le son déjà traité : un gain, un
+  compresseur ou un EQ placé ici **change sa saturation**, comme une pédale devant un ampli.
+- `--post FX` : après le modèle et l'IR, sur le son final (avant le niveau, le master et le
+  limiteur) : réglages de couleur et de volume sans toucher au grain.
+- Les deux options se répètent ; les effets sont joués dans l'ordre donné.
+- Syntaxe : `nom:param=valeur,param=valeur` (ex. `gain:db=-6`) ; un paramètre absent prend sa
+  valeur par défaut, une valeur hors plage est refusée avec la plage permise.
+- `namfoop fx` liste les effets ; `namfoop fx <nom>` donne leurs paramètres (unité, plage, défaut,
+  aide). `namfoop bench --fx` mesure le coût de chaque effet.
+- En niveau « match », l'alignement sur le DI se calcule avec les effets : un `--post` qui baisse le
+  volume est compensé. Pour baisser vraiment, utiliser `--master-db`.
+
+```sh
+namfoop fx gain
+namfoop render -m b7k -i "dg212 sm57" --pre gain:db=3 -o plus-sature.wav
+namfoop run -m b7k -i "dg212 sm57" --post gain:db=-6
+namfoop bench --fx --block 48
+```
+
+Au chargement, une ligne `chaîne :` rappelle l'ordre réel des étages.
+
 ---
 
 ## 10. Backends, carte et routage en ligne de commande

@@ -20,6 +20,7 @@ Commands:
   bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
   import     Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
   meta       Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
+  fx         Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
   models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
   browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
@@ -179,6 +180,12 @@ Options:
           
           [default: 0]
 
+      --pre <FX>
+          Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
+
+      --post <FX>
+          Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
+
       --library <LIBRARY>
           Dossier de la bibliothèque (modèles et IR)
           
@@ -296,6 +303,12 @@ Options:
           
           [default: 0]
 
+      --pre <FX>
+          Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
+
+      --post <FX>
+          Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
+
       --library <LIBRARY>
           Dossier de la bibliothèque (modèles et IR)
           
@@ -357,6 +370,9 @@ Options:
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --fx
+          Mesure les effets du catalogue (aux réglages par défaut) au lieu des modèles
 
       --library <LIBRARY>
           Dossier de la bibliothèque
@@ -532,6 +548,59 @@ Options:
           Dossier de la bibliothèque
           
           [default: library]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop fx
+
+```text
+Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
+
+Usage: namfoop fx [OPTIONS] [NAME]
+
+Arguments:
+  [NAME]
+          Nom d'un effet (ex: gain) : ses paramètres, unités, plages, défauts
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon jack]
+
+          Possible values:
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --device <DEVICE>
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]

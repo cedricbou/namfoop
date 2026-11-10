@@ -33,7 +33,8 @@ cargo build --release                         # prérequis : rustup, gcc, alsa-l
 Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : `namfoop meta`
 (corriger les métadonnées d'un modèle : type de capture, gain d'entrée, IR préférée), `namfoop render`
 (traiter un WAV), `namfoop bench` (coût CPU), `namfoop latency` (mesure aller-retour),
-`namfoop ports` (ports JACK). Sans matériel : `namfoop --backend sim run -m b7k`.
+`namfoop ports` (ports JACK), `namfoop fx` (effets à placer avant ou après le modèle avec `--pre` /
+`--post`). Sans matériel : `namfoop --backend sim run -m b7k`.
 
 ## Documentation
 

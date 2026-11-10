@@ -4,7 +4,9 @@
 chaîne, changement de chaîne à chaud, analyses hors ligne.
 
 **Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `chain.rs`
-(`AmpSpec` : trim -> NAM -> IR -> niveau -> master -> limiteur ; `Level` raw / normalize / match),
+(`AmpSpec` : trim -> `pre` -> NAM -> IR -> `post` -> niveau -> master -> limiteur ; `Level` raw /
+normalize / match, mesuré avec les effets ; sans `pre`, le trim reste dans l'étage NAM, au bit près ;
+`describe()` pour le log `chaîne :`),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
 `from_transfer`, distorsion harmonique), `fx/` (effets : `FxSpec`, catalogue, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`

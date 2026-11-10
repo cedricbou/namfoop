@@ -27,6 +27,8 @@ latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::ra
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage)
 meta_cmd.rs     `meta` : options clap, affichage d'un modèle
 models_cmd.rs   `models` : inventaire affiché
+fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx) ; `--pre` / `--post` dans amp.rs,
+                `bench --fx` dans offline.rs
 amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
 config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
 calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le niveau « match »

@@ -133,3 +133,46 @@ fn fx_catalog_is_independent_of_block_size() {
         }
     }
 }
+
+fn fx(s: &str) -> dsp::fx::FxSpec {
+    s.parse().unwrap()
+}
+
+/// `pre` sans modèle : appliqué directement au DI.
+#[test]
+fn pre_effect_without_model() {
+    let input = signal(4800);
+    let out = render(&AmpSpec { pre: vec![fx("gain:db=-6")], ..Default::default() }, 64, &input);
+    let g = dsp::db_to_gain(-6.0);
+    assert!(input.iter().zip(&out).all(|(i, o)| (i * g - o).abs() < 1e-7));
+}
+
+/// Avec des effets `pre`, le trim devient un étage à part avant eux : même son que le trim appliqué
+/// par l'étage NAM (un `pre` neutre ne change rien).
+#[test]
+fn trim_before_pre_effects_sounds_the_same() {
+    let base = AmpSpec { model: Some(example("wavenet.nam")), trim_db: -6.0, ..Default::default() };
+    let with_pre = AmpSpec { pre: vec![fx("gain")], ..base.clone() };
+    let input = signal(24000);
+    let (a, b) = (render(&base, 64, &input), render(&with_pre, 64, &input));
+    let err = a.iter().zip(&b).map(|(x, y)| (x - y).abs()).fold(0.0f32, f32::max);
+    assert!(err < 1e-5, "écart {err}");
+}
+
+/// Le niveau « match » se mesure sur la chaîne avec ses effets : un `post` à -6 dB est compensé.
+#[test]
+fn level_match_includes_effects() {
+    use dsp::chain::Level;
+    use std::sync::Arc;
+    let reference = signal(48000);
+    let spec = AmpSpec {
+        model: Some(example("wavenet.nam")),
+        post: vec![fx("gain:db=-6")],
+        level: Level::Match { reference: Arc::new(reference.clone()), sample_rate: 48000 },
+        ..Default::default()
+    };
+    let out = render(&spec, 64, &reference);
+    let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
+    assert!(diff.abs() < 0.5, "écart de niveau {diff:.2} dB");
+    assert_eq!(spec.describe(), "[NAM wavenet] › gain:db=-6 › niveau DI");
+}

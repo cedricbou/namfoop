@@ -217,6 +217,8 @@ fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
         size,
         ir_ms: 200.0,
         master_db: 0.0,
+        pre: Vec::new(),
+        post: Vec::new(),
         library: library.to_path_buf(),
     }
 }
