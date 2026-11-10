@@ -1,0 +1,13 @@
+# namfoop — réglages de l'instrument (écrit par `namfoop calibrate`, modifiable à la main)
+# level : "match" (volume = basse en direct), "normalize" (target_db), "raw"
+# [audio] et [routing] : carte et affectation des entrées / sorties (`namfoop setup`)
+trim_db = 0.0
+level = "normalize"
+target_db = -18.0
+limiter = true
+calibration_wav = "calibration.wav"
+
+[audio]
+
+[routing]
+bass_in = 1

@@ -14,6 +14,27 @@ use crate::config::{LevelMode, LoadedConfig};
 use crate::library::{Kind, Library};
 use crate::recommend::{needs_ir, recommend, NeedsIr};
 
+/// Mode de volume choisi en ligne de commande (`model::LevelMode` dans la config).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum LevelArg {
+    /// Volume traité aligné sur le volume de la basse en direct (nécessite `calibrate`)
+    Match,
+    /// Loudness du modèle ramenée à `target_db` (convention NAM)
+    Normalize,
+    /// Sortie brute du modèle
+    Raw,
+}
+
+impl From<LevelArg> for LevelMode {
+    fn from(l: LevelArg) -> Self {
+        match l {
+            LevelArg::Match => LevelMode::Match,
+            LevelArg::Normalize => LevelMode::Normalize,
+            LevelArg::Raw => LevelMode::Raw,
+        }
+    }
+}
+
 #[derive(Clone, Debug, clap::Args)]
 pub struct AmpArgs {
     /// Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
@@ -34,7 +55,7 @@ pub struct AmpArgs {
     pub trim: Option<f32>,
     /// Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
     #[arg(long, value_enum)]
-    pub level: Option<LevelMode>,
+    pub level: Option<LevelArg>,
     /// Cible du mode normalize (dB)
     #[arg(long, allow_hyphen_values = true)]
     pub target_db: Option<f64>,
@@ -120,7 +141,7 @@ impl AmpArgs {
             }
         }
         let target_db = self.target_db.unwrap_or(cfg.target_db);
-        let level = match self.level.unwrap_or(cfg.level) {
+        let level = match self.level.map(LevelMode::from).unwrap_or(cfg.level) {
             LevelMode::Raw => Level::Raw,
             LevelMode::Normalize => Level::Normalize { target_db },
             LevelMode::Match => {

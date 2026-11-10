@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#54)
+- Nouvelle crate `model` : types de la config (`config.toml`) et du routage, lecture / écriture
+  TOML. Format du fichier inchangé (test de relecture à l'octet près).
+
 ### Interne (#53)
 - `browse`, `calibrate`, `setup` et `latency` passent par `engine` (tap d'entrée pour
   `calibrate`, porte `engine::raw` pour les outils de mesure) ; seule `engine` ouvre la carte.
