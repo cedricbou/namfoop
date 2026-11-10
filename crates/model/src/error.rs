@@ -22,6 +22,8 @@ pub enum Error {
         #[source]
         source: std::io::Error,
     },
+    #[error("profil de carte inconnu « {id} » (connus : {known} ; les tiens dans {})", dir.display())]
+    UnknownProfile { id: String, known: String, dir: PathBuf },
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

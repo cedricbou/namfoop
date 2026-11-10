@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#58)
+- Profils de carte (`profiles/itwo.toml`, `~/.config/namfoop/profiles/`) : device, buffer,
+  périodes, entrée basse et contrôles mixer `[[mixer]]` réglés à l'ouverture (ALSA). Reconnus
+  d'après la carte ou choisis par `[audio] profile` ; priorité CLI > config > profil > défaut.
+  `setup` reprend le profil reconnu ou en écrit un nouveau.
+
 ### Interne (#57)
 - Un `CLAUDE.md` par crate, `CLAUDE.md` racine allégé (carte, commandes, cycle) ; `check-docs.sh`
   vérifie un `CLAUDE.md` par crate et la taille des fichiers (> 1 000 lignes refusé) ; champ

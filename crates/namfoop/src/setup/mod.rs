@@ -104,10 +104,13 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
     drop(session);
 
     if result? {
-        let new = st.to_config(&conf.config, base.rate);
+        let mut new = st.to_config(&conf.config, base.rate);
         if conf.ignored {
             println!("--no-config : configuration non enregistrée.");
         } else {
+            if let (Kind::Alsa, Some(dev)) = (st.kind(), st.device()) {
+                new.audio.profile = Some(card_profile_for(conf, &st, dev)?);
+            }
             new.save(&conf.path)?;
             println!("Enregistré : {}", conf.path.display());
         }
@@ -123,4 +126,32 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
 struct ConfigView<'a> {
     audio: &'a crate::config::AudioConfig,
     routing: &'a engine::router::Routing,
+}
+
+/// Profil de la carte choisie : un profil connu qui la reconnaît, sinon un nouveau écrit dans
+/// `profiles/` (à côté de la config) avec les choix de l'assistant. Renvoie son identifiant.
+fn card_profile_for(conf: &LoadedConfig, st: &State, dev: &state::DeviceInfo) -> Result<String> {
+    let dir = model::card::user_dir(&conf.path);
+    let all = model::card::all_profiles(Some(&dir))?;
+    let card = dev.id.strip_prefix("hw:").unwrap_or(&dev.id).split(',').next().unwrap_or("").to_string();
+    if let Some((id, p)) = crate::cli_audio::detect(&all, &[(dev.id.clone(), dev.label.clone())]) {
+        println!("Profil de carte reconnu : {id} ({})", p.name);
+        return Ok(id);
+    }
+    let id: String =
+        card.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+    let id = if id.is_empty() { "carte".to_string() } else { id };
+    let p = model::CardProfile {
+        name: dev.label.clone(),
+        match_name: card,
+        device: Some(dev.id.clone()),
+        buffer: st.chosen_buffer(),
+        periods: Some(st.periods),
+        bass_in: st.bass_in.map(|b| b + 1),
+        ..Default::default()
+    };
+    let path = dir.join(format!("{id}.toml"));
+    p.save(&path)?;
+    println!("Nouveau profil de carte : {} (à compléter : latence mesurée, [[mixer]])", path.display());
+    Ok(id)
 }

@@ -37,6 +37,9 @@ pub enum BackendKind {
 pub struct AudioConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub backend: Option<BackendKind>,
+    /// Profil de carte (`profiles/<id>.toml`) ; absent : reconnu d'après les cartes branchées.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
     /// Device ALSA de capture s'il diffère de `device`.

@@ -3,6 +3,7 @@
 //! Si PipeWire tient la carte, son profil est passé à « off » le temps de la session.
 
 pub mod format;
+pub mod mixer;
 
 use crate::error::{bail, Context, Error, Result};
 use alsa::pcm::{Access, HwParams, State, PCM};
@@ -189,6 +190,10 @@ impl AlsaStream {
     pub fn start(cfg: &Settings, mut processor: impl Processor) -> Result<Self> {
         let device = cfg.device.clone().unwrap_or_else(|| DEFAULT_DEVICE.into());
         let capture_device = cfg.capture_device.clone().unwrap_or_else(|| device.clone());
+        mixer::apply(&device, &cfg.mixer);
+        if capture_device != device {
+            mixer::apply(&capture_device, &cfg.mixer);
+        }
         let mut pw = Vec::new();
         let pcms = match open(&device, &capture_device, cfg) {
             Ok(p) => p,

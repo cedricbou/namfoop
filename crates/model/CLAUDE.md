@@ -3,7 +3,9 @@
 **Responsabilité.** Les types que plusieurs crates lisent : config de l'instrument
 (`config.rs` : `Config`, `AudioConfig`, `BackendKind`, `LevelMode`, `LoadedConfig`, chemin par
 défaut `~/.config/namfoop/config.toml` ou `$XDG_CONFIG_HOME`), routage (`routing.rs` : `Routing`,
-`OutputRoute`, `Source`). Plus tard : presets (#6) et profils de carte (#58).
+`OutputRoute`, `Source`), profils de carte (`card.rs` : `CardProfile`, `MixerSetting`, profils livrés
+`profiles/*.toml` du dépôt inclus par `include_str!`, `all_profiles`, `find`, `user_dir`).
+Plus tard : presets (#6).
 
 **Pas de logique ici.** Des types, leurs valeurs par défaut, leur nom texte (`Source::name`,
 `label`, `FromStr`) et la lecture / écriture TOML. Tout calcul (repères de calibration, routeur

@@ -96,6 +96,9 @@ pub struct Settings {
     pub device: Option<String>,
     /// Device ALSA de capture, s'il diffère de `device` (ALSA seulement).
     pub capture_device: Option<String>,
+    /// Contrôles mixer ALSA (nom, valeur) réglés à l'ouverture (ALSA seulement), ex.
+    /// (« Capture », « 80% ») : voir `alsa::mixer::parse_value`.
+    pub mixer: Vec<(String, String)>,
     pub buffer: u32,
     pub periods: u32,
     pub rate: u32,
@@ -109,6 +112,7 @@ impl Default for Settings {
             backend: Kind::Jack,
             device: None,
             capture_device: None,
+            mixer: Vec::new(),
             buffer: 64,
             periods: 3,
             rate: 48000,
@@ -143,6 +147,9 @@ pub trait Stream {
 pub fn start_with(cfg: &Settings, processor: impl Processor, quiet: bool) -> Result<Box<dyn Stream>> {
     if cfg.capture_device.is_some() && cfg.backend != Kind::Alsa {
         log::warn!("device de capture séparé ignoré : ALSA seulement");
+    }
+    if !cfg.mixer.is_empty() && cfg.backend != Kind::Alsa {
+        log::warn!("contrôles mixer du profil ignorés : ALSA seulement (régler la carte avec alsamixer)");
     }
     let stream: Box<dyn Stream> = match cfg.backend {
         Kind::Jack => Box::new(jack::JackStream::start(cfg, processor)?),

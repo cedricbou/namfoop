@@ -974,6 +974,45 @@ namfoop run -m b7k --bass-in 2 --route 1=processed  # basse branchée sur l'entr
 (réglages par défaut : pratique pour comparer ou pour les tests automatiques ; rien n'est
 enregistré).
 
+### Profils de carte
+
+**Pourquoi.** Ce qui change d'une carte son à l'autre (device, buffer et périodes qui tiennent sans
+xrun, entrée de la basse, contrôles du mixer à régler, latence mesurée) est rangé dans un petit
+fichier TOML : changer de carte (iTwo, UMC404HD, HAT I2S sur le Pi) ne demande ni option ni code.
+
+Un profil est livré pour l'iTwo (`profiles/itwo.toml`). Les tiens vont dans
+`~/.config/namfoop/profiles/<id>.toml` (à côté de la config) et priment à identifiant égal.
+`setup` (backend ALSA) écrit `[audio] profile = "<id>"` : il reprend le profil qui reconnaît la
+carte choisie, ou en crée un nouveau avec tes choix, à compléter.
+
+```toml
+# ~/.config/namfoop/profiles/hat.toml
+name = "HAT I2S du Pi"
+match = "sndrpihifiberry"  # nom ALSA de la carte (/proc/asound/<id>, aplay -l)
+device = "hw:sndrpihifiberry"
+buffer = 64
+periods = 3
+bass_in = 1
+measured_latency_ms = 4.8  # mesuré avec namfoop latency, pour mémoire
+[[mixer]]                  # réglé à l'ouverture (ALSA) : gain du préampli, sélection d'entrée...
+control = "Capture"        # nom d'après amixer -c <carte> scontrols
+value = "80%"              # « 80% », « -6dB », « on » / « off », entier brut ou nom d'un choix
+```
+
+```sh
+namfoop --backend alsa latency      # profil reconnu : ni --device ni --buffer à donner
+```
+
+Ordre de priorité : option de la ligne de commande > config > profil > défaut. Le profil choisi
+est `[audio] profile` ; sans lui, celui dont `match` apparaît dans le nom d'une carte branchée.
+
+Pièges :
+- le profil ne sert qu'en **ALSA direct** : JACK a ses propres noms de carte et n'accepte que des
+  buffers en puissance de 2 ; avec `--no-config` et en carte simulée, aucun profil n'est lu ;
+- un contrôle `[[mixer]]` absent ou une valeur refusée donne un avertissement, la carte s'ouvre
+  quand même : vérifier le nom avec `amixer -c <carte> scontrols` ;
+- un profil inconnu dans `[audio] profile` est une erreur qui liste les profils trouvés.
+
 ---
 
 ## 11. Travailler sans jouer : rendu, bench, inventaire
@@ -1042,6 +1081,7 @@ default_ir = "dg212 sm57"            # optionnel : IR préférée (identifiant o
 
 [audio]                              # — setup
 backend = "alsa"
+profile = "itwo"                     # optionnel : profil de carte (sinon reconnu d'après la carte)
 device = "hw:iTwo"
 # capture_device = "hw:1,1"          # optionnel (ALSA) : capture sur un autre device
 buffer = 48
