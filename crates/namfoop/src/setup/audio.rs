@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::state::BufferTest;
-use crate::live::{fetch_max, take};
 use audio_io::{Io, Settings, Stream};
+use engine::meters::{fetch_max, take};
 
 const MAX_CH: usize = 64;
 const BEEP_SECS: f32 = 0.4;
