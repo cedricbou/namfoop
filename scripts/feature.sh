@@ -90,6 +90,21 @@ EOF
   gh pr create --base main --head "$(branch)" --title "$title" --body "$body"
 }
 
+# Juste après un push, GitHub n'a pas encore enregistré les checks : `gh pr checks --watch`
+# sortirait aussitôt (« no checks reported »). On attend qu'ils apparaissent (3 min max), puis
+# quelques secondes de plus pour que tous les workflows soient inscrits.
+wait_checks() {
+  local pr=$1 n=0 waited=0 max=${NAMFOOP_CHECKS_TIMEOUT:-180}
+  while :; do
+    n=$(gh pr checks "$pr" --json name --jq length 2>/dev/null || echo 0)
+    (( n > 0 )) && break
+    (( waited >= max )) && die "aucun check enregistré pour la PR #$pr après ${max} s : voir l'onglet Actions"
+    sleep 5; waited=$((waited + 5))
+  done
+  (( waited > 0 )) && sleep 10
+  return 0
+}
+
 cmd_merge() {
   local n pr
   n=$(issue_of_branch) || die "pas sur une branche de fonctionnalité"
@@ -97,6 +112,7 @@ cmd_merge() {
   need_clean
   [[ -z $(git log --oneline "origin/$(branch)..HEAD" 2>/dev/null) ]] || die "commits non poussés : scripts/feature.sh pr"
   echo "attente de la CI de la PR #$pr…"
+  wait_checks "$pr"
   gh pr checks "$pr" --watch --interval 20 >/dev/null || { gh pr checks "$pr"; die "CI en échec : corriger avant de fusionner"; }
   local title link coauthors
   title=$(gh pr view "$pr" --json title --jq .title)
