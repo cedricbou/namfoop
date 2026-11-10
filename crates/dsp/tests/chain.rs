@@ -110,3 +110,26 @@ fn limiter_caps_output() {
     let peak = out.iter().fold(0.0f32, |a, x| a.max(x.abs()));
     assert!(peak <= dsp::db_to_gain(-1.0) + 1e-6, "crête {peak}");
 }
+
+/// Chaque effet du catalogue (défauts et bornes) donne la même sortie quelle que soit la taille de
+/// bloc (JACK 64, ALSA 48, render 1000...).
+#[test]
+fn fx_catalog_is_independent_of_block_size() {
+    let input = signal(24000);
+    for fx in dsp::fx::catalog().iter().flat_map(|f| f.extremes()) {
+        let run = |block: usize| {
+            let mut st = fx.build(48000, 64).unwrap();
+            let mut buf = input.clone();
+            for c in buf.chunks_mut(block) {
+                st.process(c);
+            }
+            buf
+        };
+        let reference = run(64);
+        for block in [16, 48, 1000] {
+            let out = run(block);
+            let err = reference.iter().zip(&out).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
+            assert!(err < 1e-5, "{fx} : bloc {block}, écart max {err}");
+        }
+    }
+}

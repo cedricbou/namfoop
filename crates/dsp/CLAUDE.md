@@ -7,7 +7,7 @@ chaîne, changement de chaîne à chaud, analyses hors ligne.
 (`AmpSpec` : trim -> NAM -> IR -> niveau -> master -> limiteur ; `Level` raw / normalize / match),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
-`from_transfer`, distorsion harmonique), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
+`from_transfer`, distorsion harmonique), `fx/` (effets : `FxSpec`, catalogue, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
 jamais libérée en RT). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
@@ -15,6 +15,22 @@ enveloppe 50 ms).
 
 **Interdit** (`scripts/check-arch.sh`) : `alsa`, `jack`, `clap`, `ratatui`, `libc`, `namfoop`,
 `audio-io`, `engine`.
+
+## Ajouter un effet
+
+Socle : `src/fx/mod.rs` (`FxSpec`, `ParamInfo`, `Unit`, trait `Effect`, `catalog()`, mini-syntaxe
+`nom:param=valeur,...`, TOML avec `type = "<nom>"`). Décisions : `docs/adr/0005-effets-et-chaines.md`.
+1. `src/fx/<nom>.rs` : la structure de paramètres (serde, `#[serde(default)]`), `impl Effect`
+   (`KIND`, `HELP`, table `PARAMS` en français, `get`, `put`, `build`) et l'étage (`Stage`) ;
+   tout ce qui alloue se fait dans `build`.
+2. Une variante dans `FxSpec`, une branche dans la macro `with_effect!`, une ligne dans
+   `catalog()`, une branche dans le test `catalog_covers_every_variant` (le `match` l'impose).
+3. Rien d'autre côté tests : `tests/realtime.rs` (pas d'allocation), `tests/chain.rs` (indépendance
+   au bloc) et `tests/fx.rs` (sortie finie, silence après la queue, `reset`) passent tout le
+   catalogue, aux défauts et aux bornes de chaque paramètre (`FxSpec::extremes`). Un rendu de
+   référence propre à l'effet peut s'ajouter (`golden/fx-<nom>.toml`) ; ne jamais régénérer les
+   existants.
+4. Le guide (section des effets) : à quoi sert l'effet, chaque paramètre, un exemple ```sh.
 
 ## Règles temps réel (non négociables)
 

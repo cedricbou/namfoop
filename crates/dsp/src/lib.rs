@@ -7,6 +7,7 @@
 
 pub mod blend;
 pub mod chain;
+pub mod fx;
 pub mod gain;
 pub mod ir;
 pub mod limiter;
@@ -35,6 +36,9 @@ pub enum Error {
     Wav { path: String, source: hound::Error },
     #[error("IR {0} : {1}")]
     Ir(String, String),
+    /// Effet : nom ou paramètre inconnu, valeur hors plage...
+    #[error("{0}")]
+    Fx(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
