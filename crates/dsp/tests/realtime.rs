@@ -64,3 +64,20 @@ fn hot_swap_does_not_allocate_in_process() {
         assert_eq!(ctl.collect(), 1, "ancienne chaîne rendue et libérée côté contrôle");
     }
 }
+
+/// Chaque effet du catalogue, aux défauts et aux bornes de chaque paramètre : aucune allocation
+/// dans `process` (blocs de 64 et un bloc plus grand que `max_block`).
+#[test]
+fn fx_catalog_does_not_allocate_in_process() {
+    for fx in dsp::fx::catalog().iter().flat_map(|f| f.extremes()) {
+        let mut st = fx.build(48000, 64).unwrap();
+        let mut buf = vec![0.0f32; 64];
+        let mut big = vec![0.1f32; 200];
+        for i in 0..200 {
+            buf.iter_mut().enumerate().for_each(|(k, x)| *x = ((i * 64 + k) as f32 * 0.013).sin() * 0.5);
+            assert_no_alloc(|| st.process(&mut buf));
+        }
+        assert_no_alloc(|| st.process(&mut big));
+        assert!(buf.iter().chain(&big).all(|x| x.is_finite()), "{fx}");
+    }
+}

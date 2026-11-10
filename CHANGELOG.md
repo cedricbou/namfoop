@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#79)
+- Socle des effets `dsp::fx` (`FxSpec`, paramètres décrits, catalogue, mini-syntaxe, TOML) avec
+  l'effet `gain` et des tests génériques sur tout le catalogue ; ADR 0005 « Effets et chaînes ».
+
 ### Ajouté (#78)
 - Flush-to-zero des dénormalisés au premier callback d'`engine`, dans `render` et `bench` (ligne
   « dénormalisés » au démarrage) ; son inchangé.

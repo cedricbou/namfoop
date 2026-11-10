@@ -12,7 +12,7 @@ C'est l'état réel du code (vérifié par `scripts/check-arch.sh`), pas une cib
 namfoop  (binaire : CLI, écrans, une fonction mince par commande)
   ├─> engine   (session audio : routeur, swap, vumètres, tap d'entrée ; raw pour les mesures)  ─> audio-io, dsp, model
   ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model
-  └─> model    (types sérialisables : config, routage ; presets et profils de carte à venir)
+  └─> model    (types sérialisables : config, routage, profils de carte)
 audio-io (ALSA, JACK, sim, priorité RT ; ni clap, ni config, ni DSP)
 dsp      (étages mono, chaîne, swap, analyses hors ligne)  ─> nam-sys (FFI C++ NAM)
 ```
@@ -25,7 +25,7 @@ Les dépendances ne vont que **vers le bas**. La CLI pilote, `engine` fait sonne
 | `nam-sys`  | FFI vers le C++ NAM                                                  | tout le reste                              |
 | `dsp`      | étages audio mono, chaîne, swap, analyses hors ligne                 | carte son, config, threads, CLI            |
 | `audio-io` | ouvrir une carte (ALSA, JACK, sim), négocier format et buffer, RT    | clap, config utilisateur, DSP              |
-| `model`    | types sérialisables : config, routage, presets, profils de carte     | toute logique, toute crate du projet       |
+| `model`    | types sérialisables : config, routage, profils de carte              | toute logique, toute crate du projet       |
 | `engine`   | session audio : routeur, swap, mesures, commandes, reprise           | clap, ratatui, bibliothèque de sons        |
 | `library`  | modèles et IR, import, overrides, recommandations, profils de sons   | carte son, clap, ratatui                   |
 | `namfoop`  | CLI, écrans plein écran, une fonction mince par commande             | logique audio, accès direct à un backend   |
@@ -41,7 +41,10 @@ faits mesurés, tests), cité par la carte du `CLAUDE.md` racine. Toutes les com
 dépasse 1 000 lignes (avertissement au-delà de 600, `scripts/check-docs.sh`). Le son est protégé
 par les rendus de référence (`crates/dsp/tests/golden.rs`). Les profils de carte (#58) sont des
 données (`profiles/*.toml`, `model::card`) ; `audio-io` ne reçoit qu'une liste de contrôles mixer
-dans `Settings`. À venir sur cette base : #3, presets (#6), MIDI (#7), service de scène (#46).
+dans `Settings`. Effets et chaînes : [ADR 0005](adr/0005-effets-et-chaines.md) (un effet =
+`dsp::fx::FxSpec` + `Stage`, tout mono, parallèle par un étage `Split`) ; les presets (#6) seront
+des fichiers de la bibliothèque lus par `library`, pas des types de `model`. À venir : effets (#5),
+presets (#6), MIDI (#7), service de scène (#46).
 
 ## Règles vérifiées
 
