@@ -32,6 +32,7 @@ pub fn render(
     let (mut buf, sr) = dsp::wav::read_mono(input).with_context(|| format!("lecture {}", input.display()))?;
     let spec = amp.spec(conf, None)?;
     let mut chain = spec.build(sr, block)?;
+    engine::rt::flush_denormals(); // comme le thread audio : mesures proches de la scène
     let t0 = Instant::now();
     for chunk in buf.chunks_mut(block) {
         chain.process(chunk);
@@ -120,6 +121,7 @@ pub fn bench(
     seconds: f64,
     all_sizes: bool,
 ) -> Result<()> {
+    engine::rt::flush_denormals(); // comme le thread audio : mesures proches de la scène
     let mut files = Vec::new();
     let roots: Vec<PathBuf> = if paths.is_empty() { vec![library.to_path_buf()] } else { paths.to_vec() };
     for p in roots {

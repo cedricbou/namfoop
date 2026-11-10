@@ -9,9 +9,43 @@ static PROCESS: Once = Once::new();
 /// Mémoire verrouillée et gouverneur : une seule fois par processus.
 pub fn prepare_process(cpu: Option<usize>) {
     PROCESS.call_once(|| {
+        if flush_supported() {
+            log::info!("dénormalisés : flush-to-zero actif");
+        } else {
+            log::info!("dénormalisés : flush-to-zero non pris en charge sur cette architecture");
+        }
         lock_memory();
         check_governor(cpu);
     });
+}
+
+/// Le processeur sait-il ramener les dénormalisés à zéro ?
+pub const fn flush_supported() -> bool {
+    cfg!(any(target_arch = "x86_64", target_arch = "aarch64"))
+}
+
+/// Active le flush-to-zero dans le thread courant (réglage par thread : à appeler dans le thread
+/// qui calcule). Quand un son s'éteint (queue d'IR, de delay, filtre après la dernière note), les
+/// échantillons passent sous ~1e-38, en format dénormalisé : chaque opération y coûte des dizaines
+/// de fois plus, la charge grimpe pendant les silences. FTZ + DAZ (x86_64, MXCSR bits 15 et 6) ou
+/// FZ (aarch64, FPCR bit 24) les remplacent par zéro, inaudible. Une instruction : sans allocation,
+/// utilisable dans le callback.
+#[inline]
+pub fn flush_denormals() {
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+        let mut csr: u32 = 0;
+        std::arch::asm!("stmxcsr [{}]", in(reg) &mut csr, options(nostack));
+        csr |= 0x8040; // FTZ (bit 15) | DAZ (bit 6)
+        std::arch::asm!("ldmxcsr [{}]", in(reg) &csr, options(nostack, readonly));
+    }
+    #[cfg(target_arch = "aarch64")]
+    unsafe {
+        let mut fpcr: u64;
+        std::arch::asm!("mrs {}, fpcr", out(reg) fpcr);
+        fpcr |= 1 << 24; // FZ
+        std::arch::asm!("msr fpcr, {}", in(reg) fpcr);
+    }
 }
 
 /// `mlockall` seulement si la limite `RLIMIT_MEMLOCK` est illimitée : avec une limite finie,
@@ -94,6 +128,24 @@ pub fn prewarm(chain: &mut dsp::Chain, block: usize, sample_rate: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Dans un thread neuf : un dénormalisé existe avant, plus après.
+    #[test]
+    fn flush_to_zero_in_a_fresh_thread() {
+        if !flush_supported() {
+            return;
+        }
+        let (before, after) = std::thread::spawn(|| {
+            let x = || std::hint::black_box(f32::MIN_POSITIVE) * std::hint::black_box(0.5);
+            let before = x();
+            flush_denormals();
+            (before, x())
+        })
+        .join()
+        .unwrap();
+        assert!(before != 0.0 && before.is_subnormal(), "avant : {before:e}");
+        assert_eq!(after, 0.0, "après");
+    }
 
     #[test]
     fn decisions() {

@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#78)
+- Flush-to-zero des dénormalisés au premier callback d'`engine`, dans `render` et `bench` (ligne
+  « dénormalisés » au démarrage) ; son inchangé.
+
 ### Ajouté (#3)
 - Avertissement quand le thread audio n'a que la priorité de rtkit (FIFO 20) : c'est la cause
   mesurée des pics de charge ; le guide explique le groupe `realtime`.

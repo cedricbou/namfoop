@@ -57,10 +57,16 @@ struct Callback {
     meters: Arc<Meters>,
     frame_secs: f32,
     tap: Option<Tap>,
+    /// Flush-to-zero déjà activé dans le thread du backend.
+    ftz: bool,
 }
 
 impl Callback {
     fn process(&mut self, io: &mut dyn Io) {
+        if !self.ftz {
+            rt::flush_denormals();
+            self.ftz = true;
+        }
         let t0 = Instant::now();
         if let Some(tap) = &mut self.tap {
             let bass = self.router.bass();
@@ -122,7 +128,7 @@ fn callback(
         }
         None => (None, None),
     };
-    let cb = Callback { router, swap, meters, frame_secs: 1.0 / cfg.audio.rate as f32, tap };
+    let cb = Callback { router, swap, meters, frame_secs: 1.0 / cfg.audio.rate as f32, tap, ftz: false };
     Ok((cb, handle, tap_rx))
 }
 
