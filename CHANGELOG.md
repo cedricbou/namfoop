@@ -7,6 +7,10 @@ section prend le numéro de version.
 ## Non publié
 
 ### Ajouté (#3)
+- Avertissement quand le thread audio n'a que la priorité de rtkit (FIFO 20) : c'est la cause
+  mesurée des pics de charge ; le guide explique le groupe `realtime`.
+
+### Ajouté (#3)
 - `run` : répartition de la charge DSP par buffer à l'arrêt (médiane, p99, p99,9, buffers au-delà
   de 50 / 80 / 100 %).
 - Réglages temps réel au démarrage : mémoire verrouillée si la limite le permet, avertissements

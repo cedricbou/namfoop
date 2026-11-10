@@ -226,7 +226,11 @@ impl AlsaStream {
             .name("namfoop-audio".into())
             .spawn(move || {
                 match rt::promote_current_thread(80) {
-                    Some(p) => log::info!("thread audio en SCHED_FIFO {p}"),
+                    Some(p) if p >= 80 => log::info!("thread audio en SCHED_FIFO {p}"),
+                    Some(p) => log::warn!(
+                        "thread audio en SCHED_FIFO {p} seulement (rtkit) : pics de charge mesurés jusqu'à ×5 ; \
+                         installer realtime-privileges et s'ajouter au groupe realtime (voir le guide, « Temps réel »)"
+                    ),
                     None => log::warn!(
                         "pas de priorité temps réel : installer realtime-privileges et ajouter l'utilisateur au groupe realtime"
                     ),

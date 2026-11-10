@@ -27,6 +27,12 @@ et ALSA.
 
 ## Faits mesurés
 
+- Priorité du thread audio (#3, iTwo, ALSA 48×3, b7k 8 canaux + IR, 3 × 60 s) : rtkit (FIFO 20) ->
+  p99 20–31 %, p99,9 32–64 %, jusqu'à 9 buffers > 100 % par minute (max 237 %) ; groupe
+  `realtime` (FIFO 80) -> p99 10–11 %, p99,9 13–16 %, aucun buffer > 50 % (max 19–49 %), 0 xrun.
+  C'est le seul réglage qui compte sur ce PC : gouverneur `performance`, `mlockall`, cœur dédié
+  (`--cpu`) et `cpu_dma_latency` = 0 (essayé, retiré) ne changent rien de mesurable. Médiane 8 %
+  dans tous les cas (34 µs au bench, ~80 µs en jeu : non expliqué, sans conséquence).
 - Latence aller-retour iTwo (PC) : ALSA 48×3 = 5,2 ms ; JACK/PipeWire 64 = 6,5–7 ms. Plancher
   matériel ~1–2 ms (USB + convertisseurs). 32 et 16 frames : xruns massifs avec l'iTwo.
 - ALSA : format négocié dans `alsa/format.rs` (S32_LE > S24_3LE > S24_LE > S16_LE, chaque sens

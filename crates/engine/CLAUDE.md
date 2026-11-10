@@ -42,17 +42,5 @@ avec deux chaînes successives, routage refusé), puis
 
 ## Dette connue
 
-- Pics de charge DSP en `run` (#3). Mesuré sur PC (iTwo, ALSA 48×3, b7k 8 canaux + IR dg212,
-  60 s, gouverneur `powersave`, rtkit FIFO 20, memlock 8 Mio) : médiane 9–10 %, p99 20–29 %,
-  p99,9 32–64 %, 0 à 9 buffers au-delà de 100 % par minute (max 73–237 %), 0 xrun. Épingler le
-  thread (`--cpu`) ne change rien de net ; gouverneur `performance`, memlock illimité et groupe
-  `realtime` restent à mesurer avec l'utilisateur (ils demandent sudo).
-
-## Carte détaillée (reprise du `CLAUDE.md` racine)
-
-```
-crates/engine/    session audio (voir crates/engine/CLAUDE.md) : Engine::start (carte + routage validé +
-                  chaîne échangeable), send_chain / take_chain_sender, tap d'entrée, meters, xruns ;
-                  raw.rs (callback sur mesure : setup, latency) ; seule crate qui ouvre la carte ; router.rs (entrée basse -> chaîne ->
-                  sorties processed/di/mic/mute, Routing sérialisable), meters.rs (fetch_max, take)
-```
+- Pics de charge DSP en `run` (#3) : réglés par la priorité FIFO 80 (groupe `realtime`), voir les
+  faits mesurés de `crates/audio-io/CLAUDE.md`. Reste à valider 30 min sous charge et sur le Pi.
