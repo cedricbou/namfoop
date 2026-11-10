@@ -9,6 +9,10 @@ labels: bug
 
 ## Ce qui devrait se passer
 
+## Crates touchées
+<!-- nam-sys, dsp, audio-io, model, engine, library, namfoop (voir docs/architecture.md).
+     Plus de deux crates : découper l'issue, ou justifier ici pourquoi. -->
+
 ## Contexte
 - Backend / carte / buffer :
 - Modèle / IR :

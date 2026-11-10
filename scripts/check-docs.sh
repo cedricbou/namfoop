@@ -8,6 +8,9 @@
 #     (et ses mots-clés -m / -i désignent un fichier unique si library/ existe)
 #  5. aucun modèle / IR / zip n'est versionné (droits incertains)
 #  6. rappel CHANGELOG.md si du code a changé sans entrée de changelog (avertissement)
+#  7. chaque crate a son CLAUDE.md, citée dans la carte du CLAUDE.md racine et dans
+#     docs/architecture.md
+#  8. taille des fichiers .rs (hors tests/ et vendor/) : avertissement > 600 lignes, échec > 1000
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -87,6 +90,24 @@ if git rev-parse --verify -q HEAD >/dev/null; then
     echo "  ⚠ du code a changé sans entrée dans CHANGELOG.md (section « Non publié »)"
   fi
 fi
+
+# 7. un CLAUDE.md par crate, citée dans la carte racine et dans docs/architecture.md
+for dir in crates/*/; do
+  c=$(basename "$dir")
+  [[ -f $dir/CLAUDE.md ]] || err "crates/$c/CLAUDE.md absent (rubriques : responsabilité, API, interdits, règles, faits mesurés, tests)"
+  grep -q "crates/$c/" CLAUDE.md || err "crate « $c » absente de la carte du CLAUDE.md racine"
+  grep -q "\`$c\`" docs/architecture.md || err "crate « $c » absente de docs/architecture.md"
+done
+
+# 8. taille des fichiers : au-delà de ~600 lignes, un agent lit en morceaux et rate des invariants
+while IFS= read -r -d '' f; do
+  n=$(wc -l < "$f")
+  if (( n > 1000 )); then
+    err "$f : $n lignes (> 1000) : découper par responsabilité"
+  elif (( n > 600 )); then
+    echo "  ⚠ $f : $n lignes (> 600) : penser à découper"
+  fi
+done < <(find crates -name '*.rs' -not -path '*/tests/*' -not -path '*/vendor/*' -not -path '*/target/*' -print0)
 
 if (( fail )); then echo "docs : ÉCHEC"; exit 1; fi
 echo "docs : OK"

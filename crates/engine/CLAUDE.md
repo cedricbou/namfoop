@@ -34,3 +34,17 @@ dans le callback ET refusé dans `start`. Tests : `callback_does_not_allocate` (
 **Tester** : `cargo test -p engine` (chemin Engine = chaîne nue en régime établi, session `sim`
 avec deux chaînes successives, routage refusé), puis
 `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`.
+
+## Dette connue
+
+- Pics de charge DSP en `run` (15–50 % max contre 3 % de moyenne au bench) : tester `mlockall`,
+  gouverneur CPU `performance`, préchauffage des modèles (#3, à faire ici une seule fois).
+
+## Carte détaillée (reprise du `CLAUDE.md` racine)
+
+```
+crates/engine/    session audio (voir crates/engine/CLAUDE.md) : Engine::start (carte + routage validé +
+                  chaîne échangeable), send_chain / take_chain_sender, tap d'entrée, meters, xruns ;
+                  raw.rs (callback sur mesure : setup, latency) ; seule crate qui ouvre la carte ; router.rs (entrée basse -> chaîne ->
+                  sorties processed/di/mic/mute, Routing sérialisable), meters.rs (fetch_max, take)
+```

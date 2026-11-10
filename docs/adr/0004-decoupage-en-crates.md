@@ -1,5 +1,7 @@
 # ADR 0004 · Découpage en crates, dépendances vers le bas
 
+**Statut : appliqué** (#47, PR #59 à #68).
+
 **Contexte.** Le binaire portait 9 100 lignes sur 11 460, et cinq commandes montaient chacune
 leur flux audio. Un agent qui touche une commande charge tout le reste, et rien ne l'empêche de
 créer un couplage. Les fonctionnalités à venir (#3, #6, #7, #46) devraient être faites cinq fois.

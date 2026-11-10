@@ -32,3 +32,36 @@ et ALSA.
   capture, au moins 4 périodes (n'ajoute pas de latence, absorbe les à-coups).
 - `start_with` attend 500 ms puis remet les xruns à zéro : PipeWire change de quantum juste après
   l'activation, les premiers callbacks sont à froid.
+
+## Les backends
+
+Tout changement qui touche l'audio doit marcher sur **JACK et ALSA** (testé sur le matériel) et sur
+**sim** (sans matériel, utilisable par les agents). Le DSP est commun (trait `audio_io::Io`, nombre de
+canaux de la carte) ; seuls l'accès à la carte et le threading diffèrent.
+- `pw-jack` n'est jamais nécessaire (relance automatique avec la libjack PipeWire si besoin,
+  `jack::open_client`) : ne pas l'utiliser dans les docs ni les scripts (vérifié par check-docs.sh).
+- JACK : `namfoop --backend jack --device iTwo ...` ; le buffer demandé force le quantum PipeWire
+  (puissances de 2 seulement). `--device` = nom exact du périphérique (écrit par setup) ou regex.
+- sim : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 -m b7k` exerce toute la
+  chaîne temps réel sans carte ; `--backend sim setup` ouvre l'assistant.
+- ALSA : `namfoop --backend alsa --device hw:iTwo --buffer 48 --periods 3 ...` ; si PipeWire tient la
+  carte, son profil passe à « off » pendant la session puis est restauré (y compris en cas de panic).
+  Un SIGKILL laisse le profil à « off » : `pactl set-card-profile <carte> pro-audio` pour réparer.
+- Les tests matériels (`scripts/test-backends.sh`) demandent un câble sortie 1 -> entrée 2 et le
+  bouton Mixer de l'iTwo côté Playback. **Un agent ne peut pas brancher de câble : demander à
+  l'utilisateur**, et prévenir avant de lancer des tests qui émettent des clics ou prennent la carte.
+- Ne pas lancer `run` avec un gain audible sans l'accord de l'utilisateur (utiliser
+  `--master-db -120` pour les tests de fumée).
+
+## Dette connue
+
+- Crépitements signalés en JACK avec un modèle saturé : origine non confirmée (xruns ou grain).
+
+## Carte détaillée (reprise du `CLAUDE.md` racine)
+
+```
+crates/audio-io/  accès à la carte, sans clap, config ni DSP (voir crates/audio-io/CLAUDE.md) :
+                  lib.rs (trait Io : canaux dynamiques ; Processor ; Settings ; start), error.rs
+                  (thiserror), jack.rs, alsa.rs (direct, streams liés, probe, PipeWire « off » ; alsa/format.rs : S32 / S24_3 / S24 / S16),
+                  sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
+```
