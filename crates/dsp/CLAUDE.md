@@ -9,7 +9,8 @@ normalize / match, mesuré avec les effets ; sans `pre`, le trim reste dans l'é
 `describe()` pour le log `chaîne :`),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
-`from_transfer`, distorsion harmonique), `fx/` (effets : `FxSpec`, catalogue, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
+`from_transfer`, distorsion harmonique), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db` ; réutilisable par le crossover et les
+effets de temps), `fx/` (effets : `FxSpec`, catalogue, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
 jamais libérée en RT). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
@@ -73,6 +74,9 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   `comp` 0,85 µs (0,06 %). Comp : détecteur de crête à relâche fixe de 10 ms, puis réduction lissée
   en dB (attaque / relâche) ; simulé à -6 dBFS, ratio 4, seuil -20 : 10,4 dB de réduction à 1 kHz
   pour 10,5 visés, 9,8 dB à 41 Hz (l'enveloppe redescend entre deux crêtes d'un mi grave).
+- Filtres (#82, `bench --fx`, bloc 64) : ~0,2 µs par bande (0,01–0,02 % du budget). Mesurer un
+  filtre au sinus avec le rapport des RMS, pas la crête (à 16 kHz, 3 échantillons par période :
+  la crête échantillonnée sous-estime l'amplitude de ~0,8 dB).
 
 ## Dette connue
 

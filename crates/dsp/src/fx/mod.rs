@@ -9,6 +9,7 @@
 //! dans [`catalog`] (voir `crates/dsp/CLAUDE.md`, « Ajouter un effet »).
 
 pub mod comp;
+pub mod filter;
 pub mod gain;
 pub mod gate;
 
@@ -27,6 +28,8 @@ pub enum Unit {
     Percent,
     Q,
     Seconds,
+    /// Pente de filtre (dB/octave).
+    DbOct,
 }
 
 impl Unit {
@@ -39,6 +42,7 @@ impl Unit {
             Unit::Percent => "%",
             Unit::Q => "Q",
             Unit::Seconds => "s",
+            Unit::DbOct => "dB/oct",
         }
     }
 }
@@ -79,6 +83,11 @@ pub enum FxSpec {
     Gain(gain::GainParams),
     Gate(gate::GateParams),
     Comp(comp::CompParams),
+    Hpf(filter::HpfParams),
+    Lpf(filter::LpfParams),
+    Peak(filter::PeakParams),
+    Lowshelf(filter::LowshelfParams),
+    Highshelf(filter::HighshelfParams),
 }
 
 /// Applique `$body` à l'effet contenu, quel que soit son type.
@@ -88,13 +97,27 @@ macro_rules! with_effect {
             FxSpec::Gain($e) => $body,
             FxSpec::Gate($e) => $body,
             FxSpec::Comp($e) => $body,
+            FxSpec::Hpf($e) => $body,
+            FxSpec::Lpf($e) => $body,
+            FxSpec::Peak($e) => $body,
+            FxSpec::Lowshelf($e) => $body,
+            FxSpec::Highshelf($e) => $body,
         }
     };
 }
 
 /// Un exemplaire par défaut de chaque effet.
 pub fn catalog() -> Vec<FxSpec> {
-    vec![FxSpec::Gain(Default::default()), FxSpec::Gate(Default::default()), FxSpec::Comp(Default::default())]
+    vec![
+        FxSpec::Gain(Default::default()),
+        FxSpec::Gate(Default::default()),
+        FxSpec::Comp(Default::default()),
+        FxSpec::Hpf(Default::default()),
+        FxSpec::Lpf(Default::default()),
+        FxSpec::Peak(Default::default()),
+        FxSpec::Lowshelf(Default::default()),
+        FxSpec::Highshelf(Default::default()),
+    ]
 }
 
 fn kind_of<E: Effect>(_: &E) -> &'static str {
@@ -219,8 +242,13 @@ mod tests {
             FxSpec::Gain(_) => 0,
             FxSpec::Gate(_) => 1,
             FxSpec::Comp(_) => 2,
+            FxSpec::Hpf(_) => 3,
+            FxSpec::Lpf(_) => 4,
+            FxSpec::Peak(_) => 5,
+            FxSpec::Lowshelf(_) => 6,
+            FxSpec::Highshelf(_) => 7,
         };
-        const COUNT: usize = 3;
+        const COUNT: usize = 8;
         let mut seen = [false; COUNT];
         for f in catalog() {
             seen[index(&f)] = true;
