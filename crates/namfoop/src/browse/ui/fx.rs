@@ -1,5 +1,6 @@
-//! Onglet Effets : catalogue | chaîne (pré › [modèle › IR] › post) | réglages de l'effet choisi,
-//! puis la ligne de commande équivalente. Tout vient de `ParamInfo` (plages, unités, aides).
+//! Onglet Effets : catalogue | **synoptique** de la chaîne (avec vumètres, `ui::synoptic`) |
+//! réglages de l'effet choisi, puis la ligne de commande équivalente. Tout vient de `ParamInfo`
+//! (plages, unités, aides). Le synoptique est en lecture seule : l'édition 2D vient avec #109.
 
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -8,8 +9,8 @@ use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::state::fx::{FxFocus, Place};
-use super::super::state::{IrChoice, State};
-use super::cursor_span;
+use super::super::state::State;
+use super::{cursor_span, synoptic};
 
 const BAR: usize = 20;
 
@@ -59,44 +60,35 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
         cat,
     );
 
-    // chaîne
-    let mut lines = Vec::new();
-    let slot_line = |i: usize| {
-        let sl = fx.slot(i).expect("index de la chaîne");
-        let style = if !sl.on || fx.bypass_all {
-            Style::new().fg(Color::DarkGray).add_modifier(Modifier::CROSSED_OUT)
+    // synoptique de la chaîne, avec ses vumètres (§ 2 et 3 de la spécification)
+    let view = s.chain_view();
+    // le curseur du synoptique suit l'effet choisi dans la chaîne : les effets `pré` d'abord, puis
+    // le modèle et l'IR, puis les effets `post` (l'éditeur 2D arrive avec #109)
+    let amps = view.blocks.len() - s.fx.len();
+    let cursor = (s.fx.focus != FxFocus::Catalog && s.fx.len() > 0).then(|| {
+        if s.fx.selected < s.fx.pre.len() {
+            s.fx.selected
         } else {
-            Style::new()
-        };
-        let mut v = vec![
-            cursor_span(fx.focus != FxFocus::Catalog && i == fx.selected),
-            Span::styled(sl.spec.to_string(), style),
-        ];
-        if !sl.on {
-            v.push(Span::styled("  coupé (b)", Style::new().fg(Color::Red)));
+            s.fx.selected + amps
         }
-        Line::from(v)
-    };
-    lines.push(Line::styled(" pré (avant le modèle) :", Style::new().fg(Color::DarkGray)));
-    lines.extend((0..fx.pre.len()).map(slot_line));
-    let model = s.model.map_or("son direct".to_string(), |m| s.models[m].label.chars().take(30).collect());
-    let ir = match s.ir {
-        IrChoice::None => "sans IR".to_string(),
-        IrChoice::Item(i) => s.irs[i].label.chars().take(24).collect(),
-        IrChoice::Blend => "mélange".to_string(),
-    };
-    lines.push(Line::styled(format!("   [{model} › {ir}]"), Style::new().fg(Color::Green)));
-    lines.push(Line::styled(" post :", Style::new().fg(Color::DarkGray)));
-    lines.extend((fx.pre.len()..fx.len()).map(slot_line));
-    let head = if fx.bypass_all {
-        "chaîne — SANS EFFETS (r)".to_string()
-    } else {
-        format!("chaîne : {} effet(s) ([ ] déplacer, x retirer, b couper)", fx.len())
-    };
-    f.render_widget(
-        Paragraph::new(lines).block(Block::bordered().title(title(&head, fx.focus == FxFocus::Chain))),
-        chain,
-    );
+    });
+    let syn = synoptic::build(&view, &s.meters, s.show_meters, cursor);
+    let inner = chain.width.saturating_sub(2) as usize;
+    let scroll = syn.scroll_for(inner);
+    let mut lines = syn.lines(inner, scroll);
+    if scroll > 0 {
+        lines.push(Line::styled(
+            format!(" ← {scroll} colonnes à gauche (terminal étroit)"),
+            Style::new().fg(Color::DarkGray),
+        ));
+    }
+    let (head, warn) = synoptic::title(&view);
+    let head = if s.fx.bypass_all { "chaîne — SANS EFFETS (r)".to_string() } else { head };
+    let mut block = Block::bordered().title(title(&head, s.fx.focus == FxFocus::Chain));
+    if let Some(w) = warn.filter(|_| !s.fx.bypass_all) {
+        block = block.title(Span::styled(w, Style::new().fg(Color::Yellow)));
+    }
+    f.render_widget(Paragraph::new(lines).block(block), chain);
 
     // réglages de l'effet choisi
     let mut lines = Vec::new();
@@ -147,12 +139,12 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
 /// Touches affichées en bas de l'onglet.
 pub fn fx_keys(s: &State) -> &'static str {
     match s.fx.focus {
-        FxFocus::Catalog => "Tab/Maj+Tab onglets   ↑↓ effet   a ajouter en pré   A en post   → chaîne   ← Mélange   r avec/sans effets   q",
+        FxFocus::Catalog => "Tab/Maj+Tab onglets   ↑↓ effet   a ajouter en pré   A en post   → chaîne   v vumètres   ← Mélange   r avec/sans effets   q",
         FxFocus::Chain => {
-            "↑↓ choisir   → réglages   [ ] déplacer   x retirer   b couper   a/A ajouter   ← catalogue   r avec/sans effets   q"
+            "↑↓ choisir   → réglages   [ ] déplacer   x retirer   b couper   a/A ajouter   v vumètres   ← catalogue   r avec/sans effets   q"
         }
         FxFocus::Params => {
-            "↑↓ paramètre   ←→ valeur (Maj : fin)   Entrée retour   x retirer   b couper   r avec/sans effets"
+            "↑↓ paramètre   ←→ valeur (Maj : fin)   Entrée retour   x retirer   b couper   v vumètres   r avec/sans effets"
         }
     }
 }

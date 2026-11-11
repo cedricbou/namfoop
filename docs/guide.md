@@ -701,9 +701,27 @@ signale deux effets dans la chaîne.
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
 - **Onglet Effets** (le quatrième, Tab ou → depuis le Mélange) : à gauche le **catalogue** (les effets de `namfoop fx`), au
-  centre la **chaîne** autour du son choisi (`pré : gate › comp`, `[modèle › IR]`, `post : delay`),
-  en bas les **réglages** de l'effet choisi (barre, valeur, unité, aide et plage) et la **ligne de
-  commande équivalente**, à copier dans `run`. Les colonnes se parcourent de gauche à droite :
+  centre le **synoptique** de la chaîne, en bas les **réglages** de l'effet choisi (barre, valeur,
+  unité, aide et plage) et la **ligne de commande équivalente**, à copier dans `run`.
+
+  Le synoptique montre la chaîne de l'entrée à la sortie, avec un **vumètre au-dessus de chaque
+  bloc** :
+
+  ```
+  ▁▃▅   ▁▃▅▇█    ▁▃▅▇    ▁▃
+  IN ─ gate -60 ─ nam·b7k ─ ir·sm57 ─ delay ─ OUT
+  ```
+
+  Les barres vont de -60 à 0 dBFS, en huitièmes de caractère : vert, **jaune** au-dessus de -9 dB,
+  **rouge** au-dessus de -1 dB (là, le limiteur travaille). Elles montent tout de suite et
+  descendent de 28 dB par seconde, comme un vumètre d'enceinte. Deux barres se lisent autrement :
+  celle d'un `comp` se remplit **en orange depuis la droite** avec sa réduction de gain (toute la
+  barre = 20 dB), et celle d'un `gate` **fermé** est pleine et rouge sombre. Un bloc coupé (`b`) est
+  barré et sa barre s'éteint. **`v`** masque les vumètres (utile pour lire la chaîne au calme). Le
+  titre du cadre compte les modèles actifs et prévient si la charge risque de monter (plusieurs
+  modèles NAM dans la même chaîne).
+
+  Les colonnes se parcourent de gauche à droite :
   - catalogue : ↑↓ choisit un effet, **`a`** l'ajoute en pré (avant le modèle), **`A`** en post ;
     ses réglages s'ouvrent aussitôt ; → passe à la chaîne ;
   - chaîne : ↑↓ choisit un effet, **`[` / `]`** le déplace (il passe de pré à post au bord du
@@ -711,6 +729,10 @@ signale deux effets dans la chaîne.
     ← revient au catalogue ;
   - réglages : ↑↓ choisit le paramètre, ←→ change la valeur d'un pas, **Maj + ←→** d'un pas fin
     (un dixième) ; Entrée ou Échap revient à la chaîne, Échap encore au catalogue.
+
+  Le synoptique sait aussi dessiner un **parallèle** (une ligne par branche, l'étiquette de la
+  branche, son gain à droite, `muet` ou `ø` si elle est coupée ou inversée) : c'est ce que montre
+  `--crossover`, et l'édition des branches dans `browse` arrive avec les presets.
 
   **`r`** bascule **avec / sans effets** (A/B) ; la ligne de commande garde la chaîne réglée. Chaque
   changement s'écoute 150 ms après la dernière touche, avec le fondu habituel. Pas, plages et unités

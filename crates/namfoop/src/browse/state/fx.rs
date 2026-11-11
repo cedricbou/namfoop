@@ -208,6 +208,12 @@ impl State {
                 self.message = Some(fx.add(Place::Post));
                 true
             }
+            (_, Key::Char('v')) => {
+                self.show_meters = !self.show_meters;
+                self.message =
+                    Some(if self.show_meters { "vumètres affichés" } else { "vumètres masqués" }.into());
+                return Some(Action::None);
+            }
             (_, Key::Char('r')) => {
                 fx.bypass_all = !fx.bypass_all;
                 self.message = Some(
@@ -362,6 +368,26 @@ mod tests {
             }
         }
         (pre, post)
+    }
+
+    /// `v` masque et réaffiche les vumètres du synoptique (§ 3 et § 5 de la spécification).
+    #[test]
+    fn v_hides_and_shows_the_meters() {
+        let mut s = fx_tab();
+        assert!(s.show_meters, "affichés au départ");
+        assert_eq!(s.on_key(Key::Char('v')), Action::None);
+        assert!(!s.show_meters);
+        assert_eq!(s.message.as_deref(), Some("vumètres masqués"));
+        s.on_key(Key::Char('v'));
+        assert!(s.show_meters);
+        assert_eq!(s.message.as_deref(), Some("vumètres affichés"));
+        // depuis la chaîne et depuis les réglages aussi
+        pick(&mut s, "comp");
+        s.on_key(Key::Char('a'));
+        assert_eq!(s.fx.focus, FxFocus::Params);
+        s.on_key(Key::Char('v'));
+        assert!(!s.show_meters, "v marche aussi dans les réglages");
+        assert_eq!(s.fx.focus, FxFocus::Params, "sans changer de colonne");
     }
 
     /// Échap remonte les niveaux de l'onglet (réglages -> chaîne -> catalogue) et ne quitte jamais,

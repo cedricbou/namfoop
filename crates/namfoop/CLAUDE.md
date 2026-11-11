@@ -18,11 +18,16 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 quand `unsaved()` n'est pas vide — comparaison d'états via `mark_start` et
                 `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
-                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée) ; navigation :
+                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée, v
+                vumètres), chain.rs (vue en blocs du synoptique : Leaf / Split / Branch, étiquettes,
+                et la balistique des vumètres MeterDisplay : montée immédiate, descente 28 dB/s) ; navigation :
                 Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
-                panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, tests.rs), mod.rs (index, Engine + ChainSender dans
-                le thread de construction, overrides.toml) ; `import --review` l'ouvre sur les
+                panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, synoptic.rs (le synoptique de la
+                chaîne : une ligne par branche, vumètres au-dessus, colonnes alignées, défilement
+                horizontal), tests.rs), mod.rs (index, Engine + ChainSender dans
+                le thread de construction, qui rend aussi la table des vumètres par bloc
+                (dsp::meter::ChainMeters, #107) portée par ui::Status, overrides.toml) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start)
 setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
@@ -59,8 +64,8 @@ concernée). Erreurs : `anyhow`.
   pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
-  installée dans le thread audio (modèle, IR, entrée, effets pré / post) et chaque grain mesuré par l'éditeur : c'est
-  la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
+  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
 - Test de fumée : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`.
 
 ## Faits mesurés
@@ -132,8 +137,8 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
   pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
-  installée dans le thread audio (modèle, IR, entrée, effets pré / post) et chaque grain mesuré par l'éditeur : c'est
-  la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
+  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.

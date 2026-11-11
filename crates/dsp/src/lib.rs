@@ -13,6 +13,7 @@ pub mod fx;
 pub mod gain;
 pub mod ir;
 pub mod limiter;
+pub mod meter;
 pub mod nam;
 pub mod profile;
 pub mod split;

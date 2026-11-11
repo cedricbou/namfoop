@@ -33,6 +33,7 @@ use crate::fx::FxSpec;
 use crate::gain::Gain;
 use crate::ir::{IrSettings, IrStage};
 use crate::limiter::Limiter;
+use crate::meter::{BlockMeters, BranchMeters, ChainMeters, Meter, Probe, SplitMeters};
 use crate::nam::{NamSettings, NamStage};
 use crate::split::{Split, SplitBranch, SplitMode};
 use crate::{Error, Result, Stage};
@@ -195,18 +196,66 @@ struct Build<'a> {
     /// Trim à ajouter à l'entrée du **premier** NAM rencontré (sinon il est déjà en tête de chaîne).
     trim_in_nam: f32,
     level: &'a Level,
+    /// Table des vumètres, préallouée au fur et à mesure (`None` : chaîne sans sonde, donc sans
+    /// coût ajouté — c'est ce que font `run`, `render` et `bench`).
+    meters: Option<ChainMeters>,
 }
 
 impl Build<'_> {
-    /// Construit les blocs d'une série (chaîne principale ou branche) à la suite de `chain`.
+    /// Construit les blocs de la **série principale** : chaque bloc est suivi de sa sonde quand les
+    /// mesures sont demandées.
     fn blocks(&mut self, blocks: &[BlockSpec], chain: &mut Chain) -> Result<()> {
+        for (i, b) in blocks.iter().enumerate() {
+            let metered = self
+                .meters
+                .as_mut()
+                .map(|t| t.push_block(matches!(b, BlockSpec::Fx(f) if f.has_action_meter())));
+            self.one(b, chain, metered.as_ref(), Some(i))?;
+        }
+        Ok(())
+    }
+
+    /// Les blocs d'une **branche** : mêmes règles, mais leurs mesures vont dans la branche.
+    fn branch_blocks(
+        &mut self,
+        blocks: &[BlockSpec],
+        chain: &mut Chain,
+        into: &mut Vec<BlockMeters>,
+    ) -> Result<()> {
         for b in blocks {
-            match b {
-                BlockSpec::Fx(f) => chain.push_boxed(f.build(self.sample_rate, self.max_block)?),
-                BlockSpec::Nam { path, settings } => chain.push_boxed(self.nam(path, settings)?),
-                BlockSpec::Ir { path, settings } => chain.push_boxed(self.ir(path, settings)?),
-                BlockSpec::Split(s) => chain.push(self.split(s)?),
-            };
+            let metered = self.meters.as_ref().map(|_| {
+                let m = BlockMeters {
+                    peak: Meter::new(),
+                    action: matches!(b, BlockSpec::Fx(f) if f.has_action_meter()).then(Meter::new),
+                };
+                into.push(m.clone());
+                m
+            });
+            self.one(b, chain, metered.as_ref(), None)?;
+        }
+        Ok(())
+    }
+
+    /// Un bloc et, si on mesure, sa sonde de crête juste derrière. `index` est l'index du bloc dans
+    /// la série principale (un parallèle n'existe qu'à ce niveau : un seul niveau, ADR 0006).
+    fn one(
+        &mut self,
+        b: &BlockSpec,
+        chain: &mut Chain,
+        metered: Option<&BlockMeters>,
+        index: Option<usize>,
+    ) -> Result<()> {
+        match b {
+            BlockSpec::Fx(f) => {
+                let action = metered.and_then(|m| m.action.as_ref());
+                chain.push_boxed(f.build_metered(self.sample_rate, self.max_block, action)?)
+            }
+            BlockSpec::Nam { path, settings } => chain.push_boxed(self.nam(path, settings)?),
+            BlockSpec::Ir { path, settings } => chain.push_boxed(self.ir(path, settings)?),
+            BlockSpec::Split(s) => chain.push(self.split(s, index)?),
+        };
+        if let Some(m) = metered {
+            chain.push(Probe::new(m.peak.clone()));
         }
         Ok(())
     }
@@ -268,12 +317,17 @@ impl Build<'_> {
         }
     }
 
-    fn split(&mut self, spec: &SplitSpec) -> Result<Split> {
-        // chaînes des branches, dans l'ordre
+    fn split(&mut self, spec: &SplitSpec, index: Option<usize>) -> Result<Split> {
+        // chaînes des branches, dans l'ordre, et leurs mesures
         let mut chains: Vec<Chain> = Vec::with_capacity(spec.branches.len());
+        let mut branch_meters: Vec<BranchMeters> = Vec::new();
         for b in &spec.branches {
             let mut c = Chain::new();
-            self.blocks(&b.blocks, &mut c)?;
+            let mut blocks = Vec::new();
+            self.branch_blocks(&b.blocks, &mut c, &mut blocks)?;
+            if self.meters.is_some() {
+                branch_meters.push(BranchMeters { sum: Meter::new(), blocks });
+            }
             chains.push(c);
         }
         // alignement : la première branche qui contient un NAM donne le niveau aux autres
@@ -312,14 +366,24 @@ impl Build<'_> {
         }
         let branches: Vec<SplitBranch> = chains
             .into_iter()
+            .enumerate()
             .zip(&spec.branches)
-            .map(|(c, b)| SplitBranch::new(c).gain(b.gain_db).invert(b.invert).mute(b.mute))
+            .map(|((i, c), b)| {
+                let br = SplitBranch::new(c).gain(b.gain_db).invert(b.invert).mute(b.mute);
+                match branch_meters.get(i) {
+                    Some(m) => br.meter(m.sum.clone()),
+                    None => br,
+                }
+            })
             .collect();
         let mode = match spec.mode {
             SplitKind::Copy => SplitMode::Copy,
             SplitKind::Bands => SplitMode::Bands(spec.freqs.iter().map(|f| *f as f64).collect()),
         };
         let split = Split::new(mode, branches, self.sample_rate, self.max_block, true)?;
+        if let (Some(t), Some(block)) = (self.meters.as_mut(), index) {
+            t.splits.push(SplitMeters { block, branches: branch_meters });
+        }
         let delays: Vec<String> = split.delays().iter().map(|d| d.to_string()).collect();
         log::info!(
             "{} ; {}retards compensés {} échantillons",
@@ -401,6 +465,23 @@ impl ChainSpec {
 
     /// Construit la chaîne (non temps réel : vérifie, charge les fichiers, alloue, mesure).
     pub fn build(&self, sample_rate: u32, max_block: usize) -> Result<Chain> {
+        self.build_inner(sample_rate, max_block, false).map(|(c, _)| c)
+    }
+
+    /// Comme [`ChainSpec::build`], plus la **table des vumètres** par bloc et par branche
+    /// (`crate::meter`), préallouée ici et qui voyage avec la chaîne : c'est ce que demande
+    /// `browse` pour son synoptique. Le signal est le même ; seules des sondes s'ajoutent.
+    pub fn build_with_meters(&self, sample_rate: u32, max_block: usize) -> Result<(Chain, ChainMeters)> {
+        let (chain, meters) = self.build_inner(sample_rate, max_block, true)?;
+        Ok((chain, meters.unwrap_or_default()))
+    }
+
+    fn build_inner(
+        &self,
+        sample_rate: u32,
+        max_block: usize,
+        with_meters: bool,
+    ) -> Result<(Chain, Option<ChainMeters>)> {
         self.validate()?;
         let mut chain = Chain::new();
         let has_nam = nam_count(&self.blocks) > 0;
@@ -417,8 +498,10 @@ impl ChainSpec {
             },
             trim_in_nam: if in_nam { self.trim_db } else { 0.0 },
             level: &self.level,
+            meters: with_meters.then(ChainMeters::default),
         };
         build.blocks(&self.blocks, &mut chain)?;
+        let meters = build.meters.take();
         if self.blocks.iter().any(|b| !matches!(b, BlockSpec::Nam { .. } | BlockSpec::Ir { .. })) {
             log::info!("chaîne : {}", self.describe());
         }
@@ -452,6 +535,6 @@ impl ChainSpec {
             }
             chain.push(lim);
         }
-        Ok(chain)
+        Ok((chain, meters))
     }
 }

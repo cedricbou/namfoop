@@ -13,6 +13,7 @@ use library::recommend::NeedsIr;
 mod editor;
 mod fx;
 mod spectrum;
+pub mod synoptic;
 
 use editor::*;
 pub use spectrum::SPECTRUM_MIN_WIDTH;

@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{Effect, ParamInfo, Unit};
+use crate::meter::Meter;
 use crate::{db_to_gain, Result, Stage};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -147,7 +148,14 @@ impl Effect for CompParams {
     }
 
     fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
-        Ok(Box::new(Comp {
+        Ok(Box::new(self.stage(sample_rate)))
+    }
+}
+
+impl CompParams {
+    /// L'étage typé (pour y brancher un vumètre : `FxSpec::build_metered`).
+    pub fn stage(&self, sample_rate: u32) -> Comp {
+        Comp {
             threshold: self.threshold,
             ratio: self.ratio,
             knee: self.knee,
@@ -158,7 +166,8 @@ impl Effect for CompParams {
             det: coef(DETECTOR_RELEASE_MS, sample_rate),
             env: 0.0,
             gr: 0.0,
-        }))
+            meter: None,
+        }
     }
 }
 
@@ -175,6 +184,8 @@ pub struct Comp {
     env: f32,
     /// Réduction de gain lissée (dB).
     gr: f32,
+    /// Vumètre d'affichage : réduction de gain max depuis la dernière lecture (#107).
+    meter: Option<Meter>,
 }
 
 /// Relâche du détecteur de crête : suit la forme d'onde sans moyenner les crêtes.
@@ -185,10 +196,17 @@ impl Comp {
     pub fn reduction(&self) -> f32 {
         self.gr
     }
+
+    /// Publie la réduction de gain pour le synoptique de `browse` (#107).
+    pub fn with_meter(mut self, meter: Meter) -> Self {
+        self.meter = Some(meter);
+        self
+    }
 }
 
 impl Stage for Comp {
     fn process(&mut self, buf: &mut [f32]) {
+        let mut worst = 0.0f32;
         for x in buf {
             let a = x.abs();
             self.env = if a > self.env { a } else { self.env * self.det };
@@ -198,6 +216,10 @@ impl Stage for Comp {
             self.gr = target + (self.gr - target) * c;
             let g = db_to_gain(self.makeup - self.gr);
             *x = *x * (1.0 - self.wet) + *x * g * self.wet;
+            worst = worst.max(self.gr);
+        }
+        if let Some(m) = &self.meter {
+            m.publish(worst);
         }
     }
 
@@ -258,6 +280,7 @@ mod tests {
             det: coef(DETECTOR_RELEASE_MS, 48000),
             env: 0.0,
             gr: 0.0,
+            meter: None,
         };
         let mut dc = vec![db_to_gain(0.0); 48000];
         let mut gr = Vec::new();

@@ -207,6 +207,30 @@ impl FxSpec {
         with_effect!(self, e => e.build(sample_rate, max_block))
     }
 
+    /// Cet effet publie-t-il une **action** pour le synoptique de `browse` (#107) : la réduction
+    /// de gain du compresseur, la fermeture du gate ?
+    pub fn has_action_meter(&self) -> bool {
+        matches!(self, FxSpec::Comp(_) | FxSpec::Gate(_))
+    }
+
+    /// Comme [`FxSpec::build`], mais branche le vumètre d'action sur les effets qui en publient un
+    /// ([`FxSpec::has_action_meter`]) ; les autres l'ignorent.
+    pub fn build_metered(
+        &self,
+        sample_rate: u32,
+        max_block: usize,
+        action: Option<&crate::meter::Meter>,
+    ) -> Result<Box<dyn Stage>> {
+        let Some(m) = action.filter(|_| self.has_action_meter()) else {
+            return self.build(sample_rate, max_block);
+        };
+        Ok(match self {
+            FxSpec::Comp(p) => Box::new(p.stage(sample_rate).with_meter(m.clone())),
+            FxSpec::Gate(p) => Box::new(p.stage(sample_rate).with_meter(m.clone())),
+            _ => return self.build(sample_rate, max_block),
+        })
+    }
+
     /// Réglages à éprouver par les tests génériques : les défauts, puis chaque paramètre à son
     /// minimum et à son maximum (les autres aux défauts).
     pub fn extremes(&self) -> Vec<FxSpec> {
