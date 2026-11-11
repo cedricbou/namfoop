@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Changé (#104)
+- `browse` : **Échap ne quitte plus**. Il revient d'un niveau (filtre, saisie du nom d'un mélange,
+  éditeur `e`, réglages d'un effet -> chaîne -> catalogue) et, quand il n'y a plus rien à remonter,
+  affiche « Échap ne quitte pas : q pour quitter ». **`q`** quitte tout de suite si rien n'est en
+  jeu ; sinon une fenêtre « Modifications non enregistrées » liste ce qui serait perdu (chaîne
+  d'effets changée depuis le lancement, mélange d'IR pas enregistré, brouillon de l'éditeur `e`) :
+  **`Q`** quitte sans enregistrer, Échap ou toute autre touche fait rester, et les touches de
+  modification seules (Maj, Ctrl, Alt) n'ont aucun effet. C'est l'état qui est comparé, pas un
+  drapeau : défaire un changement ou l'enregistrer efface l'alerte.
+
 ### Corrigé (#102)
 - `split` n'est plus proposé comme un effet réglable : ajouté depuis `browse` ou `--pre` / `--post`,
   il n'avait que deux branches vides, donc un passe-tout qui ne faisait rien (la phase tournait et la

@@ -72,13 +72,16 @@ impl State {
         }
         let Some(ed) = self.editor.as_mut() else { return Action::None };
         match key {
-            Key::Esc | Key::Char('q') => {
+            // Échap remonte d'un niveau (ferme l'éditeur) ; q veut quitter `browse`, et le
+            // brouillon non enregistré de l'éditeur fait partie de ce qu'on alerterait de perdre.
+            Key::Esc => {
                 let revert = ed.draft.input_db != self.saved_meta(m).input_db;
                 self.editor = None;
                 if revert {
                     return self.play();
                 }
             }
+            Key::Char('q') => return self.quit_or_confirm(),
             Key::Up => ed.field = ed.field.saturating_sub(1),
             Key::Down | Key::Tab => ed.field = (ed.field + 1).min(FIELDS.len() - 1),
             Key::Left | Key::Right | Key::Char('+') | Key::Char('-') | Key::Char('=') => {

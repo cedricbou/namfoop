@@ -232,7 +232,8 @@ impl State {
                 fx.focus = FxFocus::Chain;
                 false
             }
-            (FxFocus::Chain, Key::Left) => {
+            // ← et Échap reviennent d'un niveau : chaîne -> catalogue (Échap ne quitte jamais)
+            (FxFocus::Chain, Key::Left | Key::Esc) => {
                 fx.focus = FxFocus::Catalog;
                 false
             }
@@ -363,6 +364,25 @@ mod tests {
         (pre, post)
     }
 
+    /// Échap remonte les niveaux de l'onglet (réglages -> chaîne -> catalogue) et ne quitte jamais,
+    /// même sur le catalogue où il n'y a plus rien à remonter (#104).
+    #[test]
+    fn escape_climbs_back_in_the_fx_tab_and_never_quits() {
+        let mut s = fx_tab();
+        pick(&mut s, "comp");
+        s.on_key(Key::Char('a'));
+        assert_eq!(s.fx.focus, FxFocus::Params);
+        assert_eq!(s.on_key(Key::Esc), Action::None);
+        assert_eq!(s.fx.focus, FxFocus::Chain, "réglages -> chaîne");
+        assert_eq!(s.on_key(Key::Esc), Action::None);
+        assert_eq!(s.fx.focus, FxFocus::Catalog, "chaîne -> catalogue");
+        assert_eq!(s.on_key(Key::Esc), Action::None, "plus rien à remonter : on reste");
+        assert_eq!(s.fx.focus, FxFocus::Catalog);
+        assert_eq!(s.tab, Tab::Fx);
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("q pour quitter")), "{:?}", s.message);
+        assert!(!s.confirm_quit, "Échap n'ouvre pas la fenêtre de confirmation");
+    }
+
     /// Le catalogue de l'onglet ne propose aucun bloc de structure : un `split` ajouté ici n'aurait
     /// que des branches vides, un passe-tout réglable qui ne fait rien (#102). Chaque effet proposé
     /// s'écrit donc aussi en ligne de commande.
@@ -409,7 +429,10 @@ mod tests {
         s.on_key(Key::Char('x'));
         assert_eq!(s.fx.args(), "--pre gate --post delay");
         assert_eq!(reparse(&s.fx.args()), s.fx.active());
-        assert_eq!(s.on_key(Key::Char('q')), Action::Quit);
+        // la chaîne a changé depuis le lancement : q demande confirmation, Q quitte (#104)
+        assert_eq!(s.on_key(Key::Char('q')), Action::None);
+        assert!(s.confirm_quit);
+        assert_eq!(s.on_key(Key::Char('Q')), Action::Quit);
     }
 
     #[test]

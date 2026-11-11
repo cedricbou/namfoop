@@ -176,6 +176,13 @@ pub struct State {
     pub fx: fx::FxState,
     /// Effets changés : écoute à reconstruire après `AUDITION_DELAY_MS` sans touche.
     fx_due: Option<u64>,
+    /// Fenêtre « Modifications non enregistrées » ouverte par `q` : seul `Q` quitte.
+    pub confirm_quit: bool,
+    /// Chaîne d'effets au lancement et dernier mélange enregistré : ce qui est « modifié » se
+    /// décide en **comparant des états** (jamais un drapeau posé à la main), pour que revenir à
+    /// l'état de départ efface l'alerte.
+    start_fx: (Vec<fx::FxSlot>, Vec<fx::FxSlot>),
+    saved_blend: (Vec<BlendPart>, bool),
     pending: Option<u64>,
     now: u64,
 }
@@ -210,8 +217,11 @@ impl State {
             blend_profile: None,
             fx: fx::FxState::default(),
             fx_due: None,
-            pending: None,
+            confirm_quit: false,
+            start_fx: (Vec::new(), Vec::new()),
+            saved_blend: (Vec::new(), true),
             now: 0,
+            pending: None,
         }
     }
 
@@ -397,6 +407,9 @@ impl State {
     }
 
     pub fn on_key(&mut self, key: Key) -> Action {
+        if self.confirm_quit {
+            return self.confirm_quit_key(key);
+        }
         if self.editor.is_some() {
             return self.editor_key(key);
         }
@@ -449,7 +462,10 @@ impl State {
         }
         let c = self.cursor();
         match key {
-            Key::Esc | Key::Char('q') => return Action::Quit,
+            // Échap ne quitte jamais : ici, aucun niveau à remonter (filtre, nom, éditeur et
+            // réglages d'un effet l'ont déjà consommé).
+            Key::Esc => self.message = Some("Échap ne quitte pas : q pour quitter".into()),
+            Key::Char('q') => return self.quit_or_confirm(),
             Key::Char('/') => {
                 if matches!(self.tab, Tab::Models | Tab::Irs) {
                     self.filtering = true;
@@ -564,6 +580,7 @@ mod blend;
 mod compare;
 mod editor;
 pub mod fx;
+mod quit;
 
 #[cfg(test)]
 pub mod tests;

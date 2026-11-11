@@ -1,9 +1,9 @@
 //! Rendu du navigateur (ratatui). Lecture seule de l'état.
 
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph};
+use ratatui::widgets::{Block, Clear, Paragraph};
 use ratatui::Frame;
 
 use super::state::{AbState, Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
@@ -450,6 +450,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     );
 
     let keys = match (s.naming.is_some(), s.filtering, s.tab) {
+        _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester",
         _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
             "tape le texte   Entrée valider   Échap annuler"
         }
@@ -470,6 +471,53 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(format!(" {keys}"), Style::new().fg(Color::DarkGray)))),
         foot,
+    );
+
+    if s.confirm_quit {
+        render_confirm_quit(s, body, f);
+    }
+}
+
+/// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un
+/// geste volontaire pour quitter (`Q` majuscule). Elle se dessine en dernier, par-dessus l'onglet.
+fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
+    let mut lines = vec![Line::from(Span::styled(
+        "Ceci n'est pas enregistré :",
+        Style::new().add_modifier(Modifier::BOLD),
+    ))];
+    for what in s.unsaved() {
+        lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::from(vec![
+        Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::raw("     quitter sans enregistrer"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(" ou toute autre touche : rester (par défaut)"),
+    ]));
+
+    let w = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16 + 4;
+    let w = w.min(body.width);
+    let h = (lines.len() as u16 + 2).min(body.height);
+    let area = Rect {
+        x: body.x + (body.width.saturating_sub(w)) / 2,
+        y: body.y + (body.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    };
+    f.render_widget(Clear, area);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::bordered()
+                .title(Span::styled(
+                    " Modifications non enregistrées ",
+                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                ))
+                .style(Style::new().bg(Color::Black)),
+        ),
+        area,
     );
 }
 

@@ -13,7 +13,10 @@ cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engin
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod.rs état et
-                navigation, compare.rs A/B b / r et référence c via effective_ir / effective_model,
+                navigation ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
+                `on_key`), `q` ouvre la fenêtre de confirmation (`confirm_quit`, `Q` seul quitte)
+                quand `unsaved()` n'est pas vide — comparaison d'états via `mark_start` et
+                `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
                 Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée) ; navigation :
                 Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
