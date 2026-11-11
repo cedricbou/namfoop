@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
-use dsp::chain::{AmpSpec, Level, LimiterSpec};
+use dsp::chain::{AmpSpec, CrossoverSpec, Level, LimiterSpec};
 use dsp::ir::IrSettings;
 use dsp::nam::NamSettings;
 
@@ -81,6 +81,16 @@ pub struct AmpArgs {
     /// l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
     #[arg(long = "post", value_name = "FX", value_parser = parse_fx)]
     pub post: Vec<FxSpec>,
+    /// Blend grave clair : sous cette fréquence (Hz, ex: 150), le grave du DI reste clair et
+    /// s'ajoute au son du modèle (crossover Linkwitz-Riley, retards alignés)
+    #[arg(long, value_name = "HZ", value_parser = clap::value_parser!(u32).range(20..=1000))]
+    pub crossover: Option<u32>,
+    /// Gain de la branche grave claire du crossover (dB, après alignement automatique sur le modèle)
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true, requires = "crossover")]
+    pub crossover_low_db: f32,
+    /// Gain de la branche aiguë (modèle + IR) du crossover (dB)
+    #[arg(long, default_value_t = 0.0, allow_hyphen_values = true, requires = "crossover")]
+    pub crossover_high_db: f32,
     /// Dossier de la bibliothèque (modèles et IR)
     #[arg(long, default_value = "library")]
     pub library: PathBuf,
@@ -191,6 +201,11 @@ impl AmpArgs {
             ir_settings: IrSettings { max_ms: self.ir_ms, ..Default::default() },
             pre: self.pre.clone(),
             post: self.post.clone(),
+            crossover: self.crossover.map(|f| CrossoverSpec {
+                freq: f as f32,
+                low_db: self.crossover_low_db,
+                high_db: self.crossover_high_db,
+            }),
             level,
             master_db: self.master_db,
             limiter: (cfg.limiter && !self.no_limiter)

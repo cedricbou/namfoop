@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#83)
+- Blend grave clair : `--crossover HZ` (+ `--crossover-low-db`, `--crossover-high-db`) garde le grave
+  du DI sous un crossover Linkwitz-Riley 4, retard du modèle et de l'IR compensé, niveau aligné.
+- Étage parallèle `split` (copie ou crossover, branches d'effets, imbricable) pour les presets.
+
 ### Ajouté (#82)
 - Filtres et EQ paramétrique, une bande par effet : `hpf`, `lpf` (12 ou 24 dB/oct), `peak`,
   `lowshelf`, `highshelf` (biquads RBJ).

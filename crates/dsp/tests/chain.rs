@@ -176,3 +176,56 @@ fn level_match_includes_effects() {
     assert!(diff.abs() < 0.5, "écart de niveau {diff:.2} dB");
     assert_eq!(spec.describe(), "[NAM wavenet] › gain:db=-6 › niveau DI");
 }
+
+fn nested_split() -> dsp::fx::FxSpec {
+    let text = r#"
+type = "split"
+mode = "crossover"
+freq = 120.0
+[[branches]]
+[[branches]]
+fx = [{ type = "split", mode = "copy", branches = [{ gain_db = -6.0, fx = [{ type = "comp", ratio = 8.0 }] }, { fx = [{ type = "lpf", freq = 3000.0 }] }] }]
+"#;
+    toml::from_str(text).unwrap()
+}
+
+/// `split` imbriqué : même sortie quelle que soit la taille de bloc.
+#[test]
+fn nested_split_is_independent_of_block_size() {
+    let input = signal(24000);
+    let run = |block: usize| {
+        let mut st = nested_split().build(48000, 64).unwrap();
+        let mut buf = input.clone();
+        for c in buf.chunks_mut(block) {
+            st.process(c);
+        }
+        buf
+    };
+    let reference = run(64);
+    for block in [16, 48, 1000] {
+        let err = reference.iter().zip(&run(block)).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
+        assert!(err < 1e-5, "bloc {block} : {err}");
+    }
+}
+
+/// Crossover autour de « NAM + IR » : grave clair aligné, sortie finie, ordre dans `describe`.
+#[test]
+fn crossover_around_the_model() {
+    use dsp::chain::CrossoverSpec;
+    let ir = test_ir("xover");
+    let spec = AmpSpec {
+        model: Some(example("wavenet.nam")),
+        ir: Some(ir.clone()),
+        crossover: Some(CrossoverSpec { freq: 150.0, low_db: 0.0, high_db: 0.0 }),
+        ..Default::default()
+    };
+    let out = render(&spec, 64, &signal(24000));
+    assert!(out.iter().all(|x| x.is_finite()) && rms(&out) > 1e-4);
+    assert_eq!(
+        spec.describe(),
+        "crossover 150 Hz (grave clair | NAM wavenet › IR namfoop-chain-xover-".to_string()
+            + &std::process::id().to_string()
+            + ") › normalisé -18 dB"
+    );
+    let _ = std::fs::remove_file(ir);
+}

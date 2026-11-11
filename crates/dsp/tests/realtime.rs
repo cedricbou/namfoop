@@ -81,3 +81,28 @@ fn fx_catalog_does_not_allocate_in_process() {
         assert!(buf.iter().chain(&big).all(|x| x.is_finite()), "{fx}");
     }
 }
+
+fn nested_split() -> dsp::fx::FxSpec {
+    let text = r#"
+type = "split"
+mode = "crossover"
+freq = 120.0
+[[branches]]
+[[branches]]
+fx = [{ type = "split", mode = "copy", branches = [{ gain_db = -6.0, fx = [{ type = "comp", ratio = 8.0 }] }, { fx = [{ type = "lpf", freq = 3000.0 }] }] }]
+"#;
+    toml::from_str(text).unwrap()
+}
+
+/// `split` imbriqué (profondeur 2) : aucune allocation dans `process`.
+#[test]
+fn nested_split_does_not_allocate_in_process() {
+    let mut st = nested_split().build(48000, 64).unwrap();
+    let mut buf = vec![0.0f32; 64];
+    let mut big = vec![0.1f32; 200];
+    for i in 0..200 {
+        buf.iter_mut().enumerate().for_each(|(k, x)| *x = ((i * 64 + k) as f32 * 0.013).sin() * 0.5);
+        assert_no_alloc(|| st.process(&mut buf));
+    }
+    assert_no_alloc(|| st.process(&mut big));
+}
