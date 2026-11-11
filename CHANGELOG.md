@@ -13,8 +13,8 @@ section prend le numéro de version.
   la bibliothèque 104 µs (7,8 %) / 248 µs seul, 417 µs (31 %) / 509 µs à quatre. Bloc 48 : même coût
   absolu, part un peu plus grande. Mesure reproductible (`cargo test --release -p dsp --test chain
   -- --nocapture cost_of_several_models`, `NAMFOOP_BENCH_MODEL` pour un modèle de la bibliothèque) et
-  notée dans les faits mesurés. **Le Pi 5 reste à mesurer** (#44 / #45) : il fixera le seuil d'alerte
-  de `browse`, provisoirement à 2 modèles.
+  notée dans les faits mesurés. Seuil retenu : `browse` **alerte dès 2 modèles actifs** et ne refuse
+  rien. **Le Pi 5 reste à mesurer** (#44 / #45) : lui seul dira s'il faut une limite dure.
 
 ### Changé (#109)
 - `browse`, onglet Effets : **le synoptique est l'éditeur**. La colonne du catalogue devient une
