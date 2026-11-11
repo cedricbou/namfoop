@@ -243,3 +243,13 @@ fn golden_fx_eq() {
     };
     check("fx-eq", &spec);
 }
+
+#[test]
+fn golden_fx_delay() {
+    check_fx("delay:time=250,feedback=50,mix=40");
+}
+
+#[test]
+fn golden_fx_chorus() {
+    check_fx("chorus:mix=60");
+}

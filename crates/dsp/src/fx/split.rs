@@ -86,6 +86,11 @@ impl Effect for SplitParams {
             .collect::<Result<Vec<_>>>()?;
         Ok(Box::new(Split::new(mode, branches, sample_rate, max_block, true)))
     }
+
+    /// La branche la plus longue (les effets d'une branche sont en série : leurs queues s'ajoutent).
+    fn tail_seconds(&self) -> f32 {
+        self.branches.iter().map(|b| b.fx.iter().map(|f| f.tail_seconds()).sum::<f32>()).fold(0.0, f32::max)
+    }
 }
 
 #[cfg(test)]

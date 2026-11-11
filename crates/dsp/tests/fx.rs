@@ -46,16 +46,20 @@ fn output_is_finite() {
     }
 }
 
-/// Après un signal puis du silence, la sortie redevient silencieuse (queue de 10 s au plus).
+/// Après un signal puis du silence, la sortie redevient silencieuse : au bout de 10 s, ou de la
+/// queue que l'effet déclare (`tail_seconds`, delay, réverbe), plafonnée pour le test.
 #[test]
 fn silence_after_the_tail() {
     for fx in variants() {
+        let tail = fx.tail_seconds();
+        assert!(tail <= dsp::fx::MAX_TEST_TAIL_SECONDS, "{fx} : queue déclarée de {tail} s, trop longue");
+        let wait = tail.max(10.0).ceil() as usize + 1;
         let mut input = noise(SR as usize);
-        input.extend(std::iter::repeat_n(0.0, 10 * SR as usize));
+        input.extend(std::iter::repeat_n(0.0, wait * SR as usize));
         let out = run(&fx, &input);
         let last = &out[out.len() - SR as usize / 10..];
         let peak = last.iter().fold(0.0f32, |a, x| a.max(x.abs()));
-        assert!(peak < 1e-6, "{fx} : {peak:e} encore après 10 s de silence");
+        assert!(peak < 1e-6, "{fx} : {peak:e} encore après {wait} s de silence");
     }
 }
 

@@ -25,7 +25,8 @@ enveloppe 50 ms).
 Socle : `src/fx/mod.rs` (`FxSpec`, `ParamInfo`, `Unit`, trait `Effect`, `catalog()`, mini-syntaxe
 `nom:param=valeur,...`, TOML avec `type = "<nom>"`). Décisions : `docs/adr/0005-effets-et-chaines.md`.
 1. `src/fx/<nom>.rs` : la structure de paramètres (serde, `#[serde(default)]`), `impl Effect`
-   (`KIND`, `HELP`, table `PARAMS` en français, `get`, `put`, `build`) et l'étage (`Stage`) ;
+   (`KIND`, `HELP`, table `PARAMS` en français, `get`, `put`, `build` ; `tail_seconds` si l'effet
+   sonne plus de 10 s après la fin du signal, ≤ 90 s aux réglages extrêmes) et l'étage (`Stage`) ;
    tout ce qui alloue se fait dans `build`.
 2. Une variante dans `FxSpec`, une branche dans la macro `with_effect!`, une ligne dans
    `catalog()`, une branche dans le test `catalog_covers_every_variant` (le `match` l'impose).
@@ -83,6 +84,11 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   b7k + IR dg212 : 43–44 échantillons (0,9 ms, l'attaque de l'IR). Alignement du grave clair sur la
   calibration de l'utilisateur : -14,7 dB, niveau final inchangé (RMS -24,4 dBFS) ; coût `split`
   vide (4 biquads) 0,67 µs par bloc de 64 (0,05 %).
+- Delay et chorus (#84, `bench --fx`, bloc 64) : `delay` 0,27 µs (0,02 %), `chorus` 1,6 µs (0,12 %).
+  Delay : tampon de 2 s alloué à la construction (2^17 floats, 512 Kio), réinjection ≤ 90 %
+  (filtres de boucle Butterworth de gain ≤ 1 : gain de boucle < 1, stable) ; queue à -140 dB à
+  90 % / 400 ms : 62 s. Chorus : sous `lowcut` / 4, écart < 0,2 dB (passe-haut LR4 sur la voix
+  modulée et sur le son direct qu'elle remplace).
 
 ## Dette connue
 
@@ -90,6 +96,8 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
   un lookahead de ~1 ms serait plus propre mais ajoute de la latence.
+- `Delay::set_time` (fondu entre deux têtes) n'est appelé que par les tests : à brancher sur
+  `set_param` (#6).
 - Pas encore de lissage des paramètres ni de changement de chaîne à chaud (prévu avec les presets).
 
 ## Carte détaillée (reprise du `CLAUDE.md` racine)
