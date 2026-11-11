@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#85)
+- Effet `reverb` : réseau de 8 lignes à retard (FDN, Householder), `decay` (RT60) de 0,2 à 10 s,
+  pré-délai, amortissement des aigus, grave sec sous `lowcut`.
+
 ### Ajouté (#84)
 - Effet `delay` : écho jusqu'à 2 s, réinjection filtrée (`lowcut`, `highcut`), 90 % au plus sans
   emballement ; changement de temps par fondu entre deux têtes de lecture (sans glissement).

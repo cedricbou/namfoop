@@ -1069,6 +1069,23 @@ Mélange au son une copie légèrement retardée dont le retard ondule (`rate`, 
 namfoop run -m b7k -i "dg212 sm57" --post chorus:rate=0.8,depth=2,lowcut=200,mix=50
 ```
 
+#### `reverb` : un peu d'espace
+
+Une réverbe (réseau de 8 lignes à retard) : surtout utile dans les **in-ears**, où le son sec paraît
+enfermé. À la basse, elle reste discrète et **hors du grave** : sous `lowcut`, la part réverbérée
+est coupée (24 dB/oct), la fondamentale reste nette.
+
+- `decay` : durée de la queue (RT60, temps pour perdre 60 dB), de 0,2 à 10 s ; 0,8–1,5 s suffisent.
+- `predelay` : attente avant la réverbe ; 10–30 ms gardent l'attaque de la note lisible.
+- `damping` : amortissement des aigus dans la queue (plus : plus sombre, plus naturel).
+- `lowcut` : 150–300 Hz pour une basse ; `mix` : niveau de la réverbe, **bas** (10–20 %), le son
+  direct reste à 100 %.
+- Piège : changer un paramètre reconstruit la chaîne et coupe la queue (prototype).
+
+```sh
+namfoop run -m b7k -i "dg212 sm57" --post reverb:decay=1.2,predelay=20,lowcut=250,mix=15
+```
+
 #### Blend grave clair : `--crossover`
 
 Un ampli saturé « mange » le grave : la fondamentale se brouille et perd son assise. Le blend garde,

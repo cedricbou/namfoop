@@ -89,6 +89,13 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   (filtres de boucle Butterworth de gain ≤ 1 : gain de boucle < 1, stable) ; queue à -140 dB à
   90 % / 400 ms : 62 s. Chorus : sous `lowcut` / 4, écart < 0,2 dB (passe-haut LR4 sur la voix
   modulée et sur le son direct qu'elle remplace).
+- Réverbe (#85) : FDN 8 lignes (30–61 ms, premiers), Householder, passe-bas à un pôle par ligne
+  (gain 1 au continu : le RT60 du grave ne bouge pas), passe-haut LR4 en sortie. `bench --fx`,
+  bloc 64, x86 : 0,89 µs (0,07 % du budget) ; **à mesurer sur Pi 5 (#44)**. RT60 (Schroeder,
+  -5 à -35 dB) à ± 15 % de `decay` de 0,2 à 10 s ; une octave sous `lowcut`, < -12 dB par rapport
+  au médium. Avec flush-to-zero (`render`), la queue qui s'éteint coûte autant que du bruit
+  (31 s, 0,023 s CPU dans les deux cas). Niveau : ≈ celui de l'entrée à 0,3 s, plus fort (< +10 dB)
+  pour une queue de 8 s.
 
 ## Dette connue
 
