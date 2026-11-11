@@ -1007,7 +1007,7 @@ trim › effets pré › modèle NAM › IR › effets post › niveau › maste
 | `delay` | écho | post, vers la fin |
 | `reverb` | un peu d'espace, surtout dans les in-ears | post, en dernier |
 | `gain` | monter ou baisser le niveau à un point de la chaîne | où il faut |
-| `split` | branches parallèles (2 à 4, en copie ou en bandes) : seulement dans un preset (#6), pas en ligne de commande | — |
+| parallèle | 2 à 4 branches (copie ou bandes) : ce n'est pas un effet mais un **bloc de la chaîne**, décrit dans un preset (#6) ; `--crossover` en ligne de commande | — |
 
 Ordre conseillé : **pré** `gate › comp`, **post** `EQ › chorus › delay › reverb`. Le gate vient en
 premier pour ne pas couper les queues des effets ; la réverbe en dernier pour réverbérer les échos.
@@ -1196,7 +1196,8 @@ DI ─ pre ───┤                                          ├─ somme �
   corrigent ensuite chaque branche.
 - Le retard du modèle et de l'IR (l'attaque d'une IR arrive souvent après 0,5 à 2 ms) est mesuré et
   compensé sur la branche claire : sans cela, les deux branches s'annuleraient en partie autour de la
-  coupure (creux de plusieurs dB). La ligne `crossover` du log donne l'alignement et le retard.
+  coupure (creux de plusieurs dB). La ligne `◆ bandes` du log donne les branches, l'alignement et
+  les retards compensés.
 - Piège : sans calibration, l'alignement se fait sur une note synthétique à -30 dBFS ; avec un
   autre niveau de jeu, ajuster `--crossover-low-db` à l'oreille.
 
@@ -1205,12 +1206,28 @@ namfoop run -m b7k -i auto --crossover 150
 namfoop run -m b7k -i auto --crossover 120 --crossover-low-db -3
 ```
 
-Des branches parallèles faites d'effets (`split` : **2 à 4 branches**, en mode copie — chacune reçoit
-tout le signal — ou en **bandes** : 1 à 3 coupures croissantes, crossover LR4, somme plate) se
-décrivent **dans les presets** (#6), pas en texte : `--pre split` et `--post split` sont refusés, et le catalogue de
-`browse` ne propose pas `split`. Sans branches, il ne ferait qu'un passe-tout réglable qui ne change
-rien au son (#102). En ligne de commande, `--crossover` entoure le modèle ; le parallèle deviendra un
-bloc de la chaîne, éditable dans `browse` ([ADR 0006](adr/0006-chaine-en-blocs-et-parallele.md)).
+#### La chaîne est une suite de blocs
+
+`--crossover` est un **raccourci**. Depuis l'[ADR 0006](adr/0006-chaine-en-blocs-et-parallele.md), la
+chaîne est une suite de **blocs** entre l'entrée et la sortie : un bloc est un effet, un **modèle
+NAM**, une **IR**, ou un **parallèle**. Le modèle n'est donc plus coincé entre `pre` et `post` : il
+se place où tu veux, y compris dans une branche, et tu peux en mettre **plusieurs** (une fuzz
+capturée devant un ampli, par exemple ; leur coût processeur est mesuré, #111).
+
+Un parallèle a **2 à 4 branches** et deux modes :
+
+- **copie** : chaque branche reçoit tout le signal (compression parallèle, deux amplis mélangés) ;
+- **bandes** : 1 à 3 coupures croissantes (crossover Linkwitz-Riley 24 dB/oct, somme plate) ; une
+  seule coupure, c'est exactement `--crossover`.
+
+Chaque branche a un gain, une polarité et un muet ; une branche **vide** est le son direct, mise
+automatiquement au niveau de la première branche qui contient un modèle. Il n'y a qu'**un seul
+niveau** : pas de parallèle dans une branche (plusieurs parallèles peuvent se suivre en série).
+
+Les branches ne se décrivent **pas en ligne de commande** (ce serait illisible) : `--pre split` et
+`--post split` sont refusés — le parallèle n'est pas un effet, il n'est pas au catalogue de
+`namfoop fx` ni de `browse`. Pour autre chose que `--crossover`, ça passe par l'éditeur de chaîne de
+`browse` et les presets (#6).
 
 ---
 
