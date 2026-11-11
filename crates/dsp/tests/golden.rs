@@ -231,3 +231,15 @@ fn golden_fx_gate() {
 fn golden_fx_comp() {
     check_fx("comp:threshold=-24,ratio=4");
 }
+
+/// EQ typique d'une basse : passe-haut, creux de médiums, présence.
+#[test]
+fn golden_fx_eq() {
+    let pre = ["hpf:freq=40", "peak:freq=300,gain=-4", "highshelf:freq=3000,gain=3"];
+    let spec = AmpSpec {
+        pre: pre.iter().map(|f| f.parse().unwrap()).collect(),
+        level: Level::Raw,
+        ..Default::default()
+    };
+    check("fx-eq", &spec);
+}

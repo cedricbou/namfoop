@@ -1012,6 +1012,27 @@ le niveau monte `ratio` fois moins vite ; `makeup` remonte ensuite le tout.
 namfoop render -m b7k -i "dg212 sm57" --post comp:threshold=-24,ratio=4,makeup=4 -o comp.wav
 ```
 
+#### Filtres et EQ : `hpf`, `lpf`, `peak`, `lowshelf`, `highshelf`
+
+Une bande par effet : on en enchaîne plusieurs avec des `--post` successifs. Après le modèle, ils
+sculptent le son sans toucher au grain ; avant, ils changent ce que le modèle sature.
+
+- `hpf` (passe-haut) : `freq`, `q`, `slope` 12 ou 24 dB/oct. Nettoie l'infra et le souffle des HP
+  sans perdre le grave utile : 30–40 Hz pour une basse 4 cordes, 25 Hz pour un si grave.
+- `lpf` (passe-bas) : adoucit le « fizz » d'un modèle saturé ou les claquements de cordes :
+  5–8 kHz. À 24 dB/oct, il atténue de 6 dB à `freq` (deux étages, type Linkwitz-Riley).
+- `peak` (cloche) : `freq`, `gain`, `q`. Un creux de 3–4 dB vers 250–400 Hz enlève le « carton » ;
+  une bosse vers 700–900 Hz fait ressortir la basse dans le mix ; 2–4 kHz : attaque et présence.
+- `lowshelf` / `highshelf` (plateaux) : plus ou moins de grave sous `freq`, ou d'aigu au-dessus ;
+  la moitié du gain est atteinte à `freq`.
+- Piège : un `q` élevé avec beaucoup de gain sonne nasal, et un passe-haut résonant (`q` > 1) fait
+  une bosse juste au-dessus de la coupure.
+
+```sh
+namfoop run -m b7k -i "dg212 sm57" --post hpf:freq=35 --post peak:freq=300,gain=-4 --post highshelf:freq=3000,gain=2
+namfoop fx peak
+```
+
 ---
 
 ## 10. Backends, carte et routage en ligne de commande

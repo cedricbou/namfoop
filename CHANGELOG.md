@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#82)
+- Filtres et EQ paramétrique, une bande par effet : `hpf`, `lpf` (12 ou 24 dB/oct), `peak`,
+  `lowshelf`, `highshelf` (biquads RBJ).
+
 ### Ajouté (#81)
 - Effets `gate` (seuil, hystérésis, attaque, maintien, relâche, plage) et `comp` (seuil, ratio,
   genou doux, attaque, relâche, makeup, mix pour la compression parallèle).
