@@ -18,10 +18,14 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 quand `unsaved()` n'est pas vide — comparaison d'états via `mark_start` et
                 `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
-                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée) ; navigation :
+                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée, v
+                vumètres), chain.rs (vue en blocs du synoptique : Leaf / Split / Branch, étiquettes,
+                et la balistique des vumètres MeterDisplay : montée immédiate, descente 28 dB/s) ; navigation :
                 Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
-                panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, tests.rs), mod.rs (index, Engine + ChainSender dans
+                panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, synoptic.rs (le synoptique de la
+                chaîne : une ligne par branche, vumètres au-dessus, colonnes alignées, défilement
+                horizontal), tests.rs), mod.rs (index, Engine + ChainSender dans
                 le thread de construction, qui rend aussi la table des vumètres par bloc
                 (dsp::meter::ChainMeters, #107) portée par ui::Status, overrides.toml) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start)

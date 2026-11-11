@@ -468,7 +468,7 @@ pub fn run(
                 status.loading = false;
                 match b {
                     // les vumètres de la chaîne qui vient d'être installée (#107)
-                    Built::Ok(meters) => status.chain_meters = Some(meters),
+                    Built::Ok(meters) => st.set_chain_meters(meters),
                     Built::Err(e) => st.message = Some(format!("chargement impossible : {e}")),
                 }
             }
@@ -478,6 +478,8 @@ pub fn run(
             status.load = m.load.max(status.load * 0.9);
             status.limiter = m.limiter_db.max(status.limiter * 0.85);
             status.xruns = engine.xruns();
+            // vumètres du synoptique : montée immédiate, descente 28 dB/s (#107, #108)
+            st.update_meters(start.elapsed().as_millis() as u64, m.in_peak, m.out_peak);
             session.terminal.draw(|f| ui::render(&st, &status, f))?;
         }
     })();

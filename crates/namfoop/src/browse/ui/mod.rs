@@ -13,6 +13,7 @@ use library::recommend::NeedsIr;
 mod editor;
 mod fx;
 mod spectrum;
+pub mod synoptic;
 
 use editor::*;
 pub use spectrum::SPECTRUM_MIN_WIDTH;
@@ -33,9 +34,6 @@ pub struct Status {
     pub xruns: u64,
     pub loading: bool,
     pub device: String,
-    /// Vumètres par bloc et par branche de la chaîne **en écoute** (#107) : la table arrive avec la
-    /// chaîne construite et sert au synoptique (#108). `None` avant la première chaîne.
-    pub chain_meters: Option<dsp::meter::ChainMeters>,
 }
 
 pub(super) fn cursor_span(on: bool) -> Span<'static> {

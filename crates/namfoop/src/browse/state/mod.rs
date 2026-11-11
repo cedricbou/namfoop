@@ -176,6 +176,12 @@ pub struct State {
     pub fx: fx::FxState,
     /// Effets changés : écoute à reconstruire après `AUDITION_DELAY_MS` sans touche.
     fx_due: Option<u64>,
+    /// Vumètres par bloc et par branche de la chaîne **en écoute** (#107) : la table arrive avec la
+    /// chaîne construite, `meters` garde ce que les barres montrent.
+    pub chain_meters: Option<dsp::meter::ChainMeters>,
+    pub meters: chain::MeterDisplay,
+    /// `v` : vumètres du synoptique affichés ou masqués.
+    pub show_meters: bool,
     /// Fenêtre « Modifications non enregistrées » ouverte par `q` : seul `Q` quitte.
     pub confirm_quit: bool,
     /// Chaîne d'effets au lancement et dernier mélange enregistré : ce qui est « modifié » se
@@ -217,6 +223,9 @@ impl State {
             blend_profile: None,
             fx: fx::FxState::default(),
             fx_due: None,
+            chain_meters: None,
+            meters: chain::MeterDisplay::default(),
+            show_meters: true,
             confirm_quit: false,
             start_fx: (Vec::new(), Vec::new()),
             saved_blend: (Vec::new(), true),
@@ -577,6 +586,7 @@ impl State {
 }
 
 mod blend;
+pub mod chain;
 mod compare;
 mod editor;
 pub mod fx;

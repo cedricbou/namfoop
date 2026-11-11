@@ -6,6 +6,23 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Changé (#108)
+- `browse`, onglet Effets : la liste « pré / [modèle › IR] / post » devient le **synoptique** de la
+  chaîne, `IN ─ gate -60 ─ nam·b7k ─ ir·sm57 ─ delay ─ OUT`, avec un **vumètre au-dessus de chaque
+  bloc** (crête -60 … 0 dBFS en huitièmes de caractère ; vert, jaune au-dessus de -9 dB, rouge
+  au-dessus de -1 ; montée immédiate, descente 28 dB/s). Le compresseur montre sa réduction de gain
+  en orange depuis la droite (20 dB = toute la barre), le gate fermé une barre pleine rouge sombre ;
+  un bloc coupé, une branche muette ou hors solo sont assombris. **`v`** masque et réaffiche les
+  vumètres. Le titre du cadre compte les modèles actifs et les parallèles, et alerte sur la charge
+  au-delà de 2 modèles (seuil provisoire, à fixer par la mesure sur Pi 5).
+- Le synoptique sait déjà dessiner les **parallèles** (crossover à 2 bandes, copie à 3 branches,
+  bandes à 4) : une ligne par branche, `◆─┬─` / `├─` / `└─` à l'entrée, `┬` / `┤` / `┘` à la sortie,
+  étiquette de branche, remplissage `─` et gain aligné à droite (`-3 dB`, `ø` si la polarité est
+  inversée, `S` en solo, `muet`) — toutes les lignes d'un parallèle ont la même largeur et les
+  traits verticaux tombent dans la même colonne. Il reste en **lecture seule** : l'édition est celle
+  d'avant (catalogue, `a` / `A`, `[` `]`, `x`, `b`), l'éditeur 2D vient ensuite.
+- Terminal étroit : défilement horizontal qui garde le bloc choisi visible, sans retour à la ligne.
+
 ### Ajouté (#107)
 - `dsp::meter` : **vumètres par bloc et par branche**, préalloués à la construction de la chaîne
   (`ChainSpec::build_with_meters`) et qui voyagent avec elle. Pour chaque bloc, la crête de sortie ;
