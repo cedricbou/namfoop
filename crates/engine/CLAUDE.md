@@ -51,6 +51,16 @@ avec deux chaînes successives, routage refusé), puis
   sorties identiques octet pour octet. NAM et la convolution ne produisent donc pas de
   dénormalisés ici : le correctif sert aux effets IIR, delay, réverbe (#5).
 
+## Faits mesurés sur les tests
+
+- `sim_session_swaps_chains` n'exige pas 0 xrun dans l'absolu : la carte simulée en compte un dès
+  que son thread a une période de retard, ce qui mesure la machine, pas le code (#114, une PR cassée
+  par un runner partagé). Le test prend une **référence** sans échange : si le flux décroche déjà
+  là, il ne conclut pas (et le dit) ; s'il est propre, un échange de chaîne ne doit ajouter aucun
+  décrochage. Vérifié dans les deux sens : 48 boucles de charge sur 16 cœurs -> le test passe en
+  signalant 1 à 3 xruns de référence ; référence forcée à 0 sous la même charge -> il échoue bien.
+  Le 0 xrun strict reste sur le matériel (`scripts/test-backends.sh`), où il a un sens.
+
 ## Dette connue
 
 - Pics de charge DSP en `run` (#3) : réglés par la priorité FIFO 80 (groupe `realtime`), voir les
