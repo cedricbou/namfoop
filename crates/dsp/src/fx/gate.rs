@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{Effect, ParamInfo, Unit};
+use crate::meter::Meter;
 use crate::{db_to_gain, Result, Stage};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -116,8 +117,15 @@ impl Effect for GateParams {
     }
 
     fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
+        Ok(Box::new(self.stage(sample_rate)))
+    }
+}
+
+impl GateParams {
+    /// L'étage typé (pour y brancher un vumètre : `FxSpec::build_metered`).
+    pub fn stage(&self, sample_rate: u32) -> Gate {
         let floor = db_to_gain(self.range);
-        Ok(Box::new(Gate {
+        Gate {
             open_at: db_to_gain(self.threshold),
             close_at: db_to_gain(self.threshold - self.hysteresis),
             hold_samples: (self.hold * 1e-3 * sample_rate as f32) as u32,
@@ -129,7 +137,8 @@ impl Effect for GateParams {
             gain: floor,
             open: false,
             held: 0,
-        }))
+            meter: None,
+        }
     }
 }
 
@@ -145,10 +154,21 @@ pub struct Gate {
     gain: f32,
     open: bool,
     held: u32,
+    /// Vumètre d'affichage : fermeture max (0 ouvert … 1 fermé) depuis la dernière lecture (#107).
+    meter: Option<Meter>,
+}
+
+impl Gate {
+    /// Publie la fermeture du gate pour le synoptique de `browse` (#107) : 0 ouvert, 1 fermé.
+    pub fn with_meter(mut self, meter: Meter) -> Self {
+        self.meter = Some(meter);
+        self
+    }
 }
 
 impl Stage for Gate {
     fn process(&mut self, buf: &mut [f32]) {
+        let mut most_closed = 0.0f32;
         for x in buf {
             let a = x.abs();
             self.env = if a > self.env { a } else { self.env * self.det };
@@ -165,6 +185,10 @@ impl Stage for Gate {
             let (target, c) = if self.open { (1.0, self.att) } else { (self.floor, self.rel) };
             self.gain = target + (self.gain - target) * c;
             *x *= self.gain;
+            most_closed = most_closed.max(1.0 - self.gain);
+        }
+        if let Some(m) = &self.meter {
+            m.publish(most_closed);
         }
     }
 

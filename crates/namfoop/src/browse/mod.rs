@@ -203,7 +203,8 @@ struct Request {
 }
 
 enum Built {
-    Ok,
+    /// Chaîne installée, avec la table de ses vumètres par bloc et par branche (#107).
+    Ok(dsp::meter::ChainMeters),
     Err(String),
 }
 
@@ -302,15 +303,20 @@ pub fn run(
                 fx(&req.pre),
                 fx(&req.post)
             );
+            // avec les vumètres par bloc : la table est préallouée ici et voyage avec la chaîne
             let built = amp_args(&lib_dir, size, &req)
                 .spec(&conf2, Some(limiter.clone()))
-                .and_then(|spec| Ok(spec.build(rate, MAX_BLOCK)?));
+                .and_then(|spec| Ok(spec.to_chain_spec().build_with_meters(rate, MAX_BLOCK)?));
             match built {
-                Ok(mut chain) => loop {
+                Ok((mut chain, meters)) => loop {
                     match handle.send(chain) {
                         Ok(()) => {
-                            let _ = tx_built.send(Built::Ok);
-                            trace(&trace_line);
+                            trace(&format!(
+                                "{trace_line} mesures=blocs:{} parallèles:{}",
+                                meters.blocks.len(),
+                                meters.splits.len()
+                            ));
+                            let _ = tx_built.send(Built::Ok(meters));
                             break;
                         }
                         Err(c) => {
@@ -460,8 +466,10 @@ pub fn run(
             }
             while let Ok(b) = rx_built.try_recv() {
                 status.loading = false;
-                if let Built::Err(e) = b {
-                    st.message = Some(format!("chargement impossible : {e}"));
+                match b {
+                    // les vumètres de la chaîne qui vient d'être installée (#107)
+                    Built::Ok(meters) => status.chain_meters = Some(meters),
+                    Built::Err(e) => st.message = Some(format!("chargement impossible : {e}")),
                 }
             }
             let m = engine.meters();

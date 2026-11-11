@@ -125,6 +125,22 @@ fn multi_band_chain(n: usize) -> dsp::block::ChainSpec {
     }
 }
 
+/// Les vumètres par bloc et par branche (#107) n'allouent pas non plus : les sondes et les
+/// mesures du comp / du gate publient dans des atomiques préalloués à la construction.
+#[test]
+fn a_metered_chain_does_not_allocate_in_process() {
+    let (mut chain, meters) = multi_band_chain(4).build_with_meters(48000, 64).unwrap();
+    let mut buf = vec![0.0f32; 64];
+    let mut big = vec![0.1f32; 200];
+    for i in 0..100 {
+        buf.iter_mut().enumerate().for_each(|(k, x)| *x = ((i * 64 + k) as f32 * 0.013).sin() * 0.5);
+        assert_no_alloc(|| chain.process(&mut buf));
+    }
+    assert_no_alloc(|| chain.process(&mut big));
+    // la lecture (hors temps réel) voit bien quelque chose
+    assert!(meters.blocks.iter().any(|b| b.peak.peek() > 0.0), "des crêtes ont été publiées");
+}
+
 /// Parallèle à 3 et 4 bandes dans une chaîne en blocs (modèle, effets, polarité, muet) : aucune
 /// allocation dans `process`.
 #[test]

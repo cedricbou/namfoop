@@ -22,7 +22,8 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
                 panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, tests.rs), mod.rs (index, Engine + ChainSender dans
-                le thread de construction, overrides.toml) ; `import --review` l'ouvre sur les
+                le thread de construction, qui rend aussi la table des vumètres par bloc
+                (dsp::meter::ChainMeters, #107) portée par ui::Status, overrides.toml) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start)
 setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
@@ -59,8 +60,8 @@ concernée). Erreurs : `anyhow`.
   pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
-  installée dans le thread audio (modèle, IR, entrée, effets pré / post) et chaque grain mesuré par l'éditeur : c'est
-  la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
+  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
 - Test de fumée : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`.
 
 ## Faits mesurés
@@ -132,8 +133,8 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
   pseudo-terminal (Python `pty`) avec `--no-config --backend sim` ; pour `browse`, une bibliothèque
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
-  installée dans le thread audio (modèle, IR, entrée, effets pré / post) et chaque grain mesuré par l'éditeur : c'est
-  la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
+  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.

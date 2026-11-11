@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#107)
+- `dsp::meter` : **vumètres par bloc et par branche**, préalloués à la construction de la chaîne
+  (`ChainSpec::build_with_meters`) et qui voyagent avec elle. Pour chaque bloc, la crête de sortie ;
+  pour `comp`, sa réduction de gain (dB) ; pour `gate`, sa fermeture (0 ouvert … 1 fermé) ; pour
+  chaque branche, ce qu'elle envoie à la somme (gain et polarité compris, donc zéro si elle est
+  muette). Même modèle que le vumètre du limiteur : un `f32` dans un atomique, gardé au maximum
+  jusqu'à la lecture, qui le remet à zéro — **aucune allocation, aucun verrou, aucun log** en temps
+  réel. `browse` reçoit la table avec la chaîne qu'il installe ; l'affichage vient avec #108.
+- Mesuré : une chaîne de 4 blocs avec un parallèle à 3 branches coûte 4,63 µs par bloc de 64 sans
+  mesures et 4,87 µs avec (+0,24 µs, +0,02 % du budget). `run`, `render` et `bench` construisent
+  sans sondes et ne paient rien. Rendus de référence inchangés ; même sortie au bit près avec et
+  sans mesures.
+
 ### Changé (#106)
 - **La chaîne est une liste de blocs** (ADR 0006) : le modèle NAM et l'IR sont des blocs comme les
   effets, placés librement, y compris dans la branche d'un parallèle. On peut donc décrire

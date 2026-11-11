@@ -26,6 +26,7 @@
 //! d'autant. Sans elle, une branche claire et une branche NAM + IR font un filtre en peigne.
 
 use crate::biquad::{Biquad, Shape};
+use crate::meter::Meter;
 use crate::{db_to_gain, Chain, Error, Result, Stage};
 
 /// Retard maximal recherché (s).
@@ -58,11 +59,20 @@ pub struct SplitBranch {
     pub invert: bool,
     /// Branche muette : pas traitée du tout, donc rien à sommer.
     pub mute: bool,
+    /// Vumètre d'affichage : crête de ce que la branche envoie à la somme, gain et polarité
+    /// compris (#107). Une branche muette reste donc à zéro.
+    pub meter: Option<Meter>,
 }
 
 impl SplitBranch {
     pub fn new(chain: Chain) -> Self {
-        Self { chain, gain_db: 0.0, invert: false, mute: false }
+        Self { chain, gain_db: 0.0, invert: false, mute: false, meter: None }
+    }
+
+    /// Branche le vumètre de la branche (synoptique de `browse`).
+    pub fn meter(mut self, meter: Meter) -> Self {
+        self.meter = Some(meter);
+        self
     }
 
     pub fn gain(mut self, gain_db: f32) -> Self {
@@ -123,6 +133,7 @@ struct Branch {
     muted: bool,
     filters: Vec<Biquad>,
     delay: Delay,
+    meter: Option<Meter>,
 }
 
 pub struct Split {
@@ -247,6 +258,7 @@ impl Split {
                 muted: b.mute,
                 filters: band_filters(i, &cuts, sample_rate),
                 delay: Delay::new(delays[i]),
+                meter: b.meter,
                 chain: b.chain,
             })
             .collect();
@@ -274,8 +286,14 @@ impl Split {
             }
             b.chain.process(work);
             b.delay.process(work);
+            let mut peak = 0.0f32;
             for (s, w) in sum.iter_mut().zip(work.iter()) {
-                *s += b.gain * w;
+                let v = b.gain * w;
+                *s += v;
+                peak = peak.max(v.abs());
+            }
+            if let Some(m) = &b.meter {
+                m.publish(peak);
             }
         }
         buf.copy_from_slice(sum);

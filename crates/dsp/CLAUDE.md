@@ -3,11 +3,16 @@
 **Responsabilité.** Les traitements, sans carte son ni config : étages mono (trait `Stage`),
 chaîne, changement de chaîne à chaud, analyses hors ligne.
 
-**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `block.rs`
+**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `meter.rs`
+(vumètres d'affichage : `Meter` (f32 dans un `AtomicU32`, maximum gardé jusqu'à la lecture qui
+remet à zéro), `BlockMeters { peak, action }` (`action` = réduction du comp / fermeture du gate),
+`BranchMeters { sum, blocks }`, `SplitMeters`, `ChainMeters` (préallouée, `clear()`), et l'étage
+`Probe` qui ne touche pas au signal), `block.rs`
 (**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, master_db, limiter }`,
 `BlockSpec::{Fx, Nam, Ir, Split}`, `SplitSpec`/`BranchSpec` (nom, gain, polarité, muet, blocs) ;
 `validate()` refuse un parallèle dans une branche (un seul niveau) ; `build()` charge, aligne les
-branches sans modèle sur la première qui en a un, et place le trim ; `describe()` pour le log
+branches sans modèle sur la première qui en a un, et place le trim ; `build_with_meters()` rend en
+plus la table des vumètres (`meter.rs`), seule à poser des sondes ; `describe()` pour le log
 `chaîne :` — `◆ bandes 150 Hz [< 150 Hz : direct | > 150 Hz : NAM b7k › IR sm57]`), `chain.rs`
 (`Chain`, `Level` raw / normalize / match mesuré sur toute la chaîne, `LimiterSpec`, et `AmpSpec` :
 les options CLI, qui **produisent** une `ChainSpec` via `to_chain_spec()` — `--crossover HZ` = bandes
@@ -89,6 +94,12 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 - Filtres (#82, `bench --fx`, bloc 64) : ~0,2 µs par bande (0,01–0,02 % du budget). Mesurer un
   filtre au sinus avec le rapport des RMS, pas la crête (à 16 kHz, 3 échantillons par période :
   la crête échantillonnée sous-estime l'amplitude de ~0,8 dB).
+- Vumètres par bloc (#107) : une chaîne de 4 blocs avec un parallèle à 3 branches (7 sondes,
+  2 mesures d'action, 3 mesures de branche) coûte 4,63 µs par bloc de 64 sans mesures et 4,87 µs
+  avec (+0,24 µs, +0,02 % du budget ; x86, release,
+  `cargo test --release -p dsp --test meters -- --nocapture cost`). Lire un vumètre juste après le
+  démarrage donne le transitoire (gate parti fermé, dépassement d'un filtre) : `clear()` puis
+  relire, c'est ce que fait l'affichage à 25 images/s.
 - Crossover à plus de deux bandes (#105) : la somme reste plate parce que chaque bande traverse
   aussi le **passe-tout** (`Shape::AllPass`, Q = 1/√2) de chaque coupure au-dessus d'elle —
   `LR4 passe-bas + LR4 passe-haut` à la même fréquence **est** ce passe-tout (vérifié dans
@@ -121,7 +132,10 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 - `ChainSpec` n'a pas de format TOML : les presets, c'est #6 (proposition de format dans
   `docs/design/browse-chaine.md` § 9). Les blocs portent des chemins, pas des identifiants de
   bibliothèque.
-- `Split` n'expose pas encore de mesure par branche ni par bloc (vumètres de `browse`) : #107.
+- `meter.rs` refait les deux fonctions atomiques d'`engine::meters` (`fetch_max` / `take`) :
+  `dsp` ne peut pas dépendre d'`engine`. À unifier dans le sens `engine` -> `dsp` un jour.
+- Les vumètres de l'entrée et de la sortie de la chaîne ne sont pas dans `ChainMeters` :
+  `engine::meters()` les publie déjà.
 - `Level::Normalize` normalise **chaque** bloc NAM à la cible (règle uniforme, identique au bit près
   au cas d'un seul modèle) : à revoir à l'écoute si plusieurs NAM en série deviennent courants.
 - `AmpSpec` reste l'entrée des options CLI : à retirer quand les presets décriront les blocs (#6).
