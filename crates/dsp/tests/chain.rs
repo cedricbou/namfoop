@@ -373,3 +373,67 @@ fn crossover_around_the_model() {
     );
     let _ = std::fs::remove_file(ir);
 }
+
+/// Coût de **plusieurs modèles en parallèle** (#111) : la chaîne `◆ copie [nam › ir | nam › ir | …]`
+/// à 1, 2, 3 et 4 branches, mesurée par bloc de 64 et de 48 (moyenne et pire cas).
+/// Lancer en release pour des chiffres comparables au `bench` :
+/// `cargo test --release -p dsp --test chain -- --nocapture cost_of_several_models`.
+/// `NAMFOOP_BENCH_MODEL=<fichier.nam>` mesure avec **ce** modèle (celui du bassiste) au lieu du
+/// modèle d'exemple de NeuralAmpModelerCore, bien plus léger.
+/// Aucune assertion serrée : une mesure ne doit pas faire échouer la CI.
+#[test]
+fn cost_of_several_models_in_parallel() {
+    use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
+    let model = std::env::var_os("NAMFOOP_BENCH_MODEL")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| example("wavenet.nam"));
+    let ir = test_ir("cost");
+    let amp = || {
+        vec![BlockSpec::nam(model.clone(), Default::default()), BlockSpec::ir(ir.clone(), Default::default())]
+    };
+    eprintln!("modèle mesuré : {}", model.display());
+    for block in [64usize, 48] {
+        let budget = block as f64 / 48.0 * 1000.0; // µs de budget par bloc à 48 kHz
+        for n in 1..=4usize {
+            let spec = ChainSpec {
+                blocks: if n == 1 {
+                    amp()
+                } else {
+                    vec![BlockSpec::Split(SplitSpec {
+                        mode: SplitKind::Copy,
+                        freqs: vec![],
+                        branches: (0..n)
+                            .map(|_| BranchSpec { blocks: amp(), ..Default::default() })
+                            .collect(),
+                    })]
+                },
+                level: dsp::chain::Level::Raw,
+                ..Default::default()
+            };
+            let mut chain = spec.build(48000, block).unwrap();
+            let mut buf: Vec<f32> = (0..block)
+                .map(|i| 0.2 * (2.0 * std::f32::consts::PI * 110.0 * i as f32 / 48000.0).sin())
+                .collect();
+            for _ in 0..200 {
+                chain.process(&mut buf); // préchauffage (le modèle alloue et chauffe ses caches)
+            }
+            let runs = 48000 / block * 3; // 3 s d'audio
+            let mut worst = 0.0f64;
+            let t = std::time::Instant::now();
+            for _ in 0..runs {
+                let one = std::time::Instant::now();
+                chain.process(&mut buf);
+                worst = worst.max(one.elapsed().as_secs_f64() * 1e6);
+            }
+            let mean = t.elapsed().as_secs_f64() * 1e6 / runs as f64;
+            eprintln!(
+                "bloc {block:>3} · {n} modèle(s) : moy {mean:>7.1} µs ({:>4.1} % du budget) · \
+                 max {worst:>7.1} µs ({:>5.1} %)",
+                mean / budget * 100.0,
+                worst / budget * 100.0
+            );
+            assert!(buf.iter().all(|x| x.is_finite()));
+        }
+    }
+    let _ = std::fs::remove_file(ir);
+}

@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Mesuré (#111)
+- Coût de plusieurs modèles NAM en parallèle, sur x86 : **linéaire** en nombre de modèles (le
+  parallèle lui-même ne coûte que 0,06 à 3 µs). Par bloc de 64, moyenne / pire cas : le b7k du
+  bassiste 45 µs (3,4 %) / 138 µs seul, 184 µs (14 %) / 256 µs à quatre ; le modèle le plus lourd de
+  la bibliothèque 104 µs (7,8 %) / 248 µs seul, 417 µs (31 %) / 509 µs à quatre. Bloc 48 : même coût
+  absolu, part un peu plus grande. Mesure reproductible (`cargo test --release -p dsp --test chain
+  -- --nocapture cost_of_several_models`, `NAMFOOP_BENCH_MODEL` pour un modèle de la bibliothèque) et
+  notée dans les faits mesurés. **Le Pi 5 reste à mesurer** (#44 / #45) : il fixera le seuil d'alerte
+  de `browse`, provisoirement à 2 modèles.
+
 ### Changé (#109)
 - `browse`, onglet Effets : **le synoptique est l'éditeur**. La colonne du catalogue devient une
   fenêtre (`a` ajoute après le curseur, `i` avant ; on tape pour filtrer, les noms qui commencent
