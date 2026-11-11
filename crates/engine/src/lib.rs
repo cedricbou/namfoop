@@ -341,12 +341,22 @@ mod tests {
         assert_eq!(got, ins[1]);
     }
 
-    /// Carte simulée : démarrage, deux chaînes successives, vumètres non nuls, 0 xrun, arrêt.
+    /// Carte simulée : démarrage, deux chaînes successives, vumètres non nuls, arrêt.
+    ///
+    /// Les xruns ne sont **pas** exigés nuls dans l'absolu : la carte simulée en compte un dès que
+    /// son thread a une période de retard, ce qui mesure la machine (un runner partagé décroche)
+    /// plutôt que le code (#114). On prend donc une **référence** sans rien échanger : si le flux
+    /// décroche déjà là, on ne conclut pas ; s'il est propre, échanger une chaîne ne doit ajouter
+    /// aucun décrochage. Le 0 xrun strict reste vérifié sur le matériel
+    /// (`scripts/test-backends.sh`), où il a un sens.
     #[test]
     fn sim_session_swaps_chains() {
         let mut engine = Engine::start(config(), dsp::Chain::new()).unwrap();
         assert_eq!((engine.n_in(), engine.n_out(), engine.sample_rate()), (2, 2, 48000));
         engine.meters();
+        // référence : le flux tourne aussi longtemps qu'une étape d'échange, sans rien échanger
+        std::thread::sleep(std::time::Duration::from_millis(400));
+        let idle_xruns = engine.xruns();
         for db in [-6.0, -12.0] {
             let mut c = dsp::Chain::new();
             c.push(dsp::gain::Gain::db(db, "test"));
@@ -366,7 +376,15 @@ mod tests {
             let ratio = m.out_peak / m.in_peak;
             assert!((ratio - dsp::db_to_gain(db)).abs() < 1e-3, "gain {db} dB appliqué : {m:?}");
         }
-        assert_eq!(engine.xruns(), 0);
+        let swapping = engine.xruns() - idle_xruns;
+        if idle_xruns == 0 {
+            assert_eq!(swapping, 0, "échanger une chaîne ne doit pas faire décrocher le flux");
+        } else {
+            eprintln!(
+                "machine chargée : {idle_xruns} xrun(s) sans rien échanger, {swapping} pendant les \
+                 échanges — le test ne conclut pas là-dessus (#114)"
+            );
+        }
         drop(engine);
     }
 

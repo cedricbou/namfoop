@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#114, #117)
+- CI : les dépendances système s'installent en 3 tentatives (`.github/actions/deps`) — un miroir
+  Ubuntu injoignable ne fait plus échouer toute la PR —, et « Statistiques sccache » ne masque plus
+  la vraie cause d'un échec.
+- Le test `sim_session_swaps_chains` n'exige plus 0 xrun dans l'absolu : la carte simulée en compte
+  un dès que son thread a une période de retard, ce qui mesure la machine et pas le code. Il prend
+  une référence sans échange de chaîne : si le flux décroche déjà là, il ne conclut pas ; sinon, un
+  échange ne doit ajouter aucun décrochage. Le 0 xrun strict reste sur le matériel.
+
 ### Mesuré (#111)
 - Coût de plusieurs modèles NAM en parallèle, sur x86 : **linéaire** en nombre de modèles (le
   parallèle lui-même ne coûte que 0,06 à 3 µs). Par bloc de 64, moyenne / pire cas : le b7k du
