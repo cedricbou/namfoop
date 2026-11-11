@@ -179,7 +179,7 @@ pub struct State {
     /// Vumètres par bloc et par branche de la chaîne **en écoute** (#107) : la table arrive avec la
     /// chaîne construite, `meters` garde ce que les barres montrent.
     pub chain_meters: Option<dsp::meter::ChainMeters>,
-    pub meters: chain::MeterDisplay,
+    pub meters: meters::MeterDisplay,
     /// `v` : vumètres du synoptique affichés ou masqués.
     pub show_meters: bool,
     /// Fenêtre « Modifications non enregistrées » ouverte par `q` : seul `Q` quitte.
@@ -187,15 +187,10 @@ pub struct State {
     /// Chaîne d'effets au lancement et dernier mélange enregistré : ce qui est « modifié » se
     /// décide en **comparant des états** (jamais un drapeau posé à la main), pour que revenir à
     /// l'état de départ efface l'alerte.
-    start_fx: (Vec<fx::FxSlot>, Vec<fx::FxSlot>),
+    start_fx: chain::Chain,
     saved_blend: (Vec<BlendPart>, bool),
     pending: Option<u64>,
     now: u64,
-}
-
-fn matches(item: &Item, words: &[String]) -> bool {
-    let hay = format!("{} {} {}", item.id, item.label, item.pack).to_lowercase();
-    words.iter().all(|w| hay.contains(w))
 }
 
 impl State {
@@ -224,10 +219,10 @@ impl State {
             fx: fx::FxState::default(),
             fx_due: None,
             chain_meters: None,
-            meters: chain::MeterDisplay::default(),
+            meters: meters::MeterDisplay::default(),
             show_meters: true,
             confirm_quit: false,
-            start_fx: (Vec::new(), Vec::new()),
+            start_fx: chain::Chain::default(),
             saved_blend: (Vec::new(), true),
             now: 0,
             pending: None,
@@ -236,59 +231,6 @@ impl State {
 
     fn tab_index(&self) -> usize {
         self.tab as usize
-    }
-
-    fn words(&self) -> Vec<String> {
-        self.filter.to_lowercase().split_whitespace().map(String::from).collect()
-    }
-
-    /// Modèles visibles (index dans `models`).
-    pub fn model_rows(&self) -> Vec<usize> {
-        let w = self.words();
-        (0..self.models.len()).filter(|&i| matches(&self.models[i], &w)).collect()
-    }
-
-    /// Lignes de l'onglet Modèles : « son direct (DI) » (sans filtre), puis les modèles visibles.
-    pub fn model_list(&self) -> Vec<ModelRow> {
-        let mut rows = Vec::new();
-        if self.filter.trim().is_empty() {
-            rows.push(ModelRow::Direct);
-        }
-        rows.extend(self.model_rows().into_iter().map(ModelRow::Model));
-        rows
-    }
-
-    /// Modèle sous le curseur de l'onglet Modèles (aucun sur la ligne « son direct »).
-    pub fn model_at_cursor(&self) -> Option<usize> {
-        match self.model_list().get(self.cursor()) {
-            Some(ModelRow::Model(m)) => Some(*m),
-            _ => None,
-        }
-    }
-
-    /// Lignes de l'onglet IR : « aucune IR », les conseillées pour le modèle courant, puis le reste.
-    pub fn ir_rows(&self) -> Vec<IrRow> {
-        let w = self.words();
-        let rec: Vec<usize> = self
-            .model
-            .filter(|&m| self.models[m].needs != NeedsIr::No)
-            .map(|m| self.models[m].recommended.iter().copied().take(5).collect())
-            .unwrap_or_default();
-        let mut rows = Vec::new();
-        if w.is_empty() {
-            rows.push(IrRow::NoIr);
-        }
-        rows.extend(
-            rec.iter()
-                .filter(|&&i| matches(&self.irs[i], &w))
-                .map(|&index| IrRow::Ir { index, recommended: true }),
-        );
-        rows.extend(
-            (0..self.irs.len())
-                .filter(|i| !rec.contains(i) && matches(&self.irs[*i], &w))
-                .map(|index| IrRow::Ir { index, recommended: false }),
-        );
-        rows
     }
 
     fn row_count(&self) -> usize {
@@ -304,7 +246,12 @@ impl State {
         self.cursor[self.tab_index()].min(self.row_count().saturating_sub(1))
     }
 
-    fn play(&self) -> Action {
+    /// Demande l'écoute de ce qui est choisi. Le modèle et l'IR en écoute vont d'abord dans leur
+    /// bloc de la chaîne (§ 10 : les onglets Modèles et IR agissent sur le bloc visé) ; sans bloc,
+    /// un est créé — ouvrir `browse` et choisir un modèle suffit donc à l'entendre.
+    fn play(&mut self) -> Action {
+        self.push_to_chain(true);
+        self.push_to_chain(false);
         Action::Play { model: self.effective_model(), ir: self.effective_ir() }
     }
 
@@ -588,9 +535,14 @@ impl State {
 mod blend;
 pub mod chain;
 mod compare;
+mod edit;
 mod editor;
 pub mod fx;
+mod label;
+mod lists;
+pub mod meters;
 mod quit;
+mod target;
 
 #[cfg(test)]
 pub mod tests;

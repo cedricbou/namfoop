@@ -700,8 +700,8 @@ signale deux effets dans la chaîne.
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
-- **Onglet Effets** (le quatrième, Tab ou → depuis le Mélange) : à gauche le **catalogue** (les effets de `namfoop fx`), au
-  centre le **synoptique** de la chaîne, en bas les **réglages** de l'effet choisi (barre, valeur,
+- **Onglet Effets** (le quatrième, Tab ou → depuis le Mélange) : le **synoptique** de la chaîne,
+  qui est aussi l'**éditeur**, puis les **réglages** de ce qui est sous le curseur (barre, valeur,
   unité, aide et plage) et la **ligne de commande équivalente**, à copier dans `run`.
 
   Le synoptique montre la chaîne de l'entrée à la sortie, avec un **vumètre au-dessus de chaque
@@ -721,24 +721,41 @@ signale deux effets dans la chaîne.
   titre du cadre compte les modèles actifs et prévient si la charge risque de monter (plusieurs
   modèles NAM dans la même chaîne).
 
-  Les colonnes se parcourent de gauche à droite :
-  - catalogue : ↑↓ choisit un effet, **`a`** l'ajoute en pré (avant le modèle), **`A`** en post ;
-    ses réglages s'ouvrent aussitôt ; → passe à la chaîne ;
-  - chaîne : ↑↓ choisit un effet, **`[` / `]`** le déplace (il passe de pré à post au bord du
-    modèle), **`x`** le retire, **`b`** le coupe ou le remet, → (ou Entrée) ouvre ses réglages,
-    ← revient au catalogue ;
-  - réglages : ↑↓ choisit le paramètre, ←→ change la valeur d'un pas, **Maj + ←→** d'un pas fin
-    (un dixième) ; Entrée ou Échap revient à la chaîne, Échap encore au catalogue.
+  **Se déplacer** : **←→** suit la chaîne de bloc en bloc, **↑↓** passe d'une branche à l'autre
+  dans un parallèle. Le curseur peut être sur un bloc, sur le `◆` d'un parallèle, ou sur l'**en-tête**
+  d'une branche (son étiquette et son gain, choisis ensemble).
 
-  Le synoptique sait aussi dessiner un **parallèle** (une ligne par branche, l'étiquette de la
-  branche, son gain à droite, `muet` ou `ø` si elle est coupée ou inversée) : c'est ce que montre
-  `--crossover`, et l'édition des branches dans `browse` arrive avec les presets.
+  **Construire la chaîne** :
+
+  | Touche | Effet |
+  |---|---|
+  | **`a`** / **`i`** | ouvre le **catalogue** (modèle, IR, effets) et ajoute **après** / **avant** le curseur, dans sa branche. Tape pour filtrer, ↑↓, Entrée ajoute, Échap annule |
+  | **`s`** | met le bloc **en parallèle**. Sur un `nam` suivi de son `ir`, les deux partent ensemble et le parallèle est un **crossover à 150 Hz** : grave = son direct, aigu = l'ampli — le blend grave clair, en une touche. Sinon une copie (B1 = son direct, B2 = le bloc) |
+  | **`+`** | une **branche** de plus (4 au maximum ; en bandes, une coupure de plus) |
+  | **`x`** | retire le bloc ; sur un en-tête, retire la branche (à deux branches, le parallèle est défait) ; sur le `◆`, défait le parallèle en gardant la branche de l'ampli |
+  | **`[` / `]`** | déplace le bloc dans la chaîne. À côté d'un parallèle, il y **entre** (branche 1) ; au bout d'une branche, il en **sort**. Sur le `◆`, déplace tout le parallèle |
+  | **`{` / `}`** | passe le bloc dans la branche du dessus / dessous |
+  | **`b`** | coupe ou remet le bloc (il reste visible, barré) |
+  | **`m` / `o` / `p`** | **muet** / **solo** / **polarité** de la branche. Le solo est une aide d'écoute : il ne s'enregistre jamais |
+  | **Entrée** | les **réglages** de ce qui est sous le curseur : les paramètres d'un effet, le mode et les coupures d'un parallèle, le gain et la phase d'une branche. Sur un bloc `nam` ou `ir`, ouvre l'onglet **Modèles** (ou **IR**) pour choisir dans la bibliothèque — et cet onglet agit alors sur **ce** bloc |
+  | **`v`** | masque / affiche les vumètres |
+
+  Dans les réglages : ↑↓ choisit, ←→ change d'un pas, **Maj + ←→** d'un pas fin (un dixième),
+  Échap ou Entrée revient à la chaîne. Les coupures d'un crossover se règlent par **pas
+  multiplicatif** (×1,06, ou ×1,01 en pas fin) et restent écartées d'au moins ×1,25 l'une de l'autre.
+
+  Un parallèle a **2 à 4 branches** et deux modes (réglage `mode`) : **copie** (chaque branche reçoit
+  tout le signal) ou **bandes** (crossover LR4, une bande par branche). Une branche **vide** est le
+  son direct, mise automatiquement au niveau de la branche qui contient l'ampli. Il n'y a qu'**un
+  seul niveau** : un parallèle dans une branche est refusé (le message dit quoi faire).
 
   **`r`** bascule **avec / sans effets** (A/B) ; la ligne de commande garde la chaîne réglée. Chaque
   changement s'écoute 150 ms après la dernière touche, avec le fondu habituel. Pas, plages et unités
   viennent de la table de chaque effet ([Effets](#10-effets)). En prototype,
-  chaque réglage reconstruit la chaîne : les queues de delay et de réverbe sont coupées. La
-  sauvegarde en preset viendra avec les presets (#6).
+  chaque réglage reconstruit la chaîne : les queues de delay et de réverbe sont coupées. Tant que la
+  chaîne s'exprime en options (`-m`, `-i`, `--pre`, `--post`), le panneau du bas donne la ligne de
+  commande ; dès qu'il y a un parallèle, il faut un **preset** — l'enregistrement viendra avec
+  eux (#6).
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
   lettres sont des commandes.
 - **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un

@@ -1,17 +1,22 @@
-//! Onglet Effets : catalogue (`dsp::fx::catalog` : les effets réglables ; le parallèle est un bloc
-//! de la chaîne, pas un effet), chaîne pré / post autour du modèle et de l'IR,
-//! réglage du paramètre choisi. Pas, plages, unités et aides viennent de `ParamInfo` : rien n'est
-//! codé en dur ici. Chaque changement s'écoute après `AUDITION_DELAY_MS` sans touche.
+//! Onglet Effets : le **synoptique est l'éditeur** (navigation 2D et édition dans `edit.rs`, dessin
+//! dans `ui/synoptic.rs`). Ici : l'état de l'onglet, la fenêtre du catalogue (`a` / `i`), les
+//! réglages de l'élément sous le curseur, et les touches (§ 5 et § 6 de
+//! `docs/design/browse-chaine.md`).
+//!
+//! Chaque changement s'écoute après `AUDITION_DELAY_MS` sans touche (reconstruction + fondu).
 
 use dsp::fx::{catalog, FxSpec, ParamInfo};
 
+use super::chain::{self, Chain, Cursor, Leaf, Mode, Spot};
+use super::edit::Flag;
 use super::*;
 
-/// Colonne active de l'onglet (de gauche à droite).
+/// Colonne active de l'onglet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FxFocus {
-    Catalog,
+    /// Le synoptique : on navigue et on édite.
     Chain,
+    /// Les réglages de l'élément sous le curseur.
     Params,
 }
 
@@ -22,22 +27,114 @@ pub struct FxSlot {
     pub on: bool,
 }
 
+/// La fenêtre du catalogue, ouverte par `a` (après le curseur) ou `i` (avant).
+#[derive(Clone, Debug, Default)]
+pub struct Catalog {
+    pub before: bool,
+    pub filter: String,
+    pub cursor: usize,
+}
+
+/// Une entrée du catalogue : un effet, `nam` ou `ir` (le parallèle se crée avec `s`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Place {
-    Pre,
-    Post,
+pub struct Entry {
+    pub kind: &'static str,
+    pub help: &'static str,
+}
+
+/// Le catalogue proposé : `nam`, `ir`, puis les effets réglables.
+pub fn entries() -> Vec<Entry> {
+    let mut v = vec![
+        Entry { kind: "nam", help: "modèle NAM : l'ampli ou la pédale capturée" },
+        Entry { kind: "ir", help: "IR de baffle (ou un mélange de la bibliothèque)" },
+    ];
+    v.extend(catalog().iter().map(|f| Entry { kind: f.kind(), help: f.help() }));
+    v
+}
+
+impl Catalog {
+    /// Les entrées qui passent le filtre : celles dont le **nom commence** par le filtre d'abord,
+    /// puis celles qui le contiennent dans leur nom ou leur aide.
+    pub fn visible(&self) -> Vec<Entry> {
+        let f = self.filter.to_lowercase();
+        let all = entries();
+        if f.is_empty() {
+            return all;
+        }
+        let starts: Vec<Entry> = all.iter().copied().filter(|e| e.kind.starts_with(&f)).collect();
+        let rest: Vec<Entry> = all
+            .iter()
+            .copied()
+            .filter(|e| {
+                !e.kind.starts_with(&f) && (e.kind.contains(&f) || e.help.to_lowercase().contains(&f))
+            })
+            .collect();
+        starts.into_iter().chain(rest).collect()
+    }
+
+    pub fn selected(&self) -> Option<Entry> {
+        let v = self.visible();
+        v.get(self.cursor.min(v.len().saturating_sub(1))).copied()
+    }
+}
+
+/// Un réglage de la colonne de droite.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Field {
+    /// Paramètre numérique d'un effet.
+    Param(ParamInfo),
+    /// Mode du parallèle : copie / bandes.
+    Mode,
+    /// Coupure `i` d'un parallèle en bandes.
+    Freq(usize),
+    /// Gain de la branche (dB).
+    Gain,
+    Phase,
+    Mute,
+    Solo,
+}
+
+impl Field {
+    pub fn name(&self) -> String {
+        match self {
+            Field::Param(p) => p.name.to_string(),
+            Field::Mode => "mode".into(),
+            Field::Freq(i) => format!("coupure {}", i + 1),
+            Field::Gain => "gain".into(),
+            Field::Phase => "phase".into(),
+            Field::Mute => "mute".into(),
+            Field::Solo => "solo".into(),
+        }
+    }
+
+    pub fn help(&self) -> &'static str {
+        match self {
+            Field::Param(p) => p.help,
+            Field::Mode => {
+                "copie : chaque branche reçoit tout · bandes : crossover LR4, une bande par branche"
+            }
+            Field::Freq(_) => "fréquence de coupure entre deux bandes (pas ×1,06 ; Maj : ×1,01)",
+            Field::Gain => "gain de la branche avant la somme",
+            Field::Phase => "inverser la polarité de la branche (vérifier l'alignement)",
+            Field::Mute => "couper la branche (m)",
+            Field::Solo => "n'écouter que cette branche (o)",
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct FxState {
-    pub catalog: Vec<FxSpec>,
-    pub pre: Vec<FxSlot>,
-    pub post: Vec<FxSlot>,
+    /// La chaîne éditée.
+    pub chain: Chain,
+    pub cursor: Cursor,
     pub focus: FxFocus,
-    pub catalog_cursor: usize,
-    /// Effet choisi dans la chaîne : index dans `pre` puis `post` mis bout à bout.
-    pub selected: usize,
+    /// La fenêtre du catalogue, quand elle est ouverte.
+    pub catalog: Option<Catalog>,
+    /// Réglage choisi dans la colonne de droite.
     pub param: usize,
+    /// Bloc `nam` / `ir` sur lequel agissent les onglets Modèles et IR (§ 10) ; par défaut le
+    /// premier de la chaîne.
+    pub target: Option<Cursor>,
     /// A/B : on écoute sans aucun effet (`r` dans l'onglet).
     pub bypass_all: bool,
 }
@@ -45,486 +142,383 @@ pub struct FxState {
 impl Default for FxState {
     fn default() -> Self {
         Self {
-            catalog: catalog(),
-            pre: Vec::new(),
-            post: Vec::new(),
-            focus: FxFocus::Catalog,
-            catalog_cursor: 0,
-            selected: 0,
+            chain: Chain::default(),
+            cursor: Cursor::Empty,
+            focus: FxFocus::Chain,
+            catalog: None,
             param: 0,
+            target: None,
             bypass_all: false,
         }
+    }
+}
+
+impl FxState {
+    /// Nombre de blocs de la chaîne (en-tête de l'onglet).
+    pub fn len(&self) -> usize {
+        self.chain.count()
     }
 }
 
 /// Valeur suivante d'un paramètre : `steps` pas (négatif : vers le bas ; 0,1 : pas fin), bornée,
 /// arrondie au pas fin (évite 0,30000001 dans la ligne de commande).
 pub fn step_value(p: &ParamInfo, v: f32, steps: f32) -> f32 {
-    let fine = p.step * 0.1;
-    let x = ((v + steps * p.step) / fine).round() * fine;
-    ((x * 1e4).round() / 1e4).clamp(p.min, p.max)
-}
-
-impl FxState {
-    pub fn len(&self) -> usize {
-        self.pre.len() + self.post.len()
-    }
-
-    /// L'effet choisi : (pré ou post, index dans sa liste).
-    pub fn place_of(&self, i: usize) -> Option<(Place, usize)> {
-        if i < self.pre.len() {
-            Some((Place::Pre, i))
-        } else if i < self.len() {
-            Some((Place::Post, i - self.pre.len()))
-        } else {
-            None
-        }
-    }
-
-    pub fn slot(&self, i: usize) -> Option<&FxSlot> {
-        match self.place_of(i)? {
-            (Place::Pre, k) => self.pre.get(k),
-            (Place::Post, k) => self.post.get(k),
-        }
-    }
-
-    fn slot_mut(&mut self, i: usize) -> Option<&mut FxSlot> {
-        match self.place_of(i)? {
-            (Place::Pre, k) => self.pre.get_mut(k),
-            (Place::Post, k) => self.post.get_mut(k),
-        }
-    }
-
-    pub fn selected_slot(&self) -> Option<&FxSlot> {
-        self.slot(self.selected)
-    }
-
-    /// Effets réellement écoutés (ni coupés, ni « sans effets »).
-    pub fn active(&self) -> (Vec<FxSpec>, Vec<FxSpec>) {
-        if self.bypass_all {
-            return (Vec::new(), Vec::new());
-        }
-        let on = |v: &[FxSlot]| v.iter().filter(|s| s.on).map(|s| s.spec.clone()).collect();
-        (on(&self.pre), on(&self.post))
-    }
-
-    /// Arguments équivalents pour `run` (`--pre gate --post delay:time=300`), effets coupés exclus.
-    pub fn args(&self) -> String {
-        let one = |flag: &str, v: &[FxSlot]| -> Vec<String> {
-            v.iter().filter(|s| s.on).map(|s| format!("--{flag} {}", s.spec)).collect()
-        };
-        let mut a = one("pre", &self.pre);
-        a.extend(one("post", &self.post));
-        a.join(" ")
-    }
-
-    fn add(&mut self, place: Place) -> String {
-        let Some(spec) = self.catalog.get(self.catalog_cursor).cloned() else {
-            return String::new();
-        };
-        let kind = spec.kind();
-        let slot = FxSlot { spec, on: true };
-        match place {
-            Place::Pre => {
-                self.pre.push(slot);
-                self.selected = self.pre.len() - 1;
-            }
-            Place::Post => {
-                self.post.push(slot);
-                self.selected = self.len() - 1;
-            }
-        }
-        self.param = 0;
-        self.focus = if self.selected_slot().is_some_and(|s| !s.spec.params().is_empty()) {
-            FxFocus::Params
-        } else {
-            FxFocus::Chain
-        };
-        format!("{kind} ajouté en {}", if place == Place::Pre { "pré (avant le modèle)" } else { "post" })
-    }
-
-    fn remove(&mut self) -> Option<String> {
-        let (place, k) = self.place_of(self.selected)?;
-        let s = match place {
-            Place::Pre => self.pre.remove(k),
-            Place::Post => self.post.remove(k),
-        };
-        self.selected = self.selected.min(self.len().saturating_sub(1));
-        self.param = 0;
-        if self.len() == 0 {
-            self.focus = FxFocus::Catalog;
-        }
-        Some(format!("{} retiré", s.spec.kind()))
-    }
-
-    /// Déplace l'effet choisi d'un cran (`delta` −1 ou +1) ; passe de pré à post (et retour) au bord,
-    /// de part et d'autre du modèle.
-    fn shift(&mut self, delta: isize) -> bool {
-        let Some((place, k)) = self.place_of(self.selected) else { return false };
-        match (place, delta) {
-            (Place::Pre, -1) if k > 0 => self.pre.swap(k, k - 1),
-            (Place::Pre, 1) if k + 1 < self.pre.len() => self.pre.swap(k, k + 1),
-            (Place::Pre, 1) => {
-                // dernier du pré : passe en tête du post (position inchangée dans la liste)
-                let s = self.pre.remove(k);
-                self.post.insert(0, s);
-                return true;
-            }
-            (Place::Post, -1) if k > 0 => self.post.swap(k, k - 1),
-            (Place::Post, -1) => {
-                let s = self.post.remove(0);
-                self.pre.push(s);
-                return true;
-            }
-            (Place::Post, 1) if k + 1 < self.post.len() => self.post.swap(k, k + 1),
-            _ => return false,
-        }
-        self.selected = (self.selected as isize + delta) as usize;
-        true
-    }
-
-    /// Change le paramètre choisi de `steps` pas ; renvoie le texte « nom = valeur unité ».
-    fn adjust(&mut self, steps: f32) -> Option<String> {
-        let param = self.param;
-        let slot = self.slot_mut(self.selected)?;
-        let p = *slot.spec.params().get(param)?;
-        let v = step_value(&p, slot.spec.get(p.name)?, steps);
-        slot.spec.set(p.name, v).ok()?;
-        Some(format!("{} : {} = {} {}", slot.spec.kind(), p.name, v, p.unit.symbol()))
-    }
+    let next = v + p.step * steps;
+    let grain = p.step / 10.0;
+    let rounded = (next / grain).round() * grain;
+    rounded.clamp(p.min, p.max)
 }
 
 impl State {
-    /// Touches de l'onglet Effets ; `None` : touche commune (Tab, q, filtre...).
+    /// Les réglages de l'élément sous le curseur (vide : rien à régler).
+    pub fn fields(&self) -> Vec<Field> {
+        let cur = self.fx.cursor;
+        match self.fx.chain.spot(cur) {
+            Spot::Block | Spot::BranchBlock => match self.fx.chain.leaf(cur) {
+                // le modèle et l'IR se choisissent dans leur onglet (§ 10) : rien à régler ici
+                Some(Leaf::Fx(s)) => s.spec.params().iter().copied().map(Field::Param).collect(),
+                _ => Vec::new(),
+            },
+            Spot::Split => {
+                let mut v = vec![Field::Mode];
+                if let Some(s) = self.fx.chain.split_at(cur.top()) {
+                    if s.mode == Mode::Bands {
+                        v.extend((0..s.freqs.len()).map(Field::Freq));
+                    }
+                }
+                v
+            }
+            Spot::Header => vec![Field::Gain, Field::Phase, Field::Mute, Field::Solo],
+            Spot::Empty => Vec::new(),
+        }
+    }
+
+    /// La branche sous le curseur, en lecture.
+    fn branch_at_cursor(&self) -> Option<&chain::Branch> {
+        match self.fx.cursor {
+            Cursor::Header { top, b } | Cursor::Block { top, b, .. } => {
+                self.fx.chain.split_at(top)?.branches.get(b)
+            }
+            _ => None,
+        }
+    }
+
+    /// Valeur affichée d'un réglage, et sa position dans sa plage (pour la barre).
+    pub fn field_value(&self, f: Field) -> (String, f32) {
+        let cur = self.fx.cursor;
+        let branch = self.branch_at_cursor();
+        let yes_no = |v: bool| ((if v { "oui" } else { "non" }).to_string(), f32::from(v));
+        match f {
+            Field::Param(p) => {
+                let v = match self.fx.chain.leaf(cur) {
+                    Some(Leaf::Fx(s)) => s.spec.get(p.name).unwrap_or(p.default),
+                    _ => p.default,
+                };
+                let frac = if p.max > p.min { (v - p.min) / (p.max - p.min) } else { 0.0 };
+                (chain::num(v), frac)
+            }
+            Field::Mode => match self.fx.chain.split_at(cur.top()).map(|s| s.mode) {
+                Some(Mode::Bands) => ("bandes".into(), 1.0),
+                _ => ("copie".into(), 0.0),
+            },
+            Field::Freq(i) => {
+                let v =
+                    self.fx.chain.split_at(cur.top()).and_then(|s| s.freqs.get(i).copied()).unwrap_or(0.0);
+                // barre en échelle logarithmique (20 Hz … 12 kHz)
+                let frac = if v > 0.0 { (v / 20.0).ln() / (12_000.0f32 / 20.0).ln() } else { 0.0 };
+                (format!("{} Hz", chain::num(v)), frac.clamp(0.0, 1.0))
+            }
+            Field::Gain => {
+                let v = branch.map_or(0.0, |b| b.gain_db);
+                (format!("{} dB", chain::num(v)), (v + 60.0) / 72.0)
+            }
+            Field::Phase => {
+                let v = branch.is_some_and(|b| b.invert);
+                ((if v { "180°" } else { "0°" }).to_string(), f32::from(v))
+            }
+            Field::Mute => yes_no(branch.is_some_and(|b| b.mute)),
+            Field::Solo => yes_no(branch.is_some_and(|b| b.solo)),
+        }
+    }
+
+    /// Change le réglage choisi de `steps` pas (`Maj` : pas fin) ; renvoie le texte à afficher.
+    fn adjust_field(&mut self, steps: f32) -> Option<String> {
+        let f = *self.fields().get(self.fx.param)?;
+        let fine = steps.abs() < 1.0;
+        let dir = if steps < 0.0 { -1.0 } else { 1.0 };
+        match f {
+            Field::Param(p) => {
+                let cur = self.fx.cursor;
+                let Some(Leaf::Fx(slot)) = self.fx.chain.leaf_mut(cur) else { return None };
+                let v = step_value(&p, slot.spec.get(p.name)?, steps);
+                slot.spec.set(p.name, v).ok()?;
+                let kind = slot.spec.kind();
+                Some(format!("{kind} : {} = {} {}", p.name, chain::num(v), p.unit.symbol()))
+            }
+            Field::Mode => {
+                let top = self.fx.cursor.top();
+                let s = self.fx.chain.split_at_mut(top)?;
+                let mode = if s.mode == Mode::Copy { Mode::Bands } else { Mode::Copy };
+                s.set_mode(mode);
+                Some(match mode {
+                    Mode::Bands => {
+                        let f: Vec<String> = s.freqs.iter().copied().map(chain::num).collect();
+                        format!("bandes : coupures {} Hz", f.join(" / "))
+                    }
+                    Mode::Copy => "copie : chaque branche reçoit tout le signal".into(),
+                })
+            }
+            Field::Freq(i) => {
+                let v = self.step_freq(i, dir, fine)?;
+                Some(format!("coupure {} : {} Hz", i + 1, chain::num(v)))
+            }
+            Field::Gain => {
+                let cur = self.fx.cursor;
+                let b = self.fx.chain.branch_mut(cur)?;
+                let v = (b.gain_db + dir * if fine { 0.1 } else { 0.5 }).clamp(-60.0, 12.0);
+                b.gain_db = (v * 10.0).round() / 10.0;
+                Some(format!("gain de la branche : {} dB", chain::num(b.gain_db)))
+            }
+            Field::Phase => Some(self.branch_flag(Flag::Phase)),
+            Field::Mute => Some(self.branch_flag(Flag::Mute)),
+            Field::Solo => Some(self.branch_flag(Flag::Solo)),
+        }
+    }
+
+    /// Titre de la colonne des réglages.
+    pub fn fields_title(&self) -> String {
+        let cur = self.fx.cursor;
+        let in_branch = |head: String| match (cur, self.fx.chain.split_at(cur.top())) {
+            (Cursor::Block { b, .. }, Some(s)) => {
+                format!("{head} · branche {} ({})", b + 1, s.branch_label(b))
+            }
+            _ => head,
+        };
+        match self.fx.chain.spot(cur) {
+            Spot::Block | Spot::BranchBlock => {
+                let Some(l) = self.fx.chain.leaf(cur) else { return "réglages".into() };
+                in_branch(match l {
+                    Leaf::Fx(s) => format!("{} : {}", s.spec.kind(), s.spec.help()),
+                    Leaf::Nam { .. } => "modèle : Entrée ouvre l'onglet Modèles".to_string(),
+                    Leaf::Ir { .. } => "IR : Entrée ouvre l'onglet IR".to_string(),
+                })
+            }
+            Spot::Split => match self.fx.chain.split_at(cur.top()) {
+                Some(s) => format!(
+                    "parallèle : {} / {} branches, retards alignés automatiquement",
+                    s.branches.len(),
+                    chain::MAX_BRANCHES
+                ),
+                None => "parallèle".into(),
+            },
+            Spot::Header => match (cur, self.fx.chain.split_at(cur.top())) {
+                (Cursor::Header { b, .. }, Some(s)) => {
+                    format!("branche {} ({})", b + 1, s.branch_label(b))
+                }
+                _ => "branche".into(),
+            },
+            Spot::Empty => "réglages".into(),
+        }
+    }
+
+    /// Ouvre le catalogue pour ajouter après (`a`) ou avant (`i`) le curseur.
+    fn open_catalog(&mut self, before: bool) {
+        self.fx.catalog = Some(Catalog { before, ..Default::default() });
+        self.message = None;
+    }
+
+    /// Ajoute l'entrée choisie du catalogue ; `false` si rien n'a été ajouté.
+    fn add_from_catalog(&mut self) -> bool {
+        let Some(c) = self.fx.catalog.take() else { return false };
+        let Some(e) = c.selected() else {
+            self.message = Some("aucun bloc ne correspond au filtre".into());
+            return false;
+        };
+        let leaf = match e.kind {
+            // un nouveau bloc `nam` prend le modèle en écoute, un `ir` l'IR en écoute
+            "nam" => Leaf::Nam { model: self.model, on: true },
+            "ir" => Leaf::Ir { ir: self.ir, on: true },
+            k => Leaf::fx(FxSpec::default_of(k).expect("au catalogue")),
+        };
+        let msg = self.insert_leaf(leaf, c.before);
+        self.message = Some(msg);
+        true
+    }
+
+    /// Touches de la fenêtre du catalogue. `None` : la fenêtre est fermée.
+    fn catalog_key(&mut self, key: Key) -> Option<Action> {
+        let c = self.fx.catalog.as_mut()?;
+        match key {
+            Key::Esc => {
+                self.fx.catalog = None;
+                self.message = Some("ajout annulé".into());
+            }
+            Key::Enter => {
+                if self.add_from_catalog() {
+                    self.fx_due = Some(self.now);
+                    self.fx.focus = FxFocus::Chain;
+                }
+            }
+            Key::Up => c.cursor = c.cursor.saturating_sub(1),
+            Key::Down => c.cursor = (c.cursor + 1).min(c.visible().len().saturating_sub(1)),
+            Key::Backspace => {
+                c.filter.pop();
+                c.cursor = 0;
+            }
+            Key::Char(ch) => {
+                c.filter.push(ch);
+                c.cursor = 0;
+            }
+            _ => {}
+        }
+        Some(Action::None)
+    }
+
+    /// Entrée sur un bloc `nam` / `ir` : l'onglet Modèles (ou IR) prend ce bloc pour cible.
+    fn open_library_tab(&mut self, nam: bool) -> Action {
+        self.fx.target = Some(self.fx.cursor);
+        self.sync_from_target();
+        self.tab = if nam { Tab::Models } else { Tab::Irs };
+        self.message = Some(
+            if nam {
+                "onglet Modèles : ↑↓ écoute le modèle de ce bloc · Tab revient aux Effets"
+            } else {
+                "onglet IR : ↑↓ écoute l'IR de ce bloc · Tab revient aux Effets"
+            }
+            .into(),
+        );
+        Action::None
+    }
+
+    /// Touches de l'onglet Effets ; `None` : touche commune (Tab, q, Échap au dernier niveau...).
     pub(super) fn fx_key(&mut self, key: Key) -> Option<Action> {
-        let fx = &mut self.fx;
-        let n_params = fx.selected_slot().map_or(0, |s| s.spec.params().len());
-        let changed = match (fx.focus, key) {
-            (_, Key::Char('a')) => {
-                self.message = Some(fx.add(Place::Pre));
-                true
+        if let Some(a) = self.catalog_key(key) {
+            return Some(a);
+        }
+        let spot = self.fx.chain.spot(self.fx.cursor);
+        // réglages : ↑↓ choisit, ←→ change, Échap / Entrée reviennent à la chaîne
+        if self.fx.focus == FxFocus::Params {
+            let n = self.fields().len();
+            match key {
+                Key::Up => {
+                    self.fx.param = self.fx.param.saturating_sub(1);
+                    return Some(Action::None);
+                }
+                Key::Down => {
+                    self.fx.param = (self.fx.param + 1).min(n.saturating_sub(1));
+                    return Some(Action::None);
+                }
+                Key::Left | Key::Right | Key::ShiftLeft | Key::ShiftRight => {
+                    let steps = match key {
+                        Key::Left => -1.0,
+                        Key::Right => 1.0,
+                        Key::ShiftLeft => -0.1,
+                        _ => 0.1,
+                    };
+                    if let Some(m) = self.adjust_field(steps) {
+                        self.message = Some(m);
+                        self.fx_due = Some(self.now);
+                    }
+                    return Some(Action::None);
+                }
+                Key::Enter | Key::Esc => {
+                    self.fx.focus = FxFocus::Chain;
+                    return Some(Action::None);
+                }
+                _ => {}
             }
-            (_, Key::Char('A')) => {
-                self.message = Some(fx.add(Place::Post));
-                true
+        }
+        let mut changed = true;
+        match key {
+            // --- navigation 2D (§ 4) ---
+            Key::Right => {
+                self.fx.cursor = self.fx.chain.right(self.fx.cursor);
+                changed = false;
             }
-            (_, Key::Char('v')) => {
+            // ← sur le premier bloc de la série : onglet précédent (touche commune)
+            Key::Left if spot == Spot::Block && self.fx.cursor.top() == 0 => return None,
+            Key::Left if spot == Spot::Empty => return None,
+            Key::Left => {
+                self.fx.cursor = self.fx.chain.left(self.fx.cursor);
+                changed = false;
+            }
+            Key::Down => {
+                self.fx.cursor = self.fx.chain.vert(self.fx.cursor, true);
+                changed = false;
+            }
+            Key::Up => {
+                self.fx.cursor = self.fx.chain.vert(self.fx.cursor, false);
+                changed = false;
+            }
+            // --- édition (§ 5) ---
+            Key::Char('a') => {
+                self.open_catalog(false);
+                changed = false;
+            }
+            Key::Char('i') => {
+                self.open_catalog(true);
+                changed = false;
+            }
+            Key::Char('s') => self.message = Some(self.wrap_in_split()),
+            Key::Char('+') | Key::Char('=') => self.message = Some(self.add_branch()),
+            Key::Char('x') | Key::Backspace => self.message = Some(self.remove_at_cursor()),
+            Key::Char('[') | Key::Char(']') => {
+                let m = self.shift_at_cursor(key == Key::Char(']'));
+                if !m.is_empty() {
+                    self.message = Some(m);
+                }
+            }
+            Key::Char('{') | Key::Char('}') => {
+                self.message = Some(self.move_to_branch(key == Key::Char('}')))
+            }
+            Key::Char('b') => self.message = Some(self.toggle_bypass()),
+            Key::Char('m') => self.message = Some(self.branch_flag(Flag::Mute)),
+            Key::Char('o') => self.message = Some(self.branch_flag(Flag::Solo)),
+            Key::Char('p') => self.message = Some(self.branch_flag(Flag::Phase)),
+            Key::Char('v') => {
                 self.show_meters = !self.show_meters;
                 self.message =
                     Some(if self.show_meters { "vumètres affichés" } else { "vumètres masqués" }.into());
-                return Some(Action::None);
+                changed = false;
             }
-            (_, Key::Char('r')) => {
-                fx.bypass_all = !fx.bypass_all;
+            Key::Char('r') => {
+                self.fx.bypass_all = !self.fx.bypass_all;
                 self.message = Some(
-                    if fx.bypass_all {
+                    if self.fx.bypass_all {
                         "A/B : sans effets (r pour les remettre)"
                     } else {
                         "A/B : avec effets"
                     }
                     .into(),
                 );
-                true
             }
-            (FxFocus::Catalog, Key::Up) => {
-                fx.catalog_cursor = fx.catalog_cursor.saturating_sub(1);
-                false
-            }
-            (FxFocus::Catalog, Key::Down) => {
-                fx.catalog_cursor = (fx.catalog_cursor + 1).min(fx.catalog.len() - 1);
-                false
-            }
-            (FxFocus::Catalog, Key::Right | Key::Enter) if fx.len() > 0 => {
-                fx.focus = FxFocus::Chain;
-                false
-            }
-            // ← et Échap reviennent d'un niveau : chaîne -> catalogue (Échap ne quitte jamais)
-            (FxFocus::Chain, Key::Left | Key::Esc) => {
-                fx.focus = FxFocus::Catalog;
-                false
-            }
-            (FxFocus::Chain, Key::Up) => {
-                fx.selected = fx.selected.saturating_sub(1);
-                fx.param = 0;
-                false
-            }
-            (FxFocus::Chain, Key::Down) => {
-                fx.selected = (fx.selected + 1).min(fx.len().saturating_sub(1));
-                fx.param = 0;
-                false
-            }
-            (FxFocus::Chain, Key::Right | Key::Enter) if n_params > 0 => {
-                fx.focus = FxFocus::Params;
-                false
-            }
-            (FxFocus::Params, Key::Enter | Key::Esc) => {
-                fx.focus = FxFocus::Chain;
-                false
-            }
-            (FxFocus::Params, Key::Up) => {
-                fx.param = fx.param.saturating_sub(1);
-                false
-            }
-            (FxFocus::Params, Key::Down) => {
-                fx.param = (fx.param + 1).min(n_params.saturating_sub(1));
-                false
-            }
-            (FxFocus::Params, Key::Left | Key::Right | Key::ShiftLeft | Key::ShiftRight) => {
-                let steps = match key {
-                    Key::Left => -1.0,
-                    Key::Right => 1.0,
-                    Key::ShiftLeft => -0.1,
-                    _ => 0.1,
-                };
-                match fx.adjust(steps) {
-                    Some(m) => {
-                        self.message = Some(m);
-                        true
-                    }
-                    None => false,
+            // Entrée : les réglages ; sur un `nam` / `ir`, l'onglet qui choisit dans la bibliothèque
+            Key::Enter => {
+                match self.fx.chain.leaf(self.fx.cursor) {
+                    Some(Leaf::Nam { .. }) => return Some(self.open_library_tab(true)),
+                    Some(Leaf::Ir { .. }) => return Some(self.open_library_tab(false)),
+                    _ => {}
                 }
-            }
-            (FxFocus::Chain | FxFocus::Params, Key::Char('x') | Key::Backspace) => match fx.remove() {
-                Some(m) => {
-                    self.message = Some(m);
-                    true
+                if self.fields().is_empty() {
+                    self.message = Some("rien à régler ici".into());
+                } else {
+                    self.fx.focus = FxFocus::Params;
+                    self.fx.param = 0;
                 }
-                None => false,
-            },
-            (FxFocus::Chain | FxFocus::Params, Key::Char('[')) => fx.shift(-1),
-            (FxFocus::Chain | FxFocus::Params, Key::Char(']')) => fx.shift(1),
-            (FxFocus::Chain | FxFocus::Params, Key::Char('b')) => {
-                let i = fx.selected;
-                match fx.slot_mut(i) {
-                    Some(s) => {
-                        s.on = !s.on;
-                        self.message =
-                            Some(format!("{} {}", s.spec.kind(), if s.on { "remis" } else { "coupé (b)" }));
-                        true
-                    }
-                    None => false,
-                }
+                changed = false;
             }
-            // ← sur le catalogue (colonne de gauche) : onglet précédent ; Tab, q, Échap : communs
-            (FxFocus::Catalog, Key::Left) | (_, Key::Esc | Key::Char('q') | Key::Tab | Key::BackTab) => {
-                return None
-            }
-            _ => false,
-        };
+            _ => return None,
+        }
+        self.fx.cursor = self.fx.chain.clamp(self.fx.cursor);
+        // le curseur est passé sur un `nam` / `ir` : c'est lui que les onglets Modèles et IR visent
+        if matches!(self.fx.chain.leaf(self.fx.cursor), Some(Leaf::Nam { .. } | Leaf::Ir { .. })) {
+            self.fx.target = Some(self.fx.cursor);
+            self.sync_from_target();
+        }
         if changed {
             // écoute différée : la chaîne se reconstruit après AUDITION_DELAY_MS sans touche
             self.fx_due = Some(self.now);
         }
         Some(Action::None)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::super::tests::sample;
-    use super::*;
-
-    fn fx_tab() -> State {
-        let mut s = sample();
-        for _ in 0..3 {
-            s.on_key(Key::Tab);
-        }
-        assert_eq!(s.tab, Tab::Fx);
-        s
-    }
-
-    /// Met le curseur du catalogue sur `kind`.
-    fn pick(s: &mut State, kind: &str) {
-        let i = s.fx.catalog.iter().position(|f| f.kind() == kind).expect("au catalogue");
-        while s.fx.catalog_cursor > i {
-            s.on_key(Key::Up);
-        }
-        while s.fx.catalog_cursor < i {
-            s.on_key(Key::Down);
-        }
-    }
-
-    /// Revient au catalogue (← depuis la chaîne, Entrée puis ← depuis les réglages).
-    fn to_catalog(s: &mut State) {
-        if s.fx.focus == FxFocus::Params {
-            s.on_key(Key::Enter);
-        }
-        if s.fx.focus == FxFocus::Chain {
-            s.on_key(Key::Left);
-        }
-        assert_eq!(s.fx.focus, FxFocus::Catalog);
-    }
-
-    /// La ligne de commande affichée se ré-analyse en la même chaîne que celle écoutée.
-    fn reparse(args: &str) -> (Vec<FxSpec>, Vec<FxSpec>) {
-        let (mut pre, mut post) = (Vec::new(), Vec::new());
-        let mut it = args.split_whitespace();
-        while let (Some(flag), Some(v)) = (it.next(), it.next()) {
-            let f: FxSpec = v.parse().unwrap();
-            if flag == "--pre" {
-                pre.push(f)
-            } else {
-                post.push(f)
-            }
-        }
-        (pre, post)
-    }
-
-    /// `v` masque et réaffiche les vumètres du synoptique (§ 3 et § 5 de la spécification).
-    #[test]
-    fn v_hides_and_shows_the_meters() {
-        let mut s = fx_tab();
-        assert!(s.show_meters, "affichés au départ");
-        assert_eq!(s.on_key(Key::Char('v')), Action::None);
-        assert!(!s.show_meters);
-        assert_eq!(s.message.as_deref(), Some("vumètres masqués"));
-        s.on_key(Key::Char('v'));
-        assert!(s.show_meters);
-        assert_eq!(s.message.as_deref(), Some("vumètres affichés"));
-        // depuis la chaîne et depuis les réglages aussi
-        pick(&mut s, "comp");
-        s.on_key(Key::Char('a'));
-        assert_eq!(s.fx.focus, FxFocus::Params);
-        s.on_key(Key::Char('v'));
-        assert!(!s.show_meters, "v marche aussi dans les réglages");
-        assert_eq!(s.fx.focus, FxFocus::Params, "sans changer de colonne");
-    }
-
-    /// Échap remonte les niveaux de l'onglet (réglages -> chaîne -> catalogue) et ne quitte jamais,
-    /// même sur le catalogue où il n'y a plus rien à remonter (#104).
-    #[test]
-    fn escape_climbs_back_in_the_fx_tab_and_never_quits() {
-        let mut s = fx_tab();
-        pick(&mut s, "comp");
-        s.on_key(Key::Char('a'));
-        assert_eq!(s.fx.focus, FxFocus::Params);
-        assert_eq!(s.on_key(Key::Esc), Action::None);
-        assert_eq!(s.fx.focus, FxFocus::Chain, "réglages -> chaîne");
-        assert_eq!(s.on_key(Key::Esc), Action::None);
-        assert_eq!(s.fx.focus, FxFocus::Catalog, "chaîne -> catalogue");
-        assert_eq!(s.on_key(Key::Esc), Action::None, "plus rien à remonter : on reste");
-        assert_eq!(s.fx.focus, FxFocus::Catalog);
-        assert_eq!(s.tab, Tab::Fx);
-        assert!(s.message.as_deref().is_some_and(|m| m.contains("q pour quitter")), "{:?}", s.message);
-        assert!(!s.confirm_quit, "Échap n'ouvre pas la fenêtre de confirmation");
-    }
-
-    /// Le catalogue de l'onglet ne propose aucun bloc de structure : un `split` ajouté ici n'aurait
-    /// que des branches vides, un passe-tout réglable qui ne fait rien (#102). Chaque effet proposé
-    /// s'écrit donc aussi en ligne de commande.
-    #[test]
-    fn the_catalog_offers_no_structural_block() {
-        let s = fx_tab();
-        assert!(!s.fx.catalog.is_empty());
-        assert!(s.fx.catalog.iter().all(|f| f.kind() != "split"), "pas de bloc de structure proposé");
-        assert_eq!(s.fx.catalog, dsp::fx::catalog());
-        for f in &s.fx.catalog {
-            let back = f.to_string().parse::<FxSpec>();
-            assert_eq!(back.as_ref().ok(), Some(f), "{}", f.kind());
-        }
-    }
-
-    #[test]
-    fn add_remove_move_and_command_line() {
-        let mut s = fx_tab();
-        pick(&mut s, "gate");
-        s.on_key(Key::Char('a'));
-        assert_eq!(s.fx.focus, FxFocus::Params, "réglages ouverts sur l'effet ajouté");
-        to_catalog(&mut s);
-        pick(&mut s, "comp");
-        s.on_key(Key::Char('a'));
-        s.on_key(Key::Down); // ratio
-        s.on_key(Key::Right);
-        to_catalog(&mut s);
-        pick(&mut s, "delay");
-        s.on_key(Key::Char('A'));
-        assert_eq!(s.fx.args(), "--pre gate --pre comp:ratio=4.5 --post delay");
-        assert_eq!(reparse(&s.fx.args()), s.fx.active());
-        // delay remonte : passe en fin de pré, puis devant comp
-        s.on_key(Key::Enter); // réglages -> chaîne
-        s.on_key(Key::Char('['));
-        assert_eq!(s.fx.args(), "--pre gate --pre comp:ratio=4.5 --pre delay");
-        s.on_key(Key::Char('['));
-        assert_eq!(s.fx.args(), "--pre gate --pre delay --pre comp:ratio=4.5");
-        assert_eq!(s.fx.selected, 1);
-        s.on_key(Key::Char(']'));
-        s.on_key(Key::Char(']'));
-        assert_eq!(s.fx.args(), "--pre gate --pre comp:ratio=4.5 --post delay", "et redescend en post");
-        // retrait
-        s.on_key(Key::Up);
-        s.on_key(Key::Char('x'));
-        assert_eq!(s.fx.args(), "--pre gate --post delay");
-        assert_eq!(reparse(&s.fx.args()), s.fx.active());
-        // la chaîne a changé depuis le lancement : q demande confirmation, Q quitte (#104)
-        assert_eq!(s.on_key(Key::Char('q')), Action::None);
-        assert!(s.confirm_quit);
-        assert_eq!(s.on_key(Key::Char('Q')), Action::Quit);
-    }
-
-    #[test]
-    fn values_stop_at_the_bounds() {
-        let mut s = fx_tab();
-        pick(&mut s, "gain");
-        s.on_key(Key::Char('A'));
-        let p = s.fx.selected_slot().unwrap().spec.params()[0];
-        for _ in 0..200 {
-            s.on_key(Key::Right);
-        }
-        assert_eq!(s.fx.selected_slot().unwrap().spec.get("db"), Some(p.max));
-        for _ in 0..400 {
-            s.on_key(Key::Left);
-        }
-        assert_eq!(s.fx.selected_slot().unwrap().spec.get("db"), Some(p.min));
-        s.on_key(Key::ShiftRight);
-        let v = s.fx.selected_slot().unwrap().spec.get("db").unwrap();
-        assert!((v - (p.min + p.step * 0.1)).abs() < 1e-4, "pas fin : {v}");
-        // le texte se ré-analyse en la même valeur
-        assert_eq!(reparse(&s.fx.args()).1, s.fx.active().1);
-    }
-
-    #[test]
-    fn audition_is_deferred_and_bypasses_work() {
-        let mut s = fx_tab();
-        s.tick(1000);
-        pick(&mut s, "chorus");
-        assert_eq!(s.tick(1500), Action::None, "parcourir le catalogue ne recharge rien");
-        s.on_key(Key::Char('A'));
-        assert_eq!(s.tick(1600), Action::None, "pas avant 150 ms");
-        assert_eq!(s.tick(1660), Action::Play { model: None, ir: IrChoice::None });
-        assert_eq!(s.tick(2000), Action::None, "une seule écoute");
-        assert_eq!(s.fx.active().1.len(), 1);
-        s.on_key(Key::Char('b'));
-        assert!(s.fx.active().1.is_empty() && s.fx.args().is_empty(), "effet coupé : ni écouté ni copié");
-        assert!(matches!(s.tick(3000), Action::Play { .. }));
-        s.on_key(Key::Char('b'));
-        s.on_key(Key::Char('r'));
-        assert!(s.fx.bypass_all && s.fx.active().1.is_empty());
-        assert_eq!(s.fx.args(), "--post chorus", "la ligne garde la chaîne réglée");
-        assert!(matches!(s.tick(4000), Action::Play { .. }));
-    }
-
-    #[test]
-    fn command_line_includes_effects() {
-        let mut s = fx_tab();
-        pick(&mut s, "reverb");
-        s.on_key(Key::Char('A'));
-        assert_eq!(s.command_line(None).as_deref(), Some("namfoop run --post reverb"));
-    }
-
-    #[test]
-    fn step_value_rounds_to_the_fine_step() {
-        let p = ParamInfo {
-            name: "x",
-            unit: dsp::fx::Unit::Hz,
-            min: 0.05,
-            max: 5.0,
-            default: 0.8,
-            step: 0.05,
-            help: "-",
-        };
-        assert_eq!(step_value(&p, 0.8, 1.0), 0.85);
-        assert_eq!(step_value(&p, 0.8, -0.1), 0.795);
-        assert_eq!(step_value(&p, 4.99, 1.0), 5.0);
-        assert_eq!(step_value(&p, 0.05, -1.0), 0.05);
     }
 }

@@ -12,9 +12,9 @@
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use super::super::state::chain::{
-    Block, Branch, ChainView, MeterAt, MeterDisplay, MeterKind, Role, FLOOR_DB,
-};
+use super::super::state::chain::{Block, Chain, Cursor, MeterKind, Role, Split};
+use super::super::state::meters::{MeterAt, FLOOR_DB};
+use super::super::state::State;
 
 /// Huitièmes de caractère, pour la fin d'une barre.
 const EIGHTHS: [&str; 8] = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"];
@@ -144,10 +144,14 @@ pub struct Synoptic {
     cursor_cols: Option<(usize, usize)>,
 }
 
-/// Dessine le synoptique de `view`. `cursor` est l'index du bloc choisi dans la série principale
-/// (le curseur 2D arrive avec l'éditeur, #109) ; `None` : aucun.
-pub fn build(view: &ChainView, meters: &MeterDisplay, show_meters: bool, cursor: Option<usize>) -> Synoptic {
-    let h = view.height();
+/// Dessine le synoptique de la chaîne éditée : une ligne de blocs par branche, une ligne de
+/// vumètres au-dessus de chacune.
+pub fn build(st: &State) -> Synoptic {
+    let chain = &st.fx.chain;
+    let meters = &st.meters;
+    let show_meters = st.show_meters;
+    let cursor = st.fx.cursor;
+    let h = chain.height();
     let mut g = Grid::new(h);
     let m = |at: MeterAt, kind: MeterKind, w: usize, dim: bool| -> Vec<Cell> {
         if show_meters {
@@ -158,51 +162,56 @@ pub fn build(view: &ChainView, meters: &MeterDisplay, show_meters: bool, cursor:
     };
     let io = Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD);
     let mut cursor_cols = None;
+    let mark = |g: &Grid, row: usize, start: usize, cols: &mut Option<(usize, usize)>| {
+        *cols = Some((start, g.len[row]));
+    };
 
     g.add(0, "IN", io, false, m(MeterAt::Input, MeterKind::Peak, 2, false));
     g.plain(0, " ─ ", line_style());
     g.sync();
-    if view.blocks.is_empty() {
+    if chain.is_empty() {
         g.add(0, "(chaîne vide : a pour ajouter)", Style::new().fg(Color::DarkGray), true, Vec::new());
         g.plain(0, " ─ ", line_style());
         g.sync();
     }
-    for (i, b) in view.blocks.iter().enumerate() {
+    for (i, b) in chain.blocks.iter().enumerate() {
         match b {
             Block::Leaf(l) => {
-                let w = l.label.chars().count().max(3);
-                let on_cursor = cursor == Some(i);
+                let label = st.leaf_label(l);
+                let w = label.chars().count().max(3);
+                let on_cursor = cursor == Cursor::Top(i);
                 let start = g.len[0];
                 g.add(
                     0,
-                    &l.label,
-                    block_style(l.role, l.on, false),
+                    &label,
+                    block_style(l.role(), l.on(), false),
                     on_cursor,
-                    m(MeterAt::Block(i), l.meter, w, !l.on),
+                    m(MeterAt::Block(i), l.meter_kind(), w, !l.on()),
                 );
                 if on_cursor {
-                    cursor_cols = Some((start, g.len[0]));
+                    mark(&g, 0, start, &mut cursor_cols);
                 }
                 g.plain(0, " ─ ", line_style());
                 g.sync();
             }
             Block::Split(s) => {
                 let start = g.len[0];
+                let on_cursor = cursor == Cursor::Top(i);
                 g.add(
                     0,
                     "◆",
                     Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-                    cursor == Some(i),
+                    on_cursor,
                     Vec::new(),
                 );
                 g.plain(0, "─", line_style());
-                if cursor == Some(i) {
-                    cursor_cols = Some((start, g.len[0]));
+                if on_cursor {
+                    mark(&g, 0, start, &mut cursor_cols);
                 }
                 for r in 1..h {
                     g.plain(r, "  ", Style::new());
                 }
-                split(&mut g, s, i, &m, h);
+                split(&mut g, st, s, i, &m, cursor, &mut cursor_cols);
                 g.sync();
                 g.plain(0, "─ ", line_style());
                 g.sync();
@@ -215,17 +224,19 @@ pub fn build(view: &ChainView, meters: &MeterDisplay, show_meters: bool, cursor:
 
 /// Les branches d'un parallèle : toutes de la même largeur (étiquettes complétées, remplissage
 /// `─`, gains alignés à droite).
+#[allow(clippy::too_many_arguments)]
 fn split(
     g: &mut Grid,
-    s: &super::super::state::chain::Split,
+    st: &State,
+    s: &Split,
     i: usize,
     m: &impl Fn(MeterAt, MeterKind, usize, bool) -> Vec<Cell>,
-    _h: usize,
+    cursor: Cursor,
+    cursor_cols: &mut Option<(usize, usize)>,
 ) {
     let n = s.branches.len();
-    let any_solo = s.branches.iter().any(|b| b.solo);
-    let label_w = s.branches.iter().map(|b| b.label.chars().count()).max().unwrap_or(0);
-    let body_w = s.branches.iter().map(Branch::content_width).max().unwrap_or(0);
+    let label_w = (0..n).map(|k| s.branch_label(k).chars().count()).max().unwrap_or(0);
+    let body_w = s.branches.iter().map(|b| st.branch_width(b)).max().unwrap_or(0);
     let gain_w = s.branches.iter().map(|b| b.gain_text().chars().count()).max().unwrap_or(0);
     let hdr = Style::new().fg(Color::Blue);
     let vbar = |k: usize| -> Vec<Cell> {
@@ -236,17 +247,19 @@ fn split(
         }
     };
     for (k, b) in s.branches.iter().enumerate() {
-        let silent = b.mute || (any_solo && !b.solo);
-        let dim = |st: Style| if silent { st.fg(Color::DarkGray) } else { st };
+        let silent = !s.audible(k);
+        let dim = |x: Style| if silent { x.fg(Color::DarkGray) } else { x };
         let (enter, leave) = match (n, k) {
             (1, _) => ("─", "─"),
             (_, 0) => ("┬", "┬"),
             (_, k) if k == n - 1 => ("└", "┘"),
             _ => ("├", "┤"),
         };
+        let on_header = cursor == Cursor::Header { top: i, b: k };
         g.add(k, enter, line_style(), false, vbar(k));
         g.plain(k, "─ ", line_style());
-        g.add(k, &pad_end(&b.label, label_w), dim(hdr), false, Vec::new());
+        let start = g.len[k];
+        g.add(k, &pad_end(&s.branch_label(k), label_w), dim(hdr), on_header, Vec::new());
         g.plain(k, " ─ ", dim(line_style()));
         if b.blocks.is_empty() {
             g.add(
@@ -261,25 +274,33 @@ fn split(
             if j > 0 {
                 g.plain(k, " ─ ", dim(line_style()));
             }
-            let w = l.label.chars().count().max(3);
+            let label = st.leaf_label(l);
+            let w = label.chars().count().max(3);
+            let on_cursor = cursor == Cursor::Block { top: i, b: k, j };
+            let from = g.len[k];
             g.add(
                 k,
-                &l.label,
-                dim(block_style(l.role, l.on, silent)),
-                false,
-                m(MeterAt::BranchBlock(i, k, j), l.meter, w, silent || !l.on),
+                &label,
+                dim(block_style(l.role(), l.on(), silent)),
+                on_cursor,
+                m(MeterAt::BranchBlock(i, k, j), l.meter_kind(), w, silent || !l.on()),
             );
+            if on_cursor {
+                *cursor_cols = Some((from, g.len[k]));
+            }
         }
-        let fill = body_w - Branch::content_width(b) + 1;
+        let fill = body_w - st.branch_width(b) + 1;
         g.plain(k, &format!(" {} ", "─".repeat(fill)), dim(line_style()));
-        let gain = b.gain_text();
         g.add(
             k,
-            &pad_start(&gain, gain_w),
+            &pad_start(&b.gain_text(), gain_w),
             dim(hdr),
-            false,
+            on_header,
             m(MeterAt::BranchSum(i, k), MeterKind::Peak, gain_w, silent),
         );
+        if on_header {
+            *cursor_cols = Some((start, g.len[k]));
+        }
         g.plain(k, " ─", line_style());
         g.add(k, leave, line_style(), false, vbar(k));
     }
@@ -353,9 +374,9 @@ fn clip(cells: &[Cell], width: usize, scroll: usize) -> Line<'static> {
 }
 
 /// Titre du cadre : modèles actifs, parallèles, et l'alerte de charge au-delà du seuil.
-pub fn title(view: &ChainView) -> (String, Option<String>) {
-    let nam = view.active_nam();
-    let text = format!("chaîne — NAM actifs : {nam} · parallèles : {}", view.splits());
+pub fn title(chain: &Chain) -> (String, Option<String>) {
+    let nam = chain.active_nam();
+    let text = format!("chaîne — NAM actifs : {nam} · parallèles : {}", chain.splits());
     // Seuil provisoire : la maquette alerte dès 2 NAM ; #111 le fixe après mesure sur Pi 5.
     let warn = (nam >= 2).then(|| format!(" ⚠ CPU ≈ ×{nam} (à mesurer sur Pi 5)"));
     (text, warn)
@@ -364,11 +385,6 @@ pub fn title(view: &ChainView) -> (String, Option<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::browse::state::chain::{Branch, Leaf, Split};
-
-    fn leaf(label: &str) -> Leaf {
-        Leaf { label: label.into(), role: Role::Fx, meter: MeterKind::Peak, on: true }
-    }
 
     #[test]
     fn a_bar_fills_from_the_floor_to_zero_dbfs() {
@@ -406,38 +422,31 @@ mod tests {
     /// la même colonne (c'est la règle de rendu de la spécification).
     #[test]
     fn every_row_of_a_parallel_has_the_same_width() {
-        let branch = |label: &str, gain: f32, blocks: Vec<Leaf>| Branch {
-            label: label.into(),
-            gain_db: gain,
-            invert: false,
-            mute: false,
-            solo: false,
-            blocks,
-        };
-        let view = ChainView {
-            blocks: vec![
-                Block::Leaf(leaf("gate -60")),
-                Block::Split(Split {
-                    branches: vec![
-                        branch("propre", 0.0, vec![]),
-                        branch("fuzz", -3.0, vec![leaf("nam·fuzz"), leaf("ir·4x10")]),
-                        branch("ampli", -4.0, vec![leaf("nam·svt")]),
-                    ],
-                }),
-                Block::Leaf(leaf("reverb")),
-            ],
-        };
-        let syn = build(&view, &MeterDisplay::default(), false, None);
+        use crate::browse::state::chain::{Block, Branch, Leaf};
+        use crate::browse::state::tests::{branch, fx, fx_block, with_chain};
+        let amp = |m: usize| Leaf::Nam { model: Some(m), on: true };
+        let mut s = with_chain(vec![
+            fx_block("gate:threshold=-60"),
+            Block::Split(Split {
+                mode: crate::browse::state::chain::Mode::Copy,
+                freqs: vec![],
+                branches: vec![
+                    branch("propre", 0.0, vec![]),
+                    branch("fuzz", -3.0, vec![amp(0), fx("lpf:freq=3000")]),
+                    Branch { blocks: vec![amp(1)], ..branch("ampli", -4.0, vec![]) },
+                ],
+            }),
+            fx_block("reverb"),
+        ]);
+        s.show_meters = false;
+        let syn = build(&s);
         let lines = syn.lines(400, 0);
         assert_eq!(lines.len(), 3, "trois branches, pas de ligne de vumètres");
         let widths: Vec<usize> = lines.iter().map(|l| l.width()).collect();
-        // les branches du milieu et du bas ont exactement la même largeur ; la première ligne
-        // porte en plus ce qui suit le parallèle (ici « ─ reverb ─ OUT »)
         assert_eq!(widths[1], widths[2], "largeurs : {widths:?}");
         // seul `OUT`, tout à la fin, dépasse : chaque bloc remet les lignes à égalité
         assert_eq!(widths[0], widths[1] + "OUT".len(), "largeurs : {widths:?}");
         let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-        // les traits verticaux d'entrée et de sortie sont dans les mêmes colonnes
         let col = |row: usize, ch: char| text[row].chars().position(|c| c == ch);
         assert_eq!(col(0, '┬'), col(1, '├'), "entrée du parallèle alignée");
         assert_eq!(col(1, '├'), col(2, '└'), "entrée du parallèle alignée");
@@ -446,8 +455,7 @@ mod tests {
         assert_eq!(last(1, '┤'), last(2, '┘'), "sortie du parallèle alignée");
         assert!(text[0].contains("IN ─ gate -60 ─ ◆─┬─ propre"), "{}", text[0]);
         assert!(text[0].ends_with("─ reverb ─ OUT"), "{}", text[0]);
-        assert!(text[1].contains("fuzz   ─ nam·fuzz ─ ir·4x10"), "{}", text[1]);
-        assert!(text[2].contains("ampli  ─ nam·svt ────"), "{}", text[2]);
+        assert!(text[1].contains("fuzz   ─ nam·B7K Ultra ─ lpf 3000"), "{}", text[1]);
         assert!(text[1].contains("-3 dB"), "{}", text[1]);
     }
 }

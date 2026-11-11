@@ -13,21 +13,25 @@ cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engin
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod.rs état et
-                navigation ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
+                navigation ; lists.rs listes des onglets Modèles / IR ; chain.rs la chaîne en blocs
+                éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot) ; label.rs étiquettes du
+                synoptique ; edit/ navigation 2D et règles d'édition (s, +, x, [ ], { }, b, m/o/p) ;
+                target.rs quel bloc nam / ir les onglets Modèles et IR visent (§ 10) et la chaîne
+                telle qu'on l'écoute (plan) ; meters.rs balistique des vumètres ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
                 `on_key`), `q` ouvre la fenêtre de confirmation (`confirm_quit`, `Q` seul quitte)
                 quand `unsaved()` n'est pas vide — comparaison d'états via `mark_start` et
                 `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
-                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée, v
-                vumètres), chain.rs (vue en blocs du synoptique : Leaf / Split / Branch, étiquettes,
-                et la balistique des vumètres MeterDisplay : montée immédiate, descente 28 dB/s) ; navigation :
+                Effets (fenêtre du catalogue, réglages de l'élément sous le curseur — effet,
+                parallèle ou branche —, écoute différée, v vumètres) ; navigation :
                 Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
                 panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, synoptic.rs (le synoptique de la
                 chaîne : une ligne par branche, vumètres au-dessus, colonnes alignées, défilement
                 horizontal), tests.rs), mod.rs (index, Engine + ChainSender dans
                 le thread de construction, qui rend aussi la table des vumètres par bloc
-                (dsp::meter::ChainMeters, #107) portée par ui::Status, overrides.toml) ; `import --review` l'ouvre sur les
+                (dsp::meter::ChainMeters, #107), overrides.toml), plan.rs (la chaîne demandée au
+                thread de construction : chemins résolus, blocs coupés retirés, solo en muets) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start)
 setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
