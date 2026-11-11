@@ -12,6 +12,7 @@ pub mod comp;
 pub mod filter;
 pub mod gain;
 pub mod gate;
+pub mod split;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -88,6 +89,7 @@ pub enum FxSpec {
     Peak(filter::PeakParams),
     Lowshelf(filter::LowshelfParams),
     Highshelf(filter::HighshelfParams),
+    Split(split::SplitParams),
 }
 
 /// Applique `$body` à l'effet contenu, quel que soit son type.
@@ -102,6 +104,7 @@ macro_rules! with_effect {
             FxSpec::Peak($e) => $body,
             FxSpec::Lowshelf($e) => $body,
             FxSpec::Highshelf($e) => $body,
+            FxSpec::Split($e) => $body,
         }
     };
 }
@@ -117,6 +120,7 @@ pub fn catalog() -> Vec<FxSpec> {
         FxSpec::Peak(Default::default()),
         FxSpec::Lowshelf(Default::default()),
         FxSpec::Highshelf(Default::default()),
+        FxSpec::Split(Default::default()),
     ]
 }
 
@@ -247,8 +251,9 @@ mod tests {
             FxSpec::Peak(_) => 5,
             FxSpec::Lowshelf(_) => 6,
             FxSpec::Highshelf(_) => 7,
+            FxSpec::Split(_) => 8,
         };
-        const COUNT: usize = 8;
+        const COUNT: usize = 9;
         let mut seen = [false; COUNT];
         for f in catalog() {
             seen[index(&f)] = true;

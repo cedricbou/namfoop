@@ -186,6 +186,19 @@ Options:
       --post <FX>
           Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
 
+      --crossover <HZ>
+          Blend grave clair : sous cette fréquence (Hz, ex: 150), le grave du DI reste clair et s'ajoute au son du modèle (crossover Linkwitz-Riley, retards alignés)
+
+      --crossover-low-db <CROSSOVER_LOW_DB>
+          Gain de la branche grave claire du crossover (dB, après alignement automatique sur le modèle)
+          
+          [default: 0]
+
+      --crossover-high-db <CROSSOVER_HIGH_DB>
+          Gain de la branche aiguë (modèle + IR) du crossover (dB)
+          
+          [default: 0]
+
       --library <LIBRARY>
           Dossier de la bibliothèque (modèles et IR)
           
@@ -308,6 +321,19 @@ Options:
 
       --post <FX>
           Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
+
+      --crossover <HZ>
+          Blend grave clair : sous cette fréquence (Hz, ex: 150), le grave du DI reste clair et s'ajoute au son du modèle (crossover Linkwitz-Riley, retards alignés)
+
+      --crossover-low-db <CROSSOVER_LOW_DB>
+          Gain de la branche grave claire du crossover (dB, après alignement automatique sur le modèle)
+          
+          [default: 0]
+
+      --crossover-high-db <CROSSOVER_HIGH_DB>
+          Gain de la branche aiguë (modèle + IR) du crossover (dB)
+          
+          [default: 0]
 
       --library <LIBRARY>
           Dossier de la bibliothèque (modèles et IR)

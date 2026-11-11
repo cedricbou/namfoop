@@ -9,7 +9,8 @@ normalize / match, mesuré avec les effets ; sans `pre`, le trim reste dans l'é
 `describe()` pour le log `chaîne :`),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
-`from_transfer`, distorsion harmonique), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db` ; réutilisable par le crossover et les
+`from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : copie ou crossover LR4, retards mesurés par corrélation
+et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db` ; réutilisable par le crossover et les
 effets de temps), `fx/` (effets : `FxSpec`, catalogue, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
 jamais libérée en RT). `tests/` : propriétés de chaîne (indépendance au bloc), absence
@@ -77,6 +78,11 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 - Filtres (#82, `bench --fx`, bloc 64) : ~0,2 µs par bande (0,01–0,02 % du budget). Mesurer un
   filtre au sinus avec le rapport des RMS, pas la crête (à 16 kHz, 3 échantillons par période :
   la crête échantillonnée sous-estime l'amplitude de ~0,8 dB).
+- Crossover (#83) : somme LR4 plate à ± 0,1 dB de 20 Hz à 20 kHz ; une branche retardée de 2 ms
+  creuse de plus de 3 dB autour de la coupure sans compensation, moins de 1 dB avec. Retard mesuré
+  b7k + IR dg212 : 43–44 échantillons (0,9 ms, l'attaque de l'IR). Alignement du grave clair sur la
+  calibration de l'utilisateur : -14,7 dB, niveau final inchangé (RMS -24,4 dBFS) ; coût `split`
+  vide (4 biquads) 0,67 µs par bloc de 64 (0,05 %).
 
 ## Dette connue
 

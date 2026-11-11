@@ -1033,6 +1033,37 @@ namfoop run -m b7k -i "dg212 sm57" --post hpf:freq=35 --post peak:freq=300,gain=
 namfoop fx peak
 ```
 
+#### Blend grave clair : `--crossover`
+
+Un ampli saturé « mange » le grave : la fondamentale se brouille et perd son assise. Le blend garde,
+sous une fréquence, le **grave clair du DI**, et ne laisse au modèle que le reste.
+
+```
+            ┌─ passe-bas ─ grave clair (DI) ─ retard ─┐
+DI ─ pre ───┤                                          ├─ somme ─ post ─ niveau ─ limiteur
+            └─ passe-haut ─ modèle NAM ─ IR ───────────┘
+```
+
+- `--crossover HZ` : fréquence de coupure (filtres Linkwitz-Riley 24 dB/oct : la somme des deux
+  branches est plate). Départ : 100–150 Hz ; plus haut (200 Hz), plus de rondeur claire, moins de
+  grain dans le bas-médium.
+- La branche grave est **alignée automatiquement** sur le niveau du modèle, mesuré sur ton
+  enregistrement de calibration (niveau « match ») ; `--crossover-low-db` et `--crossover-high-db`
+  corrigent ensuite chaque branche.
+- Le retard du modèle et de l'IR (l'attaque d'une IR arrive souvent après 0,5 à 2 ms) est mesuré et
+  compensé sur la branche claire : sans cela, les deux branches s'annuleraient en partie autour de la
+  coupure (creux de plusieurs dB). La ligne `crossover` du log donne l'alignement et le retard.
+- Piège : sans calibration, l'alignement se fait sur une note synthétique à -30 dBFS ; avec un
+  autre niveau de jeu, ajuster `--crossover-low-db` à l'oreille.
+
+```sh
+namfoop run -m b7k -i auto --crossover 150
+namfoop run -m b7k -i auto --crossover 120 --crossover-low-db -3
+```
+
+Des branches parallèles faites d'effets (`split`, mode copie ou crossover) se décrivent dans les
+presets (#6) ; en ligne de commande, `--crossover` entoure le modèle.
+
 ---
 
 ## 10. Backends, carte et routage en ligne de commande

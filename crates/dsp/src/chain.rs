@@ -26,6 +26,12 @@ impl Chain {
         self
     }
 
+    /// Ajoute les étages de `other` à la suite.
+    pub fn append(&mut self, other: Chain) -> &mut Self {
+        self.stages.extend(other.stages);
+        self
+    }
+
     /// Ajoute un étage déjà en boîte (effets construits par `FxSpec::build`).
     pub fn push_boxed(&mut self, s: Box<dyn Stage>) -> &mut Self {
         self.stages.push(s);
@@ -102,10 +108,34 @@ pub struct AmpSpec {
     pub pre: Vec<FxSpec>,
     /// Effets après l'IR, avant le niveau, le master et le limiteur.
     pub post: Vec<FxSpec>,
+    /// Blend grave clair : « NAM + IR » devient la branche aiguë d'un crossover LR4, sous lequel une
+    /// branche claire garde le grave du DI.
+    pub crossover: Option<CrossoverSpec>,
     pub level: Level,
     /// Volume final (dB).
     pub master_db: f32,
     pub limiter: Option<LimiterSpec>,
+}
+
+/// Crossover autour du modèle : `freq` Hz, gains (dB) de la branche grave claire et de la branche
+/// aiguë traitée. La branche grave est d'abord alignée sur le niveau de la branche traitée.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CrossoverSpec {
+    pub freq: f32,
+    pub low_db: f32,
+    pub high_db: f32,
+}
+
+/// Note de basse synthétique (55 Hz + harmoniques, attaque puis décroissance), pour équilibrer
+/// les branches d'un crossover sans enregistrement de calibration.
+fn synthetic_bass(sample_rate: u32) -> Vec<f32> {
+    (0..sample_rate as usize)
+        .map(|i| {
+            let t = i as f32 / sample_rate as f32;
+            let w = 2.0 * std::f32::consts::PI * 55.0 * t;
+            0.03 * (-t * 3.0).exp() * (w.sin() + 0.5 * (2.0 * w).sin() + 0.25 * (3.0 * w).sin())
+        })
+        .collect()
 }
 
 fn rms(x: &[f32]) -> f64 {
@@ -127,7 +157,12 @@ impl AmpSpec {
         .flatten()
         .collect();
         if !core.is_empty() {
-            parts.push(format!("[{}]", core.join(" › ")));
+            match &self.crossover {
+                Some(x) => {
+                    parts.push(format!("crossover {} Hz (grave clair | {})", x.freq, core.join(" › ")))
+                }
+                None => parts.push(format!("[{}]", core.join(" › "))),
+            }
         }
         parts.extend(self.post.iter().map(|f| f.to_string()));
         match self.level {
@@ -163,6 +198,8 @@ impl AmpSpec {
                 chain.push_boxed(fx.build(sample_rate, max_block)?);
             }
         }
+        // « NAM + IR » : directement dans la chaîne, ou branche aiguë d'un crossover
+        let mut core = Chain::new();
         if let Some(m) = &self.model {
             let mut nam = self.nam.clone();
             if self.pre.is_empty() {
@@ -198,7 +235,7 @@ impl AmpSpec {
                     self.nam.size
                 )),
             );
-            chain.push(stage);
+            core.push(stage);
         }
         if let Some(ir) = &self.ir {
             let st = IrStage::load(ir, sample_rate, max_block, &self.ir_settings)?;
@@ -208,12 +245,50 @@ impl AmpSpec {
                 st.len,
                 st.len as f32 * 1000.0 / sample_rate as f32
             );
-            chain.push(st);
+            core.push(st);
+        }
+        match &self.crossover {
+            Some(x) if !core.is_empty() => {
+                let reference: Vec<f32> = match &self.level {
+                    Level::Match { reference, sample_rate: ref_sr } if *ref_sr == sample_rate => {
+                        reference.as_ref().clone()
+                    }
+                    _ => synthetic_bass(sample_rate),
+                };
+                let mut probe = reference.clone();
+                for c in probe.chunks_mut(max_block.max(1)) {
+                    core.process(c);
+                }
+                core.reset();
+                let (ri, ro) = (rms(&reference), rms(&probe));
+                let align_db = if ri > 1e-9 && ro > 1e-9 { (20.0 * (ro / ri).log10()) as f32 } else { 0.0 };
+                let mut clean = Chain::new();
+                clean.push(Gain::db(align_db, "grave clair"));
+                let split = crate::split::Split::new(
+                    crate::split::SplitMode::Crossover { freq: x.freq as f64 },
+                    vec![(clean, crate::db_to_gain(x.low_db)), (core, crate::db_to_gain(x.high_db))],
+                    sample_rate,
+                    max_block,
+                    true,
+                );
+                let d = split.delays()[0];
+                log::info!(
+                    "crossover {} Hz : grave clair aligné {align_db:+.1} dB (puis {:+.1}), aigu {:+.1} dB, retard compensé {d} échantillons ({:.2} ms)",
+                    x.freq,
+                    x.low_db,
+                    x.high_db,
+                    d as f32 * 1000.0 / sample_rate as f32
+                );
+                chain.push(split);
+            }
+            _ => {
+                chain.append(core);
+            }
         }
         for fx in &self.post {
             chain.push_boxed(fx.build(sample_rate, max_block)?);
         }
-        if !self.pre.is_empty() || !self.post.is_empty() {
+        if !self.pre.is_empty() || !self.post.is_empty() || self.crossover.is_some() {
             log::info!("chaîne : {}", self.describe());
         }
         if let (Level::Match { reference, sample_rate: ref_sr }, false) = (&self.level, chain.is_empty()) {
