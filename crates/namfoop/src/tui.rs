@@ -203,6 +203,24 @@ pub fn screen_text(width: u16, height: u16, draw: impl FnOnce(&mut ratatui::Fram
 mod tests {
     use super::*;
 
+    /// Une touche de modification seule (Maj, Ctrl, Alt) n'est pas une touche pour les écrans :
+    /// elle ne peut donc pas fermer une fenêtre de confirmation (#104).
+    #[test]
+    fn modifier_keys_alone_are_ignored() {
+        use ratatui::crossterm::event::ModifierKeyCode;
+        for m in [
+            ModifierKeyCode::LeftShift,
+            ModifierKeyCode::RightShift,
+            ModifierKeyCode::LeftControl,
+            ModifierKeyCode::LeftAlt,
+            ModifierKeyCode::LeftSuper,
+        ] {
+            assert_eq!(map_key(KeyCode::Modifier(m)), None, "{m:?}");
+        }
+        // Maj + une lettre, elle, arrive bien en majuscule (Q de la confirmation)
+        assert_eq!(map_key(KeyCode::Char('Q')), Some(Key::Char('Q')));
+    }
+
     #[test]
     fn meter_colors_and_width() {
         let spans = meter(1.0);

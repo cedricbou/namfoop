@@ -353,6 +353,8 @@ pub fn run(
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
     }
+    // référence du « non enregistré » (q demande confirmation) : l'état avant la première touche
+    st.mark_start();
     let mut first = Action::None;
     if start_with.edit {
         // premier modèle (la ligne « son direct » est en tête sans filtre)
@@ -362,7 +364,7 @@ pub fn run(
         first = st.on_key(tui::Key::Char('e'));
     }
     let mut status = ui::Status {
-        device: format!("{} — Échap pour quitter", stream_label(cfg)),
+        device: format!("{} — q pour quitter", stream_label(cfg)),
         in_mark: conf.config.calibrated_input_peak_dbfs(),
         trim_db: conf.config.trim_db,
         ..Default::default()
@@ -448,6 +450,7 @@ pub fn run(
                     let id = Library::scan(library).by_path(&file).map(|e| e.id.clone()).unwrap_or_default();
                     st.message = Some(format!("mélange sauvé : {id} {name} ({})", file.display()));
                     saved = Some((id, st.blend.clone(), st.align));
+                    st.mark_blend_saved();
                 }
             }
             while let Ok((m, input_db, text)) = rx_grain_done.try_recv() {

@@ -238,3 +238,34 @@ fn fx_tab_header_counts_the_catalog_and_shows_fx_ab() {
     let t = screen(&s);
     assert!(t.contains("Effets (11) ● 1") && t.contains("chaîne : 1 effet(s)"), "{t}");
 }
+
+/// Fenêtre « Modifications non enregistrées » (`q`) : elle dit ce qui serait perdu, n'offre que
+/// `Q` pour quitter, et la barre d'aide le répète (#104).
+#[test]
+fn unsaved_changes_window_lists_what_would_be_lost() {
+    let mut s = sample();
+    s.mark_start();
+    // un mélange d'IR en cours et un effet ajouté : deux choses à perdre
+    s.on_key(Key::Tab);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char(' '));
+    for _ in 0..2 {
+        s.on_key(Key::Tab);
+    }
+    assert_eq!(s.tab, Tab::Fx);
+    s.on_key(Key::Char('a'));
+    assert_eq!(s.on_key(Key::Char('q')), crate::browse::state::Action::None);
+    assert!(s.confirm_quit);
+    let t = screen(&s);
+    assert!(t.contains("Modifications non enregistrées"), "{t}");
+    assert!(t.contains("Ceci n'est pas enregistré :"), "{t}");
+    assert!(t.contains("chaîne d'effets"), "{t}");
+    assert!(t.contains("mélange d'IR") && t.contains("1 IR"), "{t}");
+    assert!(t.contains("quitter sans enregistrer") && t.contains("rester"), "{t}");
+    assert!(t.contains("Q quitter sans enregistrer") && t.contains("toute autre touche"), "{t}");
+    // la fenêtre refermée, l'écran redevient celui de l'onglet
+    s.on_key(Key::Esc);
+    let t = screen(&s);
+    assert!(!t.contains("Modifications non enregistrées"), "{t}");
+    assert!(t.contains("on reste : rien n'est perdu"), "{t}");
+}

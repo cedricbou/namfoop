@@ -710,7 +710,7 @@ signale deux effets dans la chaîne.
     modèle), **`x`** le retire, **`b`** le coupe ou le remet, → (ou Entrée) ouvre ses réglages,
     ← revient au catalogue ;
   - réglages : ↑↓ choisit le paramètre, ←→ change la valeur d'un pas, **Maj + ←→** d'un pas fin
-    (un dixième) ; Entrée ou Échap revient à la chaîne.
+    (un dixième) ; Entrée ou Échap revient à la chaîne, Échap encore au catalogue.
 
   **`r`** bascule **avec / sans effets** (A/B) ; la ligne de commande garde la chaîne réglée. Chaque
   changement s'écoute 150 ms après la dernière touche, avec le fondu habituel. Pas, plages et unités
@@ -722,7 +722,15 @@ signale deux effets dans la chaîne.
 - **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un
   modèle corrigé est marqué ✎.
 - En bas : le son en cours, les vumètres, la réduction du limiteur (`lim`), la charge DSP et les
-  xruns. `q` ou Échap quitte.
+  xruns.
+- **Quitter : `q`.** Échap ne quitte jamais : il revient d'un niveau (il sort du filtre, annule la
+  saisie d'un nom, ferme l'éditeur `e`, revient des réglages d'un effet à la chaîne puis au
+  catalogue) et, quand il n'y a plus rien à remonter, il le dit. Si quelque chose n'est pas
+  enregistré — chaîne d'effets changée depuis le lancement, mélange d'IR pas sauvé, brouillon de
+  l'éditeur `e` — `q` ouvre une fenêtre qui liste ce qui serait perdu : **`Q`** (majuscule, un geste
+  volontaire) quitte sans enregistrer, **Échap ou n'importe quelle autre touche** fait rester. Il
+  n'y a rien à confirmer si tu as défait tes changements ou tout enregistré : c'est l'état qui est
+  comparé, pas un drapeau.
 
 En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
 exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
@@ -747,7 +755,7 @@ La valeur lue dans le fichier est rappelée en regard (« fichier : amp »). **`
 ce que tu as changé (le type et/ou l'entrée) à **tous les modèles visibles** (ceux du filtre) :
 filtre `/fullrig`, `e`, type `amp_cab`, `a`, et tout le pack est corrigé ; les champs que tu n'as
 pas changés restent ceux de chaque modèle. Échap ferme sans enregistrer et revient au réglage
-enregistré. Pas à pas : [tutoriel d'import](#tutoriel--dun-zip-acheté-à-un-son-prêt-pour-la-scène).
+enregistré ; `q` veut quitter `browse`, et prévient alors que le brouillon n'est pas enregistré. Pas à pas : [tutoriel d'import](#tutoriel--dun-zip-acheté-à-un-son-prêt-pour-la-scène).
 
 **Calibrer à l'oreille.** Les packs ne sont pas calibrés au même niveau d'entrée (Tone3000,
 packs achetés…). Joue comme sur scène et règle l'entrée jusqu'au grain voulu, en surveillant `out`

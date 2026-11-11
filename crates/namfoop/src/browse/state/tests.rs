@@ -439,3 +439,137 @@ fn tabs_are_reachable_both_ways_with_tab_and_arrows() {
     assert_eq!(s.tab, Tab::Fx);
     assert_eq!(s.fx.args(), "--post gain:db=-0.5");
 }
+
+/// Échap ne renvoie jamais `Action::Quit`, dans tous les onglets et à tous les niveaux : il remonte
+/// d'un cran (filtre, saisie du nom, éditeur, réglages d'un effet) et, quand il n'y a plus rien à
+/// remonter, il le dit (#104).
+#[test]
+fn escape_never_quits_and_climbs_back_one_level() {
+    // chaque onglet, sans rien ouvert
+    let mut s = sample();
+    for tab in [Tab::Models, Tab::Irs, Tab::Blend, Tab::Fx] {
+        while s.tab != tab {
+            s.on_key(Key::Tab);
+        }
+        assert_eq!(s.on_key(Key::Esc), Action::None, "{tab:?}");
+        assert_eq!(s.tab, tab, "Échap ne change pas d'onglet");
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("q pour quitter")), "{:?}", s.message);
+    }
+    // filtre
+    let mut s = sample();
+    s.on_key(Key::Char('/'));
+    for c in "fender".chars() {
+        s.on_key(Key::Char(c));
+    }
+    assert_eq!(s.on_key(Key::Esc), Action::None);
+    assert!(!s.filtering, "Échap sort du filtre");
+    assert_eq!(s.filter, "fender", "sans l'effacer");
+    // saisie du nom du mélange
+    let mut s = sample();
+    s.on_key(Key::Tab);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char(' '));
+    s.on_key(Key::Tab);
+    s.on_key(Key::Char('s'));
+    assert!(s.naming.is_some());
+    assert_eq!(s.on_key(Key::Esc), Action::None);
+    assert!(s.naming.is_none(), "Échap annule la saisie");
+    // éditeur `e` et sa saisie de texte
+    let mut s = with_meta(sample());
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char('e'));
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.on_key(Key::Down); // marque
+    s.on_key(Key::Enter); // saisie
+    assert!(s.editor.as_ref().is_some_and(|e| e.typing.is_some()));
+    assert_eq!(s.on_key(Key::Esc), Action::None);
+    assert!(s.editor.as_ref().is_some_and(|e| e.typing.is_none()), "Échap sort de la saisie");
+    assert_eq!(s.on_key(Key::Esc), Action::None);
+    assert!(s.editor.is_none(), "Échap ferme l'éditeur");
+    assert_eq!(s.on_key(Key::Esc), Action::None, "et ne quitte toujours pas");
+}
+
+/// `q` : quitte tout de suite si rien n'est en jeu, sinon ouvre la confirmation. Seul `Q` quitte ;
+/// toute autre touche (Échap, q, une flèche) fait rester. Ce qui est « modifié » se décide en
+/// comparant des états : défaire le changement efface l'alerte (#104).
+#[test]
+fn q_asks_before_losing_something_and_only_shift_q_quits() {
+    let mut s = sample();
+    s.mark_start();
+    assert!(s.unsaved().is_empty());
+    assert_eq!(s.on_key(Key::Char('q')), Action::Quit, "rien à perdre : q quitte");
+
+    // chaîne d'effets changée depuis le lancement
+    let mut s = sample();
+    s.mark_start();
+    for _ in 0..3 {
+        s.on_key(Key::Tab);
+    }
+    assert_eq!(s.tab, Tab::Fx);
+    s.on_key(Key::Char('a')); // ajoute le premier effet du catalogue en pré
+    assert_eq!(s.unsaved().len(), 1, "{:?}", s.unsaved());
+    assert!(s.unsaved()[0].contains("chaîne d'effets"), "{:?}", s.unsaved());
+    assert_eq!(s.on_key(Key::Char('q')), Action::None);
+    assert!(s.confirm_quit, "fenêtre de confirmation ouverte");
+    for key in [Key::Esc, Key::Char('q'), Key::Down, Key::Char('S')] {
+        assert_eq!(s.on_key(key), Action::None, "{key:?} ne quitte pas");
+        assert!(!s.confirm_quit, "{key:?} referme la fenêtre");
+        assert_eq!(s.on_key(Key::Char('q')), Action::None, "q la rouvre");
+    }
+    assert_eq!(s.on_key(Key::Char('Q')), Action::Quit, "Q quitte sans enregistrer");
+
+    // revenir à l'état de départ efface l'alerte (comparaison d'états, pas de drapeau)
+    let mut s = sample();
+    s.mark_start();
+    for _ in 0..3 {
+        s.on_key(Key::Tab);
+    }
+    s.on_key(Key::Char('a'));
+    s.on_key(Key::Enter); // réglages -> chaîne
+    s.on_key(Key::Char('x')); // retiré
+    assert!(s.unsaved().is_empty(), "{:?}", s.unsaved());
+    assert_eq!(s.on_key(Key::Char('q')), Action::Quit);
+}
+
+/// Les deux autres choses qu'on peut perdre : un mélange d'IR pas enregistré et le brouillon de
+/// l'éditeur `e`. Enregistrer les efface (#104).
+#[test]
+fn an_unsaved_blend_or_editor_draft_also_asks_before_quitting() {
+    // mélange : deux IR ajoutées, puis enregistrées
+    let mut s = sample();
+    s.mark_start();
+    s.on_key(Key::Tab);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char(' '));
+    assert!(s.unsaved()[0].contains("mélange d'IR"), "{:?}", s.unsaved());
+    assert_eq!(s.on_key(Key::Char('q')), Action::None);
+    assert!(s.confirm_quit);
+    s.on_key(Key::Esc);
+    s.on_key(Key::Tab); // Mélange
+    s.on_key(Key::Char('s'));
+    assert!(matches!(s.on_key(Key::Enter), Action::SaveBlend(_)));
+    s.mark_blend_saved(); // ce que fait la boucle après l'écriture du fichier
+    assert!(s.unsaved().is_empty(), "{:?}", s.unsaved());
+    assert_eq!(s.on_key(Key::Char('q')), Action::Quit);
+    // le polariser de nouveau le rend « non enregistré »
+    let mut s2 = s;
+    s2.on_key(Key::Char('p'));
+    assert!(s2.unsaved()[0].contains("mélange d'IR"), "{:?}", s2.unsaved());
+
+    // éditeur : brouillon modifié
+    let mut s = with_meta(sample());
+    s.mark_start();
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char('e'));
+    assert!(s.unsaved().is_empty(), "l'éditeur ouvert sans changement ne retient rien");
+    s.on_key(Key::Down);
+    s.on_key(Key::Right); // entrée +1 dB
+    assert!(s.unsaved()[0].contains("modifications de l'éditeur"), "{:?}", s.unsaved());
+    // q depuis l'éditeur demande aussi (le brouillon serait perdu)
+    assert_eq!(s.on_key(Key::Char('q')), Action::None);
+    assert!(s.confirm_quit);
+    assert_eq!(s.on_key(Key::Char('Q')), Action::Quit);
+}
