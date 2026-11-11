@@ -173,13 +173,8 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 Span::raw(" "),
                 tab(Tab::Blend, format!("Mélange ({})", s.blend.len())),
                 Span::raw(" "),
-                tab(
-                    Tab::Fx,
-                    match s.fx.len() {
-                        0 => format!("Effets ({})", s.fx.catalog.len()),
-                        n => format!("Effets ({}) ● {n}", s.fx.catalog.len()),
-                    },
-                ),
+                // l'onglet compte les blocs de la chaîne (le catalogue est devenu une fenêtre)
+                tab(Tab::Fx, format!("Effets ({} blocs)", s.fx.len())),
                 Span::raw("    "),
             ]
             .into_iter()

@@ -1,14 +1,15 @@
-//! Onglet Effets : catalogue | **synoptique** de la chaîne (avec vumètres, `ui::synoptic`) |
-//! réglages de l'effet choisi, puis la ligne de commande équivalente. Tout vient de `ParamInfo`
-//! (plages, unités, aides). Le synoptique est en lecture seule : l'édition 2D vient avec #109.
+//! Onglet Effets : le **synoptique** de la chaîne (l'éditeur, `ui::synoptic`), les **réglages** de
+//! l'élément sous le curseur, la **ligne de commande équivalente**, et la fenêtre du **catalogue**
+//! quand on ajoute un bloc (`a` / `i`). Plages, unités et aides viennent de `ParamInfo`.
 
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph, Wrap};
+use ratatui::widgets::{Block, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use super::super::state::fx::{FxFocus, Place};
+use super::super::state::chain::Spot;
+use super::super::state::fx::FxFocus;
 use super::super::state::State;
 use super::{cursor_span, synoptic};
 
@@ -23,56 +24,18 @@ fn title(text: &str, active: bool) -> Span<'static> {
     Span::styled(format!(" {text} "), style)
 }
 
-/// Barre de valeur entre `min` et `max`.
-fn bar(v: f32, min: f32, max: f32) -> String {
-    let f = if max > min { ((v - min) / (max - min)).clamp(0.0, 1.0) } else { 0.0 };
-    let n = (f * BAR as f32).round() as usize;
+/// Barre de position d'un réglage dans sa plage.
+fn bar(frac: f32) -> String {
+    let n = (frac.clamp(0.0, 1.0) * BAR as f32).round() as usize;
     format!("{}{}", "█".repeat(n), "·".repeat(BAR - n))
 }
 
-/// Valeur lisible : sans décimales inutiles.
-fn num(v: f32) -> String {
-    let s = format!("{v:.2}");
-    s.trim_end_matches('0').trim_end_matches('.').to_string()
-}
-
 pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
-    let fx = &s.fx;
-    let [cat, right] = Layout::horizontal([Constraint::Length(30), Constraint::Min(30)]).areas(area);
     let [chain, params, cmd] =
-        Layout::vertical([Constraint::Min(5), Constraint::Length(9), Constraint::Length(3)]).areas(right);
+        Layout::vertical([Constraint::Min(6), Constraint::Length(9), Constraint::Length(3)]).areas(area);
 
-    // catalogue
-    let lines: Vec<Line> = fx
-        .catalog
-        .iter()
-        .enumerate()
-        .map(|(i, e)| {
-            Line::from(vec![
-                cursor_span(fx.focus == FxFocus::Catalog && i == fx.catalog_cursor),
-                Span::raw(e.kind().to_string()),
-            ])
-        })
-        .collect();
-    f.render_widget(
-        Paragraph::new(lines)
-            .block(Block::bordered().title(title("catalogue (a pré, A post)", fx.focus == FxFocus::Catalog))),
-        cat,
-    );
-
-    // synoptique de la chaîne, avec ses vumètres (§ 2 et 3 de la spécification)
-    let view = s.chain_view();
-    // le curseur du synoptique suit l'effet choisi dans la chaîne : les effets `pré` d'abord, puis
-    // le modèle et l'IR, puis les effets `post` (l'éditeur 2D arrive avec #109)
-    let amps = view.blocks.len() - s.fx.len();
-    let cursor = (s.fx.focus != FxFocus::Catalog && s.fx.len() > 0).then(|| {
-        if s.fx.selected < s.fx.pre.len() {
-            s.fx.selected
-        } else {
-            s.fx.selected + amps
-        }
-    });
-    let syn = synoptic::build(&view, &s.meters, s.show_meters, cursor);
+    // --- le synoptique, qui est l'éditeur ---
+    let syn = synoptic::build(s);
     let inner = chain.width.saturating_sub(2) as usize;
     let scroll = syn.scroll_for(inner);
     let mut lines = syn.lines(inner, scroll);
@@ -82,7 +45,7 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
             Style::new().fg(Color::DarkGray),
         ));
     }
-    let (head, warn) = synoptic::title(&view);
+    let (head, warn) = synoptic::title(&s.fx.chain);
     let head = if s.fx.bypass_all { "chaîne — SANS EFFETS (r)".to_string() } else { head };
     let mut block = Block::bordered().title(title(&head, s.fx.focus == FxFocus::Chain));
     if let Some(w) = warn.filter(|_| !s.fx.bypass_all) {
@@ -90,61 +53,133 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     }
     f.render_widget(Paragraph::new(lines).block(block), chain);
 
-    // réglages de l'effet choisi
-    let mut lines = Vec::new();
-    let mut name = "réglages".to_string();
-    if let Some(sl) = fx.selected_slot() {
-        let place = match fx.place_of(fx.selected) {
-            Some((Place::Pre, _)) => "pré",
-            _ => "post",
-        };
-        name = format!("{} ({place}) : {}", sl.spec.kind(), sl.spec.help());
-        for (k, p) in sl.spec.params().iter().enumerate() {
-            let v = sl.spec.get(p.name).unwrap_or(p.default);
-            let on = fx.focus == FxFocus::Params && k == fx.param;
-            lines.push(Line::from(vec![
-                cursor_span(on),
-                Span::raw(format!("{:<10}", p.name)),
-                Span::styled(
-                    bar(v, p.min, p.max),
-                    Style::new().fg(if on { Color::Cyan } else { Color::Blue }),
-                ),
-                Span::raw(format!(" {:>7} {}", num(v), p.unit.symbol())),
-            ]));
+    // --- les réglages de l'élément sous le curseur ---
+    let fields = s.fields();
+    let mut lines: Vec<Line> = Vec::new();
+    for (k, field) in fields.iter().enumerate() {
+        let on = s.fx.focus == FxFocus::Params && k == s.fx.param;
+        let (value, frac) = s.field_value(*field);
+        lines.push(Line::from(vec![
+            cursor_span(on),
+            Span::raw(format!("{:<10}", field.name())),
+            Span::styled(bar(frac), Style::new().fg(if on { Color::Cyan } else { Color::Blue })),
+            Span::raw(format!(" {value:>9}")),
+        ]));
+    }
+    match fields.get(s.fx.param) {
+        Some(field) => {
+            lines.push(Line::styled(format!("   {}", field.help()), Style::new().fg(Color::DarkGray)))
         }
-        if let Some(p) = sl.spec.params().get(fx.param) {
-            lines.push(Line::styled(
-                format!("   {} ({} … {} {})", p.help, num(p.min), num(p.max), p.unit.symbol()),
-                Style::new().fg(Color::DarkGray),
-            ));
-        }
-    } else {
-        lines.push(Line::raw("   Chaîne vide : choisis un effet dans le catalogue, a (pré) ou A (post)."));
+        None => lines.push(Line::styled(
+            match s.fx.chain.spot(s.fx.cursor) {
+                Spot::Empty => "   Chaîne vide : a ouvre le catalogue (nam, ir, effets).".to_string(),
+                _ => "   Rien à régler ici (Entrée sur un nam ou une ir ouvre son onglet).".to_string(),
+            },
+            Style::new().fg(Color::DarkGray),
+        )),
+    }
+    // ce que le parallèle propose en plus, sous ses réglages
+    if s.fx.chain.spot(s.fx.cursor) == Spot::Split {
+        lines.push(Line::styled(
+            "   Entrée pour régler · + ajoute une branche · x défait le parallèle (garde la branche de l'ampli)",
+            Style::new().fg(Color::DarkGray),
+        ));
     }
     f.render_widget(
-        Paragraph::new(lines).block(Block::bordered().title(title(&name, fx.focus == FxFocus::Params))),
+        Paragraph::new(lines)
+            .block(Block::bordered().title(title(&s.fields_title(), s.fx.focus == FxFocus::Params))),
         params,
     );
 
-    // ligne de commande équivalente
-    let args = fx.args();
+    // --- la ligne de commande équivalente, ou l'invitation à enregistrer un preset ---
+    let (text, style) = match s.fx.chain.fits_command_line() {
+        true => {
+            let args = s.fx_args();
+            (if args.is_empty() { "(aucun effet)".to_string() } else { args }, Style::new())
+        }
+        false => (
+            "chaîne à enregistrer en preset (S) : les branches ne se décrivent pas en ligne de commande"
+                .to_string(),
+            Style::new().fg(Color::Yellow),
+        ),
+    };
     f.render_widget(
-        Paragraph::new(Line::raw(if args.is_empty() { "(aucun effet)".to_string() } else { args }))
+        Paragraph::new(Line::styled(text, style))
             .wrap(Wrap { trim: false })
             .block(Block::bordered().title(title("à copier dans namfoop run", false))),
         cmd,
     );
+
+    // --- la fenêtre du catalogue, par-dessus tout l'onglet ---
+    if s.fx.catalog.is_some() {
+        render_catalog(s, area, f);
+    }
 }
 
-/// Touches affichées en bas de l'onglet.
+/// Fenêtre du catalogue : titre, filtre tapé au clavier, liste filtrée.
+fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
+    let Some(c) = s.fx.catalog.as_ref() else { return };
+    let visible = c.visible();
+    let where_ = if c.before { "avant" } else { "après" };
+    let mut lines = vec![
+        Line::from(vec![
+            Span::styled(
+                format!("ajouter {where_} le curseur"),
+                Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("   filtre : "),
+            Span::styled(format!("{}▏", c.filter), Style::new().fg(Color::Green)),
+        ]),
+        Line::raw(""),
+    ];
+    if visible.is_empty() {
+        lines.push(Line::styled("  aucun bloc", Style::new().fg(Color::DarkGray)));
+    }
+    for (i, e) in visible.iter().enumerate() {
+        let on = i == c.cursor.min(visible.len() - 1);
+        lines.push(Line::from(vec![
+            cursor_span(on),
+            Span::styled(
+                format!("{:<10}", e.kind),
+                if on { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::new() },
+            ),
+            Span::styled(e.help.to_string(), Style::new().fg(Color::DarkGray)),
+        ]));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        "tape pour filtrer · ↑↓ · Entrée ajoute · Échap annule",
+        Style::new().fg(Color::DarkGray),
+    ));
+    let w = (lines.iter().map(|l| l.width()).max().unwrap_or(40) as u16 + 4).min(body.width);
+    let h = (lines.len() as u16 + 2).min(body.height);
+    let area = Rect {
+        x: body.x + (body.width.saturating_sub(w)) / 2,
+        y: body.y + (body.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    };
+    f.render_widget(Clear, area);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(Block::bordered().title(title("catalogue", true)).style(Style::new().bg(Color::Black))),
+        area,
+    );
+}
+
+/// Touches affichées en bas de l'onglet, selon ce que le curseur désigne (§ 7).
 pub fn fx_keys(s: &State) -> &'static str {
-    match s.fx.focus {
-        FxFocus::Catalog => "Tab/Maj+Tab onglets   ↑↓ effet   a ajouter en pré   A en post   → chaîne   v vumètres   ← Mélange   r avec/sans effets   q",
-        FxFocus::Chain => {
-            "↑↓ choisir   → réglages   [ ] déplacer   x retirer   b couper   a/A ajouter   v vumètres   ← catalogue   r avec/sans effets   q"
-        }
-        FxFocus::Params => {
-            "↑↓ paramètre   ←→ valeur (Maj : fin)   Entrée retour   x retirer   b couper   v vumètres   r avec/sans effets"
-        }
+    if s.fx.catalog.is_some() {
+        return "tape pour filtrer   ↑↓ choisir   Entrée ajoute   Échap annule";
+    }
+    if s.fx.focus == FxFocus::Params {
+        return "↑↓ réglage   ←→ valeur   Maj+←→ pas fin   Échap retour à la chaîne";
+    }
+    match s.fx.chain.spot(s.fx.cursor) {
+        Spot::Empty => "a ajouter un bloc (nam, ir, effets)   Tab onglets   q quitter",
+        Spot::Block => "←→ série   a/i ajouter   s mettre en parallèle   [ ] déplacer   x retirer   b couper   v vumètres   Entrée régler",
+        Spot::Split => "↓ branches   + branche   Entrée mode et coupures   [ ] déplacer le parallèle   x défaire   a/i ajouter",
+        Spot::Header => "↑↓ branche   Entrée gain, phase   m muet   o solo   p phase   + branche   x retirer la branche   a ajouter au début",
+        Spot::BranchBlock => "←→ série   ↑↓ branche   { } changer de branche   [ ] déplacer (sort aux extrémités)   a/i ajouter   x retirer   Entrée régler",
     }
 }

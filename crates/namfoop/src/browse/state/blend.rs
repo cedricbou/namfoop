@@ -35,9 +35,13 @@ impl State {
         format!("{pack} mix {}", self.blend.len())
     }
 
-    /// Ligne de commande équivalente (affichée en quittant).
+    /// Ligne de commande équivalente (affichée en quittant), quand la chaîne s'exprime en
+    /// options : sinon il faut un preset (les branches ne se décrivent pas en texte).
     pub fn command_line(&self, saved_blend_id: Option<&str>) -> Option<String> {
-        let fx = self.fx.args();
+        if !self.fx.chain.fits_command_line() {
+            return None;
+        }
+        let fx = self.fx_args();
         if self.model.is_none() && self.ir == IrChoice::None && fx.is_empty() {
             return None;
         }
@@ -57,5 +61,29 @@ impl State {
             cmd += &format!(" {fx}");
         }
         Some(cmd)
+    }
+}
+
+impl State {
+    /// Les effets de la chaîne en `--pre` / `--post` : ce qui précède le modèle (ou l'IR) d'un côté,
+    /// ce qui le suit de l'autre. N'a de sens que si la chaîne `fits_command_line`.
+    pub fn fx_args(&self) -> String {
+        let amp = self
+            .fx
+            .chain
+            .blocks
+            .iter()
+            .position(|b| matches!(b, chain::Block::Leaf(l) if l.is_nam() || l.is_ir()));
+        let mut out = Vec::new();
+        for (i, b) in self.fx.chain.blocks.iter().enumerate() {
+            if let chain::Block::Leaf(chain::Leaf::Fx(slot)) = b {
+                if !slot.on {
+                    continue;
+                }
+                let place = if amp.is_some_and(|a| i > a) { "--post" } else { "--pre" };
+                out.push(format!("{place} {}", slot.spec));
+            }
+        }
+        out.join(" ")
     }
 }

@@ -6,6 +6,30 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Changé (#109)
+- `browse`, onglet Effets : **le synoptique est l'éditeur**. La colonne du catalogue devient une
+  fenêtre (`a` ajoute après le curseur, `i` avant ; on tape pour filtrer, les noms qui commencent
+  par le filtre d'abord) et le catalogue contient maintenant **`nam` et `ir`** en plus des effets.
+  Navigation **2D** : ←→ le long de la chaîne (en entrant dans un parallèle et en en sortant), ↑↓
+  d'une branche à l'autre ; le curseur se pose sur un bloc, sur le `◆` d'un parallèle ou sur
+  l'en-tête d'une branche.
+- Construire un parallèle : **`s`** met un bloc en parallèle — sur un `nam` suivi de son `ir`, les
+  deux partent ensemble dans un **crossover à 150 Hz** (grave = son direct), soit le blend grave
+  clair en une touche ; **`+`** ajoute une branche (4 au maximum, et une coupure en bandes) ;
+  **`x`** retire un bloc, une branche, ou défait le parallèle en gardant la branche de l'ampli ;
+  **`[` / `]`** déplacent un bloc, le font entrer dans un parallèle ou en sortir ; **`{` / `}`** le
+  passent d'une branche à l'autre ; **`b`** coupe un bloc ; **`m` / `o` / `p`** règlent le muet, le
+  solo et la polarité d'une branche (le solo se traduit en muets à la construction et ne
+  s'enregistre jamais). Chaque message dit ce qui s'est passé, ou pourquoi c'est refusé.
+- **Entrée** ouvre les réglages de ce qui est sous le curseur : les paramètres d'un effet, le
+  **mode** (copie / bandes) et les **coupures** d'un parallèle (pas multiplicatif ×1,06, ×1,01 en
+  pas fin, écart minimal ×1,25 entre voisines), le **gain**, la **phase**, le **muet** et le
+  **solo** d'une branche. Sur un bloc `nam` / `ir`, Entrée ouvre l'onglet Modèles (ou IR), qui agit
+  alors sur **ce** bloc : plusieurs modèles dans une chaîne se choisissent donc chacun chez eux.
+- Le panneau du bas donne la ligne de commande tant que la chaîne s'exprime en options ; dès qu'il
+  y a un parallèle (ou plus d'un modèle), il affiche « chaîne à enregistrer en preset (S) ».
+  L'en-tête de l'onglet compte les blocs de la chaîne.
+
 ### Changé (#108)
 - `browse`, onglet Effets : la liste « pré / [modèle › IR] / post » devient le **synoptique** de la
   chaîne, `IN ─ gate -60 ─ nam·b7k ─ ir·sm57 ─ delay ─ OUT`, avec un **vumètre au-dessus de chaque

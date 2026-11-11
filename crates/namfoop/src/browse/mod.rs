@@ -6,6 +6,7 @@
 //! - `ui.rs`    rendu ratatui (testé avec TestBackend)
 //! - ici        index de la bibliothèque, audio (routeur + SwapChain), thread de construction
 
+mod plan;
 mod state;
 mod ui;
 
@@ -25,6 +26,7 @@ use engine::{Engine, EngineConfig, Routing};
 use library::overrides::{ModelOverride, Overrides};
 use library::recommend::{needs_ir, recommend, NeedsIr};
 use library::{content_hash, Kind, Library};
+use plan::{block_specs, plan_blocks, Request};
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
@@ -190,18 +192,6 @@ fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
     }
 }
 
-/// Une demande de chaîne : chemins du modèle et de l'IR (ou du mélange temporaire).
-#[derive(Clone, PartialEq)]
-struct Request {
-    model: Option<PathBuf>,
-    ir: Option<PathBuf>,
-    /// Gain d'entrée en plus (essai en cours dans l'éditeur).
-    input_db: f32,
-    /// Effets de l'onglet Effets (coupés exclus).
-    pre: Vec<dsp::fx::FxSpec>,
-    post: Vec<dsp::fx::FxSpec>,
-}
-
 enum Built {
     /// Chaîne installée, avec la table de ses vumètres par bloc et par branche (#107).
     Ok(dsp::meter::ChainMeters),
@@ -210,8 +200,8 @@ enum Built {
 
 fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
     AmpArgs {
-        model: req.model.as_ref().map(|p| p.display().to_string()),
-        ir: req.ir.as_ref().map(|p| p.display().to_string()),
+        model: req.first_model().map(|p| p.display().to_string()),
+        ir: req.first_ir().map(|p| p.display().to_string()),
         input_db: req.input_db,
         output_db: 0.0,
         trim: None,
@@ -221,8 +211,8 @@ fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
         size,
         ir_ms: 200.0,
         master_db: 0.0,
-        pre: req.pre.clone(),
-        post: req.post.clone(),
+        pre: Vec::new(),
+        post: Vec::new(),
         crossover: None,
         crossover_low_db: 0.0,
         crossover_high_db: 0.0,
@@ -288,25 +278,16 @@ pub fn run(
             while let Ok(newer) = rx_req.try_recv() {
                 req = newer;
             }
-            let fx = |v: &[dsp::fx::FxSpec]| {
-                if v.is_empty() {
-                    "-".to_string()
-                } else {
-                    v.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(" ")
-                }
-            };
-            let trace_line = format!(
-                "modèle={} ir={} entrée={:+.1} pre={} post={}",
-                req.model.as_ref().map_or("-".into(), |p| p.display().to_string()),
-                req.ir.as_ref().map_or("-".into(), |p| p.display().to_string()),
-                req.input_db,
-                fx(&req.pre),
-                fx(&req.post)
-            );
-            // avec les vumètres par bloc : la table est préallouée ici et voyage avec la chaîne
-            let built = amp_args(&lib_dir, size, &req)
-                .spec(&conf2, Some(limiter.clone()))
-                .and_then(|spec| Ok(spec.to_chain_spec().build_with_meters(rate, MAX_BLOCK)?));
+            let trace_line = req.trace();
+            // le cadre (trim, niveau, master, limiteur) vient des options et de la config ; les
+            // blocs, eux, sont ceux de l'éditeur. Avec les vumètres par bloc : la table est
+            // préallouée ici et voyage avec la chaîne.
+            let built = amp_args(&lib_dir, size, &req).spec(&conf2, Some(limiter.clone())).and_then(|spec| {
+                let lib = Library::scan(&lib_dir);
+                let mut chain_spec = spec.to_chain_spec();
+                chain_spec.blocks = block_specs(&req.blocks, &lib, &req, size);
+                Ok(chain_spec.build_with_meters(rate, MAX_BLOCK)?)
+            });
             match built {
                 Ok((mut chain, meters)) => loop {
                     match handle.send(chain) {
@@ -392,28 +373,22 @@ pub fn run(
             match action {
                 Action::None => {}
                 Action::Quit => return Ok(()),
-                Action::Play { model, ir } => {
-                    let ir = match ir {
-                        IrChoice::None => None,
-                        IrChoice::Item(i) => Some(st.irs[i].path.clone()),
-                        IrChoice::Blend => {
-                            blend_spec("écoute", &st, true).save(&audition)?;
-                            st.blend_profile = dsp::profile::IrProfile::of_file(&audition).ok().map(Arc::new);
-                            Some(audition.clone())
-                        }
-                    };
-                    let (pre, post) = st.fx.active();
+                Action::Play { .. } => {
+                    // le mélange d'écoute est écrit avant d'être cité par un bloc `ir`
+                    let plan = st.plan();
+                    if plan.leaves().any(|l| matches!(l, state::chain::Leaf::Ir { ir: IrChoice::Blend, .. }))
+                    {
+                        blend_spec("écoute", &st, true).save(&audition)?;
+                        st.blend_profile = dsp::profile::IrProfile::of_file(&audition).ok().map(Arc::new);
+                    }
                     let req = Request {
-                        model: model.map(|m| st.models[m].path.clone()),
-                        ir,
+                        blocks: plan_blocks(&plan.blocks, &st, &audition),
                         input_db: st.input_offset(),
-                        pre,
-                        post,
                     };
                     // même chaîne que la dernière : pas de reconstruction ni de fondu inutile
                     // (le mélange d'écoute garde son nom de fichier mais change de contenu)
-                    let same =
-                        last_req.as_ref() == Some(&req) && req.ir.as_deref() != Some(audition.as_path());
+                    let same = last_req.as_ref() == Some(&req)
+                        && !req.irs().iter().any(|p| p.as_path() == audition.as_path());
                     if !same {
                         last_req = Some(req.clone());
                         let _ = tx_req.send(req);
