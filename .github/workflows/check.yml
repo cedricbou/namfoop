@@ -20,8 +20,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Dépendances système
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libjack-jackd2-dev pkg-config
+      # réessaie : un miroir Ubuntu injoignable ne doit pas faire échouer la PR (#117)
+      - uses: ./.github/actions/deps
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.99.1"
@@ -42,8 +42,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Dépendances système
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libjack-jackd2-dev pkg-config
+      # réessaie : un miroir Ubuntu injoignable ne doit pas faire échouer la PR (#117)
+      - uses: ./.github/actions/deps
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.99.1"
@@ -53,6 +53,9 @@ jobs:
           shared-key: check
       # sans bibliothèque de sons (non versionnée) : le rendu de library/ est sauté
       - run: scripts/check.sh --quick --no-lint
+      # `if: always()` : utile même quand check.sh échoue — mais sans masquer la vraie cause en
+      # échouant soi-même sur un `sccache: command not found` (#117)
       - name: Statistiques sccache
         if: always()
-        run: sccache --show-stats
+        run: command -v sccache >/dev/null && sccache --show-stats || echo "sccache pas installé"
+
