@@ -110,8 +110,9 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   Bloc 48 (budget 1000 µs) : même coût absolu, donc une part un peu plus grande (4 lourds : 32 %
   de moyenne, 44 % de pire cas). `namfoop bench` sur les 139 modèles de la bibliothèque, bloc 64 :
   41 µs le plus léger, 42 µs de médiane, 104 µs le plus lourd (3,1 à 7,8 % du budget), max 246 µs.
-  **Le Pi 5 reste à mesurer (#44 / #45)** : c'est lui qui fixera le seuil d'alerte de `browse` et
-  une éventuelle limite dure.
+  Seuil retenu avec l'utilisateur : `browse` **alerte dès 2 modèles actifs** et ne refuse rien
+  (le coût est linéaire, et 2 modèles restent confortables sur x86). **Le Pi 5 reste à mesurer
+  (#44 / #45)** : lui seul dira s'il faut une limite dure.
 - Vumètres par bloc (#107) : une chaîne de 4 blocs avec un parallèle à 3 branches (7 sondes,
   2 mesures d'action, 3 mesures de branche) coûte 4,63 µs par bloc de 64 sans mesures et 4,87 µs
   avec (+0,24 µs, +0,02 % du budget ; x86, release,
