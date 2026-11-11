@@ -14,6 +14,7 @@ pub mod delay;
 pub mod filter;
 pub mod gain;
 pub mod gate;
+pub mod reverb;
 pub mod split;
 
 use serde::{Deserialize, Serialize};
@@ -103,6 +104,7 @@ pub enum FxSpec {
     Split(split::SplitParams),
     Delay(delay::DelayParams),
     Chorus(chorus::ChorusParams),
+    Reverb(reverb::ReverbParams),
 }
 
 /// Applique `$body` à l'effet contenu, quel que soit son type.
@@ -120,6 +122,7 @@ macro_rules! with_effect {
             FxSpec::Split($e) => $body,
             FxSpec::Delay($e) => $body,
             FxSpec::Chorus($e) => $body,
+            FxSpec::Reverb($e) => $body,
         }
     };
 }
@@ -138,6 +141,7 @@ pub fn catalog() -> Vec<FxSpec> {
         FxSpec::Split(Default::default()),
         FxSpec::Delay(Default::default()),
         FxSpec::Chorus(Default::default()),
+        FxSpec::Reverb(Default::default()),
     ]
 }
 
@@ -276,8 +280,9 @@ mod tests {
             FxSpec::Split(_) => 8,
             FxSpec::Delay(_) => 9,
             FxSpec::Chorus(_) => 10,
+            FxSpec::Reverb(_) => 11,
         };
-        const COUNT: usize = 11;
+        const COUNT: usize = 12;
         let mut seen = [false; COUNT];
         for f in catalog() {
             seen[index(&f)] = true;

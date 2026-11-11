@@ -253,3 +253,8 @@ fn golden_fx_delay() {
 fn golden_fx_chorus() {
     check_fx("chorus:mix=60");
 }
+
+#[test]
+fn golden_fx_reverb() {
+    check_fx("reverb:decay=1.2,mix=30");
+}
