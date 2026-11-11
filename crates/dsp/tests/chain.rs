@@ -180,13 +180,55 @@ fn level_match_includes_effects() {
 fn nested_split() -> dsp::fx::FxSpec {
     let text = r#"
 type = "split"
-mode = "crossover"
-freq = 120.0
+mode = "bands"
+freqs = [120.0]
 [[branches]]
 [[branches]]
-fx = [{ type = "split", mode = "copy", branches = [{ gain_db = -6.0, fx = [{ type = "comp", ratio = 8.0 }] }, { fx = [{ type = "lpf", freq = 3000.0 }] }] }]
+fx = [{ type = "split", mode = "copy", branches = [{ gain_db = -6.0, invert = true, fx = [{ type = "comp", ratio = 8.0 }] }, { fx = [{ type = "lpf", freq = 3000.0 }] }] }]
 "#;
     toml::from_str(text).unwrap()
+}
+
+/// Parallèle à `n` bandes (3 ou 4), chaque branche avec un effet, une polarité inversée et une
+/// branche muette : le cas le plus chargé de l'ADR 0006.
+fn multi_band_split(n: usize) -> dsp::fx::FxSpec {
+    let freqs: &str = match n {
+        3 => "[150.0, 600.0]",
+        _ => "[100.0, 400.0, 1600.0]",
+    };
+    let mut text = format!("type = \"split\"\nmode = \"bands\"\nfreqs = {freqs}\n");
+    let branches = [
+        "gain_db = -2.0\nfx = [{ type = \"comp\", ratio = 4.0 }]",
+        "gain_db = 0.0\ninvert = true\nfx = [{ type = \"lpf\", freq = 3000.0 }]",
+        "gain_db = -3.0\nfx = [{ type = \"delay\", time = 40.0 }]",
+        "mute = true\nfx = [{ type = \"gate\" }]",
+    ];
+    for b in branches.iter().take(n) {
+        text += &format!("[[branches]]\n{b}\n");
+    }
+    toml::from_str(&text).unwrap_or_else(|e| panic!("{n} bandes : {e}\n{text}"))
+}
+
+/// Parallèle à 3 et 4 bandes : même sortie quelle que soit la taille de bloc.
+#[test]
+fn multi_band_split_is_independent_of_block_size() {
+    let input = signal(24000);
+    for n in [3, 4] {
+        let run = |block: usize| {
+            let mut st = multi_band_split(n).build(48000, 64).unwrap();
+            let mut buf = input.clone();
+            for c in buf.chunks_mut(block) {
+                st.process(c);
+            }
+            buf
+        };
+        let reference = run(64);
+        for block in [16, 48, 1000] {
+            let got = run(block);
+            let worst = reference.iter().zip(&got).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
+            assert!(worst < 1e-5, "{n} bandes, bloc {block} : écart max {worst:e}");
+        }
+    }
 }
 
 /// `split` imbriqué : même sortie quelle que soit la taille de bloc.
