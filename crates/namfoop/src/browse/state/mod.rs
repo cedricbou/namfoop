@@ -17,6 +17,7 @@ pub enum Tab {
     Models,
     Irs,
     Blend,
+    Fx,
 }
 
 #[derive(Clone, Debug)]
@@ -148,7 +149,7 @@ pub struct State {
     pub tab: Tab,
     pub models: Vec<Item>,
     pub irs: Vec<Item>,
-    pub cursor: [usize; 3],
+    pub cursor: [usize; 4],
     pub filter: String,
     pub filtering: bool,
     pub model: Option<usize>,
@@ -171,6 +172,10 @@ pub struct State {
     pub bypass: bool,
     /// Profil du mélange en cours (calculé par la boucle à chaque changement).
     pub blend_profile: Option<std::sync::Arc<dsp::profile::IrProfile>>,
+    /// Onglet Effets : catalogue, chaîne pré / post, réglages.
+    pub fx: fx::FxState,
+    /// Effets changés : écoute à reconstruire après `AUDITION_DELAY_MS` sans touche.
+    fx_due: Option<u64>,
     pending: Option<u64>,
     now: u64,
 }
@@ -186,7 +191,7 @@ impl State {
             tab: Tab::Models,
             models,
             irs,
-            cursor: [0; 3],
+            cursor: [0; 4],
             filter: String::new(),
             filtering: false,
             model: None,
@@ -203,6 +208,8 @@ impl State {
             listen_ref: false,
             bypass: false,
             blend_profile: None,
+            fx: fx::FxState::default(),
+            fx_due: None,
             pending: None,
             now: 0,
         }
@@ -270,6 +277,7 @@ impl State {
             Tab::Models => self.model_list().len(),
             Tab::Irs => self.ir_rows().len(),
             Tab::Blend => self.blend.len(),
+            Tab::Fx => self.fx.len(),
         }
     }
 
@@ -337,7 +345,7 @@ impl State {
                 }
                 self.play()
             }
-            Tab::Blend => Action::None,
+            Tab::Blend | Tab::Fx => Action::None,
         }
     }
 
@@ -349,6 +357,10 @@ impl State {
                 self.grain_due = None;
                 return Action::MeasureGrain { model: ed.model, input_db: ed.draft.input_db };
             }
+        }
+        if self.fx_due.is_some_and(|t| now_ms >= t + AUDITION_DELAY_MS) {
+            self.fx_due = None;
+            return self.play();
         }
         match self.pending {
             Some(t) if now_ms >= t + AUDITION_DELAY_MS => self.select_current(),
@@ -414,11 +426,16 @@ impl State {
             }
             return Action::None;
         }
+        if self.tab == Tab::Fx {
+            if let Some(a) = self.fx_key(key) {
+                return a;
+            }
+        }
         let c = self.cursor();
         match key {
             Key::Esc | Key::Char('q') => return Action::Quit,
             Key::Char('/') => {
-                if self.tab != Tab::Blend {
+                if matches!(self.tab, Tab::Models | Tab::Irs) {
                     self.filtering = true;
                 }
             }
@@ -426,12 +443,13 @@ impl State {
                 self.tab = match self.tab {
                     Tab::Models => Tab::Irs,
                     Tab::Irs => Tab::Blend,
-                    Tab::Blend => Tab::Models,
+                    Tab::Blend => Tab::Fx,
+                    Tab::Fx => Tab::Models,
                 };
                 self.filter.clear();
                 self.pending = None;
             }
-            Key::Left if self.tab != Tab::Models => {
+            Key::Left if matches!(self.tab, Tab::Irs | Tab::Blend) => {
                 self.tab = if self.tab == Tab::Blend { Tab::Irs } else { Tab::Models };
                 self.filter.clear();
                 self.pending = None;
@@ -539,6 +557,7 @@ impl State {
 mod blend;
 mod compare;
 mod editor;
+pub mod fx;
 
 #[cfg(test)]
 pub mod tests;

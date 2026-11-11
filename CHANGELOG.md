@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#86)
+- `browse` : onglet Effets (catalogue, chaîne pré / post autour du modèle, réglages générés depuis
+  la table des paramètres, `r` avec / sans effets) ; la ligne de commande équivalente s'affiche et
+  la commande de sortie inclut les effets ; `NAMFOOP_BROWSE_TRACE` trace les effets installés.
+
 ### Ajouté (#85)
 - Effet `reverb` : réseau de 8 lignes à retard (FDN, Householder), `decay` (RT60) de 0,2 à 10 s,
   pré-délai, amortissement des aigus, grave sec sous `lowcut`.

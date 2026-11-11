@@ -13,6 +13,9 @@ pub enum Key {
     Down,
     Left,
     Right,
+    /// Maj + ← / → (réglage fin).
+    ShiftLeft,
+    ShiftRight,
     PageUp,
     PageDown,
     Enter,
@@ -45,7 +48,14 @@ pub fn poll_key(timeout: Duration) -> std::io::Result<Option<Key>> {
         return Ok(None);
     }
     match event::read()? {
-        Event::Key(k) if k.kind == KeyEventKind::Press => Ok(map_key(k.code)),
+        Event::Key(k) if k.kind == KeyEventKind::Press => {
+            let shift = k.modifiers.contains(event::KeyModifiers::SHIFT);
+            Ok(match (map_key(k.code), shift) {
+                (Some(Key::Left), true) => Some(Key::ShiftLeft),
+                (Some(Key::Right), true) => Some(Key::ShiftRight),
+                (key, _) => key,
+            })
+        }
         _ => Ok(None),
     }
 }
