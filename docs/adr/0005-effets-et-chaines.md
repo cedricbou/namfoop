@@ -17,6 +17,9 @@ Sur scène, latence et fiabilité priment ; l'utilisateur joue de la basse en mo
 - Aucune latence ajoutée, sauf la compensation de retard entre les branches d'un `Split`.
 - Paramètres en deux temps : pour #5, un changement reconstruit la chaîne et fond (les queues de
   delay / réverbe sont coupées) ; `set_param` en direct avec lissage viendra avec #6.
+- Un effet à longue queue (delay, réverbe) la déclare (`Effect::tail_seconds`) ; le test générique
+  « silence après la queue » attend cette durée (au plus 90 s par réglage du catalogue) au lieu de
+  10 s fixes (#84, choix de l'utilisateur dans #5).
 - Presets (#6) : fichiers TOML **dans la bibliothèque**, lus par `library` ; `model` garde la config
   de l'instrument.
 

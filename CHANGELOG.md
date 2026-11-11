@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#84)
+- Effet `delay` : écho jusqu'à 2 s, réinjection filtrée (`lowcut`, `highcut`), 90 % au plus sans
+  emballement ; changement de temps par fondu entre deux têtes de lecture (sans glissement).
+- Effet `chorus` : retard modulé (LFO sinus, interpolation Hermite), grave sec sous `lowcut`.
+- Les effets déclarent la durée de leur queue (`tail_seconds`) : le test générique de silence
+  l'attend (au plus 90 s) au lieu de 10 s fixes.
+
 ### Ajouté (#83)
 - Blend grave clair : `--crossover HZ` (+ `--crossover-low-db`, `--crossover-high-db`) garde le grave
   du DI sous un crossover Linkwitz-Riley 4, retard du modèle et de l'IR compensé, niveau aligné.

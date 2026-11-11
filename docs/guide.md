@@ -1033,6 +1033,42 @@ namfoop run -m b7k -i "dg212 sm57" --post hpf:freq=35 --post peak:freq=300,gain=
 namfoop fx peak
 ```
 
+#### `delay` : écho
+
+Répète le son toutes les `time` ms. La réinjection est **filtrée** : chaque répétition passe par un
+passe-haut (`lowcut`) et un passe-bas (`highcut`), elle devient plus fine et plus sombre que la
+précédente et ne brouille pas le grave.
+
+- `time` : 1 à 2000 ms. Un écho court (80–150 ms) épaissit, un écho long (300–500 ms) se cale sur
+  le tempo : `60000 / BPM` ms pour une noire (120 BPM : 500 ms).
+- `feedback` : nombre de répétitions, de 0 (une seule) à 90 %. Plafonné à 90 % : la queue est alors
+  très longue (une minute) mais ne s'emballe jamais.
+- `mix` : niveau des répétitions ; le son direct reste toujours à 100 %.
+- `lowcut` (80 Hz par défaut) : à monter vers 200–300 Hz pour que les répétitions laissent la place
+  à la fondamentale.
+- Piège : changer un paramètre reconstruit la chaîne et coupe les répétitions en cours (prototype ;
+  le maintien des queues viendra avec les presets).
+
+```sh
+namfoop run -m b7k -i "dg212 sm57" --post delay:time=375,feedback=40,lowcut=200,mix=25
+```
+
+#### `chorus` : ondulation, grave sec
+
+Mélange au son une copie légèrement retardée dont le retard ondule (`rate`, `depth`). Sous
+`lowcut`, le son reste **sec** : la fondamentale garde son assise, seul le médium-aigu ondule.
+
+- `rate` : vitesse de l'ondulation (0,5–1 Hz : large et lent ; 3–5 Hz : vibrato).
+- `depth` : amplitude de la modulation du retard, en ms (plus : plus désaccordé).
+- `delay` : retard minimal de la copie (5–10 ms : chorus ; 1–3 ms : proche d'un flanger, sans
+  réinjection).
+- `lowcut` : 150–300 Hz pour une basse ; `mix` : part de la copie au-dessus de `lowcut` (100 % : que
+  la copie, vibrato pur dans le médium).
+
+```sh
+namfoop run -m b7k -i "dg212 sm57" --post chorus:rate=0.8,depth=2,lowcut=200,mix=50
+```
+
 #### Blend grave clair : `--crossover`
 
 Un ampli saturé « mange » le grave : la fondamentale se brouille et perd son assise. Le blend garde,

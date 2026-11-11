@@ -8,7 +8,9 @@
 //! Ajouter un effet : un fichier qui implémente [`Effect`], une variante de [`FxSpec`] et une ligne
 //! dans [`catalog`] (voir `crates/dsp/CLAUDE.md`, « Ajouter un effet »).
 
+pub mod chorus;
 pub mod comp;
+pub mod delay;
 pub mod filter;
 pub mod gain;
 pub mod gate;
@@ -75,7 +77,16 @@ pub trait Effect: Clone + Default {
     fn put(&mut self, name: &str, v: f32);
     /// Construit l'étage (hors temps réel : peut allouer).
     fn build(&self, sample_rate: u32, max_block: usize) -> Result<Box<dyn Stage>>;
+    /// Durée (s) pendant laquelle l'effet peut encore sonner après la fin du signal, au-delà des
+    /// 10 s couvertes par défaut (delay, réverbe). Le test `silence_after_the_tail` attend cette
+    /// durée, plafonnée à [`MAX_TEST_TAIL_SECONDS`] pour les réglages du catalogue.
+    fn tail_seconds(&self) -> f32 {
+        0.0
+    }
 }
+
+/// Plus longue queue admise, pour chaque réglage de `FxSpec::extremes`, par les tests génériques.
+pub const MAX_TEST_TAIL_SECONDS: f32 = 90.0;
 
 /// Un effet réglé : type + paramètres. Sérialisé avec un champ `type` (`type = "gain"`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -90,6 +101,8 @@ pub enum FxSpec {
     Lowshelf(filter::LowshelfParams),
     Highshelf(filter::HighshelfParams),
     Split(split::SplitParams),
+    Delay(delay::DelayParams),
+    Chorus(chorus::ChorusParams),
 }
 
 /// Applique `$body` à l'effet contenu, quel que soit son type.
@@ -105,6 +118,8 @@ macro_rules! with_effect {
             FxSpec::Lowshelf($e) => $body,
             FxSpec::Highshelf($e) => $body,
             FxSpec::Split($e) => $body,
+            FxSpec::Delay($e) => $body,
+            FxSpec::Chorus($e) => $body,
         }
     };
 }
@@ -121,6 +136,8 @@ pub fn catalog() -> Vec<FxSpec> {
         FxSpec::Lowshelf(Default::default()),
         FxSpec::Highshelf(Default::default()),
         FxSpec::Split(Default::default()),
+        FxSpec::Delay(Default::default()),
+        FxSpec::Chorus(Default::default()),
     ]
 }
 
@@ -169,6 +186,11 @@ impl FxSpec {
         }
         with_effect!(self, e => e.put(name, v));
         Ok(())
+    }
+
+    /// Durée de la queue après la fin du signal (s) : voir [`Effect::tail_seconds`].
+    pub fn tail_seconds(&self) -> f32 {
+        with_effect!(self, e => e.tail_seconds())
     }
 
     /// Construit l'étage (hors temps réel).
@@ -252,8 +274,10 @@ mod tests {
             FxSpec::Lowshelf(_) => 6,
             FxSpec::Highshelf(_) => 7,
             FxSpec::Split(_) => 8,
+            FxSpec::Delay(_) => 9,
+            FxSpec::Chorus(_) => 10,
         };
-        const COUNT: usize = 9;
+        const COUNT: usize = 11;
         let mut seen = [false; COUNT];
         for f in catalog() {
             seen[index(&f)] = true;
