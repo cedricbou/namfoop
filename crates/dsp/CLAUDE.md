@@ -94,6 +94,24 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 - Filtres (#82, `bench --fx`, bloc 64) : ~0,2 µs par bande (0,01–0,02 % du budget). Mesurer un
   filtre au sinus avec le rapport des RMS, pas la crête (à 16 kHz, 3 échantillons par période :
   la crête échantillonnée sous-estime l'amplitude de ~0,8 dB).
+- Plusieurs modèles en parallèle (#111, x86, release, 48 kHz,
+  `cargo test --release -p dsp --test chain -- --nocapture cost_of_several_models`, avec
+  `NAMFOOP_BENCH_MODEL=<fichier.nam>` pour un modèle de la bibliothèque) : le coût est **linéaire**
+  en nombre de modèles (le parallèle lui-même ne coûte que 0,06 à 3 µs, voir plus bas).
+  Par bloc de 64 (budget 1333 µs), moyenne / pire cas, chaîne `◆ copie [nam › ir | …]` :
+
+  | modèles | b7k (45 µs/bloc) | le plus lourd de la bibliothèque (104 µs/bloc) |
+  |---|---|---|
+  | 1 | 45 µs (3,4 %) / 138 µs (10 %) | 104 µs (7,8 %) / 248 µs (19 %) |
+  | 2 | 92 µs (6,9 %) / 160 µs (12 %) | 209 µs (16 %) / 360 µs (27 %) |
+  | 3 | 139 µs (10 %) / 202 µs (15 %) | 314 µs (24 %) / 601 µs (45 %) |
+  | 4 | 184 µs (14 %) / 256 µs (19 %) | 417 µs (31 %) / 509 µs (38 %) |
+
+  Bloc 48 (budget 1000 µs) : même coût absolu, donc une part un peu plus grande (4 lourds : 32 %
+  de moyenne, 44 % de pire cas). `namfoop bench` sur les 139 modèles de la bibliothèque, bloc 64 :
+  41 µs le plus léger, 42 µs de médiane, 104 µs le plus lourd (3,1 à 7,8 % du budget), max 246 µs.
+  **Le Pi 5 reste à mesurer (#44 / #45)** : c'est lui qui fixera le seuil d'alerte de `browse` et
+  une éventuelle limite dure.
 - Vumètres par bloc (#107) : une chaîne de 4 blocs avec un parallèle à 3 branches (7 sondes,
   2 mesures d'action, 3 mesures de branche) coûte 4,63 µs par bloc de 64 sans mesures et 4,87 µs
   avec (+0,24 µs, +0,02 % du budget ; x86, release,
