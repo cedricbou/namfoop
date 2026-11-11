@@ -11,6 +11,7 @@ use crate::tui::{meter_marked, meter_width};
 use library::recommend::NeedsIr;
 
 mod editor;
+mod fx;
 mod spectrum;
 
 use editor::*;
@@ -34,7 +35,7 @@ pub struct Status {
     pub device: String,
 }
 
-fn cursor_span(on: bool) -> Span<'static> {
+pub(super) fn cursor_span(on: bool) -> Span<'static> {
     if on {
         Span::styled(" ▶ ", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
     } else {
@@ -159,6 +160,8 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 tab(Tab::Irs, format!("IR ({})", s.irs.len())),
                 Span::raw(" "),
                 tab(Tab::Blend, format!("Mélange ({})", s.blend.len())),
+                Span::raw(" "),
+                tab(Tab::Fx, format!("Effets ({})", s.fx.len())),
                 Span::raw("    "),
             ]
             .into_iter()
@@ -359,9 +362,12 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 if s.align { "oui" } else { "non" }
             )));
         }
+        Tab::Fx => {}
     }
     if let Some(ed) = &s.editor {
         render_editor(s, ed, f, body);
+    } else if s.tab == Tab::Fx {
+        fx::render_fx(s, f, body);
     } else if body.width >= SPECTRUM_MIN_WIDTH {
         let [list, spectrum] =
             Layout::horizontal([Constraint::Percentage(58), Constraint::Percentage(42)]).areas(body);
@@ -408,6 +414,14 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             Line::from(vec![
                 Span::styled(" ♪ ", Style::new().fg(Color::Green)),
                 Span::raw(format!("{model}  +  IR : {ir}")),
+                Span::styled(
+                    match (s.fx.len(), s.fx.bypass_all) {
+                        (0, _) => String::new(),
+                        (_, true) => "  +  effets coupés (r)".to_string(),
+                        (n, false) => format!("  +  {n} effet(s)"),
+                    },
+                    Style::new().fg(Color::Magenta),
+                ),
             ]),
             Line::from(meters),
             Line::from(Span::styled(
@@ -431,6 +445,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         (_, _, Tab::Irs) => {
             "↑↓ écouter   c épingler réf.   r A/B réf.   b avec/sans IR   espace → mélange   / filtrer   Tab   q"
         }
+        (_, _, Tab::Fx) => fx::fx_keys(s),
         (_, _, Tab::Blend) => {
             "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   b avec/sans   r A/B réf.   Tab   q"
         }

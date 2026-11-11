@@ -188,3 +188,35 @@ fn long_lists_scroll_with_the_cursor() {
     assert_eq!(window(100, 99, 10), 90..100);
     assert_eq!(window(5, 3, 10), 0..5);
 }
+
+/// Onglet Effets en 100 et 130 colonnes : catalogue, chaîne autour du modèle, réglages, ligne
+/// de commande.
+#[test]
+fn fx_tab_shows_catalog_chain_params_and_command() {
+    let mut s = sample();
+    s.on_key(Key::Down); // ligne « son direct »
+    s.on_key(Key::Down);
+    s.on_key(Key::Enter); // 800D
+    for _ in 0..3 {
+        s.on_key(Key::Tab);
+    }
+    s.on_key(Key::Down); // gate
+    s.on_key(Key::Char('a'));
+    s.on_key(Key::Enter);
+    s.on_key(Key::Left);
+    for _ in 0..8 {
+        s.on_key(Key::Down); // delay
+    }
+    s.on_key(Key::Char('A'));
+    for w in [100, 130] {
+        let t = crate::tui::screen_text(w, 30, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("Effets (2)") && t.contains("reverb") && t.contains("chorus"), "{w} :\n{t}");
+        assert!(t.contains("[800D Modern › Powerhouse 410]"), "{w} :\n{t}");
+        assert!(t.contains("feedback") && t.contains("% ") && t.contains("temps entre deux"), "{w} :\n{t}");
+        assert!(t.contains("--pre gate --post delay"), "{w} :\n{t}");
+        assert!(t.contains("←→ valeur"), "{w} :\n{t}");
+    }
+    s.on_key(Key::Char('r'));
+    let t = crate::tui::screen_text(100, 30, |f| render(&s, &Status::default(), f));
+    assert!(t.contains("SANS EFFETS") && t.contains("effets coupés"), "{t}");
+}

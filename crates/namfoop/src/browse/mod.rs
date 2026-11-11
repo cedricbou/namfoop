@@ -197,6 +197,9 @@ struct Request {
     ir: Option<PathBuf>,
     /// Gain d'entrée en plus (essai en cours dans l'éditeur).
     input_db: f32,
+    /// Effets de l'onglet Effets (coupés exclus).
+    pre: Vec<dsp::fx::FxSpec>,
+    post: Vec<dsp::fx::FxSpec>,
 }
 
 enum Built {
@@ -217,8 +220,8 @@ fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
         size,
         ir_ms: 200.0,
         master_db: 0.0,
-        pre: Vec::new(),
-        post: Vec::new(),
+        pre: req.pre.clone(),
+        post: req.post.clone(),
         crossover: None,
         crossover_low_db: 0.0,
         crossover_high_db: 0.0,
@@ -284,11 +287,20 @@ pub fn run(
             while let Ok(newer) = rx_req.try_recv() {
                 req = newer;
             }
+            let fx = |v: &[dsp::fx::FxSpec]| {
+                if v.is_empty() {
+                    "-".to_string()
+                } else {
+                    v.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(" ")
+                }
+            };
             let trace_line = format!(
-                "modèle={} ir={} entrée={:+.1}",
+                "modèle={} ir={} entrée={:+.1} pre={} post={}",
                 req.model.as_ref().map_or("-".into(), |p| p.display().to_string()),
                 req.ir.as_ref().map_or("-".into(), |p| p.display().to_string()),
-                req.input_db
+                req.input_db,
+                fx(&req.pre),
+                fx(&req.post)
             );
             let built = amp_args(&lib_dir, size, &req)
                 .spec(&conf2, Some(limiter.clone()))
@@ -382,10 +394,13 @@ pub fn run(
                             Some(audition.clone())
                         }
                     };
+                    let (pre, post) = st.fx.active();
                     let req = Request {
                         model: model.map(|m| st.models[m].path.clone()),
                         ir,
                         input_db: st.input_offset(),
+                        pre,
+                        post,
                     };
                     // même chaîne que la dernière : pas de reconstruction ni de fondu inutile
                     // (le mélange d'écoute garde son nom de fichier mais change de contenu)

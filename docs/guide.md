@@ -691,6 +691,23 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
+- **Onglet Effets** (le quatrième) : à gauche le **catalogue** (les effets de `namfoop fx`), au
+  centre la **chaîne** autour du son choisi (`pré : gate › comp`, `[modèle › IR]`, `post : delay`),
+  en bas les **réglages** de l'effet choisi (barre, valeur, unité, aide et plage) et la **ligne de
+  commande équivalente**, à copier dans `run`. Les colonnes se parcourent de gauche à droite :
+  - catalogue : ↑↓ choisit un effet, **`a`** l'ajoute en pré (avant le modèle), **`A`** en post ;
+    ses réglages s'ouvrent aussitôt ; → passe à la chaîne ;
+  - chaîne : ↑↓ choisit un effet, **`[` / `]`** le déplace (il passe de pré à post au bord du
+    modèle), **`x`** le retire, **`b`** le coupe ou le remet, → (ou Entrée) ouvre ses réglages,
+    ← revient au catalogue ;
+  - réglages : ↑↓ choisit le paramètre, ←→ change la valeur d'un pas, **Maj + ←→** d'un pas fin
+    (un dixième) ; Entrée ou Échap revient à la chaîne.
+
+  **`r`** bascule **avec / sans effets** (A/B) ; la ligne de commande garde la chaîne réglée. Chaque
+  changement s'écoute 150 ms après la dernière touche, avec le fondu habituel. Pas, plages et unités
+  viennent de la table de chaque effet ([Effets](#effets----pre---post-namfoop-fx)). En prototype,
+  chaque réglage reconstruit la chaîne : les queues de delay et de réverbe sont coupées. La
+  sauvegarde en preset viendra avec les presets (#6).
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
   lettres sont des commandes.
 - **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un
@@ -698,8 +715,8 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
 - En bas : le son en cours, les vumètres, la réduction du limiteur (`lim`), la charge DSP et les
   xruns. `q` ou Échap quitte.
 
-En quittant, le navigateur affiche la commande pour rejouer le même son, par exemple
-`namfoop run -m m4jn -i c7k2`. Options : `--library`, `--size` (modèles légers), `--filter`
+En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
+exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
 (filtre de départ, ex. `--filter PopPunk`), et le routage
 `--bass-in`, `--mic-in`, `--route` ([§ 10](#10-backends-carte-et-routage-en-ligne-de-commande)).
 Sans matériel : `namfoop --backend sim --no-config browse`.

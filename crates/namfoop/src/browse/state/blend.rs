@@ -37,7 +37,8 @@ impl State {
 
     /// Ligne de commande équivalente (affichée en quittant).
     pub fn command_line(&self, saved_blend_id: Option<&str>) -> Option<String> {
-        if self.model.is_none() && self.ir == IrChoice::None {
+        let fx = self.fx.args();
+        if self.model.is_none() && self.ir == IrChoice::None && fx.is_empty() {
             return None;
         }
         let mut cmd = "namfoop run".to_string();
@@ -51,6 +52,9 @@ impl State {
                 None => cmd += "   (mélange non sauvé : s dans l'onglet Mélange)",
             },
             IrChoice::None => {}
+        }
+        if !fx.is_empty() {
+            cmd += &format!(" {fx}");
         }
         Some(cmd)
     }
