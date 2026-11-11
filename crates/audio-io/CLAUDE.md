@@ -35,6 +35,22 @@ et ALSA.
   dans tous les cas (34 µs au bench, ~80 µs en jeu : non expliqué, sans conséquence).
 - Latence aller-retour iTwo (PC) : ALSA 48×3 = 5,2 ms ; JACK/PipeWire 64 = 6,5–7 ms. Plancher
   matériel ~1–2 ms (USB + convertisseurs). 32 et 16 frames : xruns massifs avec l'iTwo.
+- Niveau du retour de `latency` et stabilité de la mesure (#70, boucle sortie 1 -> entrée 2,
+  impulsion émise à 0,7 = -3,1 dBFS) :
+
+  | chemin | retour | latence médiane | écart min–max |
+  |---|---|---|---|
+  | JACK, volume PipeWire 100 % | **-22,5 dBFS** | 361 frames (7,52 ms) | 30 frames |
+  | JACK, volume PipeWire 85 % (-4,24 dB) | **-26,8 dBFS** | 302 frames (6,29 ms) | 30 frames |
+  | ALSA direct (buffer 48×3) | — | 256 frames (5,33 ms) | 18 frames |
+
+  Deux choses à en retenir. **Le chemin PipeWire perd ~19 dB de crête** : l'impulsion d'un
+  échantillon en ressort étalée, bien au-delà de l'atténuation du volume. C'est ce qui faisait
+  échouer l'ancien seuil fixe de 0,05 = -26,0 dBFS : à 85 %, le retour arrive à -26,8 dBFS, soit
+  **0,8 dB sous le seuil**. Et **la mesure en JACK est bruitée** : 30 frames d'écart en interne, et
+  la médiane se déplace de 40 frames d'un lancement à l'autre au même volume (318 puis 361) — on ne
+  peut donc pas distinguer 85 % de 100 %. ALSA direct est stable à 18 frames : c'est lui qui donne
+  la latence de référence, et c'est déjà ce qu'on recommande pour la scène.
 - ALSA : format négocié dans `alsa/format.rs` (S32_LE > S24_3LE > S24_LE > S16_LE, chaque sens
   séparément ; iTwo = S32_LE, conversion S32 identique à l'ancienne, test à l'appui) ; côté
   capture, au moins 4 périodes (n'ajoute pas de latence, absorbe les à-coups).
