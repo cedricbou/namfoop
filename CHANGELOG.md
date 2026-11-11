@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#100)
+- `browse` : l'onglet Effets s'atteint aussi aux flèches (→ depuis le Mélange, ← pour revenir) et
+  avec Maj+Tab ; l'en-tête compte les effets du catalogue (« Effets (12) », « ● n » pour la
+  chaîne) au lieu d'afficher « Effets (0) » ; aides de bas d'écran commençant par la navigation ;
+  indicateur A/B avec / sans effets dans l'onglet.
+
 ### Documentation (#98)
 - Guide : section « 10. Effets » (rôle et ordre conseillé de chaque effet, parcours type de
   `browse` à `run`) ; effets dans le schéma de principe, « En bref », le README et les limites.

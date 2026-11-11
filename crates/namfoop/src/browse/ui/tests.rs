@@ -210,7 +210,7 @@ fn fx_tab_shows_catalog_chain_params_and_command() {
     s.on_key(Key::Char('A'));
     for w in [100, 130] {
         let t = crate::tui::screen_text(w, 30, |f| render(&s, &Status::default(), f));
-        assert!(t.contains("Effets (2)") && t.contains("reverb") && t.contains("chorus"), "{w} :\n{t}");
+        assert!(t.contains("Effets (12) ● 2") && t.contains("reverb") && t.contains("chorus"), "{w} :\n{t}");
         assert!(t.contains("[800D Modern › Powerhouse 410]"), "{w} :\n{t}");
         assert!(t.contains("feedback") && t.contains("% ") && t.contains("temps entre deux"), "{w} :\n{t}");
         assert!(t.contains("--pre gate --post delay"), "{w} :\n{t}");
@@ -219,4 +219,22 @@ fn fx_tab_shows_catalog_chain_params_and_command() {
     s.on_key(Key::Char('r'));
     let t = crate::tui::screen_text(100, 30, |f| render(&s, &Status::default(), f));
     assert!(t.contains("SANS EFFETS") && t.contains("effets coupés"), "{t}");
+}
+
+/// En-tête : l'onglet Effets compte le catalogue (comme Modèles et IR), la chaîne en plus ; dans
+/// l'onglet, l'indicateur A/B parle des effets.
+#[test]
+fn fx_tab_header_counts_the_catalog_and_shows_fx_ab() {
+    let mut s = sample();
+    let t = screen(&s);
+    assert!(t.contains("Effets (12)") && !t.contains("●"), "{t}");
+    assert!(t.contains("Tab/→ onglets IR, Mélange, Effets"), "{t}");
+    for _ in 0..3 {
+        s.on_key(Key::Right);
+    }
+    let t = screen(&s);
+    assert!(t.contains("A avec effets") && t.contains("B sans effets"), "{t}");
+    s.on_key(Key::Char('a'));
+    let t = screen(&s);
+    assert!(t.contains("Effets (12) ● 1") && t.contains("chaîne : 1 effet(s)"), "{t}");
 }

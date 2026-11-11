@@ -15,7 +15,8 @@ tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs c
 browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod.rs état et
                 navigation, compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
-                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée),
+                Effets (catalogue, chaîne pré / post, réglages par ParamInfo, écoute différée) ; navigation :
+                Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
                 panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, tests.rs), mod.rs (index, Engine + ChainSender dans
                 le thread de construction, overrides.toml) ; `import --review` l'ouvre sur les

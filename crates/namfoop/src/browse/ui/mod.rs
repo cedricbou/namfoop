@@ -51,12 +51,23 @@ fn badge(needs: NeedsIr) -> Span<'static> {
     }
 }
 
-/// Indicateur A/B permanent (en-tête) : quelle IR on entend.
+/// Indicateur A/B permanent (en-tête) : quelle IR on entend ; dans l'onglet Effets, avec ou sans
+/// effets (`r`).
 fn ab_badge(s: &State) -> Vec<Span<'static>> {
     let on = |t: String, bg: Color| {
         Span::styled(t, Style::new().fg(Color::Black).bg(bg).add_modifier(Modifier::BOLD))
     };
     let off = |t: String| Span::styled(t, Style::new().fg(Color::DarkGray));
+    if s.tab == Tab::Fx {
+        let mut v = vec![Span::styled("A/B ", Style::new().add_modifier(Modifier::BOLD))];
+        if s.fx.bypass_all {
+            v.extend([off("A avec effets  ".into()), on(" B sans effets ".into(), Color::Yellow)]);
+        } else {
+            v.extend([on(" A avec effets ".into(), Color::Cyan), off("  B sans effets".into())]);
+        }
+        v.push(off("  (r)".into()));
+        return v;
+    }
     let name = |i: usize| s.irs[i].label.chars().take(24).collect::<String>();
     let mname = |i: usize| s.models[i].label.chars().take(28).collect::<String>();
     if let (Some(rm), false) = (s.ref_model, s.bypass) {
@@ -161,7 +172,13 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 Span::raw(" "),
                 tab(Tab::Blend, format!("Mélange ({})", s.blend.len())),
                 Span::raw(" "),
-                tab(Tab::Fx, format!("Effets ({})", s.fx.len())),
+                tab(
+                    Tab::Fx,
+                    match s.fx.len() {
+                        0 => format!("Effets ({})", s.fx.catalog.len()),
+                        n => format!("Effets ({}) ● {n}", s.fx.catalog.len()),
+                    },
+                ),
                 Span::raw("    "),
             ]
             .into_iter()
@@ -441,13 +458,13 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         }
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler",
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre",
-        (_, _, Tab::Models) => "↑↓ écouter   e modifier / calibrer   c épingler réf.   r A/B réf.   b avec/sans IR   / filtrer   Tab → IR   q",
+        (_, _, Tab::Models) => "Tab/→ onglets IR, Mélange, Effets   ↑↓ écouter   e modifier / calibrer   c épingler réf.   r A/B   b avec/sans IR   / filtrer   q",
         (_, _, Tab::Irs) => {
-            "↑↓ écouter   c épingler réf.   r A/B réf.   b avec/sans IR   espace → mélange   / filtrer   Tab   q"
+            "Tab/←→ onglets   ↑↓ écouter   c épingler réf.   r A/B   b avec/sans IR   espace → mélange   / filtrer   q"
         }
         (_, _, Tab::Fx) => fx::fx_keys(s),
         (_, _, Tab::Blend) => {
-            "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   b avec/sans   r A/B réf.   Tab   q"
+            "Tab/→ Effets   ↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   b avec/sans IR   r A/B   q"
         }
     };
     f.render_widget(

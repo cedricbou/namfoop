@@ -20,6 +20,8 @@ pub enum Key {
     PageDown,
     Enter,
     Tab,
+    /// Maj+Tab.
+    BackTab,
     Esc,
     Backspace,
     Char(char),
@@ -35,6 +37,7 @@ pub fn map_key(code: KeyCode) -> Option<Key> {
         KeyCode::PageDown => Key::PageDown,
         KeyCode::Enter => Key::Enter,
         KeyCode::Tab => Key::Tab,
+        KeyCode::BackTab => Key::BackTab,
         KeyCode::Esc => Key::Esc,
         KeyCode::Backspace => Key::Backspace,
         KeyCode::Char(c) => Key::Char(c),
