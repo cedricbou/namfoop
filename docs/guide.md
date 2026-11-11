@@ -1421,7 +1421,19 @@ namfoop --backend alsa --device hw:iTwo --buffer 48 latency --count 20
 ```
 
 `--out-ch` / `--in-ch` choisissent les canaux, `--count` le nombre de mesures. Le résultat est
-l'aller-retour complet (conversion de la carte comprise).
+l'aller-retour complet (conversion de la carte comprise). Chaque ligne donne aussi le **niveau du
+retour** et le **bruit de fond** : c'est ce qui permet de voir tout de suite si le câble, le gain ou
+le bouton Mixer ne vont pas.
+
+Le retour est cherché au **maximum** du signal dans les 250 ms qui suivent l'impulsion, comparé au
+bruit de fond mesuré juste avant — pas avec un seuil fixe. Il se mesure donc à n'importe quel
+niveau, même quand PipeWire atténue et étale l'impulsion (la sortie à 85 % ne donnait aucune mesure
+avant, #70). Deux pièges qui restent :
+
+- **ne joue pas pendant la mesure** : une note plus forte que le retour serait prise pour lui. Les
+  colonnes `min` / `max` et l'avertissement « mesures instables » le montrent.
+- si rien ne sort du bruit, le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie)
+  et propose `--backend alsa`, qui court-circuite PipeWire.
 
 ---
 

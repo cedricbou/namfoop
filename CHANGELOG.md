@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#70)
+- `namfoop latency` mesure à n'importe quel niveau de retour. Le retour était cherché avec un
+  **seuil fixe** de 0,05 (-26 dBFS) : à travers PipeWire, l'étage de volume atténue et **étale**
+  l'impulsion d'un échantillon, et avec la sortie iTwo à 85 % (-4,2 dB) la commande répondait
+  « aucune mesure » alors qu'à 100 % elle donnait 7,7 ms. Le retour est maintenant le **maximum**
+  du signal dans les 250 ms qui suivent l'impulsion, comparé au **bruit de fond** mesuré juste
+  avant (critère relatif, ≈ +14 dB) : mesuré jusqu'à -60 dBFS dans les tests, là où l'ancien seuil
+  ne voyait plus rien. Chaque mesure affiche le niveau du retour et le bruit de fond, et quand rien
+  ne sort du bruit le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie) et
+  propose `--backend alsa`.
+
 ### Interne (#114, #117)
 - CI : les dépendances système s'installent en 3 tentatives (`.github/actions/deps`) — un miroir
   Ubuntu injoignable ne fait plus échouer toute la PR —, et « Statistiques sccache » ne masque plus

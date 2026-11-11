@@ -37,7 +37,10 @@ setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)
 offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
-latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::raw)
+latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::raw) : le retour est
+                le maximum du signal dans la fenêtre d'écoute, comparé au bruit de fond mesuré juste
+                avant (pas de seuil fixe : PipeWire atténue et étale l'impulsion, #70) ; `Detector`
+                est une machine à états pure, testée sans carte
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage)
 meta_cmd.rs     `meta` : options clap, affichage d'un modèle
 models_cmd.rs   `models` : inventaire affiché
