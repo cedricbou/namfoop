@@ -1,0 +1,243 @@
+# Spécification · `browse` en deux espaces : Bibliothèque et Chaîne
+
+Référence de comportement pour l'épique #131 (issues #132 à #137, née de #125). Elle **remplace le § 10** de
+[`browse-chaine.md`](browse-chaine.md) (« les onglets Modèles / IR agissent sur le bloc choisi ») et ne
+change rien d'autre à cette spécification : synoptique, vumètres, navigation 2D, édition, réglages et
+quitter restent ceux de l'épique #103.
+
+Maquette interactive validée par l'utilisateur le 12/11/2026 : [`browse-espaces.html`](browse-espaces.html),
+à ouvrir dans un navigateur (clavier, quatre chaînes de départ, trois tailles de terminal). La maquette
+fait foi pour le comportement ; son code (JavaScript) n'est pas à reprendre. Les noms de modèles et d'IR
+qu'elle montre sont fictifs. Elle ne redessine ni les vumètres, ni les réglages d'effets, ni l'éditeur
+`e` : ils sont **inchangés**, pas supprimés.
+
+## 1. Le constat et les trois règles
+
+Constat de l'utilisateur (#125) : « quand je suis sur les NAM / IR, j'ai besoin de les écouter et de les
+travailler sans les effets ; quand je suis dans les effets, c'est perturbant de retourner sur cet écran ;
+et quand j'y reviens et que je change, ça change mes effets. » Les onglets Modèles / IR servaient à deux
+activités avec le même geste : explorer la bibliothèque, et remplir un bloc de la chaîne.
+
+1. **Parcourir n'écrit jamais dans la chaîne.** Écrire est un geste explicite (Entrée).
+2. **On sait toujours ce qu'on écoute** : le banc d'essai ou la chaîne.
+3. **On ne quitte pas la chaîne pour remplir un bloc** : le choix se fait sur place.
+
+L'utilisateur mène un travail entier dans un espace ; il les fait se rencontrer à l'occasion (pousser un
+son de la Bibliothèque vers la chaîne, choisir un modèle depuis la Chaîne).
+
+## 2. Deux espaces
+
+| | **Bibliothèque** | **Chaîne** |
+|---|---|---|
+| Contenu | onglets Modèles, IR, Mélange (inchangés) | l'ancien onglet Effets : synoptique, éditeur, réglages |
+| Ce qu'on entend | le **banc d'essai** : basse › modèle › IR, sans aucun effet | la **chaîne** éditée |
+| Couleur d'accent | magenta | cyan |
+
+- **`1`** va à la Bibliothèque, **`2`** à la Chaîne, depuis n'importe où sauf pendant une saisie (filtre,
+  nom) et pendant un choix en cours dans la Chaîne (§ 5 : `valide (Entrée) ou annule (Échap) le choix
+  d'abord`).
+- Dans la Bibliothèque, **Tab / Maj+Tab** (en boucle) et **→ / ←** (de proche en proche) passent entre
+  Modèles, IR et Mélange. Ils ne mènent plus à la Chaîne ; → sur Mélange le dit :
+  `→ ne va pas plus loin : 2 pour la Chaîne`.
+- Dans la Chaîne, Tab garde son rôle (réglages, § 5 de `browse-chaine.md`).
+- **L'écoute suit l'espace.** Passer de l'un à l'autre change ce qu'on entend, avec le fondu habituel.
+  Chaque espace garde son état : le curseur et le choix du banc d'un côté, la chaîne et son curseur de
+  l'autre.
+- Au lancement, `browse` ouvre la Bibliothèque (`import --review` aussi). Si la chaîne de départ contient
+  un bloc `nam` (et un `ir`), le banc démarre sur ce modèle et cette IR.
+
+En-tête, première ligne :
+
+```
+ namfoop browse  [1 Bibliothèque]  2 Chaîne ● 5 blocs                    <état d'enregistrement>
+```
+
+L'espace actif est en inverse, de sa couleur. `● N blocs` reste visible depuis la Bibliothèque. À droite,
+l'indicateur d'enregistrement de #110 (`preset : <nom> ✓` / `● non enregistré (S)`) ; tant que #110 n'est
+pas fait, rien.
+
+Le cadre principal porte un **bandeau** dans son titre, de la couleur de l'espace :
+
+- `♪ BANC D'ESSAI · basse › modèle › IR · sans effets, la chaîne n'est pas touchée`
+- `♪ CHAÎNE — NAM actifs : N · parallèles : P` (le titre actuel, précédé de `♪ CHAÎNE`)
+
+Sous le cadre, la **ligne d'écoute** dit ce qu'on entend, en clair :
+
+```
+ ♪ banc : basse › SVT Classic · clean › IR 8x10 SM57
+   chaîne (non écoutée) : gate -60 › ◆[ direct | nam·B7K Ultra › ir·8x10 SM57 ] › peak › reverb
+```
+
+```
+ ♪ chaîne : basse › gate -60 › ◆[ direct | nam·B7K Ultra › ir·8x10 SM57 ] › peak › reverb
+```
+
+Elle remplace la ligne `♪ <modèle> + IR : <ir> + N effet(s)`. Les vumètres, `lim`, `dsp`, `xruns` du bas
+de l'écran ne changent pas.
+
+## 3. Bibliothèque : le banc d'essai
+
+Tout ce que font aujourd'hui les onglets Modèles, IR et Mélange est conservé (liste de non-régression au
+§ 8). Ce qui change :
+
+- **↑↓ écoute, et rien d'autre.** Le modèle et l'IR du banc (`State::model`, `State::ir`) ne sont plus
+  recopiés dans la chaîne. L'IR conseillée posée d'office pour un modèle sans baffle, et l'IR retirée
+  pour une capture qui inclut le sien, ne concernent que le banc.
+- **On entend le banc à nu** : aucun bloc de la chaîne, pas même le gate. `c`, `r`, `b`, l'éditeur `e`
+  (écoute du gain, grain remesuré) et le Mélange s'écoutent donc sans effets.
+- **Marque `●` verte** devant un modèle ou une IR que la chaîne utilise (dans la colonne de `◆` et `✎`).
+  C'est un rappel ; le curseur n'y touche pas.
+- `◀ écouté` (modèle) / `◀ écoutée` (IR) marque ce que joue le banc, à la place de `◀ en cours`.
+- **Entrée** : mettre dans la chaîne (§ 4).
+- Barre d'aide (Modèles) :
+  `↑↓ écouter  Entrée mettre dans la chaîne  Tab/→ IR  e calibrer  c épingler réf.  r A/B  b avec/sans IR  / filtrer  2 Chaîne  q`
+
+## 4. De la Bibliothèque vers la chaîne (Entrée)
+
+Entrée envoie ce que joue le banc : le modèle (onglet Modèles), l'IR (onglet IR) ou le mélange (onglet
+Mélange ; s'il n'est pas sauvé, il l'est d'abord, sous le nom proposé).
+
+- `son direct` ou `aucune IR` : rien à envoyer, un message le dit.
+- **Chaîne vide** : elle devient `nam › ir` (ou `nam` seul pour une capture avec baffle, ou `ir` seule
+  depuis l'onglet IR), sans fenêtre. Message : `chaîne créée : nam·B7K Ultra › ir·8x10 SM57 · 2 pour
+  l'habiller d'effets`. C'est le parcours « j'ouvre `browse`, je choisis un son ».
+- **Sinon, toujours une fenêtre**, même s'il n'y a qu'un bloc du bon type :
+
+```
+┌ Mettre « SVT Classic · clean » dans la chaîne ─────────────────────────┐
+│ ▶ remplacer  nam·Fuzz Face (Fuzz Face · bass) (branche fuzz)           │
+│   remplacer  nam·SVT Classic (SVT Classic · clean) (branche ampli)     │
+│   ajouter un bloc nam…  (tu choisis l'endroit dans la chaîne)          │
+│                                                                        │
+│  [x] avec son IR (8x10 SM57) dans le bloc ir voisin                    │
+│                                                                        │
+│  Entrée valider · Espace cocher · Échap annuler                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+  - une ligne `remplacer` par bloc `nam` (ou `ir`) de la chaîne, dans l'ordre du synoptique, avec le nom
+    complet du modèle en place et sa branche ; pour un `ir`, `(après nam·…)` s'il suit un modèle ;
+  - `ajouter un bloc…` en dernier ;
+  - la case **« avec son IR »** n'existe que pour un modèle qui a besoin d'une IR, quand le banc en joue
+    une (et qu'elle n'est pas coupée par `b`). Cochée par défaut. Cochée : l'IR du banc va dans le bloc
+    `ir` qui suit immédiatement le `nam` visé ; s'il n'y en a pas, un bloc `ir` est ajouté juste après ;
+  - ↑↓ choisit, Espace coche, Entrée valide, Échap annule (`rien n'est changé dans la chaîne`).
+- **Remplacer** : on reste dans la Bibliothèque. Message :
+  `nam·B7K Ultra (branche > 150 Hz) remplacé par nam·SVT Classic › ir·8x10 SM57 · 2 pour voir la chaîne`.
+- **Ajouter** : on passe dans la Chaîne en **mode pose**. Titre du cadre : `♪ CHAÎNE · où poser
+  nam·SVT Classic › ir·8x10 SM57 ?`. ←→↑↓ déplacent le curseur comme d'habitude ; **Entrée pose après le
+  curseur** (mêmes règles que `a`, § 5 de `browse-chaine.md`) ; Échap annule et ramène à la Bibliothèque.
+  Après la pose on reste dans la Chaîne : `… posé (branche …) · [ ] pour le déplacer`.
+
+Il n'y a plus de création implicite d'un bloc « à la fin de la chaîne ».
+
+## 5. Chaîne : choisir un modèle ou une IR sur place
+
+### Panneau sous le synoptique
+
+Quand le curseur est sur un bloc `nam` ou `ir`, le panneau des réglages montre son contenu en entier, ce
+que l'étiquette tronquée du synoptique ne peut pas faire :
+
+```
+┌ nam (branche fuzz) · modèle ──────────────────────────────┐
+│ Fuzz Face · bass   [Pédales]                              │
+│ f7aa  IR requise  ▁▄▇▇▆  saturé 22 %                      │
+│ Entrée : changer de modèle, essayé dans la chaîne         │
+└───────────────────────────────────────────────────────────┘
+```
+
+### Sélecteur
+
+**Entrée** sur un bloc `nam` ou `ir` ouvre la liste **dans ce panneau** (cadre jaune). On ne change ni
+d'espace ni d'écran, le synoptique reste visible au-dessus.
+
+```
+┌ nam (branche fuzz) · choisir le modèle ─────────────────────────────────────────────┐
+│ / pour filtrer                                                                      │
+│   k2pf   SVT Classic · grit      IR requise ▃▆▇▆▃ crunch 9 %  [Ampeg]               │
+│   f7aa   Fuzz Face · bass        IR requise ▁▄▇▇▆ saturé 22 % [Pédales]  ● actuel   │
+│ ▶ p9ab   Bassman 800 · poussé    IR incluse ▂▄▇▆▂ crunch 5 %  [Tone3000] ◀ à l'essai│
+└─────────────────────────────────────────────────────────────────────────────────────┘
+ ♪ chaîne : basse › hpf 30 › comp 4:1 › ◆[ … | nam·Bassman 800 › ir·4x10 SM57 › hpf 150 | … ] › gate -50
+   à l'essai : rien n'est gardé tant que tu ne valides pas (Entrée) · c pour réentendre l'actuel
+```
+
+- La liste est celle de la Bibliothèque : mêmes lignes (mini-spectre, grain, étiquettes, pack), même
+  filtre `/`. Pour un `ir` : les **mélanges enregistrés en tête**, puis les IR, avec `★` sur celles
+  conseillées pour le modèle voisin. Pas de ligne « son direct » ni « aucune IR » : on retire le bloc
+  avec `x`. Le curseur s'ouvre sur l'élément actuel.
+- **↑↓ essaie dans la chaîne**, avec ses effets, après le délai d'écoute habituel. Le synoptique montre
+  l'essai. `● actuel` marque ce qui était là, `◀ à l'essai` ce qu'on entend.
+- **Entrée garde** ce qu'on entend ; **Échap** remet l'actuel (`retour à « Fuzz Face · bass »`).
+- **`c`** bascule l'écoute entre l'actuel et l'essai, sans bouger le curseur : c'est l'A/B en contexte.
+  `● actuel ◀ écouté (c)` quand on réentend l'actuel. Sans essai en cours, un message explique. Entrée
+  pendant qu'on écoute l'actuel garde l'actuel.
+- **`o`** isole : on entend `basse › nam › ir`, le bloc et son voisin immédiat (l'`ir` qui suit un
+  `nam`, le `nam` qui précède un `ir`), comme au banc d'essai. Le reste du synoptique est assombri, le
+  titre dit `ÉCOUTE ISOLÉE (o)`. `o` de nouveau revient à la chaîne. L'isolement prend fin avec le
+  sélecteur.
+- **`r`** : avec / sans effets, comme dans la Chaîne.
+- **Panneau Spectre** à droite de la liste quand le terminal est assez large (même seuil que dans la
+  Bibliothèque) : courbe de l'élément sous le curseur, et l'actuel comme référence (écarts par zone,
+  grain).
+- **Un essai n'est pas une modification** : tant qu'on n'a pas validé, l'état comparé par `unsaved()`
+  (et l'indicateur de #110) est celui d'avant. `q`, `1` et `2` sont refusés pendant un choix.
+- Barre d'aide :
+  `↑↓ essayer dans la chaîne  Entrée garder  Échap revenir à l'ancien  c actuel / essai  o écouter ce bloc seul  r sans effets  / filtrer`
+
+### Catalogue (`a` / `i`)
+
+Choisir `nam` ou `ir` dans le catalogue pose le bloc (`nam·(à choisir)`) et **ouvre aussitôt le
+sélecteur**. Échap retire le bloc (`rien n'est ajouté`, barre d'aide : `Échap ne rien ajouter`). Il n'y a
+pas d'actuel : `c` ne fait rien.
+
+## 6. Ce qui disparaît
+
+- `fx.target`, `library_target`, `sync_from_target`, `push_to_chain` (`state/target.rs`) : plus aucun
+  onglet ne « vise » un bloc.
+- Entrée sur un bloc `nam` / `ir` n'ouvre plus l'onglet Modèles / IR (`open_library_tab`).
+- Le titre d'onglet qui nommait le bloc visé.
+- `Tab::Fx` comme quatrième onglet : la Chaîne est un espace.
+
+`plan()` devient : dans la Bibliothèque, la chaîne `nam › ir` du banc (avec l'A/B `r` / `c` / `b`
+appliqué, comme aujourd'hui `effective_model` / `effective_ir`) ; dans la Chaîne, les blocs édités, avec
+l'essai, la bascule `c`, l'isolement `o` et `r` (sans effets) appliqués.
+
+## 7. Tailles de terminal
+
+L'écran cible sur le Pi 5 est un 10,1 pouces 1280×800 : 160×50 en police 8×16, 128×40 en 10×20, 106×33
+en 12×24, 80×25 en 16×32. Le sélecteur étant contextuel, il doit rester utilisable en 80×25 : la liste
+prend la hauteur qui reste sous le synoptique, **4 lignes au moins**, et défile. Le panneau Spectre
+demande 130 colonnes (`SPECTRUM_MIN_WIDTH`) ; l'abaisser à 128 pour la police 10×20 est une question
+ouverte (§ 9).
+
+## 8. Non-régression : ce qui ne doit pas bouger
+
+Dans la Bibliothèque : listes, filtre `/` et `--filter`, mini-spectres, grain, étiquettes, badges IR
+incluse / requise, `✎`, IR conseillées `★`, panneau Spectre (courbe, mélange, écarts par zone, ligne
+grain), référence `c`, bascule `r`, `b` avec / sans IR, indicateur A/B, éditeur `e` (et `a` appliquer au
+filtre), onglet Mélange (`espace`, `+` `-`, `p`, `a`, `x`, `s`), niveau « match » à chaque bascule.
+
+Dans la Chaîne : tout `browse-chaine.md` sauf son § 10 — synoptique, vumètres, navigation 2D, `a` `i` `s`
+`+` `x` `[ ]` `{ }` `b` `m` `o` `p` `v` `t`, réglages, `r`, Échap qui ne quitte jamais, `q` avec
+confirmation, ligne de commande équivalente.
+
+Le parcours nominal du guide (§ 6 : ouvrir `browse`, choisir un modèle et une IR, ajouter des effets,
+quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée.
+
+## 9. Hors maquette, à confirmer pendant la réalisation
+
+- **Quitter avec une chaîne vide** alors que le banc joue un son : la commande affichée en quittant
+  décrit la chaîne, donc rien. Proposition : la fenêtre de `q` le signale (`le son du banc n'est pas dans
+  la chaîne : Entrée dans la Bibliothèque pour l'y mettre`).
+- **Seuil du panneau Spectre** : 130 ou 128 colonnes, selon la police retenue sur le Pi.
+- **`e` depuis le sélecteur** de la Chaîne : non prévu (calibrer est un travail de Bibliothèque).
+
+## 10. Tests attendus
+
+Logique dans `browse::state` (pure, horloge fournie) : chaque règle des § 2 à 6, dont « ↑↓ dans la
+Bibliothèque laisse la chaîne identique », « Échap du sélecteur rend la chaîne identique », « un essai
+n'est pas dans `unsaved()` ». Rendu avec `TestBackend` / `screen_text` : en-tête, bandeaux, ligne
+d'écoute, fenêtre « mettre dans la chaîne », sélecteur en 80×25 et en 160×50. De bout en bout :
+pseudo-terminal, `--no-config --backend sim`, bibliothèque jetable, `NAMFOOP_BROWSE_TRACE` pour vérifier
+la chaîne réellement installée (banc à nu dans la Bibliothèque, essai puis retour dans la Chaîne).
