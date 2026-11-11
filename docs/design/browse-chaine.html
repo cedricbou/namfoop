@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Maquette validée (épique #103). Référence de comportement : docs/design/browse-chaine.md. -->
+<title>namfoop browse — maquette de l'éditeur de chaîne parallèle</title>
+<style>
+  :root{
+    --bg:#0b0e14; --term:#0f131a; --fg:#d7dae0; --dim:#5c6370; --line:#4b5263;
+    --cyan:#56d4e8; --green:#8bd17c; --yellow:#e5c07b; --red:#e06c75; --blue:#61afef; --mag:#c678dd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+  h1{font-size:17px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--dim);margin:0 0 12px;font-size:13px}
+  .term{background:var(--term);border:1px solid #232a35;border-radius:8px;overflow:hidden;
+        font:13px/1.35 "JetBrains Mono","DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;outline:none}
+  .term:focus{border-color:#2f6f7a}
+  .tabs{display:flex;gap:2px;padding:6px 8px;border-bottom:1px solid #232a35;color:var(--dim);white-space:pre}
+  .tabs .on{color:var(--cyan);font-weight:bold}
+  .box{border:1px solid #2a313d;margin:8px;border-radius:2px;position:relative}
+  .box.act{border-color:var(--cyan)}
+  .box > .t{position:absolute;top:-9px;left:10px;background:var(--term);padding:0 6px;color:var(--dim);font-weight:bold}
+  .box.act > .t{color:var(--cyan)}
+  pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow-x:auto}
+  .line{color:var(--line)} .io{color:var(--dim);font-weight:bold}
+  .fx{color:var(--fg)} .amp{color:var(--green)} .node{color:var(--yellow);font-weight:bold}
+  .hdr{color:var(--blue)} .dim{color:var(--dim);font-style:italic}
+  .off{color:var(--dim);text-decoration:line-through}
+  .mute{opacity:.35}
+  .mgrn{color:#3fa66a} .myel{color:var(--yellow)} .mred{color:var(--red)} .mdim{color:#2b3340}
+  .mgr{color:#e8913a} .mgate{color:#8a3340}
+  .mgrn,.myel,.mred,.mdim,.mgr,.mgate{display:inline-block;transform:scaleY(.45);transform-origin:50% 85%}
+  .fold{padding:2px 12px 0;color:var(--dim);cursor:pointer;white-space:pre}
+  .fold:hover{color:var(--fg)}
+  .sel{background:var(--cyan);color:#0b0e14 !important;font-weight:bold;text-decoration:none;opacity:1}
+  .selp{background:#1d3b42}
+  [data-cur]{cursor:pointer}
+  /* chaque glyphe hors ASCII (traits, ◆, barres) occupe exactement une cellule : rien ne se décale */
+  i.c{display:inline-block;width:1ch;font-style:normal;text-align:left;overflow:visible;white-space:pre}
+  .warn{color:var(--yellow)} .ok{color:var(--green)} .err{color:var(--red)}
+  .bar{color:var(--blue)} .bar.on{color:var(--cyan)}
+  .msg{padding:4px 12px 8px;min-height:22px;color:var(--yellow);white-space:pre-wrap}
+  .help{padding:0 12px 10px;color:var(--dim);white-space:pre-wrap}
+  .help b{color:var(--fg);font-weight:normal}
+  .popup{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:min(440px,92%);background:#121821;
+         border:1px solid var(--cyan);border-radius:3px;box-shadow:0 10px 40px #000a;z-index:5}
+  .popup pre{padding:8px 10px;max-height:300px;overflow:auto}
+  .side{display:flex;flex-direction:column;gap:14px}
+  .card{background:#11161e;border:1px solid #232a35;border-radius:8px;padding:12px 14px}
+  .card h2{font-size:13px;margin:0 0 8px;color:var(--cyan);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .ex{display:flex;flex-direction:column;gap:6px}
+  button{font:inherit;background:#1a212c;color:var(--fg);border:1px solid #2c3543;border-radius:6px;padding:7px 10px;cursor:pointer;text-align:left}
+  button:hover{border-color:var(--cyan)}
+  button.cur{border-color:var(--cyan);color:var(--cyan)}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px}
+  .keys kbd{font:12px ui-monospace,Menlo,monospace;background:#1a212c;border:1px solid #2c3543;border-radius:4px;padding:0 5px;color:var(--fg);white-space:nowrap}
+  .keybar{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+  .keybar button{padding:4px 8px;font:12px ui-monospace,Menlo,monospace;text-align:center;min-width:30px}
+  .q{font-size:12.5px;color:#aab;margin:0;padding-left:18px}
+  .q li{margin-bottom:5px}
+  .rel{position:relative}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>namfoop browse · onglet Effets : maquette de la chaîne parallèle</h1>
+    <p class="sub">Clique dans le terminal puis utilise le clavier (ou la barre de touches). Rien n'est joué : les vumètres suivent un signal de basse simulé.</p>
+    <div class="term" id="term" tabindex="0">
+      <div class="tabs"><span>  Modèles (42)  </span><span>IR (18)  </span><span>Mélange (0)  </span><span class="on">[Effets]</span><span style="flex:1"></span><span id="presetname"></span></div>
+      <div class="rel">
+        <div class="box" id="gridbox"><span class="t" id="gridtitle">chaîne</span><pre id="grid"></pre></div>
+        <div id="popup"></div>
+      </div>
+      <div class="box" id="parambox"><span class="t" id="paramtitle">réglages</span><pre id="params"></pre></div>
+      <div class="fold" id="tomlfold">▸ preset TOML (t) : écrit par la sauvegarde du preset, rarement utile à l'écran</div>
+      <div class="box" id="tomlbox"><span class="t">▾ preset TOML (proposition de format, #6) — t pour replier</span><pre id="toml"></pre></div>
+      <div class="msg" id="msg"></div>
+      <div class="help" id="help"></div>
+    </div>
+    <div class="term" id="quitscreen" style="display:none"><pre>$ namfoop browse
+<span class="dim">(browse fermé)</span>
+$ <span class="ok">▏</span></pre>
+      <div style="padding:0 12px 12px"><button id="relaunch">relancer browse</button></div></div>
+    <div class="keybar" id="keybar"></div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>Exemples</h2>
+      <div class="ex" id="examples"></div>
+    </div>
+    <div class="card">
+      <h2>Touches (grille)</h2>
+      <div class="keys">
+        <kbd>← →</kbd><span>avancer dans la série</span>
+        <kbd>↑ ↓</kbd><span>changer de branche</span>
+        <kbd>a / i</kbd><span>ajouter un bloc après / avant</span>
+        <kbd>s</kbd><span>mettre en parallèle le bloc choisi</span>
+        <kbd>+</kbd><span>ajouter une branche (4 max)</span>
+        <kbd>x</kbd><span>retirer bloc / branche / parallèle</span>
+        <kbd>[ ]</kbd><span>déplacer dans la série (entre / sort d'une branche)</span>
+        <kbd>{ }</kbd><span>passer le bloc dans la branche du dessus / dessous</span>
+        <kbd>b</kbd><span>couper le bloc</span>
+        <kbd>m o p</kbd><span>branche : muet, solo, phase inversée</span>
+        <kbd>Entrée</kbd><span>régler (↑↓ choisir, ←→ valeur, Maj = fin, Échap retour)</span>
+        <kbd>v</kbd><span>afficher / masquer les vumètres</span>
+        <kbd>t</kbd><span>déplier / replier le TOML</span>
+        <kbd>S</kbd><span>enregistrer le preset (Maj+s)</span>
+        <kbd>q</kbd><span>quitter (confirmation si non enregistré)</span>
+        <kbd>Échap</kbd><span>revenir en arrière, ne quitte jamais</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Vumètres</h2>
+      <div class="keys">
+        <span style="color:#3fa66a">███</span><span>niveau de sortie (jaune &gt; -9 dB, rouge &gt; -1 dB)</span>
+        <span><span style="color:#3fa66a">█</span><span style="color:#e8913a">██</span></span><span>comp : réduction de gain en orange depuis la droite (20 dB = toute la barre)</span>
+        <span style="color:#8a3340">███</span><span>gate fermé</span>
+        <span style="color:#2b3340">███</span><span>bloc coupé ou branche muette</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>À valider</h2>
+      <ol class="q">
+        <li>Lecture du synoptique : une ligne par branche, gain à droite, est-ce lisible avec 4 branches ?</li>
+        <li><kbd>s</kbd> sur <code>nam</code> crée un crossover 150 Hz (son direct en grave) et emmène l'IR qui suit : bon réflexe par défaut ?</li>
+        <li>Mode <b>bandes</b> (2 à 4 bandes, N−1 fréquences) en plus de <b>copie</b> : utile au-delà de 2 ?</li>
+        <li>NAM et IR en blocs séparés, plusieurs NAM permis (fuzz capturée + ampli) avec alerte de charge CPU ?</li>
+        <li>Solo de branche : indispensable pour régler 3–4 branches ?</li>
+        <li>Vumètres : la réduction de gain du comp dans la même barre que le niveau (orange depuis la droite) reste-t-elle lisible ?</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const MODELS = ["b7k","svt","fuzz","b15"];
+const IRS = ["sm57","dg212","8x10","4x10"];
+// [nom, unité, min, max, défaut, pas]
+const CAT = {
+  gate:{help:"noise gate", p:[["threshold","dB",-90,0,-60,1],["release","ms",5,2000,100,5]]},
+  comp:{help:"compresseur", p:[["threshold","dB",-60,0,-20,1],["ratio",":1",1,20,4,0.5],["attack","ms",0.1,200,10,1],["release","ms",5,2000,100,5],["mix","%",0,100,100,5]]},
+  hpf:{help:"passe-haut : nettoie le très grave", p:[["freq","Hz",20,2000,40,5]]},
+  lpf:{help:"passe-bas : adoucit l'aigu", p:[["freq","Hz",200,20000,5000,50]]},
+  peak:{help:"bande d'EQ en cloche", p:[["freq","Hz",20,20000,800,10],["gain","dB",-18,18,0,0.5],["q","",0.1,10,1,0.1]]},
+  lowshelf:{help:"plateau grave", p:[["freq","Hz",20,1000,100,5],["gain","dB",-18,18,0,0.5]]},
+  highshelf:{help:"plateau aigu", p:[["freq","Hz",1000,16000,4000,100],["gain","dB",-18,18,0,0.5]]},
+  gain:{help:"gain", p:[["db","dB",-60,24,0,0.5]]},
+  chorus:{help:"chorus", p:[["rate","Hz",0.05,5,0.8,0.05],["depth","ms",0,10,2,0.1],["mix","%",0,100,50,5]]},
+  delay:{help:"delay", p:[["time","ms",1,2000,400,10],["feedback","%",0,90,35,1],["mix","%",0,100,30,1]]},
+  reverb:{help:"réverbe", p:[["decay","s",0.2,10,1.5,0.1],["predelay","ms",0,100,10,1],["mix","%",0,100,20,1]]},
+  nam:{help:"modèle NAM : ampli, préampli ou pédale capturée", p:[["level","dB",-24,12,0,0.5]]},
+  ir:{help:"réponse impulsionnelle (baffle + micro)", p:[["mix","%",0,100,100,5]]},
+};
+const MAXB = 4;
+
+const num = v => { const s = (Math.round(v*100)/100).toFixed(2); return s.replace(/0+$/,"").replace(/\.$/,""); };
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+
+function mk(kind, opts={}){
+  const n = {t:"fx", kind, on:true, v:{}};
+  for (const [name,,,,def] of CAT[kind].p) n.v[name] = def;
+  if (kind==="nam") n.model = opts.model || MODELS[0];
+  if (kind==="ir") n.ir = opts.ir || IRS[0];
+  Object.assign(n.v, opts.v || {});
+  return n;
+}
+const br = (blocks, name="", gain=0) => ({name, gain, phase:false, mute:false, solo:false, blocks});
+const split = (mode, freqs, branches) => ({t:"split", mode, freqs, branches});
+
+const EXAMPLES = {
+  "Chaîne simple (essaie s sur nam)": () => [mk("gate"), mk("nam",{model:"b7k"}), mk("ir",{ir:"sm57"}), mk("reverb")],
+  "Crossover DI (cas courant)": () => [mk("gate"),
+      split("bandes",[150],[br([], "", -2), br([mk("nam",{model:"b7k"}), mk("ir",{ir:"sm57"})])]),
+      mk("peak",{v:{freq:800,gain:2}}), mk("reverb",{v:{mix:15}})],
+  "3 branches (inspiré de Hysteria)": () => [mk("hpf",{v:{freq:30}}), mk("comp",{v:{ratio:4}}),
+      split("copie",[],[
+        br([mk("lpf",{v:{freq:250}}), mk("comp",{v:{ratio:8}})], "propre", 0),
+        br([mk("nam",{model:"fuzz"}), mk("ir",{ir:"4x10"}), mk("hpf",{v:{freq:150}})], "fuzz", -3),
+        br([mk("nam",{model:"svt"}), mk("ir",{ir:"8x10"}), mk("peak",{v:{freq:1200,gain:3}})], "ampli", -4)]),
+      mk("gate",{v:{threshold:-50}})],
+  "4 bandes": () => [mk("comp"),
+      split("bandes",[100,400,1600],[
+        br([]), br([mk("nam",{model:"svt"}), mk("ir",{ir:"8x10"})]),
+        br([mk("nam",{model:"fuzz"}), mk("ir",{ir:"4x10"})], "", -3), br([mk("chorus")], "", -6)]),
+      mk("delay",{v:{mix:20}})],
+};
+
+let S = {chain:[], cur:{top:0}, focus:"grid", pidx:0, popup:null, toml:false, meters:true, msg:"", ex:"", saved:"", preset:"", dialog:null, quit:false};
+
+function load(name){
+  S.chain = EXAMPLES[name](); S.ex = name; S.focus="grid"; S.pidx=0; S.popup=null;
+  const si = S.chain.findIndex(n=>n.t==="split");
+  S.cur = si>=0 ? {top:si} : {top:0};
+  S.msg = "exemple : " + name; S.preset = name.replace(/ \(.*\)$/,"").toLowerCase();
+  S.saved = JSON.stringify(S.chain); S.dialog = null; S.quit = false;
+  render();
+}
+
+/* ---------- accès ---------- */
+const topNode = () => S.chain[S.cur.top];
+const inBranch = c => c.b !== undefined && c.b !== null;
+function kindOf(c=S.cur){
+  if (!S.chain.length) return "empty";
+  const n = S.chain[c.top];
+  if (n.t!=="split") return "block";
+  if (!inBranch(c)) return "split";
+  return c.j === -1 ? "header" : "bblock";
+}
+function selNode(){
+  const k = kindOf(); const n = topNode();
+  if (k==="block"||k==="split") return n;
+  if (k==="header") return n.branches[S.cur.b];
+  if (k==="bblock") return n.branches[S.cur.b].blocks[S.cur.j];
+  return null;
+}
+function normalize(){
+  if (!S.chain.length){ S.cur={top:0}; return; }
+  S.cur.top = clamp(S.cur.top, 0, S.chain.length-1);
+  const n = topNode();
+  if (n.t!=="split"){ delete S.cur.b; delete S.cur.j; return; }
+  if (inBranch(S.cur)){
+    S.cur.b = clamp(S.cur.b, 0, n.branches.length-1);
+    const L = n.branches[S.cur.b].blocks.length;
+    S.cur.j = clamp(S.cur.j, -1, L-1);
+  }
+}
+const same = (a,b) => a.top===b.top && (a.b??null)===(b.b??null) && (a.j??null)===(b.j??null);
+
+function branchName(s,k){
+  const N = s.branches.length, b = s.branches[k];
+  if (s.mode==="bandes"){
+    const f = s.freqs;
+    if (k===0) return "< "+num(f[0])+" Hz";
+    if (k===N-1) return "> "+num(f[N-2])+" Hz";
+    return num(f[k-1])+"–"+num(f[k])+" Hz";
+  }
+  return b.name || ("B"+(k+1));
+}
+function blockLabel(n){
+  if (n.kind==="nam") return "nam·"+n.model;
+  if (n.kind==="ir") return "ir·"+n.ir;
+  if (n.kind==="hpf"||n.kind==="lpf") return n.kind+" "+num(n.v.freq);
+  if (n.kind==="comp") return "comp "+num(n.v.ratio)+":1";
+  if (n.kind==="gate") return "gate "+num(n.v.threshold);
+  return n.kind;
+}
+
+/* ---------- signal simulé (vumètres) ---------- */
+// Pas d'audio : une basse jouée en notes détachées, et un modèle grossier de chaque bloc en dB.
+const FLOOR = -100;
+const LV = new Map(), DISP = new Map(), TAIL = new Map(), GR = new Map(), DGR = new Map();
+let simT = 0, noteT = 0, notePk = -8, noteDur = 0.3, nextAt = 0.4, lastNow = performance.now();
+const dbSum = arr => { const p = arr.filter(x=>x>FLOOR).reduce((a,x)=>a+Math.pow(10,x/10),0); return p>0 ? 10*Math.log10(p) : FLOOR; };
+function fxOut(n, L, dt){
+  if (n.kind==="gate"||n.kind==="comp") GR.set(n, 0);
+  if (!n.on) return L;
+  if (L<=FLOOR){ if (n.kind==="gate") GR.set(n, 1); return L; }
+  const v = n.v;
+  switch(n.kind){
+    case "gate": { const closed = L < v.threshold; GR.set(n, closed ? 1 : 0); return closed ? FLOOR : L; }
+    case "comp": {
+      const gr = L > v.threshold ? (L-v.threshold)*(1-1/v.ratio) : 0;
+      GR.set(n, gr); return L - gr;
+    }
+    case "hpf": return L - clamp((v.freq-40)/60, 0, 8);
+    case "lpf": return L - clamp((3000-v.freq)/600, 0, 8);
+    case "peak": case "lowshelf": case "highshelf": return L + v.gain*0.4;
+    case "gain": return L + v.db;
+    case "nam": return (n.model==="fuzz" ? -9 + (L+20)*0.12 : -14 + (L+20)*0.35) + v.level;
+    case "ir": return L - 2;
+    case "chorus": return L - 0.5;
+    case "delay": case "reverb": {
+      const rate = n.kind==="reverb" ? 60/v.decay : clamp(-20*Math.log10(Math.max(v.feedback,1)/100)/(v.time/1000), 3, 200);
+      const wet = L + 20*Math.log10(Math.max(v.mix,1)/100);
+      const t = Math.max((TAIL.get(n) ?? FLOOR) - rate*dt, wet);
+      TAIL.set(n, t); return dbSum([L, t]);
+    }
+  }
+  return L;
+}
+function simulate(dt){
+  simT += dt; noteT += dt;
+  // notes détachées, parfois un silence (le gate se ferme)
+  if (noteT > nextAt){
+    noteT = 0; notePk = -14 + Math.random()*9; noteDur = 0.22 + Math.random()*0.3;
+    nextAt = noteDur + (Math.random() < 0.3 ? 0.7 + Math.random()*0.8 : 0.04);
+  }
+  const env = noteT < noteDur ? notePk - 21.7*noteT : notePk - 21.7*noteDur - 90*(noteT-noteDur);
+  let L = Math.max(env, -75) + (Math.random()-0.5)*0.8;
+  LV.set("in", L);
+  for (const n of S.chain){
+    if (n.t!=="split"){ L = fxOut(n, L, dt); LV.set(n, L); continue; }
+    const solo = n.branches.some(b=>b.solo), outs = [];
+    n.branches.forEach((b,k)=>{
+      let x = n.mode==="bandes" ? L - (k===0 ? 2 : 6 + 3*(k-1)) : L;
+      for (const bl of b.blocks){ x = fxOut(bl, x, dt); LV.set(bl, x); }
+      x = (b.mute || (solo && !b.solo)) ? FLOOR : x + b.gain;
+      LV.set(b, x); outs.push(x);
+    });
+    L = dbSum(outs); LV.set(n, L);
+  }
+  LV.set("out", L);
+  for (const [k,v] of LV){ const d = DISP.get(k) ?? FLOOR; DISP.set(k, v >= d ? v : Math.max(v, d - 28*dt)); }
+  // réduction de gain affichée : attaque immédiate, retour selon le release de l'effet
+  for (const [n,v] of GR){
+    const d = DGR.get(n) ?? 0, rel = Math.max(n.v.release, 5)/1000;
+    if (n.kind==="comp") DGR.set(n, v >= d ? v : Math.max(v, d - dt*12/rel));
+    else DGR.set(n, v < d ? 0 : Math.min(1, d + dt/rel)); // gate : s'ouvre tout de suite, se ferme en douceur
+  }
+}
+// Barre de vumètre sur `w` caractères, -60 … 0 dBFS, en huitièmes de caractère.
+const EIGHTHS = ["","▏","▎","▍","▌","▋","▊","▉"];
+// Comp : la réduction de gain remplit la barre en orange depuis la droite (20 dB = toute la largeur).
+// Gate : fermé = barre pleine rouge sombre.
+function meter(key, w, dim){
+  const db = DISP.get(key) ?? FLOOR;
+  const f = clamp((db + 60)/60, 0, 1) * w, full = Math.floor(f), part = Math.floor((f-full)*8);
+  let t = "█".repeat(full) + (full<w ? EIGHTHS[part] : "");
+  t = t.padEnd(w, " ");
+  const c = dim ? "mdim" : db > -1 ? "mred" : db > -9 ? "myel" : "mgrn";
+  const kind = key && key.kind, gr = DGR.get(key) ?? 0;
+  if (!dim && kind==="gate" && gr > 0.5) return [{t:"█".repeat(w), c:"mgate"}];
+  if (!dim && kind==="comp" && gr > 0.3){
+    const cells = clamp(Math.ceil(gr/20*w), 1, w), chars = Array.from(t);
+    return [{t:chars.slice(0, w-cells).join(""), c}, {t:"█".repeat(cells), c:"mgr"}];
+  }
+  return [{t, c}];
+}
+
+/* ---------- rendu du synoptique ---------- */
+// Chaque rangée (branche) = une ligne de vumètres au-dessus d'une ligne de blocs.
+function renderGrid(){
+  const H = Math.max(1, ...S.chain.filter(n=>n.t==="split").map(n=>n.branches.length));
+  const rows = Array.from({length:H}, ()=>[]), mrows = Array.from({length:H}, ()=>[]), len = Array(H).fill(0);
+  const meters = S.meters;
+  // m : contenu de la ligne de vumètres au-dessus (sinon des espaces)
+  const add = (r,t,c="",cur=null,m=null) => {
+    rows[r].push({t,c,cur}); len[r]+=t.length;
+    if (m && meters){
+      const parts = Array.isArray(m) ? m : [m];
+      let used = 0;
+      for (const p of parts){ const pt = Array.from(p.t).slice(0, t.length-used).join(""); used += Array.from(pt).length; mrows[r].push({t:pt, c:p.c, cur}); }
+      if (used < t.length) mrows[r].push({t:" ".repeat(t.length-used), c:""});
+    } else mrows[r].push({t:" ".repeat(t.length), c:""});
+  };
+  const sync = () => { const m = Math.max(...len); for (let r=0;r<H;r++) if (len[r]<m) add(r," ".repeat(m-len[r])); };
+  const selc = c => same(c,S.cur) ? " sel" : "";
+  const vbar = {t:"│", c:"line"};
+
+  add(0,"IN","io",null,meter("in",2)); add(0," ─ ","line"); sync();
+  if (!S.chain.length){ add(0,"(chaîne vide : a pour ajouter)","dim sel"); add(0," ─ ","line"); sync(); }
+  S.chain.forEach((n,i)=>{
+    if (n.t!=="split"){
+      const c = {top:i}, lab = blockLabel(n);
+      add(0, lab, (n.on ? (n.kind==="nam"||n.kind==="ir" ? "amp" : "fx") : "off") + selc(c), c, meter(n, Math.max(3,lab.length), !n.on));
+      add(0," ─ ","line"); sync(); return;
+    }
+    const N = n.branches.length, anySolo = n.branches.some(b=>b.solo);
+    add(0,"◆","node"+selc({top:i}),{top:i}); add(0,"─","line"); for (let r=1;r<H;r++) add(r,"  ");
+    const labels = n.branches.map((b,k)=>branchName(n,k));
+    const LW = Math.max(...labels.map(l=>l.length));
+    const cw = b => b.blocks.length ? b.blocks.map(blockLabel).join(" ─ ").length : "son direct".length;
+    const BW = Math.max(...n.branches.map(cw));
+    const gstr = b => b.mute ? "muet" : ((b.gain>0?"+":"")+num(b.gain)+" dB"+(b.phase?" ø":"")+(b.solo?" S":""));
+    const GW = Math.max(...n.branches.map(b=>gstr(b).length));
+    n.branches.forEach((b,k)=>{
+      const silent = b.mute || (anySolo && !b.solo), dim = silent ? " mute" : "";
+      const e = N===1 ? "─" : k===0 ? "┬" : k===N-1 ? "└" : "├";
+      const x = N===1 ? "─" : k===0 ? "┬" : k===N-1 ? "┘" : "┤";
+      const hc = {top:i,b:k,j:-1};
+      add(k, e, "line", null, k ? vbar : null); add(k, "─ ", "line");
+      add(k, labels[k].padEnd(LW), "hdr"+dim+selc(hc), hc);
+      add(k," ─ ","line"+dim);
+      if (!b.blocks.length) add(k,"son direct","dim"+dim);
+      b.blocks.forEach((bl,j)=>{
+        const c = {top:i,b:k,j}, lab = blockLabel(bl);
+        if (j) add(k," ─ ","line"+dim);
+        add(k, lab, (bl.on ? (bl.kind==="nam"||bl.kind==="ir" ? "amp":"fx") : "off")+dim+selc(c), c, meter(bl, Math.max(3,lab.length), silent || !bl.on));
+      });
+      add(k," "+"─".repeat(BW-cw(b)+1)+" ","line"+dim);
+      add(k, gstr(b).padStart(GW), "hdr"+dim+selc(hc), hc, meter(b, GW, silent));
+      add(k," ─","line"); add(k, x, "line", null, k ? vbar : null);
+    });
+    sync(); add(0,"─ ","line"); sync();
+  });
+  add(0,"OUT","io",null,meter("out",3));
+
+  const cells = t => Array.from(t).map(ch => ch.charCodeAt(0) < 0x2000 ? esc(ch) : `<i class="c">${ch}</i>`).join("");
+  const html = r => r.map(s => `<span class="${s.c}"${s.cur?` data-cur='${JSON.stringify(s.cur)}'`:""}>${cells(s.t)}</span>`).join("");
+  const out = [];
+  for (let r=0;r<H;r++){ if (meters) out.push(html(mrows[r])); out.push(html(rows[r])); }
+  document.getElementById("grid").innerHTML = out.join("\n");
+}
+
+/* ---------- champs réglables ---------- */
+function fields(){
+  const k = kindOf(), n = selNode();
+  if (!n) return [];
+  const F = [];
+  const numField = (obj, key, unit, min, max, step, help) => F.push({
+    name:key, unit, val:()=>num(obj[key]), frac:()=> (obj[key]-min)/(max-min), help,
+    step:(d,fine)=>{ obj[key] = clamp(Math.round((obj[key] + d*step*(fine?0.1:1))*1e4)/1e4, min, max); }});
+  const enumField = (obj, key, list, help, label=x=>x) => F.push({
+    name:key, val:()=>label(obj[key]), help,
+    step:(d)=>{ const i = list.indexOf(obj[key]); obj[key] = list[(i + d + list.length) % list.length]; }});
+  if (k==="block"||k==="bblock"){
+    if (n.kind==="nam") enumField(n,"model",MODELS,"modèle de la bibliothèque (←→)");
+    if (n.kind==="ir") enumField(n,"ir",IRS,"IR de la bibliothèque (←→)");
+    for (const [name,unit,min,max,,step] of CAT[n.kind].p) numField(n.v,name,unit,min,max,step,CAT[n.kind].help);
+  } else if (k==="split"){
+    enumField(n,"mode",["copie","bandes"],"copie : chaque branche reçoit tout · bandes : crossover LR4, une bande par branche");
+    const orig = F[0].step;
+    F[0].step = d => { orig(d); setMode(n); };
+    if (n.mode==="bandes") n.freqs.forEach((_,i)=>F.push({
+      name:"coupure "+(i+1), unit:"Hz", val:()=>num(n.freqs[i]),
+      frac:()=>Math.log(n.freqs[i]/20)/Math.log(12000/20), help:"fréquence de coupure entre les bandes "+(i+1)+" et "+(i+2),
+      step:(d,fine)=>{
+        let f = n.freqs[i] * Math.pow(fine?1.01:1.06, d);
+        f = f>200 ? Math.round(f/10)*10 : Math.round(f);
+        const lo = i ? n.freqs[i-1]*1.25 : 20, hi = i<n.freqs.length-1 ? n.freqs[i+1]/1.25 : 12000;
+        n.freqs[i] = clamp(f, lo, hi);
+      }}));
+  } else if (k==="header"){
+    numField(n,"gain","dB",-60,12,0.5,"gain de la branche avant la somme");
+    enumField(n,"phase",[false,true],"inverser la phase de la branche (vérifier l'alignement)",v=>v?"180°":"0°");
+    enumField(n,"mute",[false,true],"couper la branche (m)",v=>v?"oui":"non");
+    enumField(n,"solo",[false,true],"n'écouter que cette branche (o)",v=>v?"oui":"non");
+  }
+  return F;
+}
+function setMode(s){
+  const N = s.branches.length;
+  if (s.mode==="bandes") s.freqs = [150,600,2400].slice(0,N-1);
+  else { s.freqs = []; s.branches.forEach((b,k)=>{ if(!b.name) b.name="B"+(k+1); }); }
+}
+
+function renderParams(){
+  const k = kindOf(), n = selNode(), F = fields();
+  S.pidx = clamp(S.pidx, 0, Math.max(0,F.length-1));
+  let title = "réglages";
+  if (k==="block"||k==="bblock"){
+    title = n.kind+" : "+CAT[n.kind].help;
+    if (k==="bblock") title += "  · branche "+(S.cur.b+1)+" ("+branchName(topNode(),S.cur.b)+")";
+  } else if (k==="split"){
+    title = "parallèle : "+topNode().branches.length+" / "+MAXB+" branches, retards alignés automatiquement";
+  } else if (k==="header"){
+    title = "branche "+(S.cur.b+1)+" : "+branchName(topNode(),S.cur.b);
+  }
+  document.getElementById("paramtitle").textContent = title;
+  const out = [];
+  if (!F.length) out.push(esc(k==="empty" ? "   Chaîne vide : a pour ajouter un bloc." : "   (pas de réglage)"));
+  F.forEach((f,i)=>{
+    const on = S.focus==="params" && i===S.pidx;
+    let bar = "";
+    if (f.frac){ const m = Math.round(clamp(f.frac(),0,1)*20); bar = `<span class="bar${on?" on":""}">${"█".repeat(m)}${"·".repeat(20-m)}</span> `; }
+    else bar = " ".repeat(21);
+    out.push(`${on?'<span class="sel">›</span>':" "} <span class="${on?"selp":""}">${esc(f.name.padEnd(11))}</span>${bar}${esc((f.val()+" "+(f.unit||"")).padStart(10))}`);
+  });
+  const f = F[S.pidx];
+  if (f && S.focus==="params") out.push(`<span class="dim">   ${esc(f.help)}</span>`);
+  if (k==="split"){
+    out.push("");
+    out.push(`<span class="dim">   Entrée pour régler · + ajoute une branche · x défait le parallèle (garde la branche de l'ampli)</span>`);
+  }
+  document.getElementById("params").innerHTML = out.join("\n");
+  document.getElementById("parambox").classList.toggle("act", S.focus==="params");
+  document.getElementById("gridbox").classList.toggle("act", S.focus==="grid");
+}
+
+/* ---------- TOML ---------- */
+function specStr(n){
+  if (n.kind==="nam") return `nam:model=${n.model}` + (n.v.level ? `,level=${num(n.v.level)}` : "");
+  if (n.kind==="ir") return `ir:file=${n.ir}` + (n.v.mix!==100 ? `,mix=${num(n.v.mix)}` : "");
+  const ps = CAT[n.kind].p.filter(([name,,,,def]) => n.v[name]!==def).map(([name])=>`${name}=${num(n.v[name])}`);
+  return n.kind + (ps.length ? ":"+ps.join(",") : "");
+}
+const fxItem = n => n.on ? `"${specStr(n)}"` : `{ fx = "${specStr(n)}", on = false }`;
+function renderToml(){
+  const box = document.getElementById("tomlbox");
+  box.style.display = S.toml ? "" : "none";
+  document.getElementById("tomlfold").style.display = S.toml ? "none" : "";
+  if (!S.toml) return;
+  const L = [`name = "mon son"`, ""];
+  for (const n of S.chain){
+    L.push("[[chain]]");
+    if (n.t!=="split"){ L.push(`fx = ${fxItem(n)}`); L.push(""); continue; }
+    L.push(`split = "${n.mode==="bandes" ? "crossover" : "copy"}"`);
+    if (n.mode==="bandes") L.push(`freqs = [${n.freqs.map(num).join(", ")}]`);
+    for (const b of n.branches){
+      L.push("  [[chain.branches]]");
+      if (n.mode==="copie" && b.name) L.push(`  name = "${b.name}"`);
+      L.push(`  gain_db = ${num(b.gain)}`);
+      if (b.phase) L.push("  invert = true");
+      if (b.mute) L.push("  mute = true");
+      L.push(`  fx = [${b.blocks.map(fxItem).join(", ")}]`);
+    }
+    L.push("");
+  }
+  document.getElementById("toml").textContent = L.join("\n").trimEnd();
+}
+
+/* ---------- état ---------- */
+function status(){
+  let nam = 0;
+  const count = (bl, live) => { if (bl.on && bl.kind==="nam" && live) nam++; };
+  for (const n of S.chain){
+    if (n.t!=="split") count(n,true);
+    else { const solo = n.branches.some(b=>b.solo);
+      n.branches.forEach(b => b.blocks.forEach(bl => count(bl, !b.mute && (!solo || b.solo)))); }
+  }
+  const splits = S.chain.filter(n=>n.t==="split").length;
+  let s = `NAM actifs : ${nam}` + (nam>=2 ? ` ⚠ CPU ≈ ×${nam} (à mesurer sur Pi 5)` : "");
+  if (splits) s += `   ·   parallèles : ${splits}`;
+  return {s, warn: nam>=2};
+}
+function render(){
+  normalize();
+  renderGrid(); renderParams(); renderToml(); renderPopup();
+  renderQuit();
+  document.getElementById("presetname").innerHTML = dirty()
+    ? `preset : ${esc(S.preset)} <span class="warn">● non enregistré (S)</span>` : `preset : ${esc(S.preset)} <span class="ok">✓</span>`;
+  const st = status();
+  document.getElementById("gridtitle").textContent = "chaîne — " + st.s;
+  document.getElementById("gridtitle").className = "t" + (st.warn ? " warn" : "");
+  document.getElementById("msg").textContent = S.msg;
+  const k = kindOf();
+  const H = {
+    empty:"<b>a</b> ajouter",
+    block:"<b>←→</b> série  <b>a/i</b> ajouter  <b>s</b> mettre en parallèle  <b>[ ]</b> déplacer (entre dans un parallèle)  <b>x</b> retirer  <b>b</b> couper  <b>Entrée</b> régler",
+    split:"<b>↓</b> branches  <b>+</b> branche  <b>Entrée</b> mode et coupures  <b>[ ]</b> déplacer le parallèle  <b>x</b> défaire  <b>a/i</b> ajouter après / avant",
+    header:"<b>↑↓</b> branche  <b>Entrée</b> gain, phase  <b>m</b> muet  <b>o</b> solo  <b>p</b> phase  <b>+</b> branche  <b>x</b> retirer la branche  <b>a</b> ajouter au début",
+    bblock:"<b>←→</b> série  <b>↑↓</b> branche  <b>{ }</b> changer de branche  <b>[ ]</b> déplacer (sort aux extrémités)  <b>a/i</b> ajouter  <b>x</b> retirer  <b>Entrée</b> régler",
+  }[k];
+  document.getElementById("help").innerHTML = S.focus==="params"
+    ? "<b>↑↓</b> réglage  <b>←→</b> valeur  <b>Maj+←→</b> pas fin  <b>Échap</b> retour à la chaîne" : H;
+  document.querySelectorAll("#examples button").forEach(b=>b.classList.toggle("cur", b.textContent===S.ex));
+}
+
+/* ---------- navigation ---------- */
+function right(){
+  const c = S.cur, k = kindOf(), n = topNode();
+  if (k==="split"){ S.cur = {top:c.top, b:0, j:-1}; return; }
+  if (k==="header"||k==="bblock"){
+    if (c.j+1 < n.branches[c.b].blocks.length){ c.j++; return; }
+  }
+  if (c.top+1 < S.chain.length) S.cur = {top:c.top+1};
+}
+function left(){
+  const c = S.cur, k = kindOf();
+  if (k==="bblock"){ c.j--; return; }
+  if (k==="header"){ S.cur = {top:c.top}; return; }
+  if (c.top>0){
+    const p = S.chain[c.top-1];
+    if (p.t==="split"){ const L = p.branches[0].blocks.length; S.cur = {top:c.top-1, b:0, j:L-1}; }
+    else S.cur = {top:c.top-1};
+  }
+}
+function vert(d){
+  const c = S.cur, k = kindOf(), n = topNode();
+  if (k==="split"){ if (d>0) S.cur = {top:c.top,b:0,j:-1}; return; }
+  if (k==="header"||k==="bblock"){
+    if (c.b+d < 0){ S.cur = {top:c.top}; return; }
+    if (c.b+d >= n.branches.length) return;
+    c.b += d; c.j = Math.min(c.j, n.branches[c.b].blocks.length-1);
+  }
+}
+
+/* ---------- édition ---------- */
+function insert(node, before){
+  const c = S.cur, k = kindOf();
+  if (k==="empty"){ S.chain.push(node); S.cur={top:0}; return; }
+  if (k==="block"||k==="split"){
+    const at = before ? c.top : c.top+1;
+    S.chain.splice(at,0,node); S.cur={top:at}; return;
+  }
+  const b = topNode().branches[c.b];
+  const at = k==="header" ? 0 : (before ? c.j : c.j+1);
+  b.blocks.splice(at,0,node); S.cur = {top:c.top, b:c.b, j:at};
+}
+function wrap(){
+  const k = kindOf();
+  if (k==="bblock"||k==="header"||k==="split"){ S.msg = "un seul niveau de parallèle : sors le bloc avec [ ou ], ou ajoute une branche avec +"; return; }
+  if (k!=="block") return;
+  const i = S.cur.top, n = S.chain[i];
+  const take = [n];
+  if (n.kind==="nam" && S.chain[i+1] && S.chain[i+1].kind==="ir") take.push(S.chain[i+1]);
+  const amp = take.some(b=>b.kind==="nam");
+  const s = amp ? split("bandes",[150],[br([]), br(take)]) : split("copie",[],[br([],"B1"), br(take,"B2")]);
+  S.chain.splice(i, take.length, s);
+  S.cur = {top:i, b:1, j:0};
+  S.msg = amp
+    ? `parallèle créé : crossover 150 Hz, grave = son direct, aigu = ${take.map(blockLabel).join(" › ")}`
+    : `parallèle créé (copie) : B1 = son direct, B2 = ${blockLabel(n)}`;
+}
+function addBranch(){
+  const k = kindOf();
+  if (!["split","header","bblock"].includes(k)){ S.msg = "+ s'utilise dans un parallèle (s pour en créer un)"; return; }
+  const s = topNode();
+  if (s.branches.length>=MAXB){ S.msg = MAXB+" branches au maximum"; return; }
+  if (s.mode==="bandes"){
+    const last = s.freqs[s.freqs.length-1] ?? 150;
+    s.freqs.push(Math.min(12000, Math.round(last*4)));
+    s.branches.push(br([]));
+  } else s.branches.push(br([], "B"+(s.branches.length+1)));
+  S.cur = {top:S.cur.top, b:s.branches.length-1, j:-1};
+  S.msg = `branche ${s.branches.length} ajoutée (son direct) : a pour y mettre un bloc`;
+}
+function dissolve(i, keep){
+  const s = S.chain[i], blocks = s.branches[keep].blocks;
+  S.chain.splice(i,1,...blocks);
+  S.cur = {top: Math.min(i, Math.max(0,S.chain.length-1))};
+  return blocks;
+}
+function remove(){
+  const c = S.cur, k = kindOf();
+  if (k==="block"){ const n = S.chain.splice(c.top,1)[0]; S.msg = blockLabel(n)+" retiré"; return; }
+  if (k==="bblock"){ const n = topNode().branches[c.b].blocks.splice(c.j,1)[0]; S.msg = blockLabel(n)+" retiré de la branche"; return; }
+  if (k==="header"){
+    const s = topNode();
+    if (s.branches.length>2){
+      s.branches.splice(c.b,1);
+      if (s.mode==="bandes") s.freqs.splice(Math.max(0,c.b-1),1);
+      S.msg = "branche retirée"; return;
+    }
+    const keep = 1-c.b, kept = dissolve(c.top, keep);
+    S.msg = "branche retirée : plus de parallèle, " + (kept.length ? kept.map(blockLabel).join(" › ")+" remis en série" : "son direct");
+    return;
+  }
+  if (k==="split"){
+    const s = topNode();
+    let keep = s.branches.findIndex(b=>b.blocks.some(x=>x.kind==="nam"));
+    if (keep<0) keep = s.branches.reduce((m,b,i)=> b.blocks.length > s.branches[m].blocks.length ? i : m, 0);
+    const kept = dissolve(c.top, keep);
+    S.msg = `parallèle défait : branche ${keep+1} gardée (${kept.length ? kept.map(blockLabel).join(" › ") : "son direct"})`;
+  }
+}
+function move(d){
+  const c = S.cur, k = kindOf();
+  if (k==="block"||k==="split"){
+    const i = c.top, j = i+d, n = S.chain[i];
+    if (j<0 || j>=S.chain.length) return;
+    const nb = S.chain[j];
+    if (k==="block" && nb.t==="split"){
+      S.chain.splice(i,1);
+      const si = d>0 ? i : i-1;
+      const b = nb.branches[0];
+      if (d>0){ b.blocks.unshift(n); S.cur = {top:si,b:0,j:0}; }
+      else { b.blocks.push(n); S.cur = {top:si,b:0,j:b.blocks.length-1}; }
+      S.msg = blockLabel(n)+" entre dans la branche 1 ({ } pour changer de branche)";
+      return;
+    }
+    [S.chain[i], S.chain[j]] = [S.chain[j], S.chain[i]]; S.cur = {top:j}; return;
+  }
+  if (k==="bblock"){
+    const bl = topNode().branches[c.b].blocks, j = c.j+d;
+    if (j<0 || j>=bl.length){
+      const n = bl.splice(c.j,1)[0];
+      const at = d>0 ? c.top+1 : c.top;
+      S.chain.splice(at,0,n); S.cur = {top:at};
+      S.msg = blockLabel(n)+" sort du parallèle"; return;
+    }
+    [bl[c.j], bl[j]] = [bl[j], bl[c.j]]; c.j = j;
+  }
+}
+function moveBranch(d){
+  const c = S.cur;
+  if (kindOf()!=="bblock"){ S.msg = "{ } déplace un bloc d'une branche à l'autre"; return; }
+  const s = topNode(), nb = c.b+d;
+  if (nb<0 || nb>=s.branches.length) return;
+  const n = s.branches[c.b].blocks.splice(c.j,1)[0];
+  const tgt = s.branches[nb].blocks, at = Math.min(c.j, tgt.length);
+  tgt.splice(at,0,n); S.cur = {top:c.top, b:nb, j:at};
+}
+function branchFlag(flag){
+  const k = kindOf();
+  if (k!=="header" && k!=="bblock"){ S.msg = "m / o / p agissent sur une branche"; return; }
+  const b = topNode().branches[S.cur.b];
+  b[flag] = !b[flag];
+  S.msg = {mute:"muet", solo:"solo", phase:"phase inversée"}[flag] + (b[flag] ? " : oui" : " : non");
+}
+
+/* ---------- catalogue (popup) ---------- */
+function catList(){
+  const f = S.popup.filter.toLowerCase();
+  const all = Object.keys(CAT);
+  if (!f) return all;
+  const byName = all.filter(k => k.startsWith(f)), rest = all.filter(k => !k.startsWith(f) && (k.includes(f) || CAT[k].help.toLowerCase().includes(f)));
+  return byName.concat(rest);
+}
+function renderPopup(){
+  const el = document.getElementById("popup");
+  if (S.dialog){ renderDialog(el); return; }
+  if (!S.popup){ el.innerHTML = ""; return; }
+  const L = catList(); S.popup.idx = clamp(S.popup.idx, 0, Math.max(0,L.length-1));
+  const where = S.popup.before ? "avant" : "après";
+  const lines = [`<span class="hdr">ajouter ${where} le curseur</span>  filtre : <span class="ok">${esc(S.popup.filter)}▏</span>`, ""];
+  L.forEach((k,i)=> lines.push(`${i===S.popup.idx?'<span class="sel">›</span>':" "} <span class="${i===S.popup.idx?"selp":""}">${esc(k.padEnd(10))}</span> <span class="dim">${esc(CAT[k].help)}</span>`));
+  if (!L.length) lines.push('<span class="dim">  aucun bloc</span>');
+  lines.push("", '<span class="dim">tape pour filtrer · ↑↓ · Entrée ajoute · Échap annule</span>');
+  el.innerHTML = `<div class="popup"><pre>${lines.join("\n")}</pre></div>`;
+}
+
+/* ---------- enregistrer / quitter ---------- */
+const dirty = () => JSON.stringify(S.chain) !== S.saved;
+function save(name){
+  S.preset = name.trim() || S.preset; S.saved = JSON.stringify(S.chain);
+  S.msg = `preset « ${S.preset} » enregistré dans la bibliothèque`;
+}
+function renderDialog(el){
+  const d = S.dialog;
+  let lines;
+  if (d.kind==="quit") lines = [
+    '<span class="warn">Modifications non enregistrées</span>', "",
+    `Le preset « ${esc(S.preset)} » a changé depuis le dernier enregistrement.`, "",
+    '  <span class="sel"> S </span> enregistrer puis quitter',
+    '  <span class="sel"> Q </span> quitter sans enregistrer',
+    '  <span class="sel"> Échap </span> rester (choix par défaut)'];
+  else lines = [
+    '<span class="hdr">Enregistrer le preset</span>' + (d.thenQuit ? '<span class="dim">  puis quitter</span>' : ""), "",
+    `nom : <span class="ok">${esc(d.name)}▏</span>`, "",
+    '<span class="dim">Entrée enregistre · Échap annule</span>'];
+  el.innerHTML = `<div class="popup"><pre>${lines.join("\n")}</pre></div>`;
+}
+function dialogKey(k){
+  const d = S.dialog;
+  if (d.kind==="quit"){
+    if (k==="s"||k==="S") S.dialog = {kind:"save", name:S.preset, thenQuit:true};
+    else if (k==="Q") { S.dialog = null; S.quit = true; }
+    else S.dialog = null; // toute autre touche, Échap compris : on reste
+    return;
+  }
+  if (k==="Escape") { S.dialog = null; S.msg = "enregistrement annulé"; }
+  else if (k==="Enter") { save(d.name); S.dialog = null; if (d.thenQuit) S.quit = true; }
+  else if (k==="Backspace") d.name = d.name.slice(0,-1);
+  else if (k.length===1) d.name += k;
+}
+function renderQuit(){
+  document.getElementById("quitscreen").style.display = S.quit ? "" : "none";
+  document.getElementById("term").style.display = S.quit ? "none" : "";
+}
+
+/* ---------- clavier ---------- */
+function key(e){
+  const k = e.key;
+  if (S.quit) return false;
+  if (["Shift","Control","Alt","AltGraph","Meta","CapsLock"].includes(k)) return false;
+  if (S.dialog){ dialogKey(k); render(); return true; }
+  if (S.popup){
+    const L = catList();
+    if (k==="Escape") S.popup = null;
+    else if (k==="ArrowDown") S.popup.idx++;
+    else if (k==="ArrowUp") S.popup.idx--;
+    else if (k==="Backspace") S.popup.filter = S.popup.filter.slice(0,-1);
+    else if (k==="Enter"){ if (L.length){ insert(mk(L[S.popup.idx]), S.popup.before); S.msg = L[S.popup.idx]+" ajouté"; } S.popup = null; }
+    else if (k.length===1 && /[a-zà-ü0-9 ]/i.test(k)) { S.popup.filter += k; S.popup.idx = 0; }
+    else return false;
+    render(); return true;
+  }
+  if (S.focus==="params"){
+    const F = fields();
+    if (k==="Escape"||k==="Tab"||k==="Enter") S.focus = "grid";
+    else if (k==="ArrowDown") S.pidx = Math.min(F.length-1, S.pidx+1);
+    else if (k==="ArrowUp") S.pidx = Math.max(0, S.pidx-1);
+    else if ((k==="ArrowRight"||k==="ArrowLeft") && F[S.pidx]) F[S.pidx].step(k==="ArrowRight"?1:-1, e.shiftKey);
+    else return false;
+    render(); return true;
+  }
+  S.msg = "";
+  switch(k){
+    case "ArrowRight": right(); break;
+    case "ArrowLeft": left(); break;
+    case "ArrowUp": vert(-1); break;
+    case "ArrowDown": vert(1); break;
+    case "a": S.popup = {filter:"", idx:0, before:false}; break;
+    case "i": if (kindOf()!=="empty") S.popup = {filter:"", idx:0, before:true}; break;
+    case "s": wrap(); break;
+    case "+": addBranch(); break;
+    case "x": case "Delete": remove(); break;
+    case "[": move(-1); break;
+    case "]": move(1); break;
+    case "{": moveBranch(-1); break;
+    case "}": moveBranch(1); break;
+    case "b": { const n = selNode(), kk = kindOf();
+      if (kk==="block"||kk==="bblock"){ n.on = !n.on; S.msg = blockLabel(n)+(n.on?" actif":" coupé"); }
+      else if (kk==="header") branchFlag("mute"); break; }
+    case "m": branchFlag("mute"); break;
+    case "o": branchFlag("solo"); break;
+    case "p": branchFlag("phase"); break;
+    case "Enter": case "Tab": if (fields().length){ S.focus = "params"; S.pidx = 0; } break;
+    case "t": S.toml = !S.toml; break;
+    case "S": S.dialog = {kind:"save", name:S.preset, thenQuit:false}; break;
+    case "q": if (dirty()) S.dialog = {kind:"quit"}; else S.quit = true; break;
+    case "Escape": S.msg = "Échap revient en arrière mais ne quitte jamais : q pour quitter"; break;
+    case "v": S.meters = !S.meters; S.msg = "vumètres " + (S.meters ? "affichés" : "masqués"); break;
+    default: return false;
+  }
+  render(); return true;
+}
+
+const term = document.getElementById("term");
+term.addEventListener("keydown", e => { if (key(e)) e.preventDefault(); });
+document.getElementById("grid").addEventListener("click", e => {
+  const t = e.target.closest("[data-cur]"); if (!t) return;
+  S.cur = JSON.parse(t.dataset.cur); S.focus = "grid"; S.msg = ""; render(); term.focus();
+});
+
+const ex = document.getElementById("examples");
+Object.keys(EXAMPLES).forEach(name => {
+  const b = document.createElement("button"); b.textContent = name;
+  b.onclick = () => { load(name); term.focus(); }; ex.appendChild(b);
+});
+const KB = [["←","ArrowLeft"],["→","ArrowRight"],["↑","ArrowUp"],["↓","ArrowDown"],["a"],["i"],["s"],["+"],["x"],["["],["]"],["{"],["}"],["b"],["m"],["o"],["p"],["Entrée","Enter"],["Échap","Escape"],["Maj+→","ArrowRight",true],["Maj+←","ArrowLeft",true],["v"],["t"],["S"],["q"],["Q"]];
+const kb = document.getElementById("keybar");
+KB.forEach(([label, k, shift]) => {
+  const b = document.createElement("button"); b.textContent = label;
+  b.onclick = () => { key({key:k||label, shiftKey:!!shift}); term.focus(); };
+  kb.appendChild(b);
+});
+
+load("Crossover DI (cas courant)");
+term.focus();
+document.getElementById("relaunch").onclick = () => { S.quit = false; S.msg = "browse relancé"; render(); term.focus(); };
+document.getElementById("tomlfold").onclick = () => { S.toml = true; render(); term.focus(); };
+function tick(now){
+  const dt = Math.min(0.1, (now - lastNow)/1000); lastNow = now;
+  simulate(dt);
+  if (S.meters) renderGrid();
+  setTimeout(() => requestAnimationFrame(tick), 40);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

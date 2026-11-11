@@ -18,7 +18,7 @@ crates/library/   bibliothèque, import, profils            interdit : audio-io,
 crates/namfoop/   binaire : CLI, écrans, une fonction par commande ; anyhow
 scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, gen-cli-doc.sh,
                   install-hooks.sh, feature.sh, test-backends.sh (matériel)
-docs/             guide.md, cli.md (généré), architecture.md, adr/
+docs/             guide.md, cli.md (généré), architecture.md, adr/, design/ (spécifications d'écran et maquettes)
 profiles/         profils de carte livrés (TOML, inclus dans le binaire par model::card)
 library/, nam/    sons et zips de l'utilisateur : non versionnés, ne pas modifier (tests : copie jetable)
 ```
