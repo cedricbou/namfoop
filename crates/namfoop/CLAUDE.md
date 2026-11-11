@@ -107,6 +107,8 @@ scripts/feature.sh        cycle issue -> branche -> PR -> merge (start | pr | me
 docs/                     guide.md (utilisateur), cli.md (généré), architecture.md, adr/ (décisions)
 .github/workflows/        CI : check.yml (check.sh --quick, sans bibliothèque de sons),
                           pr-rules.yml (issue référencée, nom de branche, CHANGELOG)
+.github/actions/deps/     installation des dépendances système, avec 3 tentatives (#117 : un miroir
+                          Ubuntu injoignable ne doit pas faire échouer la PR)
 .github/ISSUE_TEMPLATE/   modèles d'issue (fonctionnalité, bug) ; pull_request_template.md
 scripts/test-backends.sh  tests matériels sur les deux backends
 library/          modèles .nam / IR .wav de l'utilisateur, docs/ des packs, cabs/, overrides.toml
@@ -134,6 +136,9 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
 - `NAMFOOP_SKIP_CPP=1` : build.rs ne compile pas le C++ (clippy / check uniquement).
 - CI (`.github/workflows/check.yml`) : jobs `lint` et `check` en parallèle, sccache (Rust + C++),
   `push` seulement sur main. Mesurer une étape : `gh run view <id> --log` (horodatages des `== `).
+  Les dépendances système passent par `.github/actions/deps` (3 tentatives) : un échec réseau isolé
+  chez Ubuntu ne fait plus échouer la PR. Si les 3 ratent, le message le dit — relancer le job
+  (`gh run rerun <id> --failed`), ce n'est pas le code.
 - `render`, `run`, `calibrate`, `latency` et `setup` lisent la config de l'utilisateur (carte,
   routage, trim...) : pour des résultats reproductibles (tests, comparaisons), toujours passer
   l'option globale `--no-config` (elle empêche aussi toute écriture).

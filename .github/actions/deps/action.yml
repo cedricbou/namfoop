@@ -1,0 +1,22 @@
+name: Dépendances système
+description: >
+  Installe de quoi compiler audio-io (ALSA et JACK), en réessayant : un miroir Ubuntu injoignable
+  ne doit pas faire échouer toute la PR (#117 ; l'incident Canonical du 11/11/2026 a bloqué la CI
+  plusieurs heures alors que `scripts/check.sh` n'avait même pas démarré).
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -u
+        for i in 1 2 3; do
+          if sudo apt-get update \
+            && sudo apt-get install -y libasound2-dev libjack-jackd2-dev pkg-config; then
+            exit 0
+          fi
+          delay=$((i * 20))
+          echo "::warning::dépendances système : tentative $i/3 ratée, nouvel essai dans ${delay} s"
+          sleep "$delay"
+        done
+        echo "::error::dépendances système : 3 tentatives ratées (miroir Ubuntu injoignable ?) — rien à voir avec le code, relancer le job"
+        exit 1
