@@ -204,13 +204,13 @@ fn fx_tab_shows_catalog_chain_params_and_command() {
     s.on_key(Key::Char('a'));
     s.on_key(Key::Enter);
     s.on_key(Key::Left);
-    for _ in 0..8 {
-        s.on_key(Key::Down); // delay
+    for _ in 0..7 {
+        s.on_key(Key::Down); // delay (le catalogue proposé n'a plus de split, #102)
     }
     s.on_key(Key::Char('A'));
     for w in [100, 130] {
         let t = crate::tui::screen_text(w, 30, |f| render(&s, &Status::default(), f));
-        assert!(t.contains("Effets (12) ● 2") && t.contains("reverb") && t.contains("chorus"), "{w} :\n{t}");
+        assert!(t.contains("Effets (11) ● 2") && t.contains("reverb") && t.contains("chorus"), "{w} :\n{t}");
         assert!(t.contains("[800D Modern › Powerhouse 410]"), "{w} :\n{t}");
         assert!(t.contains("feedback") && t.contains("% ") && t.contains("temps entre deux"), "{w} :\n{t}");
         assert!(t.contains("--pre gate --post delay"), "{w} :\n{t}");
@@ -227,7 +227,7 @@ fn fx_tab_shows_catalog_chain_params_and_command() {
 fn fx_tab_header_counts_the_catalog_and_shows_fx_ab() {
     let mut s = sample();
     let t = screen(&s);
-    assert!(t.contains("Effets (12)") && !t.contains("●"), "{t}");
+    assert!(t.contains("Effets (11)") && !t.contains("●"), "{t}");
     assert!(t.contains("Tab/→ onglets IR, Mélange, Effets"), "{t}");
     for _ in 0..3 {
         s.on_key(Key::Right);
@@ -236,5 +236,5 @@ fn fx_tab_header_counts_the_catalog_and_shows_fx_ab() {
     assert!(t.contains("A avec effets") && t.contains("B sans effets"), "{t}");
     s.on_key(Key::Char('a'));
     let t = screen(&s);
-    assert!(t.contains("Effets (12) ● 1") && t.contains("chaîne : 1 effet(s)"), "{t}");
+    assert!(t.contains("Effets (11) ● 1") && t.contains("chaîne : 1 effet(s)"), "{t}");
 }

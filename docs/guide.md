@@ -999,7 +999,7 @@ trim › effets pré › modèle NAM › IR › effets post › niveau › maste
 | `delay` | écho | post, vers la fin |
 | `reverb` | un peu d'espace, surtout dans les in-ears | post, en dernier |
 | `gain` | monter ou baisser le niveau à un point de la chaîne | où il faut |
-| `split` | branches parallèles (presets, à venir) | — |
+| `split` | branches parallèles : seulement dans un preset (#6), pas en ligne de commande | — |
 
 Ordre conseillé : **pré** `gate › comp`, **post** `EQ › chorus › delay › reverb`. Le gate vient en
 premier pour ne pas couper les queues des effets ; la réverbe en dernier pour réverbérer les échos.
@@ -1197,8 +1197,11 @@ namfoop run -m b7k -i auto --crossover 150
 namfoop run -m b7k -i auto --crossover 120 --crossover-low-db -3
 ```
 
-Des branches parallèles faites d'effets (`split`, mode copie ou crossover) se décrivent dans les
-presets (#6) ; en ligne de commande, `--crossover` entoure le modèle.
+Des branches parallèles faites d'effets (`split`, mode copie ou crossover) se décrivent **dans les
+presets** (#6), pas en texte : `--pre split` et `--post split` sont refusés, et le catalogue de
+`browse` ne propose pas `split`. Sans branches, il ne ferait qu'un passe-tout réglable qui ne change
+rien au son (#102). En ligne de commande, `--crossover` entoure le modèle ; le parallèle deviendra un
+bloc de la chaîne, éditable dans `browse` ([ADR 0006](adr/0006-chaine-en-blocs-et-parallele.md)).
 
 ---
 
