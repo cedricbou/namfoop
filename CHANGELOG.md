@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#105)
+- `dsp` : le parallèle (`split`) accepte **2 à 4 branches** et un crossover de **2 à 4 bandes**
+  (Linkwitz-Riley 24 dB/oct, N-1 coupures croissantes). La somme reste plate : chaque bande traverse
+  aussi le **passe-tout** des coupures qui sont au-dessus d'elle (nouvelle forme `Shape::AllPass`),
+  mesuré à 0,000 dB d'écart de 20 Hz à 20 kHz pour 2, 3 et 4 bandes. Par branche : gain,
+  **polarité inversée** et **muet** (une branche muette n'est pas traitée du tout). Les réglages
+  impossibles sont refusés à la construction, jamais dans le thread audio (nombre de branches,
+  coupures hors de 20 Hz–12 kHz ou plus proches que ×1,25). `--crossover HZ` est désormais un
+  raccourci pour « bandes [HZ] » : rendu **identique au bit près** (3 tailles de bloc comparées).
+  Coût par bloc de 64 (x86, release) : 2 bandes 0,67 µs, 3 bandes 1,74 µs, 4 bandes 3,23 µs.
+
 ### Changé (#104)
 - `browse` : **Échap ne quitte plus**. Il revient d'un niveau (filtre, saisie du nom d'un mélange,
   éditeur `e`, réglages d'un effet -> chaîne -> catalogue) et, quand il n'y a plus rien à remonter,

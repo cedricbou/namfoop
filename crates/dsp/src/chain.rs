@@ -264,13 +264,18 @@ impl AmpSpec {
                 let align_db = if ri > 1e-9 && ro > 1e-9 { (20.0 * (ro / ri).log10()) as f32 } else { 0.0 };
                 let mut clean = Chain::new();
                 clean.push(Gain::db(align_db, "grave clair"));
+                // `--crossover HZ` est un raccourci : deux bandes, [HZ], grave = son direct,
+                // aigu = NAM › IR (ADR 0006).
                 let split = crate::split::Split::new(
-                    crate::split::SplitMode::Crossover { freq: x.freq as f64 },
-                    vec![(clean, crate::db_to_gain(x.low_db)), (core, crate::db_to_gain(x.high_db))],
+                    crate::split::SplitMode::Bands(vec![x.freq as f64]),
+                    vec![
+                        crate::split::SplitBranch::new(clean).gain(x.low_db),
+                        crate::split::SplitBranch::new(core).gain(x.high_db),
+                    ],
                     sample_rate,
                     max_block,
                     true,
-                );
+                )?;
                 let d = split.delays()[0];
                 log::info!(
                     "crossover {} Hz : grave clair aligné {align_db:+.1} dB (puis {:+.1}), aigu {:+.1} dB, retard compensé {d} échantillons ({:.2} ms)",

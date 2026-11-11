@@ -9,8 +9,11 @@ normalize / match, mesuré avec les effets ; sans `pre`, le trim reste dans l'é
 `describe()` pour le log `chaîne :`),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
-`from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : copie ou crossover LR4, retards mesurés par corrélation
-et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db` ; réutilisable par le crossover et les
+`from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : 2 à `MAX_BRANCHES` = 4 branches, mode copie ou bandes
+(`SplitMode::Bands`, 1 à 3 coupures croissantes, crossover LR4) ; par branche `SplitBranch` : gain,
+polarité, muet (muette = pas traitée) ; réglages vérifiés à la construction (`Result`), jamais en RT ;
+retards mesurés par corrélation et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db`,
+formes passe-bas / passe-haut / cloche / plateaux / **passe-tout** ; réutilisable par le crossover et les
 effets de temps), `fx/` (effets : `FxSpec`, `catalog()` complet pour les tests et `bench --fx`, `offered()` proposé à
 l'utilisateur — sans les blocs de structure, `FxSpec::is_structural()` : le `split`, refusé en
 mini-syntaxe, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
@@ -81,6 +84,15 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 - Filtres (#82, `bench --fx`, bloc 64) : ~0,2 µs par bande (0,01–0,02 % du budget). Mesurer un
   filtre au sinus avec le rapport des RMS, pas la crête (à 16 kHz, 3 échantillons par période :
   la crête échantillonnée sous-estime l'amplitude de ~0,8 dB).
+- Crossover à plus de deux bandes (#105) : la somme reste plate parce que chaque bande traverse
+  aussi le **passe-tout** (`Shape::AllPass`, Q = 1/√2) de chaque coupure au-dessus d'elle —
+  `LR4 passe-bas + LR4 passe-haut` à la même fréquence **est** ce passe-tout (vérifié dans
+  `biquad.rs`, écart < 1e-5 sur du bruit). Écart mesuré sur la somme, branches vides, 20 Hz–20 kHz
+  plus une grille fine autour de chaque coupure : **0,000 dB** à 2, 3 et 4 bandes. Coût par bloc de
+  64 (x86, release, `cargo test --release -p dsp --lib split::tests::cost -- --nocapture`) :
+  copie 4 branches 0,06 µs, 2 bandes 0,67 µs (identique à #83 : même code), 3 bandes 1,74 µs
+  (0,13 % du budget), 4 bandes 3,23 µs (0,24 %) — **à mesurer sur Pi 5 (#44)**. `--crossover 150`
+  (b7k + IR) rend des WAV identiques au bit près avant / après (blocs 48 / 64 / 1000).
 - Crossover (#83) : somme LR4 plate à ± 0,1 dB de 20 Hz à 20 kHz ; une branche retardée de 2 ms
   creuse de plus de 3 dB autour de la coupure sans compensation, moins de 1 dB avec. Retard mesuré
   b7k + IR dg212 : 43–44 échantillons (0,9 ms, l'attaque de l'IR). Alignement du grave clair sur la
@@ -102,7 +114,9 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 ## Dette connue
 
 - Le `split` (parallèle) n'est décrit qu'en TOML : pas de mini-syntaxe, pas de catalogue proposé
-  (#102). Il devient un bloc de structure avec l'épique #103 (ADR 0006).
+  (#102). Il devient un bloc de structure avec l'épique #103 (ADR 0006) : `fx::split::SplitParams`
+  est encore un `FxSpec`, #106 le sort du catalogue d'effets.
+- `Split` n'expose pas encore de mesure par branche (vumètres de `browse`) : #107.
 - `comp` n'a pas de détecteur RMS (crête seulement) : à ajouter si le besoin se confirme à l'écoute.
 
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
