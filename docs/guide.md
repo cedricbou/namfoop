@@ -13,8 +13,8 @@ En bref, après l'installation :
 ```sh
 namfoop setup         # une fois : carte, entrées, sorties, buffer (assistant plein écran)
 namfoop calibrate     # une fois : niveau de ta basse
-namfoop browse        # choisir modèle, IR, mélange en jouant
-namfoop run -m b7k    # jouer
+namfoop browse        # choisir modèle, IR, mélange et effets en jouant
+namfoop run -m b7k    # jouer (avec effets : --pre / --post, voir § 10)
 ```
 
 Sommaire :
@@ -28,31 +28,34 @@ Sommaire :
 7. [Calibrer sa basse](#7-calibrer-sa-basse)
 8. [Jouer](#8-jouer)
 9. [Régler le son et le volume](#9-régler-le-son-et-le-volume)
-10. [Backends, carte et routage en ligne de commande](#10-backends-carte-et-routage-en-ligne-de-commande)
-11. [Travailler sans jouer : rendu, bench, inventaire](#11-travailler-sans-jouer--rendu-bench-inventaire)
-12. [Mesurer la latence](#12-mesurer-la-latence)
-13. [Le fichier de configuration](#13-le-fichier-de-configuration)
-14. [Dépannage](#14-dépannage)
-15. [Limites actuelles](#15-limites-actuelles)
+10. [Effets](#10-effets)
+11. [Backends, carte et routage en ligne de commande](#11-backends-carte-et-routage-en-ligne-de-commande)
+12. [Travailler sans jouer : rendu, bench, inventaire](#12-travailler-sans-jouer--rendu-bench-inventaire)
+13. [Mesurer la latence](#13-mesurer-la-latence)
+14. [Le fichier de configuration](#14-le-fichier-de-configuration)
+15. [Dépannage](#15-dépannage)
+16. [Limites actuelles](#16-limites-actuelles)
 
 ---
 
 ## 1. Principe
 
 ```
-            ┌─────────────────────────────── namfoop ───────────────────────────────┐
-basse ─▶ entrée basse ─▶ trim ─▶ NAM ─▶ IR ─▶ niveau ─▶ master ─▶ limiteur ─┬─▶ sorties « traité »
-            │                │                                                └─▶ (sondier, in-ear)
-            │                └──────────────────────────────────────────────────▶ sorties « DI »
-micro ─▶ entrée micro ─────────────────────────────────────────────────────────▶ sorties « micro »
-            └───────────────────────────────────────────────────────────────────────┘
+            ┌─────────────────────────────────── namfoop ────────────────────────────────────┐
+basse ─▶ entrée basse ─▶ trim ─▶ pré ─▶ NAM ─▶ IR ─▶ post ─▶ niveau ─▶ master ─▶ limiteur ─┬─▶ sorties « traité »
+            │                │                                                             └─▶ (sondier, in-ear)
+            │                └────────────────────────────────────────────────────────────────▶ sorties « DI »
+micro ─▶ entrée micro ────────────────────────────────────────────────────────────────────────▶ sorties « micro »
+            └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Étage | Rôle | Réglages |
 |---|---|---|
 | trim | adapte le niveau de **ta** basse au niveau attendu par les modèles | `calibrate`, `--trim` |
+| pré | effets avant le modèle : gate, compresseur, EQ ([§ 10](#10-effets)) | `--pre`, onglet Effets de `browse` |
 | NAM | le modèle d'ampli / pédale / rig | `-m`, `--input-db`, `--output-db`, `--size` |
 | IR | le baffle (seulement si le modèle n'en contient pas) | `-i`, `--ir-ms` |
+| post | effets après le baffle : EQ, chorus, delay, réverbe ([§ 10](#10-effets)) | `--post`, onglet Effets de `browse` |
 | niveau | volume de sortie cohérent d'un modèle à l'autre | `--level`, `--target-db` |
 | master | volume final | `--master-db` |
 | limiteur | empêche la sortie de dépasser -1 dBFS | `--no-limiter` pour l'enlever |
@@ -205,7 +208,7 @@ enregistrer. Six étapes :
 5. **Buffer** : chaque taille est testée 5 s, en silence, avec un vrai modèle de ta bibliothèque
    comme charge. La plus petite taille sans xrun est présélectionnée.
 6. **Résumé** : Entrée enregistre les sections `[audio]` et `[routing]` de la config
-   ([§ 13](#13-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
+   ([§ 14](#14-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
 
 Ensuite, `namfoop run`, `calibrate` et `latency` utilisent cette carte et ce routage sans aucune
 option. `--library` indique où chercher le modèle utilisé comme charge au test des buffers.
@@ -612,7 +615,7 @@ Pour un modèle qui en a besoin, namfoop **conseille des IR**. Il cherche d'abor
 guitare (4x12, V30…). Une seule IR par pack figure en tête de liste. `-i auto` prend la première
 conseillée (ou aucune si le baffle est inclus). `run` sans `-i` sur un tel modèle affiche les
 trois meilleures suggestions. Pour imposer ta préférée partout, mets `default_ir` dans la config
-([§ 13](#13-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
+([§ 14](#14-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
 (l'IR préférée du modèle passe avant tout le reste).
 
 ```sh
@@ -705,7 +708,7 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
 
   **`r`** bascule **avec / sans effets** (A/B) ; la ligne de commande garde la chaîne réglée. Chaque
   changement s'écoute 150 ms après la dernière touche, avec le fondu habituel. Pas, plages et unités
-  viennent de la table de chaque effet ([Effets](#effets----pre---post-namfoop-fx)). En prototype,
+  viennent de la table de chaque effet ([Effets](#10-effets)). En prototype,
   chaque réglage reconstruit la chaîne : les queues de delay et de réverbe sont coupées. La
   sauvegarde en preset viendra avec les presets (#6).
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
@@ -718,7 +721,7 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
 En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
 exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
 (filtre de départ, ex. `--filter PopPunk`), et le routage
-`--bass-in`, `--mic-in`, `--route` ([§ 10](#10-backends-carte-et-routage-en-ligne-de-commande)).
+`--bass-in`, `--mic-in`, `--route` ([§ 11](#11-backends-carte-et-routage-en-ligne-de-commande)).
 Sans matériel : `namfoop --backend sim --no-config browse`.
 
 #### Modifier et calibrer un modèle (`e`)
@@ -802,7 +805,7 @@ namfoop run -m "800d modern" -i <id du mélange>
 Les modèles récents (format NAM 0.7, « slimmable ») contiennent plusieurs tailles du même son :
 `--size 0` choisit la plus légère (ex. 3 canaux), `--size 1` (défaut) la complète (ex. 8 canaux).
 La version légère coûte environ deux fois moins de CPU : utile sur Raspberry Pi. Voir
-`namfoop bench --all-sizes` ([§ 11](#11-travailler-sans-jouer--rendu-bench-inventaire)).
+`namfoop bench --all-sizes` ([§ 12](#12-travailler-sans-jouer--rendu-bench-inventaire)).
 
 ---
 
@@ -825,7 +828,7 @@ namfoop calibrate
    Trim d'entrée proposé : -18.0 dB (crête robuste visée -30 dBFS à l'entrée des modèles)
    ```
 3. Il sauve le trim, ton enregistrement et le mode de volume **match** dans
-   `~/.config/namfoop/` ([§ 13](#13-le-fichier-de-configuration)). Toutes les commandes `run` et
+   `~/.config/namfoop/` ([§ 14](#14-le-fichier-de-configuration)). Toutes les commandes `run` et
    `render` les utilisent ensuite.
 
 Options :
@@ -917,7 +920,7 @@ barre garde la crête et retombe en douceur. Sans calibration, il n'y a pas de r
 |---|---|
 | `-m`, `--model` | modèle NAM ([§ 6](#6-la-bibliothèque-de-sons)) |
 | `-i`, `--ir` | IR de baffle |
-| `--bass-in`, `--mic-in`, `--route` | routage pour cette session ([§ 10](#10-backends-carte-et-routage-en-ligne-de-commande)) |
+| `--bass-in`, `--mic-in`, `--route` | routage pour cette session ([§ 11](#11-backends-carte-et-routage-en-ligne-de-commande)) |
 | `--seconds` | arrêt automatique (tests) |
 | `-q`, `--quiet` | pas de ligne d'état |
 
@@ -968,13 +971,70 @@ est normalisé sur 80 Hz – 5 kHz.
 Actif par défaut à -1 dBFS, sans latence ajoutée : il empêche l'écrêtage numérique dur quand un
 modèle sort trop fort. `--no-limiter` le désactive (la ligne d'état signale alors `[CLIP SORTIE]`).
 
-### Effets : `--pre`, `--post`, `namfoop fx`
+---
 
-Des effets peuvent entourer le modèle, pour les écouter et les régler avant les presets :
+## 10. Effets
+
+Des effets entourent le modèle et l'IR : avant (**pré**), ils changent ce que le modèle reçoit,
+donc sa saturation, comme une pédale devant un ampli ; après (**post**), ils travaillent le son
+final sans toucher au grain.
 
 ```
-trim › effets --pre › modèle NAM › IR › effets --post › niveau › master › limiteur
+trim › effets pré › modèle NAM › IR › effets post › niveau › master › limiteur
 ```
+
+| Effet | Pour quoi faire | Place habituelle |
+|---|---|---|
+| `gate` | couper le souffle et les bruits entre les notes | pré, en premier |
+| `comp` | égaliser les notes (slap, attaques) | pré (tasse avant la saturation) ou post |
+| `hpf`, `lpf`, `peak`, `lowshelf`, `highshelf` | EQ : nettoyer l'infra, creuser le « carton », adoucir le fizz | post (ou pré pour changer ce qui sature) |
+| `--crossover` | garder le grave clair du DI sous le son saturé | autour du modèle (option dédiée) |
+| `chorus` | ondulation dans le médium, grave sec | post |
+| `delay` | écho | post, vers la fin |
+| `reverb` | un peu d'espace, surtout dans les in-ears | post, en dernier |
+| `gain` | monter ou baisser le niveau à un point de la chaîne | où il faut |
+| `split` | branches parallèles (presets, à venir) | — |
+
+Ordre conseillé : **pré** `gate › comp`, **post** `EQ › chorus › delay › reverb`. Le gate vient en
+premier pour ne pas couper les queues des effets ; la réverbe en dernier pour réverbérer les échos.
+
+### Parcours type : régler en jouant, puis jouer
+
+1. **Choisir le son de base** : `namfoop browse`, onglets Modèles et IR
+   ([§ 6](#choisir-son-son-en-jouant--namfoop-browse)).
+2. **Ajouter les effets** : Tab jusqu'à l'onglet **Effets**. Dans le catalogue, `a` ajoute l'effet
+   choisi en pré, `A` en post. Ses réglages s'ouvrent aussitôt : ↑↓ choisit le paramètre, ←→ change
+   la valeur (Maj + ←→ : pas fin). Chaque changement s'entend 150 ms après la dernière touche.
+3. **Comparer** : `r` bascule avec et sans effets ; `b` coupe seulement l'effet choisi.
+4. **Ordonner** : dans la chaîne, `[` et `]` déplacent l'effet (il passe de pré à post au bord du
+   modèle) ; `x` le retire.
+5. **Récupérer la commande** : le cadre « à copier dans namfoop run » montre les options des
+   effets ; en quittant (`q`), le navigateur affiche la commande complète, modèle, IR et effets
+   compris.
+6. **Jouer** : coller cette commande.
+
+```sh
+namfoop browse
+namfoop run -m b7k -i "dg212 sm57" --pre gate --pre comp:threshold=-24 --post peak:freq=300,gain=-4 --post delay:time=375,mix=20 --post reverb:mix=12
+```
+
+Sans écran plein, la même chaîne se règle en ligne de commande : `namfoop fx` liste les effets,
+`namfoop fx delay` donne les paramètres d'un effet, et `render` permet de comparer deux réglages
+dans des fichiers avant de jouer.
+
+```sh
+namfoop fx
+namfoop fx reverb
+namfoop render -m b7k -i "dg212 sm57" --post reverb:decay=2,mix=20 -o reverb.wav
+```
+
+Pour l'instant (prototype) :
+- **pas encore de presets** : garde la commande (dans un fichier texte ou un script) ; les presets
+  TOML et le changement de son par MIDI viendront ensuite ;
+- changer un réglage **reconstruit la chaîne** : les répétitions du delay et la queue de la
+  réverbe en cours sont coupées.
+
+### En ligne de commande : `--pre`, `--post`, `namfoop fx`
 
 - `--pre FX` : avant le modèle (après le trim). Le modèle reçoit le son déjà traité : un gain, un
   compresseur ou un EQ placé ici **change sa saturation**, comme une pédale devant un ampli.
@@ -997,7 +1057,7 @@ namfoop bench --fx --block 48
 
 Au chargement, une ligne `chaîne :` rappelle l'ordre réel des étages.
 
-#### `gate` : silence entre les notes
+### `gate` : silence entre les notes
 
 Un modèle saturé amplifie le souffle de la basse et des micros : entre deux notes, ça chuinte.
 Le gate coupe quand le signal passe sous `threshold`, et rouvre dès qu'on rejoue.
@@ -1014,7 +1074,7 @@ Le gate coupe quand le signal passe sous `threshold`, et rouvre dès qu'on rejou
 namfoop run -m b7k -i "dg212 sm57" --pre gate:threshold=-50,release=200
 ```
 
-#### `comp` : tenir le niveau
+### `comp` : tenir le niveau
 
 Égalise les notes (slap, attaques au médiator, jeu aux doigts irrégulier). Au-delà de `threshold`,
 le niveau monte `ratio` fois moins vite ; `makeup` remonte ensuite le tout.
@@ -1029,7 +1089,7 @@ le niveau monte `ratio` fois moins vite ; `makeup` remonte ensuite le tout.
 namfoop render -m b7k -i "dg212 sm57" --post comp:threshold=-24,ratio=4,makeup=4 -o comp.wav
 ```
 
-#### Filtres et EQ : `hpf`, `lpf`, `peak`, `lowshelf`, `highshelf`
+### Filtres et EQ : `hpf`, `lpf`, `peak`, `lowshelf`, `highshelf`
 
 Une bande par effet : on en enchaîne plusieurs avec des `--post` successifs. Après le modèle, ils
 sculptent le son sans toucher au grain ; avant, ils changent ce que le modèle sature.
@@ -1050,7 +1110,7 @@ namfoop run -m b7k -i "dg212 sm57" --post hpf:freq=35 --post peak:freq=300,gain=
 namfoop fx peak
 ```
 
-#### `delay` : écho
+### `delay` : écho
 
 Répète le son toutes les `time` ms. La réinjection est **filtrée** : chaque répétition passe par un
 passe-haut (`lowcut`) et un passe-bas (`highcut`), elle devient plus fine et plus sombre que la
@@ -1070,7 +1130,7 @@ précédente et ne brouille pas le grave.
 namfoop run -m b7k -i "dg212 sm57" --post delay:time=375,feedback=40,lowcut=200,mix=25
 ```
 
-#### `chorus` : ondulation, grave sec
+### `chorus` : ondulation, grave sec
 
 Mélange au son une copie légèrement retardée dont le retard ondule (`rate`, `depth`). Sous
 `lowcut`, le son reste **sec** : la fondamentale garde son assise, seul le médium-aigu ondule.
@@ -1086,7 +1146,7 @@ Mélange au son une copie légèrement retardée dont le retard ondule (`rate`, 
 namfoop run -m b7k -i "dg212 sm57" --post chorus:rate=0.8,depth=2,lowcut=200,mix=50
 ```
 
-#### `reverb` : un peu d'espace
+### `reverb` : un peu d'espace
 
 Une réverbe (réseau de 8 lignes à retard) : surtout utile dans les **in-ears**, où le son sec paraît
 enfermé. À la basse, elle reste discrète et **hors du grave** : sous `lowcut`, la part réverbérée
@@ -1103,7 +1163,7 @@ est coupée (24 dB/oct), la fondamentale reste nette.
 namfoop run -m b7k -i "dg212 sm57" --post reverb:decay=1.2,predelay=20,lowcut=250,mix=15
 ```
 
-#### Blend grave clair : `--crossover`
+### Blend grave clair : `--crossover`
 
 Un ampli saturé « mange » le grave : la fondamentale se brouille et perd son assise. Le blend garde,
 sous une fréquence, le **grave clair du DI**, et ne laisse au modèle que le reste.
@@ -1136,7 +1196,7 @@ presets (#6) ; en ligne de commande, `--crossover` entoure le modèle.
 
 ---
 
-## 10. Backends, carte et routage en ligne de commande
+## 11. Backends, carte et routage en ligne de commande
 
 L'assistant ([§ 5](#5-configurer-la-carte--lassistant)) enregistre ces réglages ; les options
 ci-dessous les remplacent pour une session. Les **options globales** se placent **avant** la
@@ -1178,7 +1238,7 @@ namfoop --backend alsa --device hw:1,0 --capture-device hw:1,1 --buffer 48 laten
 
 **En ALSA, si PipeWire utilise la carte**, namfoop coupe son profil le temps de la session et le
 remet à l'arrêt, y compris en cas de plantage. Seul un `kill -9` peut laisser le profil sur « off »
-([§ 14](#14-dépannage)).
+([§ 15](#15-dépannage)).
 
 ### Routage
 
@@ -1240,7 +1300,7 @@ Pièges :
 
 ---
 
-## 11. Travailler sans jouer : rendu, bench, inventaire
+## 12. Travailler sans jouer : rendu, bench, inventaire
 
 ### `namfoop render` : traiter un fichier
 
@@ -1276,7 +1336,7 @@ les ports JACK audio et MIDI.
 
 ---
 
-## 12. Mesurer la latence
+## 13. Mesurer la latence
 
 Relie une **sortie** à une **entrée** avec un câble (par défaut sortie 1 -> entrée 2), gain de
 l'entrée bas, bouton Mixer côté Playback, casque bas (la mesure émet des clics) :
@@ -1291,7 +1351,7 @@ l'aller-retour complet (conversion de la carte comprise).
 
 ---
 
-## 13. Le fichier de configuration
+## 14. Le fichier de configuration
 
 `~/.config/namfoop/config.toml`, écrit par `setup` et `calibrate`, modifiable à la main :
 
@@ -1330,7 +1390,7 @@ Les options de la ligne de commande priment toujours sur ce fichier.
 
 ---
 
-## 14. Dépannage
+## 15. Dépannage
 
 **Le son est beaucoup plus saturé que la démo Tone3000.** Niveau d'entrée trop chaud : lance
 `namfoop calibrate`, ou essaie `--input-db -12`.
@@ -1382,8 +1442,9 @@ une issue avec le nom du pack.
 
 ---
 
-## 15. Limites actuelles
+## 16. Limites actuelles
 
-namfoop est un prototype. Pas encore disponibles : effets (gate, compresseur, EQ, crossover,
-modulation, delay, réverbe), presets, changement de son par MIDI, traitement du micro, démarrage
-automatique, version Raspberry Pi. Voir le [CHANGELOG](../CHANGELOG.md) pour suivre les versions.
+namfoop est un prototype. Les effets sont là (gate, compresseur, EQ, crossover, chorus, delay,
+réverbe : [§ 10](#10-effets)), mais changer un réglage coupe les queues de delay et de réverbe.
+Pas encore disponibles : presets (une chaîne se garde sous forme de commande), changement de son
+par MIDI, traitement du micro, démarrage automatique, version Raspberry Pi. Voir le [CHANGELOG](../CHANGELOG.md) pour suivre les versions.
