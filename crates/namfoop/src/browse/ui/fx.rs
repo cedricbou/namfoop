@@ -89,12 +89,12 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     lines.push(Line::styled(" post :", Style::new().fg(Color::DarkGray)));
     lines.extend((fx.pre.len()..fx.len()).map(slot_line));
     let head = if fx.bypass_all {
-        "chaîne — SANS EFFETS (r)"
+        "chaîne — SANS EFFETS (r)".to_string()
     } else {
-        "chaîne ([ ] déplacer, x retirer, b couper)"
+        format!("chaîne : {} effet(s) ([ ] déplacer, x retirer, b couper)", fx.len())
     };
     f.render_widget(
-        Paragraph::new(lines).block(Block::bordered().title(title(head, fx.focus == FxFocus::Chain))),
+        Paragraph::new(lines).block(Block::bordered().title(title(&head, fx.focus == FxFocus::Chain))),
         chain,
     );
 
@@ -147,7 +147,7 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
 /// Touches affichées en bas de l'onglet.
 pub fn fx_keys(s: &State) -> &'static str {
     match s.fx.focus {
-        FxFocus::Catalog => "↑↓ effet   a ajouter en pré   A en post   → chaîne   r avec/sans effets   Tab   q",
+        FxFocus::Catalog => "Tab/Maj+Tab onglets   ↑↓ effet   a ajouter en pré   A en post   → chaîne   ← Mélange   r avec/sans effets   q",
         FxFocus::Chain => {
             "↑↓ choisir   → réglages   [ ] déplacer   x retirer   b couper   a/A ajouter   ← catalogue   r avec/sans effets   q"
         }

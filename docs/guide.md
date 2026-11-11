@@ -651,6 +651,12 @@ namfoop browse
 Le navigateur plein écran **joue en direct**, avec la carte et le routage de `setup`. Le son
 change **sans coupure ni clic**, par un fondu de 20 ms.
 
+Quatre onglets : **Modèles**, **IR**, **Mélange**, **Effets**. **Tab** passe à l'onglet suivant
+(en boucle), **Maj+Tab** au précédent ; **→ / ←** vont aussi d'un onglet à l'autre (dans
+l'onglet Effets, ← revient au Mélange depuis la colonne du catalogue). Le nombre entre
+parenthèses donne ce qui est disponible (« Effets (12) » : 12 effets au catalogue) ; « ● 2 »
+signale deux effets dans la chaîne.
+
 - **Onglet Modèles** : identifiant, badge « IR incluse » ou « IR requise », type de capture.
   ↑↓ écoute le modèle sous le curseur, après 150 ms d'arrêt (on peut défiler vite sans tout
   recharger). Pour un modèle sans baffle, la meilleure IR conseillée est posée d'office. Pour une
@@ -694,7 +700,7 @@ change **sans coupure ni clic**, par un fondu de 20 ms.
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
-- **Onglet Effets** (le quatrième) : à gauche le **catalogue** (les effets de `namfoop fx`), au
+- **Onglet Effets** (le quatrième, Tab ou → depuis le Mélange) : à gauche le **catalogue** (les effets de `namfoop fx`), au
   centre la **chaîne** autour du son choisi (`pré : gate › comp`, `[modèle › IR]`, `post : delay`),
   en bas les **réglages** de l'effet choisi (barre, valeur, unité, aide et plage) et la **ligne de
   commande équivalente**, à copier dans `run`. Les colonnes se parcourent de gauche à droite :
@@ -1002,7 +1008,7 @@ premier pour ne pas couper les queues des effets ; la réverbe en dernier pour r
 
 1. **Choisir le son de base** : `namfoop browse`, onglets Modèles et IR
    ([§ 6](#choisir-son-son-en-jouant--namfoop-browse)).
-2. **Ajouter les effets** : Tab jusqu'à l'onglet **Effets**. Dans le catalogue, `a` ajoute l'effet
+2. **Ajouter les effets** : Tab (ou →) jusqu'à l'onglet **Effets** (12 effets au catalogue). Dans le catalogue, `a` ajoute l'effet
    choisi en pré, `A` en post. Ses réglages s'ouvrent aussitôt : ↑↓ choisit le paramètre, ←→ change
    la valeur (Maj + ←→ : pas fin). Chaque changement s'entend 150 ms après la dernière touche.
 3. **Comparer** : `r` bascule avec et sans effets ; `b` coupe seulement l'effet choisi.

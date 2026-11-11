@@ -297,7 +297,10 @@ impl State {
                     None => false,
                 }
             }
-            (_, Key::Esc | Key::Char('q') | Key::Tab) => return None,
+            // ← sur le catalogue (colonne de gauche) : onglet précédent ; Tab, q, Échap : communs
+            (FxFocus::Catalog, Key::Left) | (_, Key::Esc | Key::Char('q') | Key::Tab | Key::BackTab) => {
+                return None
+            }
             _ => false,
         };
         if changed {

@@ -405,3 +405,37 @@ fn editor_measures_grain_after_a_pause() {
     assert_eq!(s.tick(1400), Action::MeasureGrain { model: 1, input_db: 2.0 });
     assert_eq!(s.tick(2000), Action::None, "une seule mesure");
 }
+
+/// Tab / Maj+Tab font le tour des quatre onglets ; → / ← vont de proche en proche jusqu'aux
+/// Effets et retour (← sur le catalogue des Effets ramène au Mélange).
+#[test]
+fn tabs_are_reachable_both_ways_with_tab_and_arrows() {
+    const ALL: [Tab; 4] = [Tab::Models, Tab::Irs, Tab::Blend, Tab::Fx];
+    for start in 0..4 {
+        for (key, step) in [(Key::Tab, 1), (Key::BackTab, 3)] {
+            let mut s = sample();
+            s.tab = ALL[start];
+            for k in 1..=4 {
+                s.on_key(key);
+                assert_eq!(s.tab, ALL[(start + k * step) % 4], "{key:?} depuis {:?}", ALL[start]);
+            }
+        }
+    }
+    let mut s = sample();
+    for want in [Tab::Irs, Tab::Blend, Tab::Fx] {
+        s.on_key(Key::Right);
+        assert_eq!(s.tab, want);
+    }
+    s.on_key(Key::Left);
+    assert_eq!(s.tab, Tab::Blend, "← sur le catalogue des Effets");
+    s.on_key(Key::Left);
+    s.on_key(Key::Left);
+    s.on_key(Key::Left);
+    assert_eq!(s.tab, Tab::Models, "← s'arrête au premier onglet");
+    // dans les réglages d'un effet, ←→ changent la valeur sans quitter l'onglet
+    s.tab = Tab::Fx;
+    s.on_key(Key::Char('A')); // gain en post, réglages ouverts
+    s.on_key(Key::Left);
+    assert_eq!(s.tab, Tab::Fx);
+    assert_eq!(s.fx.args(), "--post gain:db=-0.5");
+}

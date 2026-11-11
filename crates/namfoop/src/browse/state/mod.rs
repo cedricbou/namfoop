@@ -380,6 +380,22 @@ impl State {
         self.moved();
     }
 
+    /// Onglet voisin (`dir` ±1) ; `wrap` : du dernier au premier et inversement (Tab).
+    fn switch_tab(&mut self, dir: isize, wrap: bool) {
+        const TABS: [Tab; 4] = [Tab::Models, Tab::Irs, Tab::Blend, Tab::Fx];
+        let i = self.tab as isize + dir;
+        let next = if wrap {
+            i.rem_euclid(4)
+        } else if (0..4).contains(&i) {
+            i
+        } else {
+            return;
+        };
+        self.tab = TABS[next as usize];
+        self.filter.clear();
+        self.pending = None;
+    }
+
     pub fn on_key(&mut self, key: Key) -> Action {
         if self.editor.is_some() {
             return self.editor_key(key);
@@ -408,7 +424,7 @@ impl State {
         // saisie du filtre
         if self.filtering {
             match key {
-                Key::Enter | Key::Esc | Key::Tab | Key::Up | Key::Down => {
+                Key::Enter | Key::Esc | Key::Tab | Key::BackTab | Key::Up | Key::Down => {
                     self.filtering = false;
                     if !matches!(key, Key::Enter | Key::Esc) {
                         return self.on_key(key);
@@ -439,21 +455,11 @@ impl State {
                     self.filtering = true;
                 }
             }
-            Key::Tab | Key::Right if self.tab != Tab::Blend || key == Key::Tab => {
-                self.tab = match self.tab {
-                    Tab::Models => Tab::Irs,
-                    Tab::Irs => Tab::Blend,
-                    Tab::Blend => Tab::Fx,
-                    Tab::Fx => Tab::Models,
-                };
-                self.filter.clear();
-                self.pending = None;
-            }
-            Key::Left if matches!(self.tab, Tab::Irs | Tab::Blend) => {
-                self.tab = if self.tab == Tab::Blend { Tab::Irs } else { Tab::Models };
-                self.filter.clear();
-                self.pending = None;
-            }
+            // Tab / Maj+Tab : tous les onglets, en boucle ; → / ← : de proche en proche, sans boucler
+            Key::Tab => self.switch_tab(1, true),
+            Key::BackTab => self.switch_tab(-1, true),
+            Key::Right => self.switch_tab(1, false),
+            Key::Left => self.switch_tab(-1, false),
             Key::Up => self.set_cursor(c.saturating_sub(1)),
             Key::Down => self.set_cursor(c + 1),
             Key::PageUp => self.set_cursor(c.saturating_sub(10)),
