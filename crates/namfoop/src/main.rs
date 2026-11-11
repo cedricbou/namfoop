@@ -288,6 +288,11 @@ mod tests {
         assert!(err("gain:vol=3").contains("paramètre « vol » inconnu (db)"));
         assert!(err("gain:db=99").contains("hors plage (-60 … 24 dB)"));
         assert!(err("gain:db=99").contains("namfoop fx"));
+        // `split` n'est pas un effet réglable en texte : ses branches seraient vides (#102)
+        for fx in ["split", "split:freq=200"] {
+            assert!(err(fx).contains("ne se décrivent pas en texte"), "{}", err(fx));
+            assert!(err(fx).contains("--crossover"), "{}", err(fx));
+        }
         let ok = Cli::try_parse_from([
             "namfoop",
             "render",

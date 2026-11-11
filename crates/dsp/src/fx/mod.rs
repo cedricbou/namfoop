@@ -127,7 +127,9 @@ macro_rules! with_effect {
     };
 }
 
-/// Un exemplaire par défaut de chaque effet.
+/// Un exemplaire par défaut de chaque effet, **blocs de structure compris** : c'est le catalogue
+/// complet, celui que les tests génériques et `bench --fx` passent en revue. Pour ce qu'on propose
+/// à l'utilisateur, voir [`offered`].
 pub fn catalog() -> Vec<FxSpec> {
     vec![
         FxSpec::Gain(Default::default()),
@@ -143,6 +145,13 @@ pub fn catalog() -> Vec<FxSpec> {
         FxSpec::Chorus(Default::default()),
         FxSpec::Reverb(Default::default()),
     ]
+}
+
+/// Le catalogue proposé à l'utilisateur (`namfoop fx`, catalogue de `browse`, mini-syntaxe) : le
+/// catalogue complet sans les blocs de structure, qui ne se décrivent pas en texte
+/// ([`FxSpec::is_structural`]).
+pub fn offered() -> Vec<FxSpec> {
+    catalog().into_iter().filter(|f| !f.is_structural()).collect()
 }
 
 fn kind_of<E: Effect>(_: &E) -> &'static str {
@@ -166,6 +175,14 @@ impl FxSpec {
 
     pub fn params(&self) -> &'static [ParamInfo] {
         with_effect!(self, e => params_of(e))
+    }
+
+    /// Bloc de **structure** (le parallèle) et non un effet réglable : ses branches ne se décrivent
+    /// qu'en TOML (presets), jamais dans la mini-syntaxe ni dans un catalogue proposé à
+    /// l'utilisateur, où il ne ferait qu'un passe-tout à deux branches vides (#102). Voir
+    /// `docs/adr/0006-chaine-en-blocs-et-parallele.md` : il deviendra un bloc à part (#106).
+    pub fn is_structural(&self) -> bool {
+        matches!(self, FxSpec::Split(_))
     }
 
     pub fn get(&self, name: &str) -> Option<f32> {
@@ -248,6 +265,12 @@ impl std::str::FromStr for FxSpec {
     fn from_str(s: &str) -> Result<Self> {
         let (kind, args) = s.trim().split_once(':').unwrap_or((s.trim(), ""));
         let mut fx = FxSpec::default_of(kind.trim())?;
+        if fx.is_structural() {
+            let kind = fx.kind();
+            let why = "les branches ne se décrivent pas en texte, seulement dans un preset (#6)";
+            let hint = "--crossover HZ pour garder le grave clair sous le son saturé";
+            return Err(Error::Fx(format!("{kind} : {why} ; {hint}")));
+        }
         for arg in args.split(',').map(str::trim).filter(|a| !a.is_empty()) {
             let Some((k, v)) = arg.split_once('=') else {
                 return Err(Error::Fx(format!("{} : « {arg} » : forme attendue param=valeur", fx.kind())));
@@ -314,7 +337,7 @@ mod tests {
         assert_eq!(fx.to_string().parse::<FxSpec>().unwrap(), fx);
         assert_eq!("gain".parse::<FxSpec>().unwrap(), FxSpec::default_of("gain").unwrap());
         assert_eq!(FxSpec::default_of("gain").unwrap().to_string(), "gain");
-        for f in catalog() {
+        for f in offered() {
             assert_eq!(f.to_string().parse::<FxSpec>().unwrap(), f, "{}", f.kind());
         }
         let err = |s: &str| s.parse::<FxSpec>().unwrap_err().to_string();
@@ -323,6 +346,21 @@ mod tests {
         assert!(err("gain:db=99").contains("hors plage"));
         assert!(err("gain:db=fort").contains("n'est pas un nombre"));
         assert!(err("gain:db").contains("param=valeur"));
+    }
+
+    /// Les blocs de structure (le parallèle) ne sont ni proposés ni acceptés en texte : un `split`
+    /// écrit en mini-syntaxe n'aurait que des branches vides (#102).
+    #[test]
+    fn structural_blocks_are_out_of_the_offered_catalog_and_of_the_text_syntax() {
+        assert!(catalog().iter().any(|f| f.is_structural()), "split est bien au catalogue complet");
+        assert!(offered().iter().all(|f| !f.is_structural()), "aucun bloc de structure proposé");
+        assert_eq!(offered().len() + 1, catalog().len(), "un seul bloc de structure aujourd'hui");
+        let err = "split".parse::<FxSpec>().unwrap_err().to_string();
+        assert!(err.contains("ne se décrivent pas en texte") && err.contains("--crossover"), "{err}");
+        assert!("split:freq=200".parse::<FxSpec>().is_err());
+        // le TOML, lui, décrit toujours les branches (presets)
+        let toml_text = "type = \"split\"\nfreq = 200.0\n";
+        assert!(toml::from_str::<FxSpec>(toml_text).unwrap().is_structural(), "{toml_text}");
     }
 
     #[test]

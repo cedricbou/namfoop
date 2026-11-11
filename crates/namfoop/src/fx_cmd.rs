@@ -1,12 +1,12 @@
 //! `namfoop fx` : catalogue des effets et paramètres de chacun (depuis `dsp::fx`).
 
 use anyhow::Result;
-use dsp::fx::{catalog, FxSpec};
+use dsp::fx::{offered, FxSpec};
 
 pub fn run(name: Option<&str>) -> Result<()> {
     let Some(name) = name else {
         println!("Effets (avec --pre / --post, ex: --post gain:db=-6) :");
-        for f in catalog() {
+        for f in offered() {
             println!("  {:<10} {}", f.kind(), f.help());
         }
         println!("\nParamètres d'un effet : namfoop fx <nom>");
@@ -14,6 +14,13 @@ pub fn run(name: Option<&str>) -> Result<()> {
     };
     let f = FxSpec::default_of(name)?;
     println!("{} : {}\n", f.kind(), f.help());
+    // Bloc de structure (le parallèle) : pas de mini-syntaxe, donc pas de tableau ni d'exemple.
+    if f.is_structural() {
+        println!("  Bloc de structure : ses branches ne se décrivent pas avec --pre / --post,");
+        println!("  seulement dans un preset (#6). En ligne de commande, --crossover HZ garde le");
+        println!("  grave clair du DI sous le son saturé.");
+        return Ok(());
+    }
     println!("  {:<12} {:>9} {:>9} {:>9} {:>6}  aide", "paramètre", "min", "max", "défaut", "unité");
     for p in f.params() {
         println!(

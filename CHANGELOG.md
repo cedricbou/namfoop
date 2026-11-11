@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#102)
+- `split` n'est plus proposé comme un effet réglable : ajouté depuis `browse` ou `--pre` / `--post`,
+  il n'avait que deux branches vides, donc un passe-tout qui ne faisait rien (la phase tournait et la
+  crête du DI passait de -6,0 à -5,1 dBFS). Le catalogue de `browse` et de `namfoop fx` ne liste plus
+  que les effets réglables en texte (« Effets (11) ») ; `--pre split` / `--post split` sont refusés
+  avec « les branches ne se décrivent pas en texte, seulement dans un preset (#6) ; --crossover HZ
+  pour garder le grave clair sous le son saturé ». `namfoop fx split` le dit aussi. Les branches
+  restent décrites en TOML et le parallèle deviendra un bloc de structure (ADR 0006, épique #103).
+
 ### Corrigé (#100)
 - `browse` : l'onglet Effets s'atteint aussi aux flèches (→ depuis le Mélange, ← pour revenir) et
   avec Maj+Tab ; l'en-tête compte les effets du catalogue (« Effets (12) », « ● n » pour la

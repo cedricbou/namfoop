@@ -11,7 +11,9 @@ normalize / match, mesuré avec les effets ; sans `pre`, le trim reste dans l'é
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
 `from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : copie ou crossover LR4, retards mesurés par corrélation
 et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db` ; réutilisable par le crossover et les
-effets de temps), `fx/` (effets : `FxSpec`, catalogue, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
+effets de temps), `fx/` (effets : `FxSpec`, `catalog()` complet pour les tests et `bench --fx`, `offered()` proposé à
+l'utilisateur — sans les blocs de structure, `FxSpec::is_structural()` : le `split`, refusé en
+mini-syntaxe, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
 jamais libérée en RT). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
@@ -99,6 +101,8 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 ## Dette connue
 
+- Le `split` (parallèle) n'est décrit qu'en TOML : pas de mini-syntaxe, pas de catalogue proposé
+  (#102). Il devient un bloc de structure avec l'épique #103 (ADR 0006).
 - `comp` n'a pas de détecteur RMS (crête seulement) : à ajouter si le besoin se confirme à l'écoute.
 
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
