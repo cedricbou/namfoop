@@ -7,6 +7,7 @@
 
 pub mod biquad;
 pub mod blend;
+pub mod block;
 pub mod chain;
 pub mod fx;
 pub mod gain;

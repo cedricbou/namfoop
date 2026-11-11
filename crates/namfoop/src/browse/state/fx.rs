@@ -1,9 +1,9 @@
-//! Onglet Effets : catalogue (`dsp::fx::offered` : les effets réglables, sans les blocs de
-//! structure), chaîne pré / post autour du modèle et de l'IR,
+//! Onglet Effets : catalogue (`dsp::fx::catalog` : les effets réglables ; le parallèle est un bloc
+//! de la chaîne, pas un effet), chaîne pré / post autour du modèle et de l'IR,
 //! réglage du paramètre choisi. Pas, plages, unités et aides viennent de `ParamInfo` : rien n'est
 //! codé en dur ici. Chaque changement s'écoute après `AUDITION_DELAY_MS` sans touche.
 
-use dsp::fx::{offered, FxSpec, ParamInfo};
+use dsp::fx::{catalog, FxSpec, ParamInfo};
 
 use super::*;
 
@@ -45,7 +45,7 @@ pub struct FxState {
 impl Default for FxState {
     fn default() -> Self {
         Self {
-            catalog: offered(),
+            catalog: catalog(),
             pre: Vec::new(),
             post: Vec::new(),
             focus: FxFocus::Catalog,
@@ -390,8 +390,8 @@ mod tests {
     fn the_catalog_offers_no_structural_block() {
         let s = fx_tab();
         assert!(!s.fx.catalog.is_empty());
-        assert!(s.fx.catalog.iter().all(|f| !f.is_structural()), "pas de bloc de structure proposé");
-        assert_eq!(s.fx.catalog, dsp::fx::offered());
+        assert!(s.fx.catalog.iter().all(|f| f.kind() != "split"), "pas de bloc de structure proposé");
+        assert_eq!(s.fx.catalog, dsp::fx::catalog());
         for f in &s.fx.catalog {
             let back = f.to_string().parse::<FxSpec>();
             assert_eq!(back.as_ref().ok(), Some(f), "{}", f.kind());

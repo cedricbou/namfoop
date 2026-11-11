@@ -6,6 +6,27 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Changé (#106)
+- **La chaîne est une liste de blocs** (ADR 0006) : le modèle NAM et l'IR sont des blocs comme les
+  effets, placés librement, y compris dans la branche d'un parallèle. On peut donc décrire
+  « son direct en grave | NAM › IR en aigu », mais aussi « propre | fuzz capturée › IR |
+  ampli › IR » — **plusieurs modèles sont permis**. `-m`, `-i`, `--pre`, `--post` et
+  `--crossover HZ` (raccourci : bandes [HZ], grave = son direct, aigu = NAM › IR) se traduisent en
+  blocs : **le son ne change pas d'un bit** (vérifié sur `--crossover`, avec et sans trim, avec et
+  sans effets `pre`, blocs 48 / 64 / 1000 ; rendus de référence inchangés).
+- Le **parallèle n'est plus un effet** : `split` quitte le catalogue (`namfoop fx` ne le liste plus,
+  11 effets) et devient un bloc de structure. `--pre split` / `--post split` répondent « le
+  parallèle n'est pas un effet mais un bloc de la chaîne : ses branches ne se décrivent pas en
+  texte, seulement dans un preset (#6) ; --crossover HZ pour garder le grave clair sous le son
+  saturé ». Un parallèle dans une branche est refusé (un seul niveau), avec un message qui dit quoi
+  faire.
+- Une branche **sans** modèle est mise au niveau de la première branche qui en contient un
+  (généralise le grave clair de `--crossover`) ; son gain s'ajoute ensuite. Le trim de l'instrument
+  est en tête de chaîne, sauf quand il n'y a qu'un modèle et que rien ne le précède : il reste alors
+  dans l'étage NAM, au bit près comme avant.
+- Le log `chaîne :` montre les branches : `◆ bandes 150 Hz [< 150 Hz : direct | > 150 Hz : NAM b7k ›
+  IR sm57] › normalisé -18 dB › limiteur` (le modèle et l'IR ne sont plus entre crochets).
+
 ### Ajouté (#105)
 - `dsp` : le parallèle (`split`) accepte **2 à 4 branches** et un crossover de **2 à 4 bandes**
   (Linkwitz-Riley 24 dB/oct, N-1 coupures croissantes). La somme reste plate : chaque bande traverse

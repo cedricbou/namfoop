@@ -3,10 +3,15 @@
 **Responsabilité.** Les traitements, sans carte son ni config : étages mono (trait `Stage`),
 chaîne, changement de chaîne à chaud, analyses hors ligne.
 
-**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `chain.rs`
-(`AmpSpec` : trim -> `pre` -> NAM -> IR -> `post` -> niveau -> master -> limiteur ; `Level` raw /
-normalize / match, mesuré avec les effets ; sans `pre`, le trim reste dans l'étage NAM, au bit près ;
-`describe()` pour le log `chaîne :`),
+**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `block.rs`
+(**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, master_db, limiter }`,
+`BlockSpec::{Fx, Nam, Ir, Split}`, `SplitSpec`/`BranchSpec` (nom, gain, polarité, muet, blocs) ;
+`validate()` refuse un parallèle dans une branche (un seul niveau) ; `build()` charge, aligne les
+branches sans modèle sur la première qui en a un, et place le trim ; `describe()` pour le log
+`chaîne :` — `◆ bandes 150 Hz [< 150 Hz : direct | > 150 Hz : NAM b7k › IR sm57]`), `chain.rs`
+(`Chain`, `Level` raw / normalize / match mesuré sur toute la chaîne, `LimiterSpec`, et `AmpSpec` :
+les options CLI, qui **produisent** une `ChainSpec` via `to_chain_spec()` — `--crossover HZ` = bandes
+[HZ], grave = son direct),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
 chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
 `from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : 2 à `MAX_BRANCHES` = 4 branches, mode copie ou bandes
@@ -14,9 +19,9 @@ chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/
 polarité, muet (muette = pas traitée) ; réglages vérifiés à la construction (`Result`), jamais en RT ;
 retards mesurés par corrélation et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db`,
 formes passe-bas / passe-haut / cloche / plateaux / **passe-tout** ; réutilisable par le crossover et les
-effets de temps), `fx/` (effets : `FxSpec`, `catalog()` complet pour les tests et `bench --fx`, `offered()` proposé à
-l'utilisateur — sans les blocs de structure, `FxSpec::is_structural()` : le `split`, refusé en
-mini-syntaxe, voir « Ajouter un effet »), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
+effets de temps), `fx/` (effets réglables : `FxSpec`, `catalog()`, voir « Ajouter un effet » ; le parallèle **n'est
+pas** un effet : c'est `block::SplitSpec`, et `fx::STRUCTURAL_KINDS` le refuse en mini-syntaxe avec
+un message qui dit où le décrire), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
 jamais libérée en RT). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
@@ -113,10 +118,13 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 ## Dette connue
 
-- Le `split` (parallèle) n'est décrit qu'en TOML : pas de mini-syntaxe, pas de catalogue proposé
-  (#102). Il devient un bloc de structure avec l'épique #103 (ADR 0006) : `fx::split::SplitParams`
-  est encore un `FxSpec`, #106 le sort du catalogue d'effets.
-- `Split` n'expose pas encore de mesure par branche (vumètres de `browse`) : #107.
+- `ChainSpec` n'a pas de format TOML : les presets, c'est #6 (proposition de format dans
+  `docs/design/browse-chaine.md` § 9). Les blocs portent des chemins, pas des identifiants de
+  bibliothèque.
+- `Split` n'expose pas encore de mesure par branche ni par bloc (vumètres de `browse`) : #107.
+- `Level::Normalize` normalise **chaque** bloc NAM à la cible (règle uniforme, identique au bit près
+  au cas d'un seul modèle) : à revoir à l'écoute si plusieurs NAM en série deviennent courants.
+- `AmpSpec` reste l'entrée des options CLI : à retirer quand les presets décriront les blocs (#6).
 - `comp` n'a pas de détecteur RMS (crête seulement) : à ajouter si le besoin se confirme à l'écoute.
 
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;

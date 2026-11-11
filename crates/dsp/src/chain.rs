@@ -1,14 +1,15 @@
-//! Chaîne d'étages mono + description textuelle pour les logs.
+//! Chaîne d'étages mono (`Chain`), réglage du niveau de sortie, et [`AmpSpec`] : les options de la
+//! ligne de commande (`-m`, `-i`, `--pre`, `--post`, `--crossover`). Depuis l'ADR 0006, `AmpSpec`
+//! **produit une chaîne en blocs** ([`crate::block::ChainSpec`]) : c'est elle qui construit.
 
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
+use crate::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
 use crate::fx::FxSpec;
-use crate::gain::Gain;
-use crate::ir::{IrSettings, IrStage};
-use crate::limiter::Limiter;
-use crate::nam::{NamSettings, NamStage};
+use crate::ir::IrSettings;
+use crate::nam::NamSettings;
 use crate::{Result, Stage};
 
 #[derive(Default)]
@@ -128,7 +129,7 @@ pub struct CrossoverSpec {
 
 /// Note de basse synthétique (55 Hz + harmoniques, attaque puis décroissance), pour équilibrer
 /// les branches d'un crossover sans enregistrement de calibration.
-fn synthetic_bass(sample_rate: u32) -> Vec<f32> {
+pub(crate) fn synthetic_bass(sample_rate: u32) -> Vec<f32> {
     (0..sample_rate as usize)
         .map(|i| {
             let t = i as f32 / sample_rate as f32;
@@ -138,194 +139,52 @@ fn synthetic_bass(sample_rate: u32) -> Vec<f32> {
         .collect()
 }
 
-fn rms(x: &[f32]) -> f64 {
+pub(crate) fn rms(x: &[f32]) -> f64 {
     (x.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / x.len().max(1) as f64).sqrt()
 }
 
 impl AmpSpec {
-    /// Ordre des étages, pour les logs : `gain:db=-6 › [NAM b7k › IR dg212] › niveau DI › limiteur`.
+    /// Traduit les options en **blocs** (ADR 0006) : `pre`, puis « NAM › IR » — ou, avec
+    /// `--crossover HZ`, un parallèle à deux bandes `[HZ]` dont la branche grave est le son direct
+    /// et la branche aiguë « NAM › IR » —, puis `post`. Le niveau, le master et le limiteur
+    /// restent en fin de chaîne.
+    pub fn to_chain_spec(&self) -> ChainSpec {
+        let mut blocks: Vec<BlockSpec> = self.pre.iter().cloned().map(BlockSpec::Fx).collect();
+        let mut core: Vec<BlockSpec> = Vec::new();
+        if let Some(m) = &self.model {
+            core.push(BlockSpec::nam(m.clone(), self.nam.clone()));
+        }
+        if let Some(ir) = &self.ir {
+            core.push(BlockSpec::ir(ir.clone(), self.ir_settings.clone()));
+        }
+        match &self.crossover {
+            Some(x) if !core.is_empty() => blocks.push(BlockSpec::Split(SplitSpec {
+                mode: SplitKind::Bands,
+                freqs: vec![x.freq],
+                branches: vec![
+                    BranchSpec { gain_db: x.low_db, ..Default::default() },
+                    BranchSpec { gain_db: x.high_db, blocks: core, ..Default::default() },
+                ],
+            })),
+            _ => blocks.extend(core),
+        }
+        blocks.extend(self.post.iter().cloned().map(BlockSpec::Fx));
+        ChainSpec {
+            trim_db: self.trim_db,
+            blocks,
+            level: self.level.clone(),
+            master_db: self.master_db,
+            limiter: self.limiter.clone(),
+        }
+    }
+
+    /// Ordre des blocs, pour les logs : `gate › NAM b7k › IR dg212 › niveau DI › limiteur`.
     pub fn describe(&self) -> String {
-        let stem = |p: &PathBuf| {
-            p.file_stem().map_or_else(|| p.display().to_string(), |s| s.to_string_lossy().into())
-        };
-        let mut parts: Vec<String> = self.pre.iter().map(|f| f.to_string()).collect();
-        let core: Vec<String> = [
-            self.model.as_ref().map(|m| format!("NAM {}", stem(m))),
-            self.ir.as_ref().map(|i| format!("IR {}", stem(i))),
-        ]
-        .into_iter()
-        .flatten()
-        .collect();
-        if !core.is_empty() {
-            match &self.crossover {
-                Some(x) => {
-                    parts.push(format!("crossover {} Hz (grave clair | {})", x.freq, core.join(" › ")))
-                }
-                None => parts.push(format!("[{}]", core.join(" › "))),
-            }
-        }
-        parts.extend(self.post.iter().map(|f| f.to_string()));
-        match self.level {
-            Level::Match { .. } => parts.push("niveau DI".into()),
-            Level::Normalize { target_db } if self.model.is_some() => {
-                parts.push(format!("normalisé {target_db} dB"))
-            }
-            _ => {}
-        }
-        if self.master_db != 0.0 {
-            parts.push(format!("master {:+.1} dB", self.master_db));
-        }
-        if self.limiter.is_some() {
-            parts.push("limiteur".into());
-        }
-        if parts.is_empty() {
-            "direct".into()
-        } else {
-            parts.join(" › ")
-        }
+        self.to_chain_spec().describe()
     }
 
     /// Construit la chaîne (non temps réel : charge les fichiers, alloue).
     pub fn build(&self, sample_rate: u32, max_block: usize) -> Result<Chain> {
-        let mut chain = Chain::new();
-        // Sans effet `pre`, le trim est appliqué par l'étage NAM (chaîne d'avant les effets, au bit
-        // près) ; avec des effets `pre`, il devient un étage à part, avant eux.
-        if !self.pre.is_empty() {
-            if self.model.is_some() && self.trim_db != 0.0 {
-                chain.push(Gain::db(self.trim_db, "trim"));
-            }
-            for fx in &self.pre {
-                chain.push_boxed(fx.build(sample_rate, max_block)?);
-            }
-        }
-        // « NAM + IR » : directement dans la chaîne, ou branche aiguë d'un crossover
-        let mut core = Chain::new();
-        if let Some(m) = &self.model {
-            let mut nam = self.nam.clone();
-            if self.pre.is_empty() {
-                nam.input_db += self.trim_db;
-            }
-            nam.normalize_to = match self.level {
-                Level::Normalize { target_db } => Some(target_db),
-                Level::Raw | Level::Match { .. } => None,
-            };
-            let (stage, info) = NamStage::load(m, sample_rate as f64, max_block, &nam)?;
-            if (info.expected_sample_rate - sample_rate as f64).abs() > 1.0 && info.expected_sample_rate > 0.0
-            {
-                log::warn!(
-                    "{} attend {} Hz, flux à {} Hz : le son sera faux",
-                    m.display(),
-                    info.expected_sample_rate,
-                    sample_rate
-                );
-            }
-            log::info!(
-                "NAM {} (entrée {:+.1} dB, loudness {}{}{})",
-                stage.name(),
-                nam.input_db,
-                info.loudness_db.map_or("?".into(), |l| format!("{l:.1} dB")),
-                if info.normalization_db != 0.0 {
-                    format!(", normalisation {:+.1} dB", info.normalization_db)
-                } else {
-                    String::new()
-                },
-                info.breakpoints.as_ref().map_or(String::new(), |b| format!(
-                    ", slimmable {} tailles, taille {:.2}",
-                    b.len() + 1,
-                    self.nam.size
-                )),
-            );
-            core.push(stage);
-        }
-        if let Some(ir) = &self.ir {
-            let st = IrStage::load(ir, sample_rate, max_block, &self.ir_settings)?;
-            log::info!(
-                "IR {} ({} échantillons, {:.0} ms)",
-                st.name(),
-                st.len,
-                st.len as f32 * 1000.0 / sample_rate as f32
-            );
-            core.push(st);
-        }
-        match &self.crossover {
-            Some(x) if !core.is_empty() => {
-                let reference: Vec<f32> = match &self.level {
-                    Level::Match { reference, sample_rate: ref_sr } if *ref_sr == sample_rate => {
-                        reference.as_ref().clone()
-                    }
-                    _ => synthetic_bass(sample_rate),
-                };
-                let mut probe = reference.clone();
-                for c in probe.chunks_mut(max_block.max(1)) {
-                    core.process(c);
-                }
-                core.reset();
-                let (ri, ro) = (rms(&reference), rms(&probe));
-                let align_db = if ri > 1e-9 && ro > 1e-9 { (20.0 * (ro / ri).log10()) as f32 } else { 0.0 };
-                let mut clean = Chain::new();
-                clean.push(Gain::db(align_db, "grave clair"));
-                // `--crossover HZ` est un raccourci : deux bandes, [HZ], grave = son direct,
-                // aigu = NAM › IR (ADR 0006).
-                let split = crate::split::Split::new(
-                    crate::split::SplitMode::Bands(vec![x.freq as f64]),
-                    vec![
-                        crate::split::SplitBranch::new(clean).gain(x.low_db),
-                        crate::split::SplitBranch::new(core).gain(x.high_db),
-                    ],
-                    sample_rate,
-                    max_block,
-                    true,
-                )?;
-                let d = split.delays()[0];
-                log::info!(
-                    "crossover {} Hz : grave clair aligné {align_db:+.1} dB (puis {:+.1}), aigu {:+.1} dB, retard compensé {d} échantillons ({:.2} ms)",
-                    x.freq,
-                    x.low_db,
-                    x.high_db,
-                    d as f32 * 1000.0 / sample_rate as f32
-                );
-                chain.push(split);
-            }
-            _ => {
-                chain.append(core);
-            }
-        }
-        for fx in &self.post {
-            chain.push_boxed(fx.build(sample_rate, max_block)?);
-        }
-        if !self.pre.is_empty() || !self.post.is_empty() || self.crossover.is_some() {
-            log::info!("chaîne : {}", self.describe());
-        }
-        if let (Level::Match { reference, sample_rate: ref_sr }, false) = (&self.level, chain.is_empty()) {
-            let reference: Vec<f32> = if *ref_sr == sample_rate {
-                reference.as_ref().clone()
-            } else {
-                crate::ir::resample(reference, *ref_sr, sample_rate)
-            };
-            let mut out = reference.clone();
-            for c in out.chunks_mut(max_block) {
-                chain.process(c);
-            }
-            chain.reset();
-            let (ri, ro) = (rms(&reference), rms(&out));
-            if ri > 1e-6 && ro > 1e-9 {
-                let g = (20.0 * (ri / ro).log10()).clamp(-60.0, 60.0) as f32;
-                log::info!("niveau aligné sur le DI : {g:+.1} dB");
-                chain.push(Gain::db(g, "niveau DI"));
-            } else {
-                log::warn!("référence de niveau silencieuse : pas d'alignement");
-            }
-        }
-        if self.master_db != 0.0 {
-            chain.push(Gain::db(self.master_db, "master"));
-        }
-        if let Some(l) = &self.limiter {
-            let mut lim = Limiter::new(l.threshold_db, l.release_ms, sample_rate);
-            if let Some(m) = &l.meter {
-                lim = lim.with_meter(m.clone());
-            }
-            chain.push(lim);
-        }
-        Ok(chain)
+        self.to_chain_spec().build(sample_rate, max_block)
     }
 }

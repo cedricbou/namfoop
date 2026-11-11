@@ -32,10 +32,12 @@ latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::ra
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage)
 meta_cmd.rs     `meta` : options clap, affichage d'un modèle
 models_cmd.rs   `models` : inventaire affiché
-fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::offered, sans les blocs de
-                structure) ; `--pre` / `--post` dans amp.rs,
+fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::catalog ; le parallèle
+                n'est pas un effet) ; `--pre` / `--post` dans amp.rs,
                 `bench --fx` dans offline.rs
-amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut)
+amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut),
+                qui se traduit en chaîne en blocs (dsp::block::ChainSpec, ADR 0006) : --crossover HZ
+                est un raccourci pour « bandes [HZ] : son direct | NAM › IR »
 config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
 calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le niveau « match »
 ```

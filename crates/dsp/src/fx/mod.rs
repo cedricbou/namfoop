@@ -7,6 +7,10 @@
 //!
 //! Ajouter un effet : un fichier qui implémente [`Effect`], une variante de [`FxSpec`] et une ligne
 //! dans [`catalog`] (voir `crates/dsp/CLAUDE.md`, « Ajouter un effet »).
+//!
+//! Le **parallèle** n'est pas un effet : c'est un bloc de structure de la chaîne
+//! (`crate::block::SplitSpec`, ADR 0006). Écrit en mini-syntaxe, il est refusé avec un message qui
+//! dit où le décrire ([`STRUCTURAL_KINDS`]).
 
 pub mod chorus;
 pub mod comp;
@@ -15,7 +19,6 @@ pub mod filter;
 pub mod gain;
 pub mod gate;
 pub mod reverb;
-pub mod split;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -101,7 +104,6 @@ pub enum FxSpec {
     Peak(filter::PeakParams),
     Lowshelf(filter::LowshelfParams),
     Highshelf(filter::HighshelfParams),
-    Split(split::SplitParams),
     Delay(delay::DelayParams),
     Chorus(chorus::ChorusParams),
     Reverb(reverb::ReverbParams),
@@ -119,7 +121,6 @@ macro_rules! with_effect {
             FxSpec::Peak($e) => $body,
             FxSpec::Lowshelf($e) => $body,
             FxSpec::Highshelf($e) => $body,
-            FxSpec::Split($e) => $body,
             FxSpec::Delay($e) => $body,
             FxSpec::Chorus($e) => $body,
             FxSpec::Reverb($e) => $body,
@@ -127,9 +128,8 @@ macro_rules! with_effect {
     };
 }
 
-/// Un exemplaire par défaut de chaque effet, **blocs de structure compris** : c'est le catalogue
-/// complet, celui que les tests génériques et `bench --fx` passent en revue. Pour ce qu'on propose
-/// à l'utilisateur, voir [`offered`].
+/// Un exemplaire par défaut de chaque effet : ce que proposent `namfoop fx`, le catalogue de
+/// `browse` et les tests génériques. Le parallèle n'y est pas (c'est un bloc de structure).
 pub fn catalog() -> Vec<FxSpec> {
     vec![
         FxSpec::Gain(Default::default()),
@@ -140,19 +140,15 @@ pub fn catalog() -> Vec<FxSpec> {
         FxSpec::Peak(Default::default()),
         FxSpec::Lowshelf(Default::default()),
         FxSpec::Highshelf(Default::default()),
-        FxSpec::Split(Default::default()),
         FxSpec::Delay(Default::default()),
         FxSpec::Chorus(Default::default()),
         FxSpec::Reverb(Default::default()),
     ]
 }
 
-/// Le catalogue proposé à l'utilisateur (`namfoop fx`, catalogue de `browse`, mini-syntaxe) : le
-/// catalogue complet sans les blocs de structure, qui ne se décrivent pas en texte
-/// ([`FxSpec::is_structural`]).
-pub fn offered() -> Vec<FxSpec> {
-    catalog().into_iter().filter(|f| !f.is_structural()).collect()
-}
+/// Noms qui ne sont pas des effets mais des **blocs de structure** de la chaîne : refusés en
+/// mini-syntaxe avec un message qui dit où les décrire, plutôt qu'un « effet inconnu » sec.
+pub const STRUCTURAL_KINDS: &[&str] = &["split", "parallele", "parallèle"];
 
 fn kind_of<E: Effect>(_: &E) -> &'static str {
     E::KIND
@@ -175,14 +171,6 @@ impl FxSpec {
 
     pub fn params(&self) -> &'static [ParamInfo] {
         with_effect!(self, e => params_of(e))
-    }
-
-    /// Bloc de **structure** (le parallèle) et non un effet réglable : ses branches ne se décrivent
-    /// qu'en TOML (presets), jamais dans la mini-syntaxe ni dans un catalogue proposé à
-    /// l'utilisateur, où il ne ferait qu'un passe-tout à deux branches vides (#102). Voir
-    /// `docs/adr/0006-chaine-en-blocs-et-parallele.md` : il deviendra un bloc à part (#106).
-    pub fn is_structural(&self) -> bool {
-        matches!(self, FxSpec::Split(_))
     }
 
     pub fn get(&self, name: &str) -> Option<f32> {
@@ -264,13 +252,14 @@ impl std::str::FromStr for FxSpec {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         let (kind, args) = s.trim().split_once(':').unwrap_or((s.trim(), ""));
-        let mut fx = FxSpec::default_of(kind.trim())?;
-        if fx.is_structural() {
-            let kind = fx.kind();
-            let why = "les branches ne se décrivent pas en texte, seulement dans un preset (#6)";
+        let kind = kind.trim();
+        if STRUCTURAL_KINDS.contains(&kind.to_lowercase().as_str()) {
+            let what = "le parallèle n'est pas un effet mais un bloc de la chaîne : ses branches ne";
+            let why = "se décrivent pas en texte, seulement dans un preset (#6)";
             let hint = "--crossover HZ pour garder le grave clair sous le son saturé";
-            return Err(Error::Fx(format!("{kind} : {why} ; {hint}")));
+            return Err(Error::Fx(format!("{kind} : {what} {why} ; {hint}")));
         }
+        let mut fx = FxSpec::default_of(kind)?;
         for arg in args.split(',').map(str::trim).filter(|a| !a.is_empty()) {
             let Some((k, v)) = arg.split_once('=') else {
                 return Err(Error::Fx(format!("{} : « {arg} » : forme attendue param=valeur", fx.kind())));
@@ -300,12 +289,11 @@ mod tests {
             FxSpec::Peak(_) => 5,
             FxSpec::Lowshelf(_) => 6,
             FxSpec::Highshelf(_) => 7,
-            FxSpec::Split(_) => 8,
-            FxSpec::Delay(_) => 9,
-            FxSpec::Chorus(_) => 10,
-            FxSpec::Reverb(_) => 11,
+            FxSpec::Delay(_) => 8,
+            FxSpec::Chorus(_) => 9,
+            FxSpec::Reverb(_) => 10,
         };
-        const COUNT: usize = 12;
+        const COUNT: usize = 11;
         let mut seen = [false; COUNT];
         for f in catalog() {
             seen[index(&f)] = true;
@@ -337,7 +325,7 @@ mod tests {
         assert_eq!(fx.to_string().parse::<FxSpec>().unwrap(), fx);
         assert_eq!("gain".parse::<FxSpec>().unwrap(), FxSpec::default_of("gain").unwrap());
         assert_eq!(FxSpec::default_of("gain").unwrap().to_string(), "gain");
-        for f in offered() {
+        for f in catalog() {
             assert_eq!(f.to_string().parse::<FxSpec>().unwrap(), f, "{}", f.kind());
         }
         let err = |s: &str| s.parse::<FxSpec>().unwrap_err().to_string();
@@ -348,19 +336,19 @@ mod tests {
         assert!(err("gain:db").contains("param=valeur"));
     }
 
-    /// Les blocs de structure (le parallèle) ne sont ni proposés ni acceptés en texte : un `split`
-    /// écrit en mini-syntaxe n'aurait que des branches vides (#102).
+    /// Le parallèle n'est pas un effet : il n'est pas au catalogue, et écrit en mini-syntaxe il
+    /// renvoie à l'endroit où ses branches se décrivent (#102, ADR 0006).
     #[test]
-    fn structural_blocks_are_out_of_the_offered_catalog_and_of_the_text_syntax() {
-        assert!(catalog().iter().any(|f| f.is_structural()), "split est bien au catalogue complet");
-        assert!(offered().iter().all(|f| !f.is_structural()), "aucun bloc de structure proposé");
-        assert_eq!(offered().len() + 1, catalog().len(), "un seul bloc de structure aujourd'hui");
-        let err = "split".parse::<FxSpec>().unwrap_err().to_string();
-        assert!(err.contains("ne se décrivent pas en texte") && err.contains("--crossover"), "{err}");
-        assert!("split:freq=200".parse::<FxSpec>().is_err());
-        // le TOML, lui, décrit toujours les branches (presets)
-        let toml_text = "type = \"split\"\nfreq = 200.0\n";
-        assert!(toml::from_str::<FxSpec>(toml_text).unwrap().is_structural(), "{toml_text}");
+    fn the_parallel_is_not_an_effect() {
+        assert!(catalog().iter().all(|f| f.kind() != "split"), "split n'est pas un effet");
+        for text in ["split", "split:freq=200", "Parallèle", "parallele:freq=150"] {
+            let err = text.parse::<FxSpec>().unwrap_err().to_string();
+            assert!(err.contains("bloc de la chaîne"), "{text} : {err}");
+            assert!(err.contains("preset (#6)") && err.contains("--crossover"), "{text} : {err}");
+        }
+        // un nom vraiment inconnu garde son message habituel
+        let err = "fuzz".parse::<FxSpec>().unwrap_err().to_string();
+        assert!(err.contains("effet « fuzz » inconnu"), "{err}");
     }
 
     #[test]

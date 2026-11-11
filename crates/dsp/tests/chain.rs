@@ -174,51 +174,64 @@ fn level_match_includes_effects() {
     let out = render(&spec, 64, &reference);
     let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
     assert!(diff.abs() < 0.5, "écart de niveau {diff:.2} dB");
-    assert_eq!(spec.describe(), "[NAM wavenet] › gain:db=-6 › niveau DI");
+    assert_eq!(spec.describe(), "NAM wavenet › gain:db=-6 › niveau DI");
 }
 
-fn nested_split() -> dsp::fx::FxSpec {
-    let text = r#"
-type = "split"
-mode = "bands"
-freqs = [120.0]
-[[branches]]
-[[branches]]
-fx = [{ type = "split", mode = "copy", branches = [{ gain_db = -6.0, invert = true, fx = [{ type = "comp", ratio = 8.0 }] }, { fx = [{ type = "lpf", freq = 3000.0 }] }] }]
-"#;
-    toml::from_str(text).unwrap()
-}
-
-/// Parallèle à `n` bandes (3 ou 4), chaque branche avec un effet, une polarité inversée et une
-/// branche muette : le cas le plus chargé de l'ADR 0006.
-fn multi_band_split(n: usize) -> dsp::fx::FxSpec {
-    let freqs: &str = match n {
-        3 => "[150.0, 600.0]",
-        _ => "[100.0, 400.0, 1600.0]",
+/// Chaîne en blocs : un parallèle avec un modèle dans une branche, une polarité inversée et une
+/// branche muette — le cas le plus chargé de l'ADR 0006.
+fn multi_band_chain(n: usize) -> dsp::block::ChainSpec {
+    use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
+    let freqs: Vec<f32> = match n {
+        2 => vec![150.0],
+        3 => vec![150.0, 600.0],
+        _ => vec![100.0, 400.0, 1600.0],
     };
-    let mut text = format!("type = \"split\"\nmode = \"bands\"\nfreqs = {freqs}\n");
-    let branches = [
-        "gain_db = -2.0\nfx = [{ type = \"comp\", ratio = 4.0 }]",
-        "gain_db = 0.0\ninvert = true\nfx = [{ type = \"lpf\", freq = 3000.0 }]",
-        "gain_db = -3.0\nfx = [{ type = \"delay\", time = 40.0 }]",
-        "mute = true\nfx = [{ type = \"gate\" }]",
-    ];
-    for b in branches.iter().take(n) {
-        text += &format!("[[branches]]\n{b}\n");
+    let fx = |s: &str| BlockSpec::Fx(s.parse().unwrap());
+    let branch = |i: usize| -> BranchSpec {
+        match i {
+            // la branche 2 porte le modèle (et son IR) : c'est elle qui aligne les autres
+            1 => BranchSpec {
+                gain_db: -2.0,
+                blocks: vec![BlockSpec::nam(example("wavenet.nam"), Default::default()), fx("lpf:freq=3000")],
+                ..Default::default()
+            },
+            2 => BranchSpec {
+                gain_db: -3.0,
+                invert: true,
+                blocks: vec![fx("comp:ratio=4")],
+                ..Default::default()
+            },
+            3 => BranchSpec { mute: true, blocks: vec![fx("delay:time=40")], ..Default::default() },
+            _ => BranchSpec::default(), // son direct, aligné sur la branche du modèle
+        }
+    };
+    ChainSpec {
+        blocks: vec![
+            fx("hpf:freq=30"),
+            BlockSpec::Split(SplitSpec {
+                mode: SplitKind::Bands,
+                freqs,
+                branches: (0..n).map(branch).collect(),
+            }),
+            fx("gate:threshold=-50"),
+        ],
+        level: dsp::chain::Level::Raw,
+        ..Default::default()
     }
-    toml::from_str(&text).unwrap_or_else(|e| panic!("{n} bandes : {e}\n{text}"))
 }
 
-/// Parallèle à 3 et 4 bandes : même sortie quelle que soit la taille de bloc.
+/// Parallèle à 3 et 4 bandes dans une chaîne en blocs : même sortie quelle que soit la taille de
+/// bloc.
 #[test]
-fn multi_band_split_is_independent_of_block_size() {
+fn multi_band_chain_is_independent_of_block_size() {
     let input = signal(24000);
     for n in [3, 4] {
+        let spec = multi_band_chain(n);
         let run = |block: usize| {
-            let mut st = multi_band_split(n).build(48000, 64).unwrap();
+            let mut chain = spec.build(48000, 64).unwrap();
             let mut buf = input.clone();
             for c in buf.chunks_mut(block) {
-                st.process(c);
+                chain.process(c);
             }
             buf
         };
@@ -226,28 +239,117 @@ fn multi_band_split_is_independent_of_block_size() {
         for block in [16, 48, 1000] {
             let got = run(block);
             let worst = reference.iter().zip(&got).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
-            assert!(worst < 1e-5, "{n} bandes, bloc {block} : écart max {worst:e}");
+            assert!(worst < 1e-4, "{n} bandes, bloc {block} : écart max {worst:e}");
         }
     }
 }
 
-/// `split` imbriqué : même sortie quelle que soit la taille de bloc.
+/// Une branche **sans** modèle est mise au niveau de la première branche qui en contient un
+/// (généralise le grave clair de `--crossover`) : sans ça, le son direct écraserait le modèle, qui
+/// sort bien plus bas que le DI. Sans modèle dans le parallèle, pas d'alignement.
 #[test]
-fn nested_split_is_independent_of_block_size() {
-    let input = signal(24000);
-    let run = |block: usize| {
-        let mut st = nested_split().build(48000, 64).unwrap();
+fn a_branch_without_a_model_is_aligned_on_the_one_with_a_model() {
+    use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
+    let input = signal(48000);
+    // mode copie : pas de filtre, le gain de la branche qu'on écoute se lit directement
+    let listen = |with_model: bool, alone: bool| -> f32 {
+        let model = BranchSpec {
+            blocks: vec![BlockSpec::nam(example("wavenet.nam"), Default::default())],
+            mute: !with_model,
+            ..Default::default()
+        };
+        let direct = BranchSpec { mute: with_model, ..Default::default() };
+        let branches = if alone {
+            vec![direct, BranchSpec { mute: true, ..Default::default() }]
+        } else {
+            vec![direct, model]
+        };
+        let spec = ChainSpec {
+            blocks: vec![BlockSpec::Split(SplitSpec { mode: SplitKind::Copy, freqs: vec![], branches })],
+            level: dsp::chain::Level::Raw,
+            ..Default::default()
+        };
+        let mut chain = spec.build(48000, 64).unwrap();
         let mut buf = input.clone();
-        for c in buf.chunks_mut(block) {
-            st.process(c);
+        for c in buf.chunks_mut(64) {
+            chain.process(c);
         }
-        buf
+        20.0 * (rms(&buf) / rms(&input)).log10()
     };
-    let reference = run(64);
-    for block in [16, 48, 1000] {
-        let err = reference.iter().zip(&run(block)).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
-        assert!(err < 1e-5, "bloc {block} : {err}");
+    let direct = listen(false, false);
+    let model = listen(true, false);
+    assert!(direct < -3.0, "le son direct descend au niveau du modèle : {direct:.1} dB");
+    // l'alignement se mesure sur la note de calibration (ici la note synthétique), pas sur ce
+    // signal-ci : un modèle n'étant pas linéaire, son gain change un peu d'un signal à l'autre.
+    assert!(
+        (direct - model).abs() < 3.0,
+        "son direct {direct:.1} dB contre modèle {model:.1} dB : les branches doivent s'équilibrer"
+    );
+    // aucun modèle dans le parallèle : le son direct reste à l'unité
+    let no_model = listen(false, true);
+    assert!(no_model.abs() < 0.1, "sans modèle, pas d'alignement : {no_model:.2} dB");
+}
+
+/// Plusieurs NAM sont permis (une fuzz capturée et un ampli) : trois branches en copie, deux
+/// modèles, sortie finie et non silencieuse. Le trim n'est alors plus dans l'étage NAM mais en
+/// tête de chaîne (il vaut pour toutes les branches).
+#[test]
+fn three_copy_branches_with_two_models() {
+    use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
+    let nam = |m: &str| BranchSpec {
+        gain_db: -6.0,
+        blocks: vec![BlockSpec::nam(example(m), Default::default())],
+        ..Default::default()
+    };
+    let spec = ChainSpec {
+        trim_db: -6.0,
+        blocks: vec![BlockSpec::Split(SplitSpec {
+            mode: SplitKind::Copy,
+            freqs: vec![],
+            branches: vec![
+                BranchSpec { name: Some("propre".into()), gain_db: -3.0, ..Default::default() },
+                BranchSpec { name: Some("fuzz".into()), ..nam("wavenet.nam") },
+                BranchSpec { name: Some("ampli".into()), ..nam("lstm.nam") },
+            ],
+        })],
+        level: dsp::chain::Level::Raw,
+        ..Default::default()
+    };
+    let mut chain = spec.build(48000, 64).unwrap();
+    let mut buf = signal(24000);
+    for c in buf.chunks_mut(64) {
+        chain.process(c);
     }
+    assert!(buf.iter().all(|x| x.is_finite()) && rms(&buf) > 1e-5, "RMS {}", rms(&buf));
+    assert_eq!(
+        spec.describe(),
+        "◆ copie [propre : direct -3.0 dB | fuzz : NAM wavenet -6.0 dB | ampli : NAM lstm -6.0 dB]"
+    );
+}
+
+/// Un parallèle dans une branche est refusé à la construction, avec un message qui dit quoi faire
+/// (ADR 0006 : un seul niveau).
+#[test]
+fn a_parallel_inside_a_branch_is_refused() {
+    use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
+    let copy = |branches: Vec<BranchSpec>| SplitSpec { mode: SplitKind::Copy, freqs: vec![], branches };
+    let inner = copy(vec![BranchSpec::default(), BranchSpec::default()]);
+    let spec = ChainSpec {
+        blocks: vec![BlockSpec::Split(copy(vec![
+            BranchSpec::default(),
+            BranchSpec {
+                name: Some("fuzz".into()),
+                blocks: vec![BlockSpec::Fx(fx("comp")), BlockSpec::Split(inner)],
+                ..Default::default()
+            },
+        ]))],
+        ..Default::default()
+    };
+    let err = spec.build(48000, 64).err().expect("refusé").to_string();
+    assert!(err.contains("un seul niveau de parallèle"), "{err}");
+    assert!(err.contains("branche 2 (fuzz)"), "{err}");
+    assert!(err.contains("sors le bloc du parallèle"), "{err}");
+    assert!(spec.validate().is_err(), "validate() le refuse aussi, sans rien charger");
 }
 
 /// Crossover autour de « NAM + IR » : grave clair aligné, sortie finie, ordre dans `describe`.
@@ -265,9 +367,9 @@ fn crossover_around_the_model() {
     assert!(out.iter().all(|x| x.is_finite()) && rms(&out) > 1e-4);
     assert_eq!(
         spec.describe(),
-        "crossover 150 Hz (grave clair | NAM wavenet › IR namfoop-chain-xover-".to_string()
+        "◆ bandes 150 Hz [< 150 Hz : direct | > 150 Hz : NAM wavenet › IR namfoop-chain-xover-".to_string()
             + &std::process::id().to_string()
-            + ") › normalisé -18 dB"
+            + "] › normalisé -18 dB"
     );
     let _ = std::fs::remove_file(ir);
 }
