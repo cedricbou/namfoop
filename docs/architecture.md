@@ -42,7 +42,8 @@ dépasse 1 000 lignes (avertissement au-delà de 600, `scripts/check-docs.sh`). 
 par les rendus de référence (`crates/dsp/tests/golden.rs`). Les profils de carte (#58) sont des
 données (`profiles/*.toml`, `model::card`) ; `audio-io` ne reçoit qu'une liste de contrôles mixer
 dans `Settings`. Effets et chaînes : [ADR 0005](adr/0005-effets-et-chaines.md) (un effet =
-`dsp::fx::FxSpec` + `Stage`, tout mono, parallèle par un étage `Split`) ; les presets (#6) seront
+`dsp::fx::FxSpec` + `Stage`, tout mono, parallèle par un étage `Split`), amendé par l'[ADR 0006](adr/0006-chaine-en-blocs-et-parallele.md)
+(NAM et IR en blocs, parallèle jusqu'à 4 branches ; éditeur de `browse` : [`docs/design/`](design/browse-chaine.md)) ; les presets (#6) seront
 des fichiers de la bibliothèque lus par `library`, pas des types de `model`. À venir : effets (#5),
 presets (#6), MIDI (#7), service de scène (#46).
 

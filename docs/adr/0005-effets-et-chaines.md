@@ -1,6 +1,7 @@
 # ADR 0005 · Effets et chaînes
 
-**Statut : adopté** (#5, socle en #79).
+**Statut : adopté** (#5, socle en #79). **Amendé par l'[ADR 0006](0006-chaine-en-blocs-et-parallele.md)** :
+NAM et IR deviennent des blocs, le parallèle sort du catalogue d'effets (jusqu'à 4 branches, un niveau).
 
 **Contexte.** Les effets (gate, compresseur, EQ, crossover, delay, chorus, réverbe) doivent se régler
 depuis la CLI, `browse`, les presets (#6) et les CC MIDI (#7) sans quatre descriptions différentes.
