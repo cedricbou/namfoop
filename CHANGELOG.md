@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#159)
+- **`namfoop presets`** liste la banque enregistrée (identifiant court, nom, la chaîne en une
+  ligne, parallèles compris), comme `namfoop models` pour les sons.
+- **`namfoop run --preset <id | mots-clés>`** (et `render --preset`) joue un preset sans passer par
+  `browse` : c'est ce qui permet de démarrer sur un son ou de le rejouer dans un script. La
+  résolution est celle de `-m` / `-i` (identifiant, nom, mots-clés, ambiguïté listée).
+- Un preset décrit toute la chaîne : le mélanger à `-m`, `-i`, `--pre`, `--post` ou `--crossover`
+  est refusé avec un message qui dit quoi faire. Le cadre (trim, niveau, master, limiteur,
+  `--input-db`) reste celui de la config et des options.
+- Vérifié : `render --preset` et les options équivalentes donnent un WAV **identique au bit près**.
+
 ### Ajouté (#158)
 - `browse`, espace Chaîne : **PgDn / PgUp passent au preset suivant / précédent**, dans l'ordre de
   la banque et en boucle — le geste du pédalier, pour essayer ou répéter sans passer par la banque.

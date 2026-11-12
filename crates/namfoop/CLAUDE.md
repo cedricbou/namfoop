@@ -74,10 +74,14 @@ latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::ra
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage)
 meta_cmd.rs     `meta` : options clap, affichage d'un modèle
 models_cmd.rs   `models` : inventaire affiché
+presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne via BlockSpec::describe)
 fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::catalog ; le parallèle
                 n'est pas un effet) ; `--pre` / `--post` dans amp.rs,
                 `bench --fx` dans offline.rs
 amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut),
+                `chain_spec()` : la chaîne à jouer, celle des options OU celle d'un preset
+                (`--preset`, #159 ; les options de chaîne sont alors refusées, le cadre — trim,
+                niveau, master, limiteur — reste celui de la config et des options),
                 qui se traduit en chaîne en blocs (dsp::block::ChainSpec, ADR 0006) : --crossover HZ
                 est un raccourci pour « bandes [HZ] : son direct | NAM › IR »
 config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)

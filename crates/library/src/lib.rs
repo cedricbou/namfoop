@@ -310,9 +310,11 @@ impl Library {
         match hits.as_slice() {
             [one] => Ok(one.path.clone()),
             [] => bail!(
-                "aucun {} ne correspond à « {q} » dans {} (identifiants : `namfoop models`)",
+                "aucun {} ne correspond à « {q} » dans {} (identifiants : `namfoop {}`)",
                 kind.label(),
-                self.root.display()
+                self.root.display(),
+                // les presets ont leur propre inventaire
+                if kind == Kind::Preset { "presets" } else { "models" }
             ),
             many => {
                 let list: Vec<String> =

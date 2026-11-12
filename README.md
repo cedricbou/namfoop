@@ -14,8 +14,9 @@ basse ─▶ entrée basse ─▶ trim ─▶ NAM ─▶ IR ─▶ niveau ─▶
 simulée, cartes multicanaux, assistant de configuration et navigateur de sons plein écran (changement sans
 coupure, IR conseillées, mélanges d'IR, éditeur de chaîne), calibration d'entrée et volume
 aligné sur la basse en direct, effets (gate, compresseur, EQ, crossover, chorus, delay, réverbe),
-rendu hors ligne, bench CPU, mesure de latence. À venir : presets, MIDI, démarrage automatique,
-Raspberry Pi.
+presets (enregistrer une chaîne, la rechercher, la rejouer, passer à la suivante),
+rendu hors ligne, bench CPU, mesure de latence. À venir : MIDI, banque préchargée, démarrage
+automatique, Raspberry Pi.
 
 ## Démarrage rapide
 
@@ -26,7 +27,9 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop models               # inventaire des modèles et IR
 ./target/release/namfoop setup                # une fois : carte, entrées, sorties, buffer
 ./target/release/namfoop calibrate            # une fois : joue fort 15 s
-./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant
+./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant (S enregistre un preset)
+./target/release/namfoop presets              # les presets enregistrés
+./target/release/namfoop run --preset chill   # rejouer un preset
 ./target/release/namfoop run -m b7k           # jouer
 ./target/release/namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
 ```

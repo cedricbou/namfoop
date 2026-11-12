@@ -91,6 +91,10 @@ pub struct AmpArgs {
     /// Gain de la branche aiguë (modèle + IR) du crossover (dB)
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true, requires = "crossover")]
     pub crossover_high_db: f32,
+    /// Preset à jouer : identifiant (`namfoop presets`), nom ou mots-clés (ex: "chill verse").
+    /// Ne se mélange pas avec les options de chaîne (-m, -i, --pre, --post, --crossover)
+    #[arg(long, value_name = "PRESET")]
+    pub preset: Option<String>,
     /// Dossier de la bibliothèque (modèles et IR)
     #[arg(long, default_value = "library")]
     pub library: PathBuf,
@@ -101,7 +105,75 @@ fn parse_fx(s: &str) -> std::result::Result<FxSpec, String> {
     s.parse::<FxSpec>().map_err(|e| format!("{e} (liste et paramètres : namfoop fx)"))
 }
 
+/// Le gain d'entrée propre à un modèle (`library/overrides.toml`), comme dans `browse`.
+fn model_input_db(lib: &Library, path: &std::path::Path) -> f32 {
+    lib.meta(path).ok().and_then(|m| m.input_db).unwrap_or(0.0)
+}
+
+/// Le premier bloc `nam` (puis `ir`) d'une chaîne : ils donnent le cadre (niveau « match »,
+/// avertissements d'IR), comme dans `browse`.
+fn first_of(blocks: &[dsp::block::BlockSpec], nam: bool) -> Option<PathBuf> {
+    use dsp::block::BlockSpec;
+    blocks.iter().find_map(|b| match b {
+        BlockSpec::Nam { path, .. } if nam => Some(path.clone()),
+        BlockSpec::Ir { path, .. } if !nam => Some(path.clone()),
+        BlockSpec::Split(s) => s.branches.iter().find_map(|br| first_of(&br.blocks, nam)),
+        _ => None,
+    })
+}
+
 impl AmpArgs {
+    /// La chaîne à jouer : celle des options, ou celle d'un **preset** (`--preset`, #159). Le
+    /// **cadre** (trim, niveau, master, limiteur) reste celui des options et de la config ; seuls
+    /// les blocs viennent du preset — exactement ce que fait `browse`.
+    pub fn chain_spec(
+        &self,
+        conf: &LoadedConfig,
+        limiter_meter: Option<Arc<AtomicU32>>,
+    ) -> Result<dsp::block::ChainSpec> {
+        let Some(query) = self.preset.as_deref() else {
+            return Ok(self.spec(conf, limiter_meter)?.to_chain_spec());
+        };
+        // un preset décrit **toute** la chaîne : le mélanger aux options serait ambigu
+        let mut used: Vec<&str> = Vec::new();
+        if self.model.is_some() {
+            used.push("-m");
+        }
+        if self.ir.is_some() {
+            used.push("-i");
+        }
+        if !self.pre.is_empty() {
+            used.push("--pre");
+        }
+        if !self.post.is_empty() {
+            used.push("--post");
+        }
+        if self.crossover.is_some() {
+            used.push("--crossover");
+        }
+        if !used.is_empty() {
+            anyhow::bail!(
+                "--preset décrit déjà toute la chaîne : {} ne s'y ajoute pas. Choisis l'un ou \
+                 l'autre (namfoop browse pour modifier un preset, S pour l'enregistrer)",
+                used.join(" / ")
+            );
+        }
+        let lib = Library::scan(&self.library);
+        let path = lib.resolve_preset(query)?;
+        let preset = lib.preset(&path)?;
+        let blocks = preset
+            .to_blocks(self.size, &|p| self.input_db + model_input_db(&lib, p), &|id| lib.path_of_id(id))?;
+        log::info!("preset « {} » ({})", preset.name, path.display());
+        // le cadre se cale sur le premier modèle et la première IR du preset
+        let mut frame = self.clone();
+        frame.preset = None;
+        frame.model = first_of(&blocks, true).map(|p| p.display().to_string());
+        frame.ir = first_of(&blocks, false).map(|p| p.display().to_string());
+        let mut chain = frame.spec(conf, limiter_meter)?.to_chain_spec();
+        chain.blocks = blocks;
+        Ok(chain)
+    }
+
     /// `-i auto` : la première IR conseillée, ou aucune si le modèle inclut déjà son baffle.
     fn auto_ir(
         &self,

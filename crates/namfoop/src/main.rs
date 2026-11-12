@@ -11,6 +11,7 @@ mod live;
 mod meta_cmd;
 mod models_cmd;
 mod offline;
+mod presets_cmd;
 mod setup;
 mod tui;
 
@@ -127,6 +128,12 @@ enum Cmd {
         #[arg(default_value = "library")]
         library: PathBuf,
     },
+    /// Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
+    Presets {
+        /// Dossier de la bibliothèque
+        #[arg(default_value = "library")]
+        library: PathBuf,
+    },
     /// Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
     Calibrate {
         /// Durée d'enregistrement (s)
@@ -226,6 +233,7 @@ fn main() -> Result<()> {
         }
         Cmd::Meta { args } => meta_cmd::run(&args, &conf),
         Cmd::Models { library } => models_cmd::list(&library, &conf),
+        Cmd::Presets { library } => presets_cmd::list(&library, &conf),
         Cmd::Fx { name } => fx_cmd::run(name.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let (audio, profile) = audio()?;
@@ -337,5 +345,57 @@ mod tests {
         let mut missing = Vec::new();
         walk(&cmd, "namfoop", &mut missing);
         assert!(missing.is_empty(), "aide manquante :\n{}", missing.join("\n"));
+    }
+
+    /// Un preset décrit toute la chaîne : les options de chaîne sont refusées, avec un message qui
+    /// dit quoi faire (#159). Et il se résout comme `-m` / `-i` (bibliothèque jetable).
+    #[test]
+    fn a_preset_refuses_to_mix_with_the_chain_options() {
+        // bibliothèque jetable (jamais celle de l'utilisateur)
+        let d = std::env::temp_dir().join(format!("namfoop-preset-cli-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        for (rel, body) in [
+            ("nam/Ampeg SVT/SVT Ultra Lo SM57.nam", "{}"),
+            (
+                "presets/Chill verse.preset.toml",
+                "name = \"Chill verse\"\n[[block]]\nkind = \"fx\"\n[block.fx]\ntype = \"reverb\"\n",
+            ),
+        ] {
+            let p = d.join(rel);
+            std::fs::create_dir_all(p.parent().expect("dossier")).expect("création");
+            std::fs::write(p, body).expect("écriture");
+        }
+        let conf = config::LoadedConfig::load(None, true).expect("config ignorée");
+        let args = |extra: &[&str]| -> amp::AmpArgs {
+            let mut v =
+                vec!["namfoop", "render", "--preset", "chill", "--library", d.to_str().expect("chemin")];
+            v.extend_from_slice(extra);
+            match Cli::try_parse_from(v).expect("options valides").cmd {
+                Cmd::Render { amp, .. } => amp,
+                _ => panic!("render attendu"),
+            }
+        };
+        // seul, le preset donne sa chaîne
+        let chain = args(&[]).chain_spec(&conf, None).expect("la chaîne du preset");
+        assert_eq!(chain.blocks.len(), 1, "{}", chain.describe());
+        assert!(chain.describe().contains("reverb"), "{}", chain.describe());
+        // mélangé, il refuse en nommant l'option fautive
+        for (extra, nom) in [
+            (vec!["-m", "svt"], "-m"),
+            (vec!["-i", "auto"], "-i"),
+            (vec!["--pre", "gate"], "--pre"),
+            (vec!["--post", "reverb"], "--post"),
+            (vec!["--crossover", "150"], "--crossover"),
+        ] {
+            let e = args(&extra).chain_spec(&conf, None).expect_err("refus attendu").to_string();
+            assert!(e.contains("--preset décrit déjà toute la chaîne"), "{extra:?} : {e}");
+            assert!(e.contains(nom), "{extra:?} : {e}");
+        }
+        // introuvable : le message renvoie vers `namfoop presets`
+        let mut a = args(&[]);
+        a.preset = Some("inconnu".into());
+        let e = a.chain_spec(&conf, None).expect_err("introuvable").to_string();
+        assert!(e.contains("aucun preset") && e.contains("namfoop presets"), "{e}");
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

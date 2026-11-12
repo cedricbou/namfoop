@@ -30,7 +30,7 @@ pub fn render(
     block: usize,
 ) -> Result<RenderStats> {
     let (mut buf, sr) = dsp::wav::read_mono(input).with_context(|| format!("lecture {}", input.display()))?;
-    let spec = amp.spec(conf, None)?;
+    let spec = amp.chain_spec(conf, None)?;
     let mut chain = spec.build(sr, block)?;
     engine::rt::flush_denormals(); // comme le thread audio : mesures proches de la scène
     let t0 = Instant::now();
