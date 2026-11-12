@@ -196,3 +196,29 @@ fn long_lists_scroll_with_the_cursor() {
 }
 
 mod chain;
+
+/// Le seuil du panneau Spectre : **128 colonnes** (police 10×20 sur l'écran 1280×800 du Pi, #138).
+/// À 128, la liste et le panneau restent lisibles côte à côte — pas plus tronqués qu'à 130.
+#[test]
+fn the_spectrum_panel_appears_from_128_columns() {
+    assert_eq!(SPECTRUM_MIN_WIDTH, 128);
+    let mut s = sample();
+    with_profiles(&mut s);
+    s.on_key(Key::Tab); // onglet IR
+    s.on_key(Key::Down);
+    s.listen();
+    let at = |w: u16| crate::tui::screen_text(w, 40, |f| render(&s, &Status::default(), f));
+    let (t127, t128, t130) = (at(127), at(128), at(130));
+    assert!(!t127.contains("Spectre"), "127 colonnes : pas de panneau\n{t127}");
+    for (w, t) in [(128, &t128), (130, &t130)] {
+        assert!(t.contains("Spectre (dB, IR telle qu'écoutée)"), "{w} :\n{t}");
+        // les libellés de la liste et les repères du graphique tiennent
+        assert!(t.contains("121 Lower - Cap") && t.contains("Powerhouse 410"), "{w} :\n{t}");
+        assert!(t.contains("[1970 Fender]"), "le pack reste lisible en {w} :\n{t}");
+        assert!(t.contains("16k") && t.contains("-24"), "les axes en {w} :\n{t}");
+        assert!(t.contains("◀ écoutée"), "{w} :\n{t}");
+    }
+    // la liste n'est pas plus tronquée à 128 qu'à 130 : mêmes colonnes utiles
+    let cut = |t: &str| t.lines().filter(|l| l.contains("i001")).count();
+    assert_eq!(cut(&t128), cut(&t130), "la ligne de l'IR reste visible");
+}

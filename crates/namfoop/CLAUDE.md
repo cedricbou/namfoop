@@ -38,7 +38,7 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 Tab / Maj+Tab en boucle sur les TROIS onglets, → / ← de proche en proche
                 (space.rs : switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
-                panneau ≥ 130 col., paramétré par courbes + référence (Bibliothèque : la référence
+                panneau ≥ 128 col. (#138 : police 10×20 du Pi), paramétré par courbes + référence (Bibliothèque : la référence
                 épinglée ◆ ; sélecteur : l'actuel ●), editor.rs, fx.rs onglet Effets, picker.rs (contenu entier du
                 bloc nam / ir sous le curseur, et le sélecteur), rows.rs (une ligne de modèle /
                 d'IR, partagée par les onglets et le sélecteur), synoptic.rs (le synoptique de la

@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Changé (#138)
+- `browse` : le **panneau Spectre s'affiche à partir de 128 colonnes** (au lieu de 130). L'écran
+  prévu sur le Pi 5 (10,1 pouces, 1280×800) donne 128×40 en police 10×20, celle que l'utilisateur
+  pense retenir : il manquait deux colonnes. Vérifié avec `TestBackend` qu'à 128 la liste et le
+  panneau restent aussi lisibles qu'à 130 (libellés, packs, axes, légende).
+
 ### Ajouté (#136)
 - `browse`, sélecteur d'un bloc `nam` / `ir` : **`c` bascule l'écoute entre l'actuel et l'essai**
   sans bouger le curseur — l'A/B dans le contexte de la chaîne, avec ses effets. La ligne porte
