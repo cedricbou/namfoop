@@ -770,6 +770,7 @@ Trois règles tiennent l'ensemble :
   | **↑↓** | **essaie dans la chaîne**, avec ses effets, 150 ms après la dernière touche. Le synoptique montre l'essai ; la liste marque `● actuel` ce qui était là et `◀ à l'essai` ce qu'on entend |
   | **Entrée** | **garde** ce qu'on entend |
   | **Échap** | remet l'**actuel** : la chaîne redevient exactement celle d'avant |
+  | **`c`** | bascule l'écoute entre l'**actuel** et l'**essai**, sans bouger le curseur : l'A/B en contexte. La ligne marque `● actuel ◀ écouté (c)`, et Entrée pendant qu'on écoute l'actuel garde l'actuel. En mode `match`, le volume est réaligné à chaque bascule |
   | **`o`** | n'entend que **ce bloc et son voisin immédiat** (`basse › nam › ir`), comme au banc d'essai ; le reste du synoptique s'assombrit. `o` de nouveau revient à la chaîne |
   | **`r`** | avec / sans effets |
   | **`/`** | filtre la liste, comme dans les onglets |
@@ -779,7 +780,9 @@ Trois règles tiennent l'ensemble :
   (Entrée) ou annule (Échap) d'abord. Pour une IR, les **mélanges enregistrés** (`library/cabs/`)
   sont en tête de la liste et les IR **conseillées** pour le modèle voisin portent un `★` ; il n'y a
   pas de ligne « aucune IR » (on retire le bloc avec `x`). Calibrer (`e`) reste réservé aux onglets
-  Modèles et IR. Choisir `nam` ou `ir` dans le **catalogue** (`a` / `i`) pose un bloc
+  Modèles et IR. Sur un terminal assez large (~130 colonnes), le **panneau Spectre** s'ouvre à
+  droite de la liste : la courbe de la ligne sous le curseur, l'**actuel** superposé en référence
+  (`●`), les écarts par zone et, pour un modèle, la ligne `grain`. Choisir `nam` ou `ir` dans le **catalogue** (`a` / `i`) pose un bloc
   `nam·(à choisir)` et ouvre aussitôt le sélecteur : Échap retire le bloc, rien n'est ajouté.
 
   Dans les réglages : ↑↓ choisit, ←→ change d'un pas, **Maj + ←→** d'un pas fin (un dixième),

@@ -432,3 +432,44 @@ fn the_send_window_and_the_place_mode() {
     assert!(t.contains("Entrée poser après le curseur"), "aide :\n{t}");
     assert!(t.contains("Échap annuler, retour à la Bibliothèque"), "aide :\n{t}");
 }
+
+/// Le panneau Spectre du sélecteur (§ 5) : la courbe de la ligne sous le curseur, l'**actuel** en
+/// référence (`●`), les écarts par zone et la ligne grain. Absent sur un terminal étroit.
+#[test]
+fn the_picker_shows_the_spectrum_panel_on_a_wide_terminal() {
+    use crate::browse::state::chain::{Block, Cursor, Leaf};
+    use crate::browse::state::tests::with_chain;
+    let mut s = with_chain(vec![Block::Leaf(Leaf::Nam { model: Some(0), on: true })]);
+    for (k, m) in s.models.iter_mut().enumerate() {
+        m.profile = Some(library::profile::Described {
+            profile: std::sync::Arc::new(dsp::profile::IrProfile {
+                bands_db: dsp::profile::band_centers()
+                    .iter()
+                    .map(|f| if *f > 1000.0 { -3.0 * k as f32 } else { 0.0 })
+                    .collect(),
+                low_cut_hz: 40.0,
+                high_cut_hz: 6000.0,
+            }),
+            spark: "▅▆▇▆▅▄▃▃▂▂▁▁".into(),
+            tags: vec![],
+            grain: Some(format!("crunch {k} %")),
+        });
+    }
+    s.fx.cursor = Cursor::Top(0);
+    s.on_key(Key::Enter);
+    s.on_key(Key::Down); // essai du modèle 1
+    let wide = crate::tui::screen_text(160, 40, |f| render(&s, &Status::default(), f));
+    assert!(wide.contains("Spectre (dB, IR telle qu'écoutée)"), "{wide}");
+    assert!(wide.contains("● B7K Ultra"), "l'actuel est la référence :\n{wide}");
+    assert!(wide.contains("800D Modern vs ● B7K Ultra"), "les écarts par zone :\n{wide}");
+    assert!(wide.contains("grain : crunch 1 %") && wide.contains("● crunch 0 %"), "{wide}");
+    // terminal étroit : pas de panneau, la liste prend toute la largeur
+    let narrow = crate::tui::screen_text(110, 33, |f| render(&s, &Status::default(), f));
+    assert!(!narrow.contains("Spectre"), "{narrow}");
+    assert!(narrow.contains("● actuel") && narrow.contains("◀ à l'essai"), "{narrow}");
+    // `c` : la liste dit qu'on réentend l'actuel
+    s.on_key(Key::Char('c'));
+    let t = crate::tui::screen_text(110, 33, |f| render(&s, &Status::default(), f));
+    assert!(t.contains("● actuel ◀ écouté (c)"), "{t}");
+    assert!(t.contains("tu réentends l'actuel : c pour revenir à l'essai"), "ligne d'écoute :\n{t}");
+}

@@ -1,9 +1,16 @@
-//! Panneau spectre (≥ 130 colonnes) : courbe sous le curseur, référence, écarts par zone, grain.
+//! Panneau spectre (≥ [`SPECTRUM_MIN_WIDTH`] colonnes) : la courbe de la ligne sous le curseur,
+//! une **référence** superposée, les écarts par zone et le grain.
+//!
+//! Il sert aux deux espaces (§ 5 de `docs/design/browse-espaces.md`) : dans la **Bibliothèque** la
+//! référence est celle épinglée par `c` (`◆`), dans le **sélecteur** de la Chaîne c'est l'**actuel**
+//! (`●`) — d'où le paramétrage par « courbes + référence » plutôt que par onglet.
 
 use super::*;
 
 /// Largeur minimale du corps pour afficher le panneau spectre à droite de la liste.
 pub const SPECTRUM_MIN_WIDTH: u16 = 130;
+
+type Profile = std::sync::Arc<dsp::profile::IrProfile>;
 
 pub(super) fn curve(p: &dsp::profile::IrProfile) -> Vec<(f64, f64)> {
     dsp::profile::band_centers()
@@ -13,36 +20,48 @@ pub(super) fn curve(p: &dsp::profile::IrProfile) -> Vec<(f64, f64)> {
         .collect()
 }
 
-/// Panneau « Spectre » : courbe sous le curseur (ou du mélange), référence épinglée, écarts par zone.
+/// Ce que le panneau montre.
+pub(super) struct Shown {
+    /// Les courbes au premier plan : (nom, profil, couleur).
+    pub curves: Vec<(String, Profile, Color)>,
+    /// La référence, superposée en jaune.
+    pub reference: Option<(String, Profile)>,
+    /// La marque de la référence : `◆` (épinglée) ou `●` (l'actuel du sélecteur).
+    pub mark: &'static str,
+    /// Ligne « grain : … » (modèles) : le grain sous le curseur, et celui de la référence.
+    pub grain: Option<(String, Option<String>)>,
+    /// Ce que dit le panneau quand il n'y a pas de référence.
+    pub hint: &'static str,
+}
+
+/// Panneau « Spectre » de la Bibliothèque : courbe sous le curseur (ou du mélange), référence
+/// épinglée par `c`, écarts par zone.
 pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
-    use ratatui::symbols::Marker;
-    use ratatui::widgets::{Axis, Chart, Dataset, GraphType};
     let profile_of = |i: usize| s.irs[i].profile.as_ref().map(|d| d.profile.clone());
-    // (nom, profil, couleur)
-    let mut shown: Vec<(String, std::sync::Arc<dsp::profile::IrProfile>, Color)> = Vec::new();
     let mprofile = |i: usize| s.models[i].profile.as_ref().map(|d| d.profile.clone());
+    let mut curves: Vec<(String, Profile, Color)> = Vec::new();
     match s.tab {
         Tab::Models => {
             if let Some(m) = s.model_at_cursor() {
                 if let Some(pr) = mprofile(m) {
-                    shown.push((s.models[m].label.clone(), pr, Color::Cyan));
+                    curves.push((s.models[m].label.clone(), pr, Color::Cyan));
                 }
             }
         }
         Tab::Blend => {
             if let Some(b) = &s.blend_profile {
-                shown.push(("mélange".into(), b.clone(), Color::Magenta));
+                curves.push(("mélange".into(), b.clone(), Color::Magenta));
             }
             if let Some(p) = s.blend.get(s.cursor()) {
                 if let Some(pr) = profile_of(p.ir) {
-                    shown.push((s.irs[p.ir].label.clone(), pr, Color::Cyan));
+                    curves.push((s.irs[p.ir].label.clone(), pr, Color::Cyan));
                 }
             }
         }
-        _ => {
+        Tab::Irs => {
             if let Some(i) = s.ir_at_cursor() {
                 if let Some(pr) = profile_of(i) {
-                    shown.push((s.irs[i].label.clone(), pr, Color::Cyan));
+                    curves.push((s.irs[i].label.clone(), pr, Color::Cyan));
                 }
             }
         }
@@ -52,11 +71,66 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
     } else {
         s.reference.and_then(|r| profile_of(r).map(|p| (s.irs[r].label.clone(), p)))
     };
+    let grain = (s.tab == Tab::Models)
+        .then(|| (grain_of(s, s.model_at_cursor()), s.ref_model.map(|r| grain_of(s, Some(r)))));
+    draw(
+        f,
+        area,
+        &Shown {
+            curves,
+            reference,
+            mark: "◆",
+            grain,
+            hint: " c : épingler la ligne sous le curseur comme référence (comparaison)",
+        },
+    );
+}
+
+/// Panneau « Spectre » du **sélecteur** (§ 5) : la courbe de l'élément sous le curseur, et
+/// l'**actuel** comme référence.
+pub(super) fn render_picker_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
+    let Some(p) = s.picker.as_ref() else { return };
+    let profile = |index: usize| -> Option<(String, Profile)> {
+        let it = if p.nam { s.models.get(index)? } else { s.irs.get(index)? };
+        Some((it.label.clone(), it.profile.as_ref()?.profile.clone()))
+    };
+    let under = s.pick_row().and_then(|r| profile(r.index));
+    let current = p.current.filter(|c| Some(*c) != s.pick_row().map(|r| r.index)).and_then(profile);
+    let grain =
+        p.nam.then(|| (grain_of(s, s.pick_row().map(|r| r.index)), p.current.map(|c| grain_of(s, Some(c)))));
+    draw(
+        f,
+        area,
+        &Shown {
+            curves: under.map(|(n, pr)| vec![(n, pr, Color::Cyan)]).unwrap_or_default(),
+            reference: current,
+            mark: "●",
+            grain,
+            hint: " ↑↓ : essayer un autre son ; l'actuel est superposé en référence",
+        },
+    );
+}
+
+/// Le grain d'un modèle, pour la ligne du bas.
+fn grain_of(s: &State, m: Option<usize>) -> String {
+    m.and_then(|m| s.models.get(m))
+        .and_then(|it| it.profile.as_ref().and_then(|d| d.grain.clone()))
+        .unwrap_or_else(|| "?".into())
+}
+
+/// Dessine le panneau : le graphique, puis les écarts par zone et le grain.
+fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
+    use ratatui::symbols::Marker;
+    use ratatui::widgets::{Axis, Chart, Dataset, GraphType};
     let [chart_area, info] = Layout::vertical([Constraint::Min(6), Constraint::Length(4)]).areas(area);
-    let curves: Vec<Vec<(f64, f64)>> =
-        shown.iter().map(|(_, p, _)| curve(p)).chain(reference.iter().map(|(_, p)| curve(p))).collect();
+    let curves: Vec<Vec<(f64, f64)>> = shown
+        .curves
+        .iter()
+        .map(|(_, p, _)| curve(p))
+        .chain(shown.reference.iter().map(|(_, p)| curve(p)))
+        .collect();
     let mut datasets = Vec::new();
-    for (k, (name, _, color)) in shown.iter().enumerate() {
+    for (k, (name, _, color)) in shown.curves.iter().enumerate() {
         datasets.push(
             Dataset::default()
                 .name(name.clone())
@@ -66,10 +140,10 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
                 .data(&curves[k]),
         );
     }
-    if let Some((name, _)) = &reference {
+    if let Some((name, _)) = &shown.reference {
         datasets.push(
             Dataset::default()
-                .name(format!("◆ {name}"))
+                .name(format!("{} {name}", shown.mark))
                 .marker(Marker::Braille)
                 .graph_type(GraphType::Line)
                 .style(Style::new().fg(Color::Yellow))
@@ -97,7 +171,7 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
     f.render_widget(chart, chart_area);
 
     let mut text = Vec::new();
-    match (shown.last(), &reference) {
+    match (shown.curves.last(), &shown.reference) {
         (Some((name, p, _)), Some((rname, r))) => {
             let (a, b) = (library::profile::zones(p), library::profile::zones(r));
             let parts: Vec<String> = library::profile::ZONES
@@ -106,33 +180,21 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
                 .map(|(k, (z, ..))| format!("{z} {:+.0}", a[k] - b[k]))
                 .collect();
             text.push(Line::from(Span::styled(
-                format!(" {name} vs ◆ {rname} :"),
+                format!(" {name} vs {} {rname} :", shown.mark),
                 Style::new().fg(Color::Yellow),
             )));
             text.push(Line::raw(format!(" {}", parts.join(" · "))));
         }
-        (Some(_), None) => {
-            text.push(Line::from(Span::styled(
-                " c : épingler la ligne sous le curseur comme référence (comparaison)",
-                Style::new().fg(Color::DarkGray),
-            )));
-        }
-        (None, _) => {
-            text.push(Line::from(Span::styled(
-                " pas de profil pour cette ligne",
-                Style::new().fg(Color::DarkGray),
-            )));
-        }
+        (Some(_), None) => text.push(Line::from(Span::styled(shown.hint, Style::new().fg(Color::DarkGray)))),
+        (None, _) => text.push(Line::from(Span::styled(
+            " pas de profil pour cette ligne",
+            Style::new().fg(Color::DarkGray),
+        ))),
     }
-    if s.tab == Tab::Models {
-        let grain =
-            |m: usize| s.models[m].profile.as_ref().and_then(|d| d.grain.clone()).unwrap_or("?".into());
-        let mut g = Vec::new();
-        if let Some(m) = s.model_at_cursor() {
-            g.push(Span::raw(format!(" grain : {}", grain(m))));
-        }
-        if let Some(r) = s.ref_model {
-            g.push(Span::styled(format!("  ·  ◆ {}", grain(r)), Style::new().fg(Color::Yellow)));
+    if let Some((grain, rgrain)) = &shown.grain {
+        let mut g = vec![Span::raw(format!(" grain : {grain}"))];
+        if let Some(r) = rgrain {
+            g.push(Span::styled(format!("  ·  {} {r}", shown.mark), Style::new().fg(Color::Yellow)));
         }
         text.insert(0, Line::from(g));
     }

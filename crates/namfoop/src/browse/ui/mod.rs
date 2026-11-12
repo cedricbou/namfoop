@@ -20,8 +20,8 @@ pub mod synoptic;
 mod windows;
 
 use editor::*;
+use spectrum::render_spectrum;
 pub use spectrum::SPECTRUM_MIN_WIDTH;
-use spectrum::*;
 
 /// Mesures affichées en bas (fournies par la boucle).
 #[derive(Default, Clone)]
