@@ -426,6 +426,19 @@ impl ChainSpec {
 
     /// Refuse ce qui n'a pas de sens, avec un message clair, **avant** de charger quoi que ce soit.
     /// Les bornes d'un parallèle (nombre de branches, coupures) sont vérifiées par `Split::new`.
+    /// Le gain d'entrée du **premier modèle** (dB), branches comprises : l'affichage de `run` le
+    /// montre en plus du trim (`→ modèle -20 dB`). `None` : aucun modèle dans la chaîne.
+    pub fn first_nam_input_db(&self) -> Option<f32> {
+        fn find(blocks: &[BlockSpec]) -> Option<f32> {
+            blocks.iter().find_map(|b| match b {
+                BlockSpec::Nam { settings, .. } => Some(settings.input_db),
+                BlockSpec::Split(s) => s.branches.iter().find_map(|br| find(&br.blocks)),
+                _ => None,
+            })
+        }
+        find(&self.blocks)
+    }
+
     pub fn validate(&self) -> Result<()> {
         for b in &self.blocks {
             if let BlockSpec::Split(s) = b {

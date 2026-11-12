@@ -218,6 +218,8 @@ fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
         crossover: None,
         crossover_low_db: 0.0,
         crossover_high_db: 0.0,
+        // `browse` décrit ses blocs lui-même : le preset n'entre pas dans le cadre
+        preset: None,
         library: library.to_path_buf(),
     }
 }

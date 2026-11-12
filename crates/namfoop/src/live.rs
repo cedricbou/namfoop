@@ -30,9 +30,10 @@ pub fn run(
     quiet: bool,
 ) -> Result<()> {
     let limiter = Arc::default();
-    let spec = amp.spec(conf, Some(Arc::clone(&limiter)))?;
+    // la chaîne des options, ou celle d'un preset (`--preset`, #159)
+    let spec = amp.chain_spec(conf, Some(Arc::clone(&limiter)))?;
     let chain = spec.build(cfg.rate, MAX_BLOCK)?;
-    if spec.model.is_none() && spec.ir.is_none() {
+    if spec.blocks.is_empty() {
         log::info!("aucun modèle ni IR : passthrough");
     }
     let engine = Engine::start(
@@ -65,7 +66,8 @@ pub fn run(
     engine.clear_load_history();
     log::info!("en route, Ctrl+C pour quitter");
     let mut max_load = 0.0f32;
-    let to_model_db = spec.trim_db + spec.nam.input_db;
+    let model_db = spec.first_nam_input_db();
+    let to_model_db = spec.trim_db + model_db.unwrap_or(0.0);
     let mark = conf.config.calibrated_input_peak_dbfs();
     if let Some(m) = mark {
         log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
@@ -87,7 +89,7 @@ pub fn run(
                 db(i),
                 if ic > 0 { format!(" [CLIP ×{ic}]") } else { String::new() },
                 mark.map_or(String::new(), |m| format!(" (calib. {m:.1})")),
-                if spec.model.is_some() && i > 1e-6 {
+                if model_db.is_some() && i > 1e-6 {
                     format!(" → modèle {:.0} dB", dsp::gain_to_db(i) + to_model_db)
                 } else {
                     String::new()

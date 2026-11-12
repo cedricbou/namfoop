@@ -22,6 +22,7 @@ Commands:
   meta       Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
   fx         Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
   models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
+  presets    Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
   browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
   setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
@@ -199,6 +200,9 @@ Options:
           
           [default: 0]
 
+      --preset <PRESET>
+          Preset à jouer : identifiant (`namfoop presets`), nom ou mots-clés (ex: "chill verse"). Ne se mélange pas avec les options de chaîne (-m, -i, --pre, --post, --crossover)
+
       --library <LIBRARY>
           Dossier de la bibliothèque (modèles et IR)
           
@@ -334,6 +338,9 @@ Options:
           Gain de la branche aiguë (modèle + IR) du crossover (dB)
           
           [default: 0]
+
+      --preset <PRESET>
+          Preset à jouer : identifiant (`namfoop presets`), nom ou mots-clés (ex: "chill verse"). Ne se mélange pas avec les options de chaîne (-m, -i, --pre, --post, --crossover)
 
       --library <LIBRARY>
           Dossier de la bibliothèque (modèles et IR)
@@ -644,6 +651,61 @@ Options:
 Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
 
 Usage: namfoop models [OPTIONS] [LIBRARY]
+
+Arguments:
+  [LIBRARY]
+          Dossier de la bibliothèque
+          
+          [default: library]
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon jack]
+
+          Possible values:
+          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --device <DEVICE>
+          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --client-name <CLIENT_NAME>
+          Nom du client JACK
+          
+          [default: namfoop]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop presets
+
+```text
+Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
+
+Usage: namfoop presets [OPTIONS] [LIBRARY]
 
 Arguments:
   [LIBRARY]

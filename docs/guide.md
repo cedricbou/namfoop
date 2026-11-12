@@ -1099,6 +1099,27 @@ de -30 dBFS, le repère est à -8,5 dBFS.
 Échelle : de -60 à 0 dBFS. Vert en dessous de -12, jaune de -12 à -3, rouge au-dessus de -3. La
 barre garde la crête et retombe en douceur. Sans calibration, il n'y a pas de repère.
 
+### Rejouer un preset : `namfoop presets`, `run --preset`
+
+Les presets enregistrés dans `browse` (touche `S`) sont des fichiers de la bibliothèque : on peut
+donc les jouer **sans écran**, ce qui est le cas d'usage du Pi et des scripts.
+
+```sh
+namfoop presets                       # la banque : identifiant, nom, chaîne
+namfoop run --preset "chill verse"    # par mots-clés
+namfoop run --preset p3k8             # ou par identifiant
+namfoop render --preset p3k8 --in di.wav --out sortie.wav
+```
+
+`--preset` accepte un **identifiant court** (`p3k8`), un nom ou des **mots-clés**, comme `-m` et
+`-i` : si plusieurs presets correspondent, le message les liste. Un preset décrit **toute** la
+chaîne : il ne se mélange pas avec `-m`, `-i`, `--pre`, `--post` ni `--crossover` (le message le
+dit). Les réglages qui ne sont pas dans la chaîne — trim, niveau (`--level`), master, limiteur,
+`--input-db` — restent les tiens : ils viennent de la config et des options, comme d'habitude.
+
+Le rendu est **identique au bit près** à celui des options équivalentes : un preset ne change rien
+au son, il le décrit.
+
 ### Options de `run`
 
 | Option | Rôle |
