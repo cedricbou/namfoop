@@ -235,3 +235,56 @@ fn the_library_tabs_do_not_write_into_the_block_being_tried() {
     assert!(matches!(s.tick(1200), Action::Play { .. }));
     assert_eq!(s.fx.chain.blocks[0], Block::Leaf(nam(0)), "la chaîne éditée n'a pas bougé");
 }
+
+/// `c` bascule l'écoute entre l'actuel et l'essai, sans bouger le curseur : l'A/B en contexte
+/// (§ 5). ↑↓ revient à l'essai, Entrée pendant la bascule garde l'actuel.
+#[test]
+fn c_switches_between_the_current_and_the_trial() {
+    let mut s = with_chain(vec![Block::Leaf(fx("gate:threshold=-60")), Block::Leaf(nam(0))]);
+    s.mark_start();
+    s.fx.cursor = Cursor::Top(1);
+    s.on_key(Key::Enter);
+    // sans essai : `c` explique quoi faire
+    s.on_key(Key::Char('c'));
+    assert!(
+        s.message.as_deref().is_some_and(|m| m.contains("choisis d'abord un autre modèle avec ↑↓")),
+        "{:?}",
+        s.message
+    );
+    assert!(!s.picker.as_ref().unwrap().ab);
+    // un essai, puis `c` : on réentend l'actuel
+    s.on_key(Key::Down);
+    assert_eq!(heard(&s), "gate -60 nam·800D Modern");
+    s.on_key(Key::Char('c'));
+    assert!(s.picker.as_ref().unwrap().ab);
+    assert_eq!(heard(&s), "gate -60 nam·B7K Ultra", "l'actuel, dans la chaîne avec ses effets");
+    assert_eq!(s.pick_cursor(), 1, "le curseur n'a pas bougé");
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("tu réentends l'actuel")), "{:?}", s.message);
+    // `c` de nouveau : l'essai
+    s.on_key(Key::Char('c'));
+    assert_eq!(heard(&s), "gate -60 nam·800D Modern");
+    // ↑↓ revient à l'essai (celui de la nouvelle ligne)
+    s.on_key(Key::Char('c'));
+    assert!(s.picker.as_ref().unwrap().ab);
+    s.on_key(Key::Down);
+    assert!(!s.picker.as_ref().unwrap().ab, "↑↓ revient à l'essai");
+    assert_eq!(heard(&s), "gate -60 nam·Angel_v2");
+    // Entrée pendant qu'on écoute l'actuel garde l'actuel
+    s.on_key(Key::Char('c'));
+    s.on_key(Key::Enter);
+    assert!(s.picker.is_none());
+    assert_eq!(heard(&s), "gate -60 nam·B7K Ultra");
+    assert!(s.unsaved().is_empty(), "rien n'a changé : {:?}", s.unsaved());
+    assert!(
+        s.message.as_deref().is_some_and(|m| m.contains("« B7K Ultra » conservé (tu écoutais l'actuel)")),
+        "{:?}",
+        s.message
+    );
+    // un bloc tout juste posé par le catalogue : pas d'actuel, `c` ne fait rien
+    let mut s = with_chain(vec![Block::Leaf(fx("reverb"))]);
+    s.on_key(Key::Char('a'));
+    s.on_key(Key::Enter); // `nam` : bloc vide + sélecteur
+    s.on_key(Key::Down);
+    s.on_key(Key::Char('c'));
+    assert!(s.message.is_none() && !s.picker.as_ref().unwrap().ab, "{:?}", s.message);
+}

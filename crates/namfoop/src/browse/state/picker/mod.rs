@@ -327,6 +327,30 @@ impl State {
                 );
                 self.fx_due = Some(self.now);
             }
+            // `c` : bascule l'écoute entre l'actuel et l'essai, sans bouger le curseur (§ 5)
+            Key::Char('c') => {
+                let p = self.picker.as_ref().expect("ouvert");
+                // bloc tout juste posé par le catalogue : pas d'actuel, `c` ne fait rien
+                let Some(current) = p.current else { return Some(Action::None) };
+                if !p.trying() {
+                    let what = if p.nam { "modèle" } else { "IR" };
+                    let autre = if p.nam { "un autre" } else { "une autre" };
+                    self.message = Some(format!(
+                        "c compare l'actuel et l'essai : choisis d'abord {autre} {what} avec ↑↓"
+                    ));
+                    return Some(Action::None);
+                }
+                let p = self.picker.as_mut().expect("ouvert");
+                p.ab = !p.ab;
+                let (ab, nam) = (p.ab, p.nam);
+                let name = self.pick_name(nam, current);
+                self.message = Some(if ab {
+                    format!("tu réentends l'actuel : « {name} » (c pour revenir à l'essai)")
+                } else {
+                    "retour à l'essai".into()
+                });
+                self.fx_due = Some(self.now);
+            }
             Key::Char('/') => self.picker.as_mut().expect("ouvert").filtering = true,
             // `q` et les touches d'espace attendent la fin du choix (§ 2 et § 5)
             Key::Char('q') | Key::Char('1') | Key::Char('2') => {

@@ -68,7 +68,15 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
 
     // --- le sélecteur sur place, s'il est ouvert (§ 5) ---
     if s.picker.is_some() {
-        let inner = params.height.saturating_sub(3) as usize; // bordures + ligne de filtre
+        // le panneau Spectre à droite de la liste, si le terminal est assez large (§ 5)
+        let (list, spectrum) = if params.width >= super::SPECTRUM_MIN_WIDTH {
+            let [a, b] =
+                Layout::horizontal([Constraint::Percentage(58), Constraint::Percentage(42)]).areas(params);
+            (a, Some(b))
+        } else {
+            (params, None)
+        };
+        let inner = list.height.saturating_sub(3) as usize; // bordures + ligne de filtre
         let lines = super::picker::picker_lines(s, inner);
         f.render_widget(
             Paragraph::new(lines).block(
@@ -77,8 +85,11 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
                     Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                 )),
             ),
-            params,
+            list,
         );
+        if let Some(area) = spectrum {
+            super::spectrum::render_picker_spectrum(s, f, area);
+        }
         return;
     }
 

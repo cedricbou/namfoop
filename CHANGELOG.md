@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#136)
+- `browse`, sélecteur d'un bloc `nam` / `ir` : **`c` bascule l'écoute entre l'actuel et l'essai**
+  sans bouger le curseur — l'A/B dans le contexte de la chaîne, avec ses effets. La ligne porte
+  `● actuel ◀ écouté (c)`, la ligne d'écoute dit `tu réentends l'actuel : c pour revenir à l'essai`,
+  et Entrée pendant qu'on écoute l'actuel garde l'actuel. Sans essai en cours, `c` explique quoi
+  faire ; sur un bloc tout juste posé par le catalogue (pas d'actuel), il ne fait rien. En mode
+  « match », le volume est réaligné à chaque bascule, comme pour `r`.
+- Le **panneau Spectre** s'ouvre aussi dans le sélecteur (même seuil de largeur) : courbe de la
+  ligne sous le curseur, **actuel** en référence (`●`), écarts par zone, ligne `grain`.
+  Épique #131, spécification `docs/design/browse-espaces.md` § 5.
+
 ### Ajouté (#135)
 - `browse`, Bibliothèque : **Entrée met le son du banc dans la chaîne**. Chaîne vide, elle devient
   `nam › ir` ; sinon une **fenêtre** demande quel bloc remplacer (nom complet du modèle en place et
