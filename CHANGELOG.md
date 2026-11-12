@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#137)
+- `browse` : **`q` signale une chaîne vide alors que le banc joue un son**, même s'il n'y a rien
+  d'autre à enregistrer — la commande affichée en quittant ne jouerait pas ce son. La fenêtre
+  propose les trois issues : **Entrée** le met dans la chaîne et on reste (`2` pour la voir), `Q`
+  quitte quand même, Échap reste. Banc sur « son direct » sans IR : rien à signaler.
+- Entrée sur une **chaîne vide** installe désormais **tout ce qu'on entend au banc** depuis
+  n'importe quel onglet (`nam › ir`), au lieu de l'IR seule depuis l'onglet IR : le parcours nominal
+  « je choisis un modèle, puis son baffle, Entrée » perdait le modèle. Spécification § 4 corrigée
+  (décision du 12/11/2026).
+- **Corrigé** : la commande affichée en quittant (et le cadre « à copier dans namfoop run »)
+  décrivait le modèle et l'IR du **banc d'essai** avec les effets de la **chaîne**. Depuis la
+  séparation des deux espaces (#134), le banc peut jouer autre chose : la commande décrit maintenant
+  la chaîne, c'est-à-dire ce qu'on rejoue.
+- Nettoyage : plus aucune mention de « l'onglet Effets » ni du bloc « visé » dans les aides, les
+  messages, le guide et les spécifications ; `docs/design/browse-chaine.md` § 10 renvoie à
+  `browse-espaces.md`. Le guide décrit les deux espaces partout, parcours nominal compris.
+  Ferme #125 (épique #131, spécification § 8, § 9 et § 10).
+
 ### Changé (#138)
 - `browse` : le **panneau Spectre s'affiche à partir de 128 colonnes** (au lieu de 130). L'écran
   prévu sur le Pi 5 (10,1 pouces, 1280×800) donne 128×40 en police 10×20, celle que l'utilisateur

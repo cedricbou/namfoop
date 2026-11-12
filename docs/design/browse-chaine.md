@@ -1,4 +1,4 @@
-# Spécification · éditeur de chaîne de `browse` (onglet Effets)
+# Spécification · éditeur de chaîne de `browse` (espace **Chaîne**)
 
 Référence de comportement pour l'épique #103 (issues #104 à #111). Décisions : [ADR 0006](../adr/0006-chaine-en-blocs-et-parallele.md).
 Maquette interactive validée par l'utilisateur : [`browse-chaine.html`](browse-chaine.html), à ouvrir dans un navigateur
@@ -89,7 +89,7 @@ Positions possibles : un bloc hors parallèle ; le `◆` d'un parallèle ; l'**e
 | `{` / `}` | bloc dans une branche : le passe dans la branche du dessus / dessous, à la même position (bornée). | |
 | `b` | bloc : coupé / actif. En-tête : muet. | `lpf 250 coupé` |
 | `m` / `o` / `p` | branche (en-tête ou bloc de la branche) : muet / solo / polarité inversée. | `solo : oui` |
-| Entrée, Tab | focus « réglages » (§ 6) si l'élément en a. | |
+| Entrée, Tab | focus « réglages » (§ 6) si l'élément en a. Sur un bloc `nam` / `ir`, Entrée ouvre le **sélecteur sur place** (§ 5 de `browse-espaces.md`) | |
 | Échap | ne quitte **jamais**. | `Échap revient en arrière mais ne quitte jamais : q pour quitter` |
 | `v` | vumètres affichés / masqués. | `vumètres masqués` |
 | `t` | déplie / replie le TOML du preset (replié par défaut, une ligne `▸ preset TOML (t)`). | |
@@ -174,17 +174,17 @@ Quatre bandes : `comp › ◆ bandes 100 / 400 / 1600 [direct | nam svt › ir 8
 Format TOML : proposition, à fixer dans #6. Le solo n'est jamais enregistré ; un bloc coupé
 s'écrit `{ fx = "...", on = false }`.
 
-## 10. Hors maquette, à confirmer pendant la réalisation
+## 10. Remplacé par l'épique #131 (deux espaces)
 
-> **Remplacé (épique #131).** Le premier point ci-dessous — les onglets Modèles / IR agissent sur le bloc
-> choisi dans la chaîne — est abandonné : voir [`browse-espaces.md`](browse-espaces.md) (Bibliothèque et
-> Chaîne, sélecteur sur place).
+Ce paragraphe décrivait les onglets Modèles / IR agissant sur le bloc `nam` / `ir` « visé » dans la
+chaîne, et Entrée sur un `nam` ouvrant l'onglet Modèles. **Abandonné** : voir
+[`browse-espaces.md`](browse-espaces.md) — la Bibliothèque (banc d'essai, qui n'écrit jamais dans la
+chaîne) et la Chaîne (où le modèle et l'IR d'un bloc se choisissent **sur place**, § 5). Le reste de
+cette spécification est inchangé.
 
-- Onglets Modèles / IR : ils agissent sur le bloc `nam` / `ir` choisi dans la chaîne (par défaut le
-  premier), le titre de l'onglet le dit ; Entrée sur un `nam` ouvre l'onglet Modèles (#109).
-- Défilement horizontal du synoptique dans un terminal étroit (#108).
-- Seuil d'alerte de charge CPU (#111).
-- Brouillon automatique en quittant sans enregistrer (#110).
+Les autres points laissés ouverts ici ont été tranchés ailleurs : défilement horizontal du
+synoptique dans un terminal étroit (#108, fait), seuil d'alerte de charge CPU (#111, fait),
+brouillon automatique en quittant sans enregistrer (#110, à faire).
 
 ## 11. Tests attendus
 

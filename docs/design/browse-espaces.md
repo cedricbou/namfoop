@@ -98,9 +98,15 @@ Entrée envoie ce que joue le banc : le modèle (onglet Modèles), l'IR (onglet 
 Mélange ; s'il n'est pas sauvé, il l'est d'abord, sous le nom proposé).
 
 - `son direct` ou `aucune IR` : rien à envoyer, un message le dit.
-- **Chaîne vide** : elle devient `nam › ir` (ou `nam` seul pour une capture avec baffle, ou `ir` seule
-  depuis l'onglet IR), sans fenêtre. Message : `chaîne créée : nam·B7K Ultra › ir·8x10 SM57 · 2 pour
-  l'habiller d'effets`. C'est le parcours « j'ouvre `browse`, je choisis un son ».
+- **Chaîne vide** : elle devient **ce qu'on entend au banc**, depuis n'importe lequel des trois
+  onglets — `nam › ir`, `nam` seul pour une capture avec baffle (ou si `b` coupe l'IR), `ir` seule
+  quand le banc ne joue pas de modèle —, sans fenêtre. Message : `chaîne créée : nam·B7K Ultra ›
+  ir·8x10 SM57 · 2 pour l'habiller d'effets`. C'est le parcours « j'ouvre `browse`, je choisis un
+  son » : on choisit un modèle (onglet Modèles), puis son baffle (onglet IR), et Entrée installe les
+  deux, quel que soit l'onglet où l'on se trouve (**corrigé le 12/11/2026** : la règle précédente,
+  « `ir` seule depuis l'onglet IR », perdait le modèle du banc dans ce parcours).
+
+  La **fenêtre**, elle, reste par type de bloc : depuis l'onglet IR elle propose les blocs `ir`.
 - **Sinon, toujours une fenêtre**, même s'il n'y a qu'un bloc du bon type :
 
 ```
@@ -219,8 +225,9 @@ grain), référence `c`, bascule `r`, `b` avec / sans IR, indicateur A/B, édite
 filtre), onglet Mélange (`espace`, `+` `-`, `p`, `a`, `x`, `s`), niveau « match » à chaque bascule.
 
 Dans la Chaîne : tout `browse-chaine.md` sauf son § 10 — synoptique, vumètres, navigation 2D, `a` `i` `s`
-`+` `x` `[ ]` `{ }` `b` `m` `o` `p` `v` `t`, réglages, `r`, Échap qui ne quitte jamais, `q` avec
-confirmation, ligne de commande équivalente.
+`+` `x` `[ ]` `{ }` `b` `m` `o` `p` `v`, réglages (Entrée et Tab), `r`, Échap qui ne quitte jamais,
+`q` avec confirmation, ligne de commande équivalente (corrigée le 12/11/2026 : elle décrit la
+**chaîne**, pas le banc d'essai — `t` cité ici par erreur n'est pas une touche de l'épique #103).
 
 Le parcours nominal du guide (§ 6 : ouvrir `browse`, choisir un modèle et une IR, ajouter des effets,
 quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée.

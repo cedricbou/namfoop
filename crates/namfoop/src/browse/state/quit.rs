@@ -44,9 +44,32 @@ impl State {
         v
     }
 
+    /// **La chaîne est vide alors que le banc joue un son** : `q` le signale toujours, même s'il n'y
+    /// a rien d'autre à enregistrer — la commande affichée en quittant ne jouerait pas ce son
+    /// (§ 9 de `docs/design/browse-espaces.md`, décision du 12/11/2026). Banc sur « son direct »
+    /// sans IR : rien à signaler.
+    pub fn empty_chain_warning(&self) -> Option<String> {
+        if !self.fx.chain.is_empty() {
+            return None;
+        }
+        let model = self.model.map(|m| self.models[m].label.clone());
+        let ir = match self.ir {
+            IrChoice::Item(i) => Some(self.irs[i].label.clone()),
+            IrChoice::Blend => Some(format!("mélange de {} IR", self.blend.len())),
+            IrChoice::None => None,
+        };
+        let what = match (model, ir) {
+            (None, None) => return None,
+            (Some(m), Some(i)) => format!("{m} › {i}"),
+            (Some(m), None) => m,
+            (None, Some(i)) => i,
+        };
+        Some(what)
+    }
+
     /// `q` : quitte tout de suite si rien n'est en jeu, sinon ouvre la confirmation.
     pub(super) fn quit_or_confirm(&mut self) -> Action {
-        if self.unsaved().is_empty() {
+        if self.unsaved().is_empty() && self.empty_chain_warning().is_none() {
             return Action::Quit;
         }
         self.confirm_quit = true;
@@ -62,6 +85,11 @@ impl State {
         self.confirm_quit = false;
         if key == Key::Char('Q') {
             return Action::Quit;
+        }
+        // chaîne vide : Entrée met le son du banc dans la chaîne et on reste (§ 9)
+        if key == Key::Enter && self.empty_chain_warning().is_some() {
+            let a = self.send_to_chain();
+            return a;
         }
         self.message = Some("on reste : rien n'est perdu".into());
         Action::None
@@ -194,7 +222,10 @@ mod tests {
         s.mark_blend_saved(); // ce que fait la boucle après l'écriture du fichier
         s.mark_start(); // le bloc `ir` ajouté par le choix d'IR fait partie de l'état de référence
         assert!(s.unsaved().is_empty(), "{:?}", s.unsaved());
-        assert_eq!(s.on_key(Key::Char('q')), Action::Quit);
+        // la chaîne est vide alors que le banc joue le mélange : `q` le signale (§ 9)
+        assert_eq!(s.on_key(Key::Char('q')), Action::None);
+        assert!(s.confirm_quit && s.empty_chain_warning().is_some());
+        assert_eq!(s.on_key(Key::Char('Q')), Action::Quit, "Q quitte quand même");
         // le polariser de nouveau le rend « non enregistré »
         let mut s2 = s;
         s2.on_key(Key::Char('p'));
@@ -214,6 +245,51 @@ mod tests {
         // q depuis l'éditeur demande aussi (le brouillon serait perdu)
         assert_eq!(s.on_key(Key::Char('q')), Action::None);
         assert!(s.confirm_quit);
+        assert_eq!(s.on_key(Key::Char('Q')), Action::Quit);
+    }
+
+    /// `q` avec une **chaîne vide** alors que le banc joue un son : la fenêtre le signale toujours,
+    /// même s'il n'y a rien d'autre à enregistrer, et propose les trois issues (§ 9 de
+    /// `docs/design/browse-espaces.md`, décision du 12/11/2026).
+    #[test]
+    fn q_signals_an_empty_chain_while_the_bench_plays() {
+        // banc sur « son direct » sans IR : rien à signaler, `q` quitte
+        let mut s = sample();
+        s.mark_start();
+        assert_eq!(s.empty_chain_warning(), None);
+        assert_eq!(s.on_key(Key::Char('q')), Action::Quit);
+
+        // un modèle au banc, chaîne vide : `q` signale
+        let mut s = sample();
+        s.mark_start();
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.listen(); // 800D Modern + IR conseillée
+        assert!(s.unsaved().is_empty(), "rien n'est modifié : {:?}", s.unsaved());
+        assert_eq!(s.empty_chain_warning().as_deref(), Some("800D Modern › Powerhouse 410"));
+        assert_eq!(s.on_key(Key::Char('q')), Action::None);
+        assert!(s.confirm_quit);
+        // Échap : on reste, rien n'est changé
+        s.on_key(Key::Esc);
+        assert!(!s.confirm_quit && s.fx.chain.is_empty());
+        // Entrée : le son va dans la chaîne et on reste
+        s.on_key(Key::Char('q'));
+        assert_eq!(s.on_key(Key::Enter), Action::None);
+        assert!(!s.confirm_quit);
+        assert_eq!(s.chain_text(), "nam·800D Modern › ir·Powerhouse 410");
+        assert!(s.message.as_deref().is_some_and(|m| m.starts_with("chaîne créée")), "{:?}", s.message);
+        // la chaîne n'est plus vide : plus rien à signaler, mais elle est « non enregistrée »
+        assert_eq!(s.empty_chain_warning(), None);
+        assert_eq!(s.on_key(Key::Char('q')), Action::None, "la chaîne a changé depuis le lancement");
+        assert_eq!(s.on_key(Key::Char('Q')), Action::Quit);
+
+        // Q quitte quand même, chaîne vide
+        let mut s = sample();
+        s.mark_start();
+        s.on_key(Key::Down);
+        s.on_key(Key::Down);
+        s.listen();
+        s.on_key(Key::Char('q'));
         assert_eq!(s.on_key(Key::Char('Q')), Action::Quit);
     }
 }

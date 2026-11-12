@@ -7,22 +7,56 @@ use super::*;
 /// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un
 /// geste volontaire pour quitter (`Q` majuscule). Elle se dessine en dernier, par-dessus l'onglet.
 pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
-    let mut lines = vec![Line::from(Span::styled(
-        "Ceci n'est pas enregistré :",
-        Style::new().add_modifier(Modifier::BOLD),
-    ))];
-    for what in s.unsaved() {
-        lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
+    let empty = s.empty_chain_warning();
+    let mut lines = Vec::new();
+    // chaîne vide alors que le banc joue un son : on le signale toujours (§ 9)
+    if let Some(what) = &empty {
+        lines.push(Line::from(Span::styled(
+            format!("Tu écoutes au banc {what}, mais ce son n'est"),
+            Style::new().fg(Color::Yellow),
+        )));
+        lines.push(Line::from(Span::styled(
+            "pas dans la chaîne : la commande affichée en quittant ne le jouera pas.",
+            Style::new().fg(Color::Yellow),
+        )));
+        lines.push(Line::raw(""));
+        lines.push(Line::from(vec![
+            Span::styled("  Entrée", Style::new().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("  le mettre dans la chaîne et rester (2 pour la voir)"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::raw("       quitter quand même"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("   rester (par défaut)"),
+        ]));
     }
-    lines.push(Line::raw(""));
-    lines.push(Line::from(vec![
-        Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        Span::raw("     quitter sans enregistrer"),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::raw(" ou toute autre touche : rester (par défaut)"),
-    ]));
+    let unsaved = s.unsaved();
+    if !unsaved.is_empty() {
+        if empty.is_some() {
+            lines.push(Line::raw(""));
+        }
+        lines.push(Line::from(Span::styled(
+            "Ceci n'est pas enregistré :",
+            Style::new().add_modifier(Modifier::BOLD),
+        )));
+        for what in unsaved {
+            lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
+        }
+    }
+    if empty.is_none() {
+        lines.push(Line::raw(""));
+        lines.push(Line::from(vec![
+            Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::raw("     quitter sans enregistrer"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(" ou toute autre touche : rester (par défaut)"),
+        ]));
+    }
 
     let w = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16 + 4;
     let w = w.min(body.width);
@@ -38,7 +72,11 @@ pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
         Paragraph::new(lines).block(
             Block::bordered()
                 .title(Span::styled(
-                    " Modifications non enregistrées ",
+                    if empty.is_some() {
+                        " La chaîne est vide "
+                    } else {
+                        " Modifications non enregistrées "
+                    },
                     Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                 ))
                 .style(Style::new().bg(Color::Black)),

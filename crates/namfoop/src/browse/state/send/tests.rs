@@ -228,3 +228,48 @@ fn sending_a_blend_saves_it_first() {
     assert!(s.send.is_some());
     assert_eq!(s.send.as_ref().unwrap().what, "mélange de 1 IR");
 }
+
+/// Chaîne vide : Entrée installe **ce qu'on entend au banc**, depuis n'importe quel onglet
+/// (décision du 12/11/2026, § 4) — sinon le parcours nominal perdait le modèle.
+#[test]
+fn an_empty_chain_takes_the_whole_bench_from_any_tab() {
+    // le parcours nominal : un modèle, puis son IR dans l'onglet IR, puis Entrée
+    let mut s = sample();
+    s.mark_start();
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.listen(); // 800D Modern (IR requise) + IR conseillée 2
+    s.on_key(Key::Tab); // onglet IR
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.listen(); // la deuxième conseillée (IR 0)
+    assert_eq!((s.model, s.ir), (Some(1), IrChoice::Item(0)));
+    s.on_key(Key::Enter);
+    assert_eq!(s.chain_text(), "nam·800D Modern › ir·121 Lower - Cap", "le modèle n'est pas perdu");
+    // sans modèle au banc : l'IR seule
+    let mut s = sample();
+    s.on_key(Key::Tab);
+    s.on_key(Key::Down);
+    s.listen();
+    s.on_key(Key::Enter);
+    assert_eq!(s.chain_text(), "ir·121 Lower - Cap");
+    // `b` (IR coupée) : le modèle seul
+    let mut s = sample();
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.listen();
+    s.on_key(Key::Char('b'));
+    s.on_key(Key::Enter);
+    assert_eq!(s.chain_text(), "nam·800D Modern");
+    // onglet Mélange : le modèle et le mélange
+    let mut s = sample();
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.listen();
+    s.on_key(Key::Tab);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char(' ')); // une IR au mélange
+    s.on_key(Key::Tab);
+    assert!(matches!(s.on_key(Key::Enter), Action::SaveBlend(_)));
+    assert_eq!(s.chain_text(), "nam·800D Modern › ir·mélange");
+}

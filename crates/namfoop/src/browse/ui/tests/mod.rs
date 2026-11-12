@@ -195,6 +195,38 @@ fn long_lists_scroll_with_the_cursor() {
     assert_eq!(window(5, 3, 10), 0..5);
 }
 
+/// La fenêtre de `q` quand la chaîne est vide alors que le banc joue un son (§ 9) : elle le dit et
+/// propose les trois issues.
+#[test]
+fn the_quit_window_signals_an_empty_chain() {
+    let mut s = sample();
+    s.mark_start();
+    s.on_key(Key::Down);
+    s.on_key(Key::Down);
+    s.listen(); // 800D Modern + IR conseillée, chaîne vide
+    s.on_key(Key::Char('q'));
+    let t = screen(&s);
+    assert!(t.contains("La chaîne est vide"), "{t}");
+    assert!(t.contains("Tu écoutes au banc 800D Modern › Powerhouse 410"), "{t}");
+    assert!(t.contains("ne le jouera pas"), "{t}");
+    assert!(t.contains("Entrée  le mettre dans la chaîne et rester (2 pour la voir)"), "{t}");
+    assert!(t.contains("Q       quitter quand même"), "{t}");
+    assert!(t.contains("Échap   rester (par défaut)"), "{t}");
+    assert!(
+        t.contains("Entrée mettre dans la chaîne et rester") && t.contains("Q quitter quand même"),
+        "aide :\n{t}"
+    );
+    // avec un mélange pas enregistré en plus, il est listé dessous
+    s.on_key(Key::Esc);
+    s.on_key(Key::Tab);
+    s.on_key(Key::Down);
+    s.on_key(Key::Char(' '));
+    s.on_key(Key::Char('q'));
+    let t = screen(&s);
+    assert!(t.contains("La chaîne est vide") && t.contains("Ceci n'est pas enregistré :"), "{t}");
+    assert!(t.contains("mélange d'IR"), "{t}");
+}
+
 mod chain;
 
 /// Le seuil du panneau Spectre : **128 colonnes** (police 10×20 sur l'écran 1280×800 du Pi, #138).

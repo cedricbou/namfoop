@@ -104,9 +104,12 @@ impl State {
             && ir != IrChoice::None;
         let mut send = Send { nam, what, model, ir, with_ir, checked: with_ir, opts: Vec::new(), cursor: 0 };
         if self.fx.chain.is_empty() {
-            // chaîne vide : elle devient `nam › ir`, sans fenêtre
-            let labels: Vec<String> = send.items().iter().map(|l| self.leaf_label(l)).collect();
-            self.fx.chain.blocks = send.items().into_iter().map(Block::Leaf).collect();
+            // Chaîne vide : elle devient **ce qu'on entend au banc**, depuis n'importe quel onglet
+            // (décision du 12/11/2026, § 4) — sinon Entrée depuis l'onglet IR perdait le modèle du
+            // banc, alors que c'est le parcours « j'ouvre browse, je choisis un son ».
+            let items = self.bench_items();
+            let labels: Vec<String> = items.iter().map(|l| self.leaf_label(l)).collect();
+            self.fx.chain.blocks = items.into_iter().map(Block::Leaf).collect();
             self.fx.cursor = Cursor::Top(0);
             self.message =
                 Some(format!("chaîne créée : {}  ·  2 pour l'habiller d'effets", labels.join(" › ")));
@@ -118,6 +121,23 @@ impl State {
         self.send = Some(send);
         self.message = None;
         action
+    }
+
+    /// Ce que le banc joue, en blocs : le modèle (et son IR si elle n'est pas coupée), ou l'IR
+    /// seule quand il n'y a pas de modèle. C'est ce qu'Entrée installe sur une chaîne vide (§ 4).
+    fn bench_items(&self) -> Vec<Leaf> {
+        let mut v = Vec::new();
+        if let Some(m) = self.model {
+            v.push(Leaf::Nam { model: Some(m), on: true });
+            // une capture qui inclut son baffle n'emporte pas d'IR
+            if self.models[m].needs == NeedsIr::No {
+                return v;
+            }
+        }
+        if !self.bypass && self.ir != IrChoice::None {
+            v.push(Leaf::Ir { ir: self.ir, on: true });
+        }
+        v
     }
 
     /// Les blocs `nam` (ou `ir`) de la chaîne, dans l'ordre du synoptique.
