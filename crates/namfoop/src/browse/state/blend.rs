@@ -27,6 +27,11 @@ impl State {
         self.play()
     }
 
+    /// Le mélange en cours diffère du dernier enregistré (`s` dans l'onglet Mélange).
+    pub fn blend_unsaved(&self) -> bool {
+        !self.blend.is_empty() && (self.blend != self.saved_blend.0 || self.align != self.saved_blend.1)
+    }
+
     pub fn default_blend_name(&self) -> String {
         let first = self.blend.first().map(|p| &self.irs[p.ir]);
         let pack = first

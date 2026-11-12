@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#135)
+- `browse`, Bibliothèque : **Entrée met le son du banc dans la chaîne**. Chaîne vide, elle devient
+  `nam › ir` ; sinon une **fenêtre** demande quel bloc remplacer (nom complet du modèle en place et
+  sa branche, dans l'ordre du synoptique) ou d'**ajouter** un bloc en choisissant l'endroit. La case
+  **« avec son IR »** (cochée par défaut, seulement pour un modèle qui a besoin d'une IR quand le
+  banc en joue une) pose l'IR du banc dans le bloc `ir` voisin, ou l'ajoute juste après. Remplacer
+  garde la Bibliothèque ; ajouter passe dans la Chaîne en **mode pose** (`♪ CHAÎNE · où poser … ?`,
+  Entrée pose après le curseur, Échap annule). Un mélange pas encore enregistré l'est d'abord.
+  Fini la création implicite d'un bloc « à la fin de la chaîne » (#125).
+  Épique #131, spécification `docs/design/browse-espaces.md` § 4.
+
 ### Changé (#134)
 - `browse` est désormais en **deux espaces** au lieu de quatre onglets : la **Bibliothèque** (`1` :
   Modèles, IR, Mélange) et la **Chaîne** (`2` : l'ancien onglet Effets). **Ce qu'on entend suit

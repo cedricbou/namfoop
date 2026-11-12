@@ -143,53 +143,6 @@ impl State {
             Leaf::Fx(_) => false,
         })
     }
-
-    /// Entrée dans la Bibliothèque : met le son du banc dans la chaîne. Chaîne **vide** : elle
-    /// devient `nam › ir` (§ 4). Le reste (la fenêtre « quel bloc remplacer ») vient avec #135.
-    pub(super) fn send_to_chain(&mut self) -> Action {
-        // la ligne sous le curseur n'a pas encore été écoutée (délai) : elle l'est d'abord
-        if self.pending.is_some() {
-            self.apply_cursor();
-        }
-        let (what, items) = match self.tab {
-            Tab::Models => {
-                let Some(m) = self.model else {
-                    self.message = Some("son direct : rien à mettre dans la chaîne".into());
-                    return Action::None;
-                };
-                let mut items = vec![Leaf::Nam { model: Some(m), on: true }];
-                // le baffle part avec l'ampli quand il en faut un et que le banc en joue un
-                if self.models[m].needs != NeedsIr::No && !self.bypass && self.ir != IrChoice::None {
-                    items.push(Leaf::Ir { ir: self.ir, on: true });
-                }
-                (self.models[m].label.clone(), items)
-            }
-            Tab::Irs | Tab::Blend => {
-                if self.ir == IrChoice::None {
-                    self.message = Some(
-                        "aucune IR : rien à mettre dans la chaîne (x dans la Chaîne retire un bloc)".into(),
-                    );
-                    return Action::None;
-                }
-                let what = match self.ir {
-                    IrChoice::Item(i) => self.irs[i].label.clone(),
-                    _ => format!("mélange de {} IR", self.blend.len()),
-                };
-                (what, vec![Leaf::Ir { ir: self.ir, on: true }])
-            }
-        };
-        if !self.fx.chain.is_empty() {
-            // #135 : la fenêtre « Mettre « … » dans la chaîne » prendra la suite
-            self.message =
-                Some(format!("« {what} » : remplacer un bloc se fait dans la Chaîne (2), sur le bloc"));
-            return Action::None;
-        }
-        let labels: Vec<String> = items.iter().map(|l| self.leaf_label(l)).collect();
-        self.fx.chain.blocks = items.into_iter().map(Block::Leaf).collect();
-        self.fx.cursor = chain::Cursor::Top(0);
-        self.message = Some(format!("chaîne créée : {}  ·  2 pour l'habiller d'effets", labels.join(" › ")));
-        Action::None
-    }
 }
 
 #[cfg(test)]

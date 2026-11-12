@@ -113,13 +113,14 @@ fn enter_on_an_empty_chain_creates_it() {
     );
     assert_eq!(s.space, Space::Library, "on reste dans la Bibliothèque");
     assert_eq!(s.unsaved().len(), 1, "la chaîne a changé : {:?}", s.unsaved());
-    // la chaîne n'est plus vide : Entrée ne la touche plus (#135 ouvrira la fenêtre)
+    // la chaîne n'est plus vide : Entrée passe par la fenêtre (§ 4, testée dans `send`)
     let before = s.fx.chain.clone();
     s.on_key(Key::Up);
     s.listen();
     s.on_key(Key::Enter);
-    assert_eq!(s.fx.chain, before);
-    assert!(s.message.as_deref().is_some_and(|m| m.contains("dans la Chaîne (2)")), "{:?}", s.message);
+    assert!(s.send.is_some(), "la fenêtre « mettre dans la chaîne »");
+    assert_eq!(s.fx.chain, before, "elle ne change rien à l'ouverture");
+    s.on_key(Key::Esc);
     // une capture avec son baffle : le bloc `ir` n'est pas posé
     let mut s = sample();
     s.on_key(Key::Down);

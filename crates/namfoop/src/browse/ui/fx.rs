@@ -53,7 +53,13 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
         ));
     }
     let (head, warn) = synoptic::title(&s.fx.chain);
-    let head = if s.fx.bypass_all { "♪ CHAÎNE — SANS EFFETS (r)".to_string() } else { head };
+    let head = match (&s.place, s.fx.bypass_all) {
+        // mode pose : le cadre dit ce qu'on place (§ 4)
+        (Some(p), _) => format!("♪ CHAÎNE · où poser {} ?", p.label),
+        (None, true) => "♪ CHAÎNE — SANS EFFETS (r)".to_string(),
+        (None, false) => head,
+    };
+    let warn = if s.place.is_some() { None } else { warn };
     let mut block = Block::bordered().title(title(&head, s.fx.focus == FxFocus::Chain));
     if let Some(w) = warn.filter(|_| !s.fx.bypass_all) {
         block = block.title(Span::styled(w, Style::new().fg(Color::Yellow)));
