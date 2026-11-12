@@ -251,8 +251,11 @@ quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée
   Entrée fait ce que fait Entrée dans la Bibliothèque sur une chaîne vide (§ 4). Si d'autres choses ne
   sont pas enregistrées, elles sont listées dessous, comme aujourd'hui. Banc sur `son direct` sans IR :
   rien à signaler.
-- **`e` n'est pas accessible depuis le sélecteur de la Chaîne** : calibrer est réservé à la Bibliothèque.
-  `e` dans le sélecteur ne fait rien, sans message.
+- **`e` n'est pas accessible depuis le sélecteur de la Chaîne** : calibrer est réservé à la
+  Bibliothèque. **Corrigé le 12/11/2026 (#148)** : « ne fait rien, sans message » rendait l'écran
+  incompréhensible ; `e` dit maintenant `calibrer (e) se fait dans la Bibliothèque (1), sur le
+  modèle`, et **aucune touche du sélecteur n'est muette** — celles qu'il ne traite pas répondent
+  `valide (Entrée) ou annule (Échap) le choix d'abord`.
 - **Seuil du panneau Spectre : 128 colonnes** (police 10×20 pressentie sur le Pi, non définitive).
 
 ## 10. Tests attendus

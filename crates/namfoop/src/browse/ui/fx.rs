@@ -66,7 +66,19 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     }
     f.render_widget(Paragraph::new(lines).block(block), chain);
 
-    // --- le sélecteur sur place, s'il est ouvert (§ 5) ---
+    // --- le panneau du bas : le sélecteur, le contenu du bloc, ou les réglages ---
+    render_panel(s, f, params, cmd);
+
+    // --- la fenêtre du catalogue, par-dessus tout l'écran : **toujours** dessinée quand elle est
+    // ouverte, quel que soit le panneau du bas (#148 : un `return` la sautait sur un bloc nam / ir)
+    if s.fx.catalog.is_some() {
+        render_catalog(s, f.area(), f);
+    }
+}
+
+/// Le panneau sous le synoptique : le sélecteur sur place (§ 5), le contenu entier du bloc `nam` /
+/// `ir` sous le curseur, ou les réglages de l'effet — et la ligne de commande équivalente.
+fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
     if s.picker.is_some() {
         // le panneau Spectre à droite de la liste, si le terminal est assez large (§ 5)
         let (list, spectrum) = if params.width >= super::SPECTRUM_MIN_WIDTH {
@@ -140,11 +152,6 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     );
 
     render_command_line(s, f, cmd);
-
-    // --- la fenêtre du catalogue, par-dessus tout l'écran ---
-    if s.fx.catalog.is_some() {
-        render_catalog(s, f.area(), f);
-    }
 }
 
 /// La ligne de commande équivalente, ou l'invitation à enregistrer un preset.

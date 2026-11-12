@@ -473,3 +473,38 @@ fn the_picker_shows_the_spectrum_panel_on_a_wide_terminal() {
     assert!(t.contains("● actuel ◀ écouté (c)"), "{t}");
     assert!(t.contains("tu réentends l'actuel : c pour revenir à l'essai"), "ligne d'écoute :\n{t}");
 }
+
+/// La fenêtre du catalogue se dessine **toujours** quand elle est ouverte, quel que soit le bloc
+/// sous le curseur — un `return` la sautait sur un bloc `nam` / `ir` et `a` semblait ne rien faire
+/// (#148).
+#[test]
+fn the_catalog_window_is_drawn_whatever_the_block_under_the_cursor() {
+    use crate::browse::state::chain::{Block, Cursor, Leaf};
+    use crate::browse::state::tests::{fx_block, with_chain};
+    let chain = vec![
+        Block::Leaf(Leaf::Nam { model: Some(0), on: true }),
+        Block::Leaf(Leaf::Ir { ir: crate::browse::state::IrChoice::Item(2), on: true }),
+        fx_block("reverb"),
+    ];
+    for (cursor, quoi) in [
+        (Cursor::Top(0), "un bloc nam"),
+        (Cursor::Top(1), "un bloc ir"),
+        (Cursor::Top(2), "un effet"),
+        (Cursor::Empty, "une chaîne vide"),
+    ] {
+        let mut s = with_chain(if cursor == Cursor::Empty { Vec::new() } else { chain.clone() });
+        s.fx.cursor = cursor;
+        s.on_key(Key::Char('a'));
+        assert!(s.fx.catalog.is_some(), "{quoi} : le catalogue est ouvert");
+        for (w, h) in [(80, 25), (120, 30), (190, 50)] {
+            let t = crate::tui::screen_text(w, h, |f| render(&s, &Status::default(), f));
+            assert!(t.contains("catalogue"), "{quoi}, {w}×{h} : la fenêtre manque\n{t}");
+            assert!(t.contains("ajouter après le curseur"), "{quoi}, {w}×{h} :\n{t}");
+            assert!(t.contains("modèle NAM") && t.contains("reverb"), "{quoi}, {w}×{h} :\n{t}");
+        }
+        // Échap la referme
+        s.on_key(Key::Esc);
+        let t = screen(&s);
+        assert!(!t.contains("ajouter après le curseur"), "{quoi} : refermée\n{t}");
+    }
+}
