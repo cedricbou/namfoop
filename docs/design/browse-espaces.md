@@ -208,8 +208,8 @@ l'essai, la bascule `c`, l'isolement `o` et `r` (sans effets) appliqués.
 L'écran cible sur le Pi 5 est un 10,1 pouces 1280×800 : 160×50 en police 8×16, 128×40 en 10×20, 106×33
 en 12×24, 80×25 en 16×32. Le sélecteur étant contextuel, il doit rester utilisable en 80×25 : la liste
 prend la hauteur qui reste sous le synoptique, **4 lignes au moins**, et défile. Le panneau Spectre
-demande 130 colonnes (`SPECTRUM_MIN_WIDTH`) ; l'abaisser à 128 pour la police 10×20 est une question
-ouverte (§ 9).
+demande aujourd'hui 130 colonnes (`SPECTRUM_MIN_WIDTH`) ; il descend à **128** pour la police 10×20, que
+l'utilisateur pense retenir (décision du 12/11/2026, #138).
 
 ## 8. Non-régression : ce qui ne doit pas bouger
 
@@ -225,13 +225,28 @@ confirmation, ligne de commande équivalente.
 Le parcours nominal du guide (§ 6 : ouvrir `browse`, choisir un modèle et une IR, ajouter des effets,
 quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée.
 
-## 9. Hors maquette, à confirmer pendant la réalisation
+## 9. Décisions prises hors maquette (12/11/2026)
 
-- **Quitter avec une chaîne vide** alors que le banc joue un son : la commande affichée en quittant
-  décrit la chaîne, donc rien. Proposition : la fenêtre de `q` le signale (`le son du banc n'est pas dans
-  la chaîne : Entrée dans la Bibliothèque pour l'y mettre`).
-- **Seuil du panneau Spectre** : 130 ou 128 colonnes, selon la police retenue sur le Pi.
-- **`e` depuis le sélecteur** de la Chaîne : non prévu (calibrer est un travail de Bibliothèque).
+- **Quitter avec une chaîne vide alors que le banc joue un son** : `q` le signale toujours, même s'il n'y
+  a rien d'autre à enregistrer, et propose les options dans la fenêtre de confirmation :
+
+  ```
+  ┌ La chaîne est vide ─────────────────────────────────────────────────────┐
+  │ Tu écoutes au banc SVT Classic · clean › 8x10 SM57, mais ce son n'est   │
+  │ pas dans la chaîne : la commande affichée en quittant ne le jouera pas. │
+  │                                                                         │
+  │  Entrée  le mettre dans la chaîne et rester (2 pour la voir)            │
+  │  Q       quitter quand même                                             │
+  │  Échap   rester (par défaut)                                            │
+  └─────────────────────────────────────────────────────────────────────────┘
+  ```
+
+  Entrée fait ce que fait Entrée dans la Bibliothèque sur une chaîne vide (§ 4). Si d'autres choses ne
+  sont pas enregistrées, elles sont listées dessous, comme aujourd'hui. Banc sur `son direct` sans IR :
+  rien à signaler.
+- **`e` n'est pas accessible depuis le sélecteur de la Chaîne** : calibrer est réservé à la Bibliothèque.
+  `e` dans le sélecteur ne fait rien, sans message.
+- **Seuil du panneau Spectre : 128 colonnes** (police 10×20 pressentie sur le Pi, non définitive).
 
 ## 10. Tests attendus
 
