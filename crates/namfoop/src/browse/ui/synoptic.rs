@@ -216,7 +216,16 @@ pub fn build(st: &State) -> Synoptic {
                 }
                 split(&mut g, st, s, i, &m, cursor, &mut cursor_cols);
                 g.sync();
+                // la **sortie** du parallèle : le `◇` où les branches se somment, et d'où l'on
+                // ajoute après lui (#152)
                 g.plain(0, "─ ", line_style());
+                let on_merge = cursor == Cursor::Merge(i);
+                let from = g.len[0];
+                g.add(0, "◇", Style::new().fg(Color::Yellow), on_merge, Vec::new());
+                if on_merge {
+                    cursor_cols = Some((from, g.len[0]));
+                }
+                g.plain(0, " ─ ", line_style());
                 g.sync();
             }
         }

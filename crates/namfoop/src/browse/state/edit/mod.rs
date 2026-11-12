@@ -4,6 +4,11 @@
 use super::chain::{Block, Branch, Chain, Cursor, Leaf, Mode, Split, Spot, MAX_BRANCHES, WRAP_FREQ_HZ};
 use super::State;
 
+/// Ce que répondent les touches d'édition sur la **sortie** d'un parallèle : elle ne sert qu'à
+/// ajouter après lui, tout le reste se règle depuis le `◆` (#152).
+pub(super) const MERGE_ELSEWHERE: &str =
+    "sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆)";
+
 /// Écart minimal entre deux coupures voisines, et bornes (comme `dsp::split`).
 const MIN_RATIO: f32 = 1.25;
 const MIN_HZ: f32 = 20.0;
@@ -20,6 +25,11 @@ impl Chain {
         match cur {
             Cursor::Empty => Cursor::Top(0),
             Cursor::Top(_) => Cursor::Top(top),
+            // la sortie disparaît avec son parallèle
+            Cursor::Merge(_) => match self.split_at(top) {
+                Some(_) => Cursor::Merge(top),
+                None => Cursor::Top(top),
+            },
             Cursor::Header { b, .. } | Cursor::Block { b, .. } => {
                 let Some(s) = self.split_at(top) else { return Cursor::Top(top) };
                 let b = b.min(s.branches.len() - 1);
@@ -49,10 +59,12 @@ impl Chain {
                 if next < len {
                     Cursor::Block { top, b, j: next }
                 } else {
-                    // dernier bloc de la branche (ou branche vide) : ce qui suit le parallèle
-                    self.after(top, cur)
+                    // dernier bloc de la branche (ou branche vide) : la **sortie** du parallèle
+                    Cursor::Merge(top)
                 }
             }
+            // la sortie mène à ce qui suit le parallèle
+            Spot::Merge => self.after(top, cur),
             Spot::Block => self.after(top, cur),
         }
     }
@@ -77,22 +89,26 @@ impl Chain {
             },
             // depuis l'en-tête : le `◆`
             Spot::Header => Cursor::Top(top),
+            // depuis la sortie : la fin de la première branche (le rang où elle se trouve)
+            Spot::Merge => self.end_of_branch(top, 0),
             Spot::Block | Spot::Split => {
                 if top == 0 {
                     return cur;
                 }
+                // un parallèle précède : on arrive par sa **sortie** (miroir de →)
                 match self.split_at(top - 1) {
-                    Some(s) => {
-                        let len = s.branches[0].blocks.len();
-                        if len > 0 {
-                            Cursor::Block { top: top - 1, b: 0, j: len - 1 }
-                        } else {
-                            Cursor::Header { top: top - 1, b: 0 }
-                        }
-                    }
+                    Some(_) => Cursor::Merge(top - 1),
                     None => Cursor::Top(top - 1),
                 }
             }
+        }
+    }
+
+    /// La fin de la branche `b` : son dernier bloc, ou son en-tête si elle est vide.
+    fn end_of_branch(&self, top: usize, b: usize) -> Cursor {
+        match self.split_at(top).map_or(0, |s| s.branches[b].blocks.len()) {
+            0 => Cursor::Header { top, b },
+            len => Cursor::Block { top, b, j: len - 1 },
         }
     }
 
@@ -124,6 +140,14 @@ impl Chain {
                     _ => Cursor::Header { top, b: nb },
                 }
             }
+            // ↑ sur la sortie : le `◆`, d'où tout le parallèle se règle
+            Spot::Merge => {
+                if down {
+                    cur
+                } else {
+                    Cursor::Top(top)
+                }
+            }
             // hors parallèle : rien
             _ => cur,
         }
@@ -151,6 +175,22 @@ impl State {
                 let at = if before { top } else { top + 1 };
                 self.chain().blocks.insert(at, Block::Leaf(leaf));
                 self.fx.cursor = Cursor::Top(at);
+            }
+            // la **sortie** du parallèle : `a` ajoute après lui, `i` à la fin de sa première
+            // branche — le rang où la sortie se trouve (#152, comme le Merge de Helix)
+            Spot::Merge => {
+                if before {
+                    let at = self.fx.chain.split_at(top).map_or(0, |s| s.branches[0].blocks.len());
+                    let name = self.fx.chain.split_at(top).map(|s| s.branch_label(0)).unwrap_or_default();
+                    if let Some(s) = self.chain().split_at_mut(top) {
+                        s.branches[0].blocks.insert(at, leaf);
+                    }
+                    self.fx.cursor = Cursor::Block { top, b: 0, j: at };
+                    return format!("{label} ajouté à la fin de la branche {name}");
+                }
+                self.chain().blocks.insert(top + 1, Block::Leaf(leaf));
+                self.fx.cursor = Cursor::Top(top + 1);
+                return format!("{label} ajouté après le parallèle");
             }
             Spot::Header | Spot::BranchBlock => {
                 let b = cur.branch().unwrap_or(0);
@@ -269,6 +309,7 @@ impl State {
         let top = cur.top();
         match self.fx.chain.spot(cur) {
             Spot::Empty => "chaîne vide".into(),
+            Spot::Merge => MERGE_ELSEWHERE.into(),
             Spot::Block => {
                 let Block::Leaf(l) = self.chain().blocks.remove(top) else { unreachable!() };
                 let label = self.leaf_label(&l);
@@ -323,6 +364,7 @@ impl State {
         let top = cur.top();
         let d: isize = if right { 1 } else { -1 };
         match self.fx.chain.spot(cur) {
+            Spot::Merge => MERGE_ELSEWHERE.into(),
             Spot::Block | Spot::Split => {
                 let j = top as isize + d;
                 if j < 0 || j as usize >= self.fx.chain.blocks.len() {

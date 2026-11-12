@@ -276,6 +276,9 @@ pub fn fx_keys(s: &State) -> String {
         (_, Spot::BranchBlock) => {
             "←→↑↓ se déplacer   { } changer de branche   [ ] déplacer   Entrée régler   a/i ajouter   x retirer".to_string()
         }
+        (_, Spot::Merge) => {
+            "←→ se déplacer   a ajouter après le parallèle   i à la fin de la 1re branche   ↑ le parallèle (◆)".to_string()
+        }
     };
     format!("{head}{SORTIE}")
 }

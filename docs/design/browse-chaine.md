@@ -37,6 +37,7 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
 - Étiquette de branche : en copie, son nom (défaut `B1`…`B4`) ; en bandes, `< 150 Hz`,
   `150–600 Hz`, `> 600 Hz`.
 - Branche vide : `son direct` (en gris italique).
+- Sortie du parallèle : `◇` juste après la colonne des gains, sur la ligne de la branche 1 (#152).
 - Gain : `-3 dB`, `+2 dB`, suivi de ` ø` si la polarité est inversée et de ` S` si solo ; `muet` à la
   place si muette.
 - Étiquettes de blocs : `nam·<modèle>`, `ir·<ir>`, `lpf <freq>`, `hpf <freq>`, `comp <ratio>:1`,
@@ -68,14 +69,37 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
 ## 4. Curseur et navigation (focus « chaîne »)
 
 Positions possibles : un bloc hors parallèle ; le `◆` d'un parallèle ; l'**en-tête** d'une branche
-(étiquette et gain, sélectionnés ensemble) ; un bloc dans une branche. Un clic (souris) sur un
-élément le sélectionne si le terminal le permet.
+(étiquette et gain, sélectionnés ensemble) ; un bloc dans une branche ; la **sortie** d'un parallèle
+(le `◇` de son bord droit, **ajouté le 12/11/2026**, #152). Un clic (souris) sur un élément le
+sélectionne si le terminal le permet.
 
 | Touche | Effet |
 |---|---|
-| → | bloc suivant ; depuis `◆` : en-tête de la branche 1 ; depuis un en-tête : premier bloc de la branche ; depuis le dernier bloc d'une branche (ou un en-tête de branche vide) : bloc qui suit le parallèle |
-| ← | inverse ; depuis un bloc qui suit un parallèle : dernier bloc de la branche 1 (ou son en-tête si vide) ; depuis le premier bloc d'une branche : son en-tête ; depuis un en-tête : `◆` |
-| ↓ / ↑ | dans un parallèle : branche suivante / précédente en gardant la position (bornée à la longueur de la branche, en-tête si vide) ; ↓ sur `◆` : en-tête de la branche 1 ; ↑ sur la branche 1 : `◆` ; hors parallèle : rien |
+| → | bloc suivant ; depuis `◆` : en-tête de la branche 1 ; depuis un en-tête : premier bloc de la branche ; depuis le dernier bloc d'une branche (ou un en-tête de branche vide) : la **sortie** `◇` ; depuis la sortie : le bloc qui suit le parallèle |
+| ← | inverse ; depuis un bloc qui suit un parallèle : sa **sortie** `◇` ; depuis la sortie : dernier bloc de la branche 1 (ou son en-tête si vide) ; depuis le premier bloc d'une branche : son en-tête ; depuis un en-tête : `◆` |
+| ↓ / ↑ | dans un parallèle : branche suivante / précédente en gardant la position (bornée à la longueur de la branche, en-tête si vide) ; ↓ sur `◆` : en-tête de la branche 1 ; ↑ sur la branche 1 : `◆` ; ↑ sur la **sortie** : `◆` ; hors parallèle : rien |
+
+### La sortie d'un parallèle (`◇`, #152)
+
+Le synoptique dessinait la moitié gauche d'un parallèle (le `◆`) ; son bord droit n'était qu'un
+trait, donc **rien à viser pour ajouter après lui** — il fallait poser le bloc dans une branche puis
+l'en sortir avec `]`. Les modeleurs du marché font du point de fusion un objet sélectionnable (bloc
+**Merge** chez Line 6 Helix, **Mixer** chez Quad Cortex et Fractal), déplaçable sur le chemin
+principal. namfoop garde son modèle (**le parallèle est un bloc**, ADR 0006 : `x` sur le `◆` le
+défait, `[ ]` le déplace en entier) et ajoute simplement la case qui manquait :
+
+```
+IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ reverb ─ OUT
+       └─ > 150 Hz ─ nam·… ─ ir·… ── 0 dB ─┘
+```
+
+- `a` sur la sortie ajoute **après le parallèle**, `i` **à la fin de la première branche** (le rang
+  où la sortie se trouve, comme l'insertion avant un Merge chez Helix). Les messages disent où le
+  bloc est allé.
+- **Tout le reste du parallèle se règle depuis le `◆`** (`↑`) : mode et coupures, `+`, `x`, `[ ]`.
+  Les autres touches sur la sortie le rappellent, sans rien faire.
+- Le panneau du bas montre ce qu'elle somme (nombre de branches, mode, gains). Ses **réglages
+  propres** (niveau de sortie, mix), eux, viendront : #153.
 
 ## 5. Édition (focus « chaîne »)
 

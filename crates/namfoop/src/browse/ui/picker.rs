@@ -4,12 +4,31 @@
 
 use super::rows;
 use super::*;
-use crate::browse::state::chain::Leaf;
+use crate::browse::state::chain::{Leaf, Mode, Spot};
 
-/// Le contenu du bloc `nam` / `ir` sous le curseur, en entier. `None` : ce n'est pas un tel bloc.
+/// Le contenu du bloc `nam` / `ir` sous le curseur, en entier — ou, sur la **sortie** d'un
+/// parallèle, ce qu'elle somme (#152). `None` : il y a des réglages à montrer à la place.
 pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
     let dim = Style::new().fg(Color::DarkGray);
     let amp = Style::new().fg(Color::Green).add_modifier(Modifier::BOLD);
+    if s.fx.chain.spot(s.fx.cursor) == Spot::Merge {
+        let sp = s.fx.chain.split_at(s.fx.cursor.top())?;
+        let gains: Vec<String> = (0..sp.branches.len())
+            .map(|k| format!("{} {}", sp.branch_label(k), sp.branches[k].gain_text()))
+            .collect();
+        return Some(vec![
+            Line::from(vec![
+                Span::styled(format!(" ◇ somme de {} branches", sp.branches.len()), amp),
+                Span::styled(format!("   {}", if sp.mode == Mode::Bands { "bandes" } else { "copie" }), dim),
+            ]),
+            Line::styled(format!(" {}", gains.join("  ·  ")), Style::new().fg(Color::Blue)),
+            Line::styled(
+                " a : ajouter après le parallèle · i : à la fin de la 1re branche · ↑ : le parallèle (◆)",
+                dim,
+            ),
+            Line::styled(" (niveau et mix propres à la sortie : à venir)", dim),
+        ]);
+    }
     match s.fx.chain.leaf(s.fx.cursor)? {
         Leaf::Nam { model, .. } => {
             let mut lines = Vec::new();

@@ -742,8 +742,9 @@ Trois règles tiennent l'ensemble :
   modèles NAM dans la même chaîne).
 
   **Se déplacer** : **←→** suit la chaîne de bloc en bloc, **↑↓** passe d'une branche à l'autre
-  dans un parallèle. Le curseur peut être sur un bloc, sur le `◆` d'un parallèle, ou sur l'**en-tête**
-  d'une branche (son étiquette et son gain, choisis ensemble).
+  dans un parallèle. Le curseur peut être sur un bloc, sur le `◆` d'un parallèle, sur l'**en-tête**
+  d'une branche (son étiquette et son gain, choisis ensemble), ou sur la **sortie** du parallèle
+  (`◇`, à son bord droit, là où les branches se somment).
 
   **Construire la chaîne** :
 
@@ -755,6 +756,7 @@ Trois règles tiennent l'ensemble :
   | **`x`** | retire le bloc ; sur un en-tête, retire la branche (à deux branches, le parallèle est défait) ; sur le `◆`, défait le parallèle en gardant la branche de l'ampli |
   | **`[` / `]`** | déplace le bloc dans la chaîne. À côté d'un parallèle, il y **entre** (branche 1) ; au bout d'une branche, il en **sort**. Sur le `◆`, déplace tout le parallèle |
   | **`{` / `}`** | passe le bloc dans la branche du dessus / dessous |
+  | **`◇`** | la **sortie** du parallèle, à son bord droit : `→` depuis le bout d'une branche (ou `←` depuis le bloc qui suit) t'y amène. **`a` y ajoute après le parallèle** — c'est la façon d'ajouter un bloc derrière un parallèle en bout de chaîne —, `i` à la fin de la première branche. `↑` remonte au `◆`, d'où le parallèle se règle, se déplace et se défait |
   | **`b`** | coupe ou remet le bloc (il reste visible, barré) |
   | **`m` / `o` / `p`** | **muet** / **solo** / **polarité** de la branche. Le solo est une aide d'écoute : il ne s'enregistre jamais |
   | **Entrée** | les **réglages** de ce qui est sous le curseur : les paramètres d'un effet, le mode et les coupures d'un parallèle, le gain et la phase d'une branche. Sur un bloc `nam` ou `ir`, ouvre le **sélecteur sur place** (ci-dessous) |
