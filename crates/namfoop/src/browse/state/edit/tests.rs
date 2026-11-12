@@ -321,26 +321,23 @@ fn the_catalog_filter_puts_names_first() {
     assert_eq!(kinds(&s).len(), super::super::fx::entries().len(), "filtre vide : tout");
 }
 
-/// Entrée sur un bloc `nam` ouvre l'onglet Modèles, qui agit alors sur **ce** bloc (§ 10).
+/// Entrée sur un bloc `nam` ouvre le **sélecteur sur place** sur ce bloc, curseur sur son modèle
+/// actuel ; la chaîne ne change qu'avec Entrée (§ 5 de `docs/design/browse-espaces.md`).
 #[test]
-fn enter_on_a_nam_block_opens_the_models_tab_for_that_block() {
+fn enter_on_a_nam_block_opens_the_picker_on_that_block() {
     let mut s = with_chain(vec![
         Block::Leaf(Leaf::Nam { model: Some(0), on: true }),
         Block::Leaf(Leaf::Nam { model: Some(1), on: true }),
     ]);
     s.fx.cursor = Cursor::Top(1);
     assert_eq!(s.on_key(Key::Enter), Action::None);
-    assert_eq!(s.tab, Tab::Models, "l'onglet Modèles s'ouvre");
-    assert_eq!(s.fx.target, Some(Cursor::Top(1)), "sur le deuxième bloc");
-    assert_eq!(s.model, Some(1), "c'est son modèle qu'on écoute");
-    assert_eq!(s.library_target(true), Some(Cursor::Top(1)));
-    // choisir un autre modèle écrit dans ce bloc, pas dans le premier
-    s.model = Some(2);
-    s.push_to_chain(true);
-    assert_eq!(shape(&s), "nam·B7K Ultra nam·Angel_v2");
-    // sans cible explicite, c'est le premier bloc `nam` qui est visé
-    s.fx.target = None;
-    assert_eq!(s.library_target(true), Some(Cursor::Top(0)));
+    let p = s.picker.as_ref().expect("sélecteur ouvert");
+    assert_eq!(p.at, Cursor::Top(1), "sur le deuxième bloc");
+    assert!(p.nam && !p.is_new);
+    assert_eq!(p.current, Some(1), "l'actuel est le modèle du bloc");
+    assert_eq!(s.pick_cursor(), 1, "le curseur s'ouvre sur l'actuel");
+    assert_eq!(s.tab, Tab::Fx, "on ne change pas d'écran");
+    assert_eq!(shape(&s), "nam·B7K Ultra nam·800D Modern", "la chaîne n'a pas bougé");
 }
 
 /// Les réglages du `◆` : mode copie / bandes (le changement recalcule les coupures) et les

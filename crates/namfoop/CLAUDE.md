@@ -16,8 +16,12 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 navigation ; lists.rs listes des onglets Modèles / IR ; chain.rs la chaîne en blocs
                 éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot) ; label.rs étiquettes du
                 synoptique ; edit/ navigation 2D et règles d'édition (s, +, x, [ ], { }, b, m/o/p) ;
-                target.rs quel bloc nam / ir les onglets Modèles et IR visent (§ 10) et la chaîne
-                telle qu'on l'écoute (plan) ; meters.rs balistique des vumètres ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
+                target.rs quel bloc nam / ir les onglets Modèles et IR visent (§ 10, retiré par
+                #134) et la chaîne telle qu'on l'écoute (plan : essai du sélecteur et écoute isolée
+                comprises) ; picker.rs le sélecteur sur place d'un bloc nam / ir (§ 5 de
+                browse-espaces.md : Entrée ouvre la liste sous le synoptique, ↑↓ essaie DANS la
+                chaîne sans l'écrire — l'essai n'est posé que par plan() / shown_chain(), donc
+                unsaved() l'ignore et Échap n'a rien à défaire ; o isole le bloc et son voisin) ; meters.rs balistique des vumètres ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
                 `on_key`), `q` ouvre la fenêtre de confirmation (`confirm_quit`, `Q` seul quitte)
                 quand `unsaved()` n'est pas vide — comparaison d'états via `mark_start` et
                 `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
@@ -26,7 +30,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 parallèle ou branche —, écoute différée, v vumètres) ; navigation :
                 Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
-                panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, synoptic.rs (le synoptique de la
+                panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, picker.rs (contenu entier du
+                bloc nam / ir sous le curseur, et le sélecteur), rows.rs (une ligne de modèle /
+                d'IR, partagée par les onglets et le sélecteur), synoptic.rs (le synoptique de la
                 chaîne : une ligne par branche, vumètres au-dessus, colonnes alignées, défilement
                 horizontal), tests.rs), mod.rs (index, Engine + ChainSender dans
                 le thread de construction, qui rend aussi la table des vumètres par bloc

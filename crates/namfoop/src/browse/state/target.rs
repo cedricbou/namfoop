@@ -65,17 +65,35 @@ impl State {
     }
 
     /// La chaîne telle qu'on l'écoute : les blocs édités, avec l'A/B (`r` sans effets, référence
-    /// épinglée) appliqué au bloc visé.
+    /// épinglée) appliqué au bloc visé, et l'essai du sélecteur sur place (§ 5).
     pub fn plan(&self) -> chain::Chain {
         let mut c = self.fx.chain.clone();
-        if let Some(cur) = self.library_target(true) {
-            if let Some(chain::Leaf::Nam { model, .. }) = c.leaf_mut(cur) {
-                *model = self.effective_model();
+        if self.picker.is_none() {
+            if let Some(cur) = self.library_target(true) {
+                if let Some(chain::Leaf::Nam { model, .. }) = c.leaf_mut(cur) {
+                    *model = self.effective_model();
+                }
+            }
+            if let Some(cur) = self.library_target(false) {
+                if let Some(chain::Leaf::Ir { ir, .. }) = c.leaf_mut(cur) {
+                    *ir = self.effective_ir();
+                }
             }
         }
-        if let Some(cur) = self.library_target(false) {
-            if let Some(chain::Leaf::Ir { ir, .. }) = c.leaf_mut(cur) {
-                *ir = self.effective_ir();
+        // l'essai (ou l'actuel pendant la bascule `c`) n'est posé que dans la chaîne écoutée :
+        // la chaîne éditée, elle, ne change qu'avec Entrée
+        if let Some(p) = self.picker.as_ref() {
+            if let Some(v) = p.heard() {
+                if let Some(l) = c.leaf_mut(p.at) {
+                    match l {
+                        chain::Leaf::Nam { model, .. } => *model = Some(v),
+                        chain::Leaf::Ir { ir, .. } => *ir = IrChoice::Item(v),
+                        chain::Leaf::Fx(_) => {}
+                    }
+                }
+            }
+            if p.iso {
+                c = isolate(&c, p);
             }
         }
         if self.fx.bypass_all {
@@ -87,4 +105,21 @@ impl State {
         }
         c
     }
+}
+
+/// Écoute isolée (`o`) : on n'entend que le bloc choisi et son voisin immédiat, dans l'ordre
+/// `nam › ir`, comme au banc d'essai. Les deux sont rendus audibles : `o` sert à entendre **ce**
+/// bloc.
+fn isolate(c: &chain::Chain, p: &super::picker::Picker) -> chain::Chain {
+    let one = |cur| {
+        c.leaf(cur).cloned().map(|mut l: chain::Leaf| {
+            l.set_on(true);
+            chain::Block::Leaf(l)
+        })
+    };
+    let me = one(p.at);
+    let other = c.neighbor(p.at, !p.nam).and_then(one);
+    let blocks =
+        if p.nam { me.into_iter().chain(other).collect() } else { other.into_iter().chain(me).collect() };
+    chain::Chain { blocks }
 }

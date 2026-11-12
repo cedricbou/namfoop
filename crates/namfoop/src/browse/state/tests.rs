@@ -12,6 +12,7 @@ pub fn item(id: &str, label: &str, pack: &str, needs: NeedsIr, rec: Vec<usize>) 
         recommended: rec,
         meta: None,
         profile: None,
+        blend: false,
     }
 }
 

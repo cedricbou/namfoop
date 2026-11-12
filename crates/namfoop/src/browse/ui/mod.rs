@@ -12,6 +12,8 @@ use library::recommend::NeedsIr;
 
 mod editor;
 mod fx;
+mod picker;
+mod rows;
 mod spectrum;
 pub mod synoptic;
 
@@ -205,15 +207,13 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     match s.tab {
         Tab::Models => {
             let rows = s.model_list();
-            let label_w = rows
-                .iter()
-                .filter_map(|r| match r {
+            let label_w = rows::label_width(
+                rows.iter().filter_map(|r| match r {
                     ModelRow::Model(m) => Some(s.models[*m].label.chars().count()),
                     ModelRow::Direct => None,
-                })
-                .max()
-                .unwrap_or(0)
-                .min(36);
+                }),
+                36,
+            );
             for i in window(rows.len(), cur, height) {
                 let idx = match rows[i] {
                     ModelRow::Direct => {
@@ -231,84 +231,63 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     ModelRow::Model(m) => m,
                 };
                 let m = &s.models[idx];
-                let mut spans = vec![
-                    cursor_span(i == cur),
-                    Span::styled(format!("{:<6}", m.id), Style::new().fg(Color::DarkGray)),
-                    badge(m.needs),
-                    if s.ref_model == Some(idx) {
-                        Span::styled("◆", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-                    } else if m.corrected() {
-                        Span::styled("✎", Style::new().fg(Color::Magenta))
-                    } else {
-                        Span::raw(" ")
-                    },
-                    Span::raw(format!("{:<w$}", m.label, w = label_w)),
-                ];
+                let mark = if s.ref_model == Some(idx) {
+                    Span::styled("◆", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                } else if m.corrected() {
+                    Span::styled("✎", Style::new().fg(Color::Magenta))
+                } else {
+                    Span::raw(" ")
+                };
                 let (chosen, refd) = (s.model == Some(idx), s.ref_model == Some(idx));
+                let mut tail = Vec::new();
                 match (s.ref_model.is_some(), s.listen_ref) {
                     (true, true) if refd => {
-                        spans.push(playing());
-                        spans.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
+                        tail.push(playing());
+                        tail.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
                     }
                     (true, true) if chosen => {
-                        spans.push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray)))
+                        tail.push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray)))
                     }
                     (true, false) if chosen && !refd => {
-                        spans.push(playing());
-                        spans.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
+                        tail.push(playing());
+                        tail.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
                     }
-                    _ if chosen => spans.push(playing()),
+                    _ if chosen => tail.push(playing()),
                     _ => {}
                 }
-                if let Some(d) = &m.profile {
-                    spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
-                    if let Some(g) = &d.grain {
-                        spans.push(Span::styled(format!("  {g}"), grain_style(g)));
-                    }
-                    spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
-                }
-                spans.push(Span::styled(
-                    format!("  {}  [{}]", m.detail, m.pack),
-                    Style::new().fg(Color::DarkGray),
-                ));
-                lines.push(Line::from(spans));
+                lines.push(rows::model_line(s, idx, i == cur, mark, label_w, tail));
             }
         }
         Tab::Irs => {
             let rows = s.ir_rows();
             // noms alignés pour que les mini-spectres forment une colonne
-            let label_w = rows
-                .iter()
-                .filter_map(|r| match r {
+            let label_w = rows::label_width(
+                rows.iter().filter_map(|r| match r {
                     IrRow::Ir { index, .. } => Some(s.irs[*index].label.chars().count()),
                     IrRow::NoIr => None,
-                })
-                .max()
-                .unwrap_or(0)
-                .min(40);
+                }),
+                40,
+            );
             for i in window(rows.len(), cur, height) {
-                let mut spans = vec![cursor_span(i == cur)];
                 match rows[i] {
                     IrRow::NoIr => {
-                        spans.push(Span::raw("       aucune IR"));
+                        let mut spans = vec![cursor_span(i == cur), Span::raw("       aucune IR")];
                         if s.effective_ir() == IrChoice::None && s.ir == IrChoice::None {
                             spans.push(playing());
                         }
+                        lines.push(Line::from(spans));
                     }
                     IrRow::Ir { index, recommended } => {
-                        let it = &s.irs[index];
-                        let in_blend = s.blend.iter().find(|p| p.ir == index);
-                        spans.push(Span::styled(format!("{:<6}", it.id), Style::new().fg(Color::DarkGray)));
-                        spans.push(if s.reference == Some(index) {
+                        let in_blend = s.blend.iter().any(|p| p.ir == index);
+                        let mark = if s.reference == Some(index) {
                             Span::styled(" ◆ ", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                         } else if recommended {
                             Span::styled(" ★ ", Style::new().fg(Color::Yellow))
-                        } else if in_blend.is_some() {
+                        } else if in_blend {
                             Span::styled(" ● ", Style::new().fg(Color::Magenta))
                         } else {
                             Span::raw("   ")
-                        });
-                        spans.push(Span::raw(format!("{:<w$}", it.label, w = label_w)));
+                        };
                         let (chosen, refd) = (s.ir == IrChoice::Item(index), s.reference == Some(index));
                         // marques A/B propres aux IR (pas pendant un A/B de modèles)
                         let ab = if s.ref_model.is_some() && !s.bypass {
@@ -316,43 +295,28 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                         } else {
                             s.ab_state()
                         };
+                        let mut tail = Vec::new();
                         match ab {
-                            AbState::Bypass if chosen => spans.push(Span::styled(
+                            AbState::Bypass if chosen => tail.push(Span::styled(
                                 "  ◀ choisie, IR coupée (b)",
                                 Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
                             )),
                             AbState::B if refd => {
-                                spans.push(playing());
-                                spans.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
+                                tail.push(playing());
+                                tail.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
                             }
-                            AbState::B if chosen => spans
+                            AbState::B if chosen => tail
                                 .push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray))),
                             AbState::A if chosen => {
-                                spans.push(playing());
-                                spans.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
+                                tail.push(playing());
+                                tail.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
                             }
-                            _ if chosen => spans.push(playing()),
+                            _ if chosen => tail.push(playing()),
                             _ => {}
                         }
-                        if let Some(d) = &it.profile {
-                            spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
-                            spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
-                        }
-                        spans
-                            .push(Span::styled(format!("  [{}]", it.pack), Style::new().fg(Color::DarkGray)));
-                        if let Some(p) = in_blend {
-                            spans.push(Span::styled(
-                                format!(
-                                    "  [mélange {:+.0} dB{}]",
-                                    p.gain_db,
-                                    if p.invert { " ø" } else { "" }
-                                ),
-                                Style::new().fg(Color::Magenta),
-                            ));
-                        }
+                        lines.push(rows::ir_line(s, index, i == cur, mark, label_w, tail));
                     }
                 }
-                lines.push(Line::from(spans));
             }
         }
         Tab::Blend => {
@@ -438,40 +402,55 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             ]),
             Line::from(meters),
             Line::from(Span::styled(
-                s.message.clone().unwrap_or_else(|| format!(" {}", st.device)),
+                s.message.clone().unwrap_or_else(|| trial_line(s).unwrap_or(format!(" {}", st.device))),
                 Style::new().fg(Color::Yellow),
             )),
         ]),
         now,
     );
 
-    let keys = match (s.naming.is_some(), s.filtering, s.tab) {
-        _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester",
+    let keys: String = match (s.naming.is_some(), s.filtering, s.tab) {
+        _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester".into(),
         _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
-            "tape le texte   Entrée valider   Échap annuler"
+            "tape le texte   Entrée valider   Échap annuler".into()
         }
         _ if s.editor.is_some() => {
-            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer le changement aux modèles filtrés   Échap fermer"
+            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer le changement aux modèles filtrés   Échap fermer".into()
         }
-        (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler",
-        (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre",
-        (_, _, Tab::Models) => "Tab/→ onglets IR, Mélange, Effets   ↑↓ écouter   e modifier / calibrer   c épingler réf.   r A/B   b avec/sans IR   / filtrer   q",
+        (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
+        (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),
+        (_, _, Tab::Models) => "Tab/→ onglets IR, Mélange, Effets   ↑↓ écouter   e modifier / calibrer   c épingler réf.   r A/B   b avec/sans IR   / filtrer   q".into(),
         (_, _, Tab::Irs) => {
-            "Tab/←→ onglets   ↑↓ écouter   c épingler réf.   r A/B   b avec/sans IR   espace → mélange   / filtrer   q"
+            "Tab/←→ onglets   ↑↓ écouter   c épingler réf.   r A/B   b avec/sans IR   espace → mélange   / filtrer   q".into()
         }
         (_, _, Tab::Fx) => fx::fx_keys(s),
         (_, _, Tab::Blend) => {
-            "Tab/→ Effets   ↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   b avec/sans IR   r A/B   q"
+            "Tab/→ Effets   ↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   b avec/sans IR   r A/B   q".into()
         }
     };
     f.render_widget(
-        Paragraph::new(Line::from(Span::styled(format!(" {keys}"), Style::new().fg(Color::DarkGray)))),
+        Paragraph::new(Line::from(Span::styled(format!(" {keys}"), Style::new().fg(Color::DarkGray))))
+            .wrap(ratatui::widgets::Wrap { trim: false }),
         foot,
     );
 
     if s.confirm_quit {
         render_confirm_quit(s, body, f);
     }
+}
+
+/// Pendant un essai du sélecteur : ce qu'on entend n'est pas encore gardé (§ 5).
+fn trial_line(s: &State) -> Option<String> {
+    let p = s.picker.as_ref()?;
+    if !p.trying() {
+        return None;
+    }
+    Some(if p.ab {
+        "   tu réentends l'actuel : c pour revenir à l'essai".into()
+    } else {
+        "   à l'essai : rien n'est gardé tant que tu ne valides pas (Entrée) · c pour réentendre l'actuel"
+            .into()
+    })
 }
 
 /// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un

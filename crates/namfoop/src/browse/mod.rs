@@ -91,6 +91,7 @@ pub fn index(
                 recommended: Vec::new(),
                 meta: None,
                 profile: profiles.by_rel.get(&e.rel).cloned(),
+                blend: kind == Kind::Cab,
             });
         }
     }
@@ -149,6 +150,7 @@ fn model_item(
         recommended,
         meta,
         profile: None,
+        blend: false,
     }
 }
 

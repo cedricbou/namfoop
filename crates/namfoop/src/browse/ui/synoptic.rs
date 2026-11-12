@@ -147,7 +147,8 @@ pub struct Synoptic {
 /// Dessine le synoptique de la chaîne éditée : une ligne de blocs par branche, une ligne de
 /// vumètres au-dessus de chacune.
 pub fn build(st: &State) -> Synoptic {
-    let chain = &st.fx.chain;
+    let shown = st.shown_chain();
+    let chain = &shown;
     let meters = &st.meters;
     let show_meters = st.show_meters;
     let cursor = st.fx.cursor;
@@ -181,12 +182,14 @@ pub fn build(st: &State) -> Synoptic {
                 let w = label.chars().count().max(3);
                 let on_cursor = cursor == Cursor::Top(i);
                 let start = g.len[0];
+                // hors de l'écoute isolée (`o`) : assombri
+                let out = st.dimmed(Cursor::Top(i));
                 g.add(
                     0,
                     &label,
-                    block_style(l.role(), l.on(), false),
+                    block_style(l.role(), l.on(), out),
                     on_cursor,
-                    m(MeterAt::Block(i), l.meter_kind(), w, !l.on()),
+                    m(MeterAt::Block(i), l.meter_kind(), w, out || !l.on()),
                 );
                 if on_cursor {
                     mark(&g, 0, start, &mut cursor_cols);
@@ -278,12 +281,13 @@ fn split(
             let w = label.chars().count().max(3);
             let on_cursor = cursor == Cursor::Block { top: i, b: k, j };
             let from = g.len[k];
+            let out = st.dimmed(Cursor::Block { top: i, b: k, j });
             g.add(
                 k,
                 &label,
-                dim(block_style(l.role(), l.on(), silent)),
+                dim(block_style(l.role(), l.on(), silent || out)),
                 on_cursor,
-                m(MeterAt::BranchBlock(i, k, j), l.meter_kind(), w, silent || !l.on()),
+                m(MeterAt::BranchBlock(i, k, j), l.meter_kind(), w, silent || out || !l.on()),
             );
             if on_cursor {
                 *cursor_cols = Some((from, g.len[k]));
@@ -371,6 +375,16 @@ fn clip(cells: &[Cell], width: usize, scroll: usize) -> Line<'static> {
         spans.push(Span::styled(text, style));
     }
     Line::from(spans)
+}
+
+/// Hauteur du synoptique en lignes : une ligne de blocs par branche, plus sa ligne de vumètres.
+pub fn height(st: &State) -> u16 {
+    let h = st.fx.chain.height().max(1) as u16;
+    if st.show_meters {
+        2 * h
+    } else {
+        h
+    }
 }
 
 /// Titre du cadre : modèles actifs, parallèles, et l'alerte de charge au-delà du seuil.

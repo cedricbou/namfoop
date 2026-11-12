@@ -737,8 +737,30 @@ signale deux effets dans la chaîne.
   | **`{` / `}`** | passe le bloc dans la branche du dessus / dessous |
   | **`b`** | coupe ou remet le bloc (il reste visible, barré) |
   | **`m` / `o` / `p`** | **muet** / **solo** / **polarité** de la branche. Le solo est une aide d'écoute : il ne s'enregistre jamais |
-  | **Entrée** | les **réglages** de ce qui est sous le curseur : les paramètres d'un effet, le mode et les coupures d'un parallèle, le gain et la phase d'une branche. Sur un bloc `nam` ou `ir`, ouvre l'onglet **Modèles** (ou **IR**) pour choisir dans la bibliothèque — et cet onglet agit alors sur **ce** bloc |
+  | **Entrée** | les **réglages** de ce qui est sous le curseur : les paramètres d'un effet, le mode et les coupures d'un parallèle, le gain et la phase d'une branche. Sur un bloc `nam` ou `ir`, ouvre le **sélecteur sur place** (ci-dessous) |
   | **`v`** | masque / affiche les vumètres |
+
+  **Choisir le modèle ou l'IR d'un bloc, sur place.** Quand le curseur est sur un bloc `nam` ou
+  `ir`, le panneau sous le synoptique montre son contenu **en entier** (nom complet, variante,
+  pack, identifiant, badge IR, mini-spectre, grain) — ce que l'étiquette du synoptique, coupée à 16
+  caractères, ne peut pas faire. **Entrée** y ouvre la **liste de la bibliothèque** (cadre jaune) :
+
+  | Touche | Effet |
+  |---|---|
+  | **↑↓** | **essaie dans la chaîne**, avec ses effets, 150 ms après la dernière touche. Le synoptique montre l'essai ; la liste marque `● actuel` ce qui était là et `◀ à l'essai` ce qu'on entend |
+  | **Entrée** | **garde** ce qu'on entend |
+  | **Échap** | remet l'**actuel** : la chaîne redevient exactement celle d'avant |
+  | **`o`** | n'entend que **ce bloc et son voisin immédiat** (`basse › nam › ir`), comme au banc d'essai ; le reste du synoptique s'assombrit. `o` de nouveau revient à la chaîne |
+  | **`r`** | avec / sans effets |
+  | **`/`** | filtre la liste, comme dans les onglets |
+
+  Tant qu'on n'a pas validé, **rien n'est modifié** : un essai ne compte pas comme un changement
+  (`q` ne demande rien de plus), et `q` est d'ailleurs refusé tant qu'un choix est en cours — valide
+  (Entrée) ou annule (Échap) d'abord. Pour une IR, les **mélanges enregistrés** (`library/cabs/`)
+  sont en tête de la liste et les IR **conseillées** pour le modèle voisin portent un `★` ; il n'y a
+  pas de ligne « aucune IR » (on retire le bloc avec `x`). Calibrer (`e`) reste réservé aux onglets
+  Modèles et IR. Choisir `nam` ou `ir` dans le **catalogue** (`a` / `i`) pose un bloc
+  `nam·(à choisir)` et ouvre aussitôt le sélecteur : Échap retire le bloc, rien n'est ajouté.
 
   Dans les réglages : ↑↓ choisit, ←→ change d'un pas, **Maj + ←→** d'un pas fin (un dixième),
   Échap ou Entrée revient à la chaîne. Les coupures d'un crossover se règlent par **pas
