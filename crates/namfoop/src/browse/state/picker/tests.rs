@@ -179,9 +179,23 @@ fn the_picker_filters_and_refuses_to_quit() {
     assert_eq!(s.on_key(Key::Char('q')), Action::None);
     assert!(!s.confirm_quit);
     assert!(s.message.as_deref().is_some_and(|m| m.contains("valide (Entrée) ou annule (Échap)")));
-    // `e` (calibrer) n'est pas accessible d'ici (§ 9) : rien, sans message
+    // `e` (calibrer) n'est pas accessible d'ici (§ 9) : il dit où il se trouve (#148)
     s.on_key(Key::Char('e'));
-    assert!(s.picker.is_some() && s.editor.is_none() && s.message.is_none());
+    assert!(s.picker.is_some() && s.editor.is_none());
+    assert!(
+        s.message.as_deref().is_some_and(|m| m.contains("calibrer (e) se fait dans la Bibliothèque")),
+        "{:?}",
+        s.message
+    );
+    // aucune touche muette : une touche d'édition dit qu'il faut d'abord valider ou annuler
+    for key in [Key::Char('a'), Key::Char('i'), Key::Char('x'), Key::Char('s'), Key::Char('v')] {
+        s.on_key(key);
+        assert!(
+            s.message.as_deref().is_some_and(|m| m.contains("valide (Entrée) ou annule (Échap)")),
+            "{key:?} : {:?}",
+            s.message
+        );
+    }
     // Échap du filtre l'efface, le sélecteur reste ouvert
     s.on_key(Key::Char('/'));
     s.on_key(Key::Esc);

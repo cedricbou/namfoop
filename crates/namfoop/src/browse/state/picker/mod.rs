@@ -352,12 +352,14 @@ impl State {
                 self.fx_due = Some(self.now);
             }
             Key::Char('/') => self.picker.as_mut().expect("ouvert").filtering = true,
-            // `q` et les touches d'espace attendent la fin du choix (§ 2 et § 5)
-            Key::Char('q') | Key::Char('1') | Key::Char('2') => {
-                self.message = Some("valide (Entrée) ou annule (Échap) le choix d'abord".into())
+            // `e` : calibrer est réservé à la Bibliothèque (§ 9, corrigé : un message plutôt que
+            // rien du tout — le silence rendait l'écran incompréhensible, #148)
+            Key::Char('e') => {
+                self.message = Some("calibrer (e) se fait dans la Bibliothèque (1), sur le modèle".into())
             }
-            // `e` (calibrer) est réservé à la Bibliothèque (§ 9) : rien, sans message
-            _ => {}
+            // **aucune touche muette** : le sélecteur est modal, il doit dire pourquoi il ne fait
+            // rien (#148 : `a` sans réponse donnait l'impression d'un écran bloqué)
+            _ => self.message = Some("valide (Entrée) ou annule (Échap) le choix d'abord".into()),
         }
         Some(Action::None)
     }

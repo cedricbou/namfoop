@@ -35,7 +35,8 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 Q quitte quand même) — comparaison d'états via `mark_start` et
                 `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
-                Effets (fenêtre du catalogue, réglages de l'élément sous le curseur — effet,
+                Effets (fenêtre du catalogue — dessinée en DERNIER par ui/fx.rs, après le panneau
+                du bas, sinon elle disparaît sur un bloc nam / ir (#148) —, réglages de l'élément sous le curseur — effet,
                 parallèle ou branche —, écoute différée, v vumètres) ; navigation :
                 Tab / Maj+Tab en boucle sur les TROIS onglets, → / ← de proche en proche
                 (space.rs : switch_tab, testée dans les deux sens),

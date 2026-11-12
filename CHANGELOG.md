@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#148)
+- `browse`, Chaîne : **la fenêtre du catalogue (`a` / `i`) ne s'affichait pas** quand le curseur
+  était sur un bloc `nam` ou `ir` — le panneau du bloc sortait du rendu avant elle. Le catalogue
+  était bien ouvert : Entrée ajoutait l'entrée surlignée (`nam`), d'où l'impression que `a` ne
+  faisait rien puis ajoutait un modèle en double. Il se dessine maintenant **toujours**, par-dessus
+  le reste, quel que soit le bloc sous le curseur.
+- `browse`, sélecteur d'un bloc `nam` / `ir` : **plus aucune touche muette**. Les touches qu'il ne
+  traite pas (`a`, `i`, `x`, `s`…) répondent `valide (Entrée) ou annule (Échap) le choix d'abord`,
+  et `e` dit où se trouve la calibration (la Bibliothèque) au lieu de ne rien faire.
+
 ### Ajouté (#137)
 - `browse` : **`q` signale une chaîne vide alors que le banc joue un son**, même s'il n'y a rien
   d'autre à enregistrer — la commande affichée en quittant ne jouerait pas ce son. La fenêtre
