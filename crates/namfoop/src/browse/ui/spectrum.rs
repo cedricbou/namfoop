@@ -1,4 +1,4 @@
-//! Panneau spectre (≥ [`SPECTRUM_MIN_WIDTH`] colonnes) : la courbe de la ligne sous le curseur,
+//! Panneau spectre (≥ [`SPECTRUM_MIN_WIDTH`] colonnes, 128 : la police 10×20 de l'écran du Pi) : la courbe de la ligne sous le curseur,
 //! une **référence** superposée, les écarts par zone et le grain.
 //!
 //! Il sert aux deux espaces (§ 5 de `docs/design/browse-espaces.md`) : dans la **Bibliothèque** la
@@ -8,7 +8,7 @@
 use super::*;
 
 /// Largeur minimale du corps pour afficher le panneau spectre à droite de la liste.
-pub const SPECTRUM_MIN_WIDTH: u16 = 130;
+pub const SPECTRUM_MIN_WIDTH: u16 = 128;
 
 type Profile = std::sync::Arc<dsp::profile::IrProfile>;
 

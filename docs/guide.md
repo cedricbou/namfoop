@@ -687,7 +687,7 @@ Trois règles tiennent l'ensemble :
   autres. Dans un pack, le début commun des noms est masqué : on lit « 121 Lower - Cap » au lieu de
   « 1970 Bassman Cabinet CTS - 121 Lower - Cap ». Chaque IR affiche son mini-spectre et ses
   étiquettes ([profil sonore](#profil-sonore-des-ir)). **Espace** ajoute ou retire l'IR du mélange.
-- **Panneau Spectre** (onglets IR et Mélange, terminal d'au moins ~130 colonnes) : à droite de
+- **Panneau Spectre** (onglets IR et Mélange, terminal d'au moins **128 colonnes**) : à droite de
   la liste, la courbe de l'IR sous le curseur. Dans l'onglet Mélange, s'y ajoute la courbe du
   **mélange** résultant, où se voient les annulations entre micros. **`c` épingle** l'IR sous le
   curseur comme **référence** (◆, courbe jaune) ; sous le graphique, les écarts par zone entre
@@ -780,7 +780,7 @@ Trois règles tiennent l'ensemble :
   (Entrée) ou annule (Échap) d'abord. Pour une IR, les **mélanges enregistrés** (`library/cabs/`)
   sont en tête de la liste et les IR **conseillées** pour le modèle voisin portent un `★` ; il n'y a
   pas de ligne « aucune IR » (on retire le bloc avec `x`). Calibrer (`e`) reste réservé aux onglets
-  Modèles et IR. Sur un terminal assez large (~130 colonnes), le **panneau Spectre** s'ouvre à
+  Modèles et IR. Sur un terminal assez large (128 colonnes), le **panneau Spectre** s'ouvre à
   droite de la liste : la courbe de la ligne sous le curseur, l'**actuel** superposé en référence
   (`●`), les écarts par zone et, pour un modèle, la ligne `grain`. Choisir `nam` ou `ir` dans le **catalogue** (`a` / `i`) pose un bloc
   `nam·(à choisir)` et ouvre aussitôt le sélecteur : Échap retire le bloc, rien n'est ajouté.
