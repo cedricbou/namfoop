@@ -1,4 +1,4 @@
-//! Onglet Effets : le **synoptique est l'éditeur** (navigation 2D et édition dans `edit.rs`, dessin
+//! Espace **Chaîne** : le **synoptique est l'éditeur** (navigation 2D et édition dans `edit.rs`, dessin
 //! dans `ui/synoptic.rs`). Ici : l'état de l'onglet, la fenêtre du catalogue (`a` / `i`), les
 //! réglages de l'élément sous le curseur, et les touches (§ 5 et § 6 de
 //! `docs/design/browse-chaine.md`).
@@ -377,7 +377,7 @@ impl State {
         Some(Action::None)
     }
 
-    /// Touches de l'onglet Effets ; `None` : touche commune (Tab, q, Échap au dernier niveau...).
+    /// Touches de l'espace Chaîne ; `None` : touche commune (`q`, Échap au dernier niveau...).
     pub(super) fn fx_key(&mut self, key: Key) -> Option<Action> {
         if let Some(a) = self.catalog_key(key) {
             return Some(a);

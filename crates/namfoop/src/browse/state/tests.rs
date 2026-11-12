@@ -142,6 +142,9 @@ fn build_and_save_a_blend() {
         s.on_key(Key::Char(c));
     }
     assert_eq!(s.on_key(Key::Enter), Action::SaveBlend("1970 Fender 121+b52".into()));
+    // la ligne de commande décrit **la chaîne** : vide, elle n'a rien à dire (#134)
+    assert_eq!(s.command_line(Some("c9zz")), None);
+    s.on_key(Key::Enter); // le son du banc dans la chaîne (§ 4)
     assert_eq!(s.command_line(Some("c9zz")).unwrap(), "namfoop run -m m002 -i c9zz");
     // retirer tout le mélange revient à « aucune IR »
     s.on_key(Key::Char('x'));
@@ -270,6 +273,7 @@ fn direct_row_plays_irs_without_model() {
     s.on_key(Key::Down);
     s.on_key(Key::Down);
     assert_eq!(s.listen(), Action::Play { model: None, ir: IrChoice::Item(1) });
+    s.on_key(Key::Enter); // l'IR seule dans la chaîne (pas de modèle au banc)
     assert_eq!(s.command_line(None).unwrap(), "namfoop run -i i002");
     s.on_key(Key::Left);
     assert_eq!(s.on_key(Key::Char('e')), Action::None, "pas d'éditeur sans modèle");

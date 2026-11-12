@@ -6,7 +6,7 @@
 //! - **Chaîne** : les blocs édités, avec l'essai du sélecteur, l'écoute isolée `o` et `r`.
 //!
 //! Les onglets ne « visent » plus de bloc : `library_target`, `sync_from_target` et `push_to_chain`
-//! ont disparu avec le § 10 de `browse-chaine.md` (#134).
+//! ont disparu avec le § 10 de `browse-chaine.md`, remplacé par l'épique #131 (#134).
 
 use super::chain;
 use super::space::Space;

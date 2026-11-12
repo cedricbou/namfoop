@@ -803,9 +803,10 @@ Trois règles tiennent l'ensemble :
   commande ; dès qu'il y a un parallèle, il faut un **preset** — l'enregistrement viendra avec
   eux (#6).
 - **Mettre le son du banc dans la chaîne : Entrée.** Quand la chaîne est **vide**, elle devient
-  `nam › ir` (ou le modèle seul si son baffle est inclus, ou l'IR seule depuis l'onglet IR) : c'est
-  le parcours « j'ouvre `browse`, je choisis un son », et le message rappelle que `2` sert ensuite
-  à l'habiller d'effets.
+  **ce que tu entends** — `nam › ir`, le modèle seul si son baffle est inclus (ou si `b` coupe
+  l'IR), l'IR seule si le banc ne joue pas de modèle —, et depuis n'importe lequel des trois
+  onglets : c'est le parcours « j'ouvre `browse`, je choisis un son » (un modèle, puis son baffle),
+  et le message rappelle que `2` sert ensuite à l'habiller d'effets.
 
   Dès qu'elle n'est pas vide, une **fenêtre** demande où va le son — même s'il n'y a qu'un bloc du
   bon type, parce qu'il faut aussi décider du sort de l'IR :
@@ -852,6 +853,11 @@ Trois règles tiennent l'ensemble :
   volontaire) quitte sans enregistrer, **Échap ou n'importe quelle autre touche** fait rester. Il
   n'y a rien à confirmer si tu as défait tes changements ou tout enregistré : c'est l'état qui est
   comparé, pas un drapeau. Parcourir la Bibliothèque n'ajoute donc **jamais** rien à confirmer.
+
+  Un cas à part : **la chaîne est vide alors que le banc joue un son**. `q` le signale toujours,
+  même s'il n'y a rien d'autre à enregistrer, parce que la commande affichée en quittant ne jouerait
+  pas ce son : **Entrée** le met dans la chaîne et on reste (`2` pour la voir), **`Q`** quitte quand
+  même, **Échap** reste. Banc sur « son direct » sans IR : rien à signaler.
 
 En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
 exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
@@ -1138,16 +1144,21 @@ premier pour ne pas couper les queues des effets ; la réverbe en dernier pour r
 1. **Choisir le son de base** : `namfoop browse`, espace **Bibliothèque** : ↑↓ écoute au banc
    d'essai, **Entrée** met le son dans la chaîne
    ([§ 6](#choisir-son-son-en-jouant--namfoop-browse)).
-2. **Ajouter les effets** : `2` pour l'espace **Chaîne** (12 effets au catalogue). Dans le catalogue, `a` ajoute l'effet
-   choisi en pré, `A` en post. Ses réglages s'ouvrent aussitôt : ↑↓ choisit le paramètre, ←→ change
-   la valeur (Maj + ←→ : pas fin). Chaque changement s'entend 150 ms après la dernière touche.
-3. **Comparer** : `r` bascule avec et sans effets ; `b` coupe seulement l'effet choisi.
-4. **Ordonner** : dans la chaîne, `[` et `]` déplacent l'effet (il passe de pré à post au bord du
+2. **Ajouter les effets** : `2` pour l'espace **Chaîne** (12 effets au catalogue). `a` ouvre le
+   catalogue et ajoute **après** le curseur, `i` **avant** ; Entrée sur un effet ouvre ses réglages :
+   ↑↓ choisit le paramètre, ←→ change la valeur (Maj + ←→ : pas fin). Chaque changement s'entend
+   150 ms après la dernière touche.
+3. **Changer le modèle ou l'IR d'un bloc** sans quitter la chaîne : curseur dessus, **Entrée**, puis
+   ↑↓ pour essayer dans la chaîne, `c` pour comparer avec l'actuel, Entrée pour garder (ou Échap
+   pour revenir à l'ancien).
+4. **Comparer** : `r` bascule avec et sans effets ; `b` coupe seulement le bloc choisi.
+5. **Ordonner** : dans la chaîne, `[` et `]` déplacent le bloc (il passe de pré à post au bord du
    modèle) ; `x` le retire.
-5. **Récupérer la commande** : le cadre « à copier dans namfoop run » montre les options des
+6. **Récupérer la commande** : le cadre « à copier dans namfoop run » montre les options des
    effets ; en quittant (`q`), le navigateur affiche la commande complète, modèle, IR et effets
-   compris.
-6. **Jouer** : coller cette commande.
+   compris. Si la chaîne est restée vide alors que le banc d'essai joue un son, `q` le signale et
+   propose de mettre ce son dans la chaîne (Entrée) avant de quitter.
+7. **Jouer** : coller cette commande.
 
 ```sh
 namfoop browse

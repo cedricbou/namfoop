@@ -56,8 +56,8 @@ fn badge(needs: NeedsIr) -> Span<'static> {
     }
 }
 
-/// Indicateur A/B permanent (en-tête) : quelle IR on entend ; dans l'onglet Effets, avec ou sans
-/// effets (`r`).
+/// Indicateur A/B permanent (en-tête de la Bibliothèque) : quel modèle, quelle IR on entend au
+/// banc d'essai.
 fn ab_badge(s: &State) -> Vec<Span<'static>> {
     let on = |t: String, bg: Color| {
         Span::styled(t, Style::new().fg(Color::Black).bg(bg).add_modifier(Modifier::BOLD))
@@ -458,6 +458,9 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     );
 
     let keys: String = match (s.naming.is_some(), s.filtering, s.tab) {
+        _ if s.confirm_quit && s.empty_chain_warning().is_some() => {
+            "Entrée mettre dans la chaîne et rester   Q quitter quand même   Échap rester".into()
+        }
         _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester".into(),
         _ if s.send.is_some() => {
             let space = if s.send.as_ref().is_some_and(|x| x.with_ir) { "   Espace cocher" } else { "" };

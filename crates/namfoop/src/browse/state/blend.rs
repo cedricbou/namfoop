@@ -42,19 +42,35 @@ impl State {
 
     /// Ligne de commande équivalente (affichée en quittant), quand la chaîne s'exprime en
     /// options : sinon il faut un preset (les branches ne se décrivent pas en texte).
+    ///
+    /// Elle décrit **la chaîne**, pas le banc d'essai : depuis les deux espaces (#134), le banc
+    /// peut jouer autre chose que ce qui est dans la chaîne, et c'est la chaîne qu'on rejoue.
     pub fn command_line(&self, saved_blend_id: Option<&str>) -> Option<String> {
         if !self.fx.chain.fits_command_line() {
             return None;
         }
+        let model = self.fx.chain.leaves().find_map(|l| match l {
+            chain::Leaf::Nam { model, on: true } => *model,
+            _ => None,
+        });
+        let ir = self
+            .fx
+            .chain
+            .leaves()
+            .find_map(|l| match l {
+                chain::Leaf::Ir { ir, on: true } => Some(*ir),
+                _ => None,
+            })
+            .unwrap_or(IrChoice::None);
         let fx = self.fx_args();
-        if self.model.is_none() && self.ir == IrChoice::None && fx.is_empty() {
+        if model.is_none() && ir == IrChoice::None && fx.is_empty() {
             return None;
         }
         let mut cmd = "namfoop run".to_string();
-        if let Some(m) = self.model {
+        if let Some(m) = model {
             cmd += &format!(" -m {}", self.models[m].id);
         }
-        match self.ir {
+        match ir {
             IrChoice::Item(i) => cmd += &format!(" -i {}", self.irs[i].id),
             IrChoice::Blend => match saved_blend_id {
                 Some(id) => cmd += &format!(" -i {id}"),

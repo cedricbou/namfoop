@@ -1,4 +1,4 @@
-//! Onglet Effets : le **synoptique** de la chaîne (l'éditeur, `ui::synoptic`), les **réglages** de
+//! Espace **Chaîne** : le **synoptique** de la chaîne (l'éditeur, `ui::synoptic`), les **réglages** de
 //! l'élément sous le curseur — ou son contenu et le sélecteur pour un bloc `nam` / `ir`
 //! (`ui::picker`) —, la **ligne de commande équivalente**, et la fenêtre du **catalogue** quand on
 //! ajoute un bloc (`a` / `i`). Plages, unités et aides viennent de `ParamInfo`.

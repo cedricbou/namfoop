@@ -1,4 +1,4 @@
-//! La **chaîne en blocs** qu'édite l'onglet Effets (`docs/design/browse-chaine.md`, ADR 0006).
+//! La **chaîne en blocs** qu'édite l'espace Chaîne (`docs/design/browse-chaine.md`, ADR 0006).
 //!
 //! - [`Chain`] : la liste de [`Block`] éditée. Un bloc est un effet, le modèle (`nam`), une IR, ou
 //!   un **parallèle** ([`Split`] : 2 à [`MAX_BRANCHES`] branches). Les types imposent **un seul
@@ -7,8 +7,8 @@
 //!   branche) ; [`Spot`] dit ce que c'est. La navigation et l'édition sont dans `edit.rs`, le
 //!   dessin dans `ui/synoptic.rs`, les vumètres dans `meters.rs`.
 //!
-//! Le modèle et l'IR d'un bloc sont des **index de la bibliothèque** : les onglets Modèles et IR
-//! agissent sur le bloc `nam` / `ir` choisi dans la chaîne (§ 10 de la spécification).
+//! Le modèle et l'IR d'un bloc sont des **index de la bibliothèque** : ils se choisissent **sur
+//! place**, Entrée sur le bloc (§ 5 de `docs/design/browse-espaces.md`, `state/picker`).
 
 use dsp::fx::FxSpec;
 

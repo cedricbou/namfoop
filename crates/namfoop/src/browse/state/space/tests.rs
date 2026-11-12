@@ -219,3 +219,48 @@ fn the_space_keys_wait_for_a_typing_or_a_choice_to_end() {
     assert!(matches!(s.on_key(Key::Char('1')), Action::Play { .. }));
     assert_eq!(s.space, Space::Library);
 }
+
+/// Non-régression (§ 8) : dans la Chaîne, toutes les touches de l'éditeur de #103 répondent encore,
+/// et `v` masque les vumètres.
+#[test]
+fn the_chain_editor_keys_of_the_epic_103_still_answer() {
+    let mut s = with_chain(vec![Block::Leaf(nam(0)), Block::Leaf(ir(2)), fx_block("reverb")]);
+    s.fx.cursor = chain::Cursor::Top(2);
+    // `v` : les vumètres du synoptique
+    assert!(s.show_meters);
+    s.on_key(Key::Char('v'));
+    assert!(!s.show_meters && s.message.as_deref() == Some("vumètres masqués"));
+    s.on_key(Key::Char('v'));
+    assert!(s.show_meters);
+    // `s` met en parallèle, `+` ajoute une branche, `m` / `o` / `p` agissent sur la branche
+    s.on_key(Key::Char('s'));
+    assert_eq!(s.fx.chain.splits(), 1);
+    s.fx.cursor = chain::Cursor::Top(2);
+    s.on_key(Key::Char('+'));
+    assert_eq!(s.fx.chain.split_at(2).unwrap().branches.len(), 3);
+    s.fx.cursor = chain::Cursor::Header { top: 2, b: 0 };
+    s.on_key(Key::Char('m'));
+    assert!(s.fx.chain.split_at(2).unwrap().branches[0].mute);
+    s.on_key(Key::Char('o'));
+    assert!(s.fx.chain.split_at(2).unwrap().branches[0].solo);
+    s.on_key(Key::Char('p'));
+    assert!(s.fx.chain.split_at(2).unwrap().branches[0].invert);
+    // `x` défait le parallèle, `[` déplace, `b` coupe
+    s.fx.cursor = chain::Cursor::Top(2);
+    s.on_key(Key::Char('x'));
+    assert_eq!(s.fx.chain.splits(), 0);
+    // la ligne de commande équivalente est toujours là
+    assert_eq!(s.command_line(None).as_deref(), Some("namfoop run -m m001 -i i003 --post reverb"));
+    s.fx.cursor = chain::Cursor::Top(0);
+    s.on_key(Key::Char(']'));
+    assert_eq!(s.chain_text(), "ir·Powerhouse 410 › nam·B7K Ultra › reverb");
+    s.on_key(Key::Char('b'));
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("coupé")), "{:?}", s.message);
+    // Tab : les réglages de l'élément sous le curseur (§ 2)
+    s.fx.cursor = chain::Cursor::Top(2);
+    s.on_key(Key::Tab);
+    assert_eq!(s.fx.focus, super::super::fx::FxFocus::Params);
+    assert_eq!(s.space, Space::Chain, "Tab ne change pas d'espace");
+    s.on_key(Key::Esc);
+    assert_eq!(s.fx.focus, super::super::fx::FxFocus::Chain, "Échap revient à la chaîne");
+}

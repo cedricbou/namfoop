@@ -30,7 +30,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 unsaved() l'ignore et Échap n'a rien à défaire ; o isole le bloc et son voisin,
                 c bascule actuel / essai) ; meters.rs balistique des vumètres ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
                 `on_key`), `q` ouvre la fenêtre de confirmation (`confirm_quit`, `Q` seul quitte)
-                quand `unsaved()` n'est pas vide — comparaison d'états via `mark_start` et
+                quand `unsaved()` n'est pas vide, ou quand la chaîne est vide alors que le banc
+                joue un son (`empty_chain_warning`, § 9 : Entrée le met dans la chaîne et reste,
+                Q quitte quand même) — comparaison d'états via `mark_start` et
                 `mark_blend_saved`, appelés par browse/mod.rs ; compare.rs A/B b / r et référence c via effective_ir / effective_model,
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
                 Effets (fenêtre du catalogue, réglages de l'élément sous le curseur — effet,
