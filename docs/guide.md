@@ -855,6 +855,18 @@ Trois règles tiennent l'ensemble :
   (le fichier est du TOML lisible, et l'identifiant court y sert de filet si tu as juste déplacé
   un `.nam`).
 
+  **Passer d'un preset à l'autre comme sur un pédalier** : dans l'espace Chaîne, **PgDn** va au
+  preset suivant et **PgUp** au précédent, dans l'ordre de la banque et **en boucle** (du dernier
+  on revient au premier). L'en-tête donne la place : `preset 2/7 : Chill verse ✓`. Si la chaîne en
+  cours n'est pas enregistrée, on te demande d'abord — une fois. Dans la Bibliothèque, PgUp et PgDn
+  continuent de **défiler les listes** : le preset, c'est la chaîne, on en change depuis la Chaîne.
+
+  Compte **environ 80 ms** entre la touche et le nouveau son (mesuré sur PC : 81 ms pour
+  `nam › ir`, 204 ms pour un preset à deux modèles en parallèle — c'est le chargement des modèles
+  qui coûte). Le son ne se coupe pas : la chaîne précédente joue jusqu'au fondu. C'est confortable
+  pour essayer et répéter ; pour tomber pile sur un temps, il faudra la banque préchargée en
+  mémoire (prévue avec les presets MIDI).
+
   **`t`** déplie le TOML du preset sous le synoptique (replié par défaut : `▸ preset TOML (t)`) —
   pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.
 

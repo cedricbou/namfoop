@@ -481,6 +481,10 @@ impl State {
             Key::Char('m') => self.message = Some(self.branch_flag(Flag::Mute)),
             Key::Char('o') => self.message = Some(self.branch_flag(Flag::Solo)),
             Key::Char('p') => self.message = Some(self.branch_flag(Flag::Phase)),
+            // PgDn / PgUp : preset suivant / précédent, le geste du pédalier (#158). Dans la
+            // Bibliothèque, ces touches défilent les listes : le preset, c'est la chaîne.
+            Key::PageDown => return Some(self.step_preset(true)),
+            Key::PageUp => return Some(self.step_preset(false)),
             // `t` : le TOML du preset, replié par défaut (#110)
             Key::Char('t') => {
                 self.show_toml = !self.show_toml;

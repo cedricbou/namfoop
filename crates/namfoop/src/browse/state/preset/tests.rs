@@ -220,3 +220,63 @@ fn t_unfolds_the_preset_toml() {
     s.on_key(Key::Char('t'));
     assert!(!s.show_toml);
 }
+
+/// `PgDn` / `PgUp` : preset suivant / précédent, dans l'ordre de la banque et **en boucle** —
+/// le geste du pédalier (#158). Dans la Bibliothèque, ces touches défilent les listes.
+#[test]
+fn page_keys_step_through_the_bank() {
+    let mut s = with_chain(vec![Block::Leaf(nam(0))]);
+    s.mark_start();
+    // aucun preset : on le dit
+    s.on_key(Key::PageDown);
+    assert_eq!(s.message.as_deref(), Some("aucun preset enregistré : S enregistre la chaîne"));
+
+    let p = |name: &str, m: usize| with_chain(vec![Block::Leaf(nam(m))]).to_preset(name);
+    s.adopt_presets(vec![
+        ("p1".into(), "Ampli".into(), "/x/a.preset.toml".into(), p("Ampli", 0)),
+        ("p2".into(), "Fuzz".into(), "/x/f.preset.toml".into(), p("Fuzz", 1)),
+        ("p3".into(), "Zen".into(), "/x/z.preset.toml".into(), p("Zen", 2)),
+    ]);
+    // jamais chargé : PgDn entre par le premier, PgUp par le dernier
+    assert!(matches!(s.on_key(Key::PageDown), Action::Play { .. }));
+    assert_eq!(s.preset.as_ref().unwrap().name, "Ampli");
+    assert_eq!(s.preset_label(), ("preset 1/3 : Ampli".into(), true), "la place est dans l'en-tête");
+    // on avance, et on boucle du dernier au premier
+    for attendu in ["Fuzz", "Zen", "Ampli"] {
+        assert!(matches!(s.on_key(Key::PageDown), Action::Play { .. }));
+        assert_eq!(s.preset.as_ref().unwrap().name, attendu);
+    }
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("(1/3)")), "{:?}", s.message);
+    // et on recule, en bouclant dans l'autre sens
+    for attendu in ["Zen", "Fuzz", "Ampli"] {
+        s.on_key(Key::PageUp);
+        assert_eq!(s.preset.as_ref().unwrap().name, attendu);
+    }
+    // la chaîne en cours est bien celle du preset
+    assert_eq!(s.chain_text(), "nam·B7K Ultra");
+
+    // chaîne modifiée : la bascule demande une fois (même fenêtre que la banque)
+    s.on_key(Key::Char('x'));
+    s.on_key(Key::PageDown);
+    assert!(s.confirm_switch && s.pending_preset == Some(1), "{:?}", s.pending_preset);
+    s.on_key(Key::Esc);
+    assert_eq!(s.preset.as_ref().unwrap().name, "Ampli", "on reste");
+
+    // un seul preset : on le dit plutôt que de recharger le même
+    let mut un = with_chain(vec![Block::Leaf(nam(0))]);
+    un.mark_start();
+    un.adopt_presets(vec![("p1".into(), "Seul".into(), "/x/s.preset.toml".into(), p("Seul", 0))]);
+    un.on_key(Key::PageDown);
+    assert_eq!(un.preset.as_ref().unwrap().name, "Seul");
+    un.mark_start();
+    un.on_key(Key::PageDown);
+    assert!(un.message.as_deref().is_some_and(|m| m.contains("un seul preset")), "{:?}", un.message);
+
+    // dans la Bibliothèque, PgDn défile la liste et ne touche pas au preset
+    let mut lib = sample();
+    lib.adopt_presets(vec![("p1".into(), "Seul".into(), "/x/s.preset.toml".into(), p("Seul", 0))]);
+    let avant = lib.cursor();
+    lib.on_key(Key::PageDown);
+    assert!(lib.cursor() > avant, "la liste défile");
+    assert!(lib.preset.is_none(), "aucun preset chargé depuis la Bibliothèque");
+}
