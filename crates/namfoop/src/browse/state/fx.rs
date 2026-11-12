@@ -481,6 +481,11 @@ impl State {
             Key::Char('m') => self.message = Some(self.branch_flag(Flag::Mute)),
             Key::Char('o') => self.message = Some(self.branch_flag(Flag::Solo)),
             Key::Char('p') => self.message = Some(self.branch_flag(Flag::Phase)),
+            // `t` : le TOML du preset, replié par défaut (#110)
+            Key::Char('t') => {
+                self.show_toml = !self.show_toml;
+                changed = false;
+            }
             Key::Char('v') => {
                 self.show_meters = !self.show_meters;
                 self.message =

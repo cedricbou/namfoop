@@ -159,7 +159,9 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     let [spaces, tabs, filter, body, now, foot] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
-        Constraint::Length(u16::from(lib)),
+        // le filtre n'a de sens que dans la Bibliothèque, mais la **saisie d'un nom** (mélange ou
+        // preset) doit se voir depuis les deux espaces (#110)
+        Constraint::Length(u16::from(lib || s.naming.is_some())),
         Constraint::Min(5),
         Constraint::Length(4),
         Constraint::Length(2),
@@ -177,15 +179,26 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             },
         )
     };
-    f.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
-            space_span(lib, "1 Bibliothèque".into(), Color::Magenta),
-            Span::raw(" "),
-            space_span(!lib, format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }), Color::Cyan),
-        ])),
-        spaces,
-    );
+    // à droite, l'état d'enregistrement du preset (#110)
+    let (what, up_to_date) = s.preset_label();
+    let mut head = vec![
+        Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
+        space_span(lib, "1 Bibliothèque".into(), Color::Magenta),
+        Span::raw(" "),
+        space_span(!lib, format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }), Color::Cyan),
+    ];
+    if !what.is_empty() {
+        let used: usize = head.iter().map(|sp| sp.content.chars().count()).sum();
+        let right =
+            if up_to_date { format!("{what} ✓") } else { format!("{what} ● non enregistré (S)") };
+        let pad = (spaces.width as usize).saturating_sub(used + right.chars().count() + 1);
+        head.push(Span::raw(" ".repeat(pad)));
+        head.push(Span::styled(
+            right,
+            if up_to_date { Style::new().fg(Color::Green) } else { Style::new().fg(Color::Yellow) },
+        ));
+    }
+    f.render_widget(Paragraph::new(Line::from(head)), spaces);
 
     // les onglets de la Bibliothèque, et l'indicateur A/B à leur droite
     let tab = |t: Tab, label: String| {
@@ -218,10 +231,13 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     };
     f.render_widget(Paragraph::new(tab_line), tabs);
 
-    if lib {
+    if lib || s.naming.is_some() {
         let filter_line = if let Some(name) = &s.naming {
             Line::from(vec![
-                Span::styled(" nom du mélange : ", Style::new().fg(Color::Yellow)),
+                Span::styled(
+                    if s.naming_preset { " nom du preset : " } else { " nom du mélange : " },
+                    Style::new().fg(Color::Yellow),
+                ),
                 Span::raw(format!("{name}█")),
             ])
         } else if s.filtering || !s.filter.is_empty() {
@@ -459,10 +475,18 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
 
     let keys: String = match (s.naming.is_some(), s.filtering, s.tab) {
         _ if s.help => "h ou n'importe quelle touche : fermer l'aide".into(),
+        _ if s.bank.is_some() => {
+            "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   h aide".into()
+        }
+        _ if s.confirm_switch => {
+            "S enregistrer puis charger   Entrée charger quand même   Échap rester".into()
+        }
         _ if s.confirm_quit && s.empty_chain_warning().is_some() => {
             "Entrée mettre dans la chaîne et rester   Q quitter quand même   Échap rester".into()
         }
-        _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester".into(),
+        _ if s.confirm_quit => {
+            "S enregistrer puis quitter   Q quitter sans enregistrer   Échap rester".into()
+        }
         _ if s.send.is_some() => {
             let space = if s.send.as_ref().is_some_and(|x| x.with_ir) { "   Espace cocher" } else { "" };
             format!("↑↓ choisir{space}   Entrée valider   Échap annuler   h aide")
@@ -480,8 +504,8 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         _ if !lib => fx::fx_keys(s),
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),
-        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   S enregistrer   P banque   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   P banque   h aide   2 Chaîne   q quitter".into(),
         (_, _, Tab::Blend) => "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   h aide   2 Chaîne   q quitter".into(),
     };
     f.render_widget(Paragraph::new(help_bar(&keys, foot.width)), foot);
@@ -491,6 +515,12 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }
     if s.send.is_some() {
         windows::render_send(s, body, f);
+    }
+    if s.bank.is_some() {
+        windows::render_bank(s, f.area(), f);
+    }
+    if s.confirm_switch {
+        windows::render_confirm_switch(s, body, f);
     }
     // l'aide passe par-dessus tout (y compris le catalogue et le sélecteur)
     if s.help {

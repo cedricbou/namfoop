@@ -342,6 +342,8 @@ pub fn run(
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
     }
+    // la banque de presets, prête à être cherchée et rechargée (#110)
+    st.adopt_presets(scan_presets(library));
     // le banc démarre sur le modèle (et l'IR) de la chaîne de départ, s'il y en a un (§ 2)
     st.start_bench_from_chain();
     // référence du « non enregistré » (q demande confirmation) : l'état avant la première touche
@@ -428,12 +430,39 @@ pub fn run(
                         }
                     }
                 }
+                Action::SavePreset(name) => {
+                    let lib = Library::scan(library);
+                    let file = lib.preset_path(&name);
+                    match st.to_preset(&name).save(&file) {
+                        Ok(()) => {
+                            st.message = Some(format!("preset « {name} » enregistré ({})", file.display()));
+                            st.mark_preset_saved(name, file);
+                            // la banque contient le nouveau preset
+                            st.adopt_presets(scan_presets(library));
+                            // `S` depuis la fenêtre de `q` : on quitte maintenant que c'est écrit
+                            if std::mem::take(&mut st.quit_after_save) {
+                                return Ok(());
+                            }
+                            // une bascule attendait l'enregistrement (fenêtre de bascule)
+                            if let Some(i) = st.pending_preset.take() {
+                                first = st.load_preset(i);
+                            }
+                        }
+                        Err(e) => {
+                            st.message = Some(format!("enregistrement impossible : {e:#}"));
+                            st.quit_after_save = false;
+                            st.pending_preset = None;
+                        }
+                    }
+                }
                 Action::SaveBlend(name) => {
                     let file =
                         library.join("cabs").join(format!("{}.cab.toml", name.replace(['/', '\\'], "-")));
                     blend_spec(&name, &st, false).save(&file)?;
                     let id = Library::scan(library).by_path(&file).map(|e| e.id.clone()).unwrap_or_default();
+                    let rel = Library::scan(library).relative(&file);
                     st.message = Some(format!("mélange sauvé : {id} {name} ({})", file.display()));
+                    st.set_blend_file(rel, id.clone());
                     saved = Some((id, st.blend.clone(), st.align));
                     st.mark_blend_saved();
                 }
@@ -471,6 +500,20 @@ pub fn run(
         println!("Pour rejouer ce son :\n  {cmd}");
     }
     Ok(())
+}
+
+/// La banque : les presets de `library/presets/`, chargés pour que la bascule ne lise plus de
+/// fichier (#110). Un preset illisible est signalé et listé grisé par l'état.
+fn scan_presets(library: &Path) -> Vec<(String, String, PathBuf, dsp::preset::PresetSpec)> {
+    let lib = Library::scan(library);
+    let mut out = Vec::new();
+    for e in lib.of_kind(Kind::Preset) {
+        match lib.preset(&e.path) {
+            Ok(spec) => out.push((e.id.clone(), e.stem.clone(), e.path.clone(), spec)),
+            Err(err) => log::warn!("preset {} ignoré : {err:#}", e.rel),
+        }
+    }
+    out
 }
 
 /// Trace des chaînes installées dans le thread audio (`NAMFOOP_BROWSE_TRACE=<fichier>`) : sert aux

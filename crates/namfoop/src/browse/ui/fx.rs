@@ -34,11 +34,13 @@ fn bar(frac: f32) -> String {
 pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     // le sélecteur prend toute la hauteur qui reste sous le synoptique (4 lignes de liste au
     // moins, § 7) ; sinon, la disposition habituelle (réglages, ligne de commande)
+    // `t` déplie le TOML du preset : le panneau du bas prend la place qu'il faut (#110)
+    let bas = if s.show_toml { 14 } else { 4 };
     let [chain, params, cmd] = if s.picker.is_some() {
         let syn = synoptic::height(s).min(area.height / 2).max(3) + 2;
         Layout::vertical([Constraint::Length(syn), Constraint::Min(7), Constraint::Length(0)]).areas(area)
     } else {
-        Layout::vertical([Constraint::Min(6), Constraint::Length(9), Constraint::Length(3)]).areas(area)
+        Layout::vertical([Constraint::Min(6), Constraint::Length(9), Constraint::Length(bas)]).areas(area)
     };
 
     // --- le synoptique, qui est l'éditeur ---
@@ -154,8 +156,22 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
     render_command_line(s, f, cmd);
 }
 
-/// La ligne de commande équivalente, ou l'invitation à enregistrer un preset.
+/// Le panneau du bas : la ligne de commande équivalente (et le TOML du preset, replié par défaut
+/// — une ligne `▸ preset TOML (t)`, #110).
 fn render_command_line(s: &State, f: &mut Frame, cmd: Rect) {
+    if s.show_toml {
+        let text = match s.preset_toml() {
+            Ok(t) => t,
+            Err(e) => format!("# {e}"),
+        };
+        f.render_widget(
+            Paragraph::new(text)
+                .wrap(Wrap { trim: false })
+                .block(Block::bordered().title(title("▾ preset TOML (t)", true))),
+            cmd,
+        );
+        return;
+    }
     let (text, style) = match s.fx.chain.fits_command_line() {
         true => {
             let args = s.fx_args();
@@ -168,9 +184,12 @@ fn render_command_line(s: &State, f: &mut Frame, cmd: Rect) {
         ),
     };
     f.render_widget(
-        Paragraph::new(Line::styled(text, style))
-            .wrap(Wrap { trim: false })
-            .block(Block::bordered().title(title("à copier dans namfoop run", false))),
+        Paragraph::new(vec![
+            Line::styled(text, style),
+            Line::styled(" ▸ preset TOML (t)", Style::new().fg(Color::DarkGray)),
+        ])
+        .wrap(Wrap { trim: false })
+        .block(Block::bordered().title(title("à copier dans namfoop run", false))),
         cmd,
     );
 }
@@ -239,7 +258,8 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
 /// permanente, l'overlay `h` donne le détail (#150).
 pub fn fx_keys(s: &State) -> String {
     // la queue commune : ce qu'on oublie et qu'il faut toujours pouvoir lire
-    const SORTIE: &str = "   v vumètres   r sans effets   h aide   1 Bibliothèque   q quitter";
+    const SORTIE: &str =
+        "   v vumètres   r sans effets   t TOML   S enregistrer   P banque   h aide   1 Bibliothèque   q quitter";
     if let Some(p) = s.picker.as_ref() {
         if p.filtering {
             return "tape le filtre   Entrée valider   Échap effacer".into();
@@ -248,6 +268,9 @@ pub fn fx_keys(s: &State) -> String {
         return format!(
             "↑↓ essayer dans la chaîne   Entrée garder   {esc}   c actuel / essai   o ce bloc seul   r sans effets   / filtrer   h aide"
         );
+    }
+    if s.bank.is_some() {
+        return "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   h aide".into();
     }
     if s.fx.catalog.is_some() {
         return "tape pour filtrer   ↑↓ choisir   Entrée ajouter   Échap annuler".into();

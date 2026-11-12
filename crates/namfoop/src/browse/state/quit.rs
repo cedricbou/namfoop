@@ -86,6 +86,15 @@ impl State {
         if key == Key::Char('Q') {
             return Action::Quit;
         }
+        // `S` : enregistrer le preset **puis** quitter (#110)
+        if key == Key::Char('S') && !self.fx.chain.is_empty() {
+            self.quit_after_save = true;
+            let a = self.save_preset();
+            if self.naming.is_none() {
+                self.quit_after_save = false; // refus (mélange non sauvé…) : on reste
+            }
+            return a;
+        }
         // chaîne vide : Entrée met le son du banc dans la chaîne et on reste (§ 9)
         if key == Key::Enter && self.empty_chain_warning().is_some() {
             let a = self.send_to_chain();
@@ -181,7 +190,9 @@ mod tests {
         assert!(s.unsaved()[0].contains("chaîne : 1 bloc"), "{:?}", s.unsaved());
         assert_eq!(s.on_key(Key::Char('q')), Action::None);
         assert!(s.confirm_quit, "fenêtre de confirmation ouverte");
-        for key in [Key::Esc, Key::Char('q'), Key::Down, Key::Char('S')] {
+        // `S` a maintenant un sens ici (enregistrer puis quitter, #110) : il n'est pas dans la
+        // liste des « toute autre touche »
+        for key in [Key::Esc, Key::Char('q'), Key::Down, Key::Char('v')] {
             assert_eq!(s.on_key(key), Action::None, "{key:?} ne quitte pas");
             assert!(!s.confirm_quit, "{key:?} referme la fenêtre");
             assert_eq!(s.on_key(Key::Char('q')), Action::None, "q la rouvre");

@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#110)
+- `browse` : **enregistrer et retrouver ses chaînes**. **`S`** écrit la chaîne en preset dans
+  `library/presets/` (nom proposé, modifiable), **`P`** ouvre la **banque** — la liste des presets
+  avec leur identifiant court, leur chaîne en une ligne, le filtre `/` et Entrée pour en charger un.
+  L'en-tête affiche `preset : <nom> ✓` ou `● non enregistré (S)` dès que la chaîne diffère de ce qui
+  est enregistré (comparaison d'états : défaire le changement efface l'alerte).
+- Charger un preset avec une chaîne non enregistrée demande **une fois** (`S` enregistrer puis
+  charger, Entrée charger quand même, Échap rester) ; la fenêtre de `q` gagne le même `S`
+  (enregistrer puis quitter).
+- **`t`** déplie le TOML du preset sous le synoptique (replié par défaut).
+- Un preset dont un son manque reste listé, en rouge, avec la raison ; s'il a seulement été
+  déplacé, l'identifiant court enregistré le retrouve. Épique #103, format : #157.
+
 ### Ajouté (#157)
 - **Format de preset** : une chaîne enregistrée vit dans `library/presets/<nom>.preset.toml` et est
   **indexée comme les mélanges d'IR** — identifiant court `p…`, recherche par mots-clés. Le fichier

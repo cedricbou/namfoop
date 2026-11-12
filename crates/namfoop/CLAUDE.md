@@ -23,6 +23,12 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
                 effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2
                 changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
+                preset/ les PRESETS (#110) : conversion chaîne <-> dsp::preset::PresetSpec (index
+                de la bibliothèque <-> chemins relatifs + identifiant en filet), la banque `P`
+                (presets déjà convertis : charger ne lit aucun fichier), `S` (nom proposé, écrit par
+                browse/mod.rs via Action::SavePreset), l'indicateur de l'en-tête (unsaved() dont le
+                preset est la référence : mark_preset_saved), `t` le TOML replié, et la bascule qui
+                demande une fois (confirm_switch) ;
                 send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la
