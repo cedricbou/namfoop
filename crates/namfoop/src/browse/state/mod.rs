@@ -38,6 +38,9 @@ pub struct Item {
     pub meta: Option<Box<(ModelMeta, ModelMeta)>>,
     /// IR et mélanges : profil sonore (mini-spectre, étiquettes, courbe).
     pub profile: Option<library::profile::Described>,
+    /// IR : c'est un **mélange enregistré** (`library/cabs/`). Ils passent en tête de la liste du
+    /// sélecteur de la Chaîne (§ 5).
+    pub blend: bool,
 }
 
 impl Item {
@@ -174,6 +177,8 @@ pub struct State {
     pub blend_profile: Option<std::sync::Arc<dsp::profile::IrProfile>>,
     /// Onglet Effets : catalogue, chaîne pré / post, réglages.
     pub fx: fx::FxState,
+    /// Sélecteur sur place d'un bloc `nam` / `ir` de la chaîne (§ 5), quand il est ouvert.
+    pub picker: Option<picker::Picker>,
     /// Effets changés : écoute à reconstruire après `AUDITION_DELAY_MS` sans touche.
     fx_due: Option<u64>,
     /// Vumètres par bloc et par branche de la chaîne **en écoute** (#107) : la table arrive avec la
@@ -217,6 +222,7 @@ impl State {
             bypass: false,
             blend_profile: None,
             fx: fx::FxState::default(),
+            picker: None,
             fx_due: None,
             chain_meters: None,
             meters: meters::MeterDisplay::default(),
@@ -250,8 +256,11 @@ impl State {
     /// bloc de la chaîne (§ 10 : les onglets Modèles et IR agissent sur le bloc visé) ; sans bloc,
     /// un est créé — ouvrir `browse` et choisir un modèle suffit donc à l'entendre.
     fn play(&mut self) -> Action {
-        self.push_to_chain(true);
-        self.push_to_chain(false);
+        // pendant un choix sur place, le bloc est à l'essai : les onglets n'y écrivent pas
+        if self.picker.is_none() {
+            self.push_to_chain(true);
+            self.push_to_chain(false);
+        }
         Action::Play { model: self.effective_model(), ir: self.effective_ir() }
     }
 
@@ -411,6 +420,10 @@ impl State {
             }
             return Action::None;
         }
+        // le sélecteur sur place prend toutes les touches : valider ou annuler d'abord (§ 5)
+        if let Some(a) = self.picker_key(key) {
+            return a;
+        }
         if self.tab == Tab::Fx {
             if let Some(a) = self.fx_key(key) {
                 return a;
@@ -541,6 +554,7 @@ pub mod fx;
 mod label;
 mod lists;
 pub mod meters;
+pub mod picker;
 mod quit;
 mod target;
 

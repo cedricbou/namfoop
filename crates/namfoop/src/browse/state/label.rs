@@ -30,10 +30,10 @@ impl State {
             Leaf::Fx(s) => fx_label(&s.spec),
             Leaf::Nam { model, .. } => match model {
                 Some(m) => format!("nam·{}", short(&self.models[*m].label)),
-                None => "nam·(aucun)".into(),
+                None => "nam·(à choisir)".into(),
             },
             Leaf::Ir { ir, .. } => match ir {
-                IrChoice::None => "ir·(aucune)".into(),
+                IrChoice::None => "ir·(à choisir)".into(),
                 IrChoice::Item(i) => format!("ir·{}", short(&self.irs[*i].label)),
                 IrChoice::Blend => "ir·mélange".into(),
             },

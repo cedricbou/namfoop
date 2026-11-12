@@ -428,6 +428,29 @@ impl Chain {
         None
     }
 
+    /// Le bloc **voisin immédiat** dans la même série (ou la même branche) : l'`ir` juste **après**
+    /// un `nam` (`want_nam` faux), le `nam` juste **avant** un `ir` (`want_nam` vrai). C'est la
+    /// paire ampli + baffle de l'écoute isolée (`o`) et de la case « avec son IR ».
+    pub fn neighbor(&self, cur: Cursor, want_nam: bool) -> Option<Cursor> {
+        let ok = |l: &Leaf| if want_nam { l.is_nam() } else { l.is_ir() };
+        let step = |i: usize| if want_nam { i.checked_sub(1) } else { Some(i + 1) };
+        match cur {
+            Cursor::Top(t) => {
+                let j = step(t)?;
+                match self.blocks.get(j)? {
+                    Block::Leaf(l) if ok(l) => Some(Cursor::Top(j)),
+                    _ => None,
+                }
+            }
+            Cursor::Block { top, b, j } => {
+                let k = step(j)?;
+                let l = self.split_at(top)?.branches.get(b)?.blocks.get(k)?;
+                ok(l).then_some(Cursor::Block { top, b, j: k })
+            }
+            Cursor::Empty | Cursor::Header { .. } => None,
+        }
+    }
+
     /// La chaîne s'exprime-t-elle en options de la ligne de commande ? Non dès qu'il y a un
     /// parallèle (les branches ne se décrivent qu'en preset), plus d'un modèle ou d'une IR, ou si
     /// l'IR n'est pas juste derrière le modèle.

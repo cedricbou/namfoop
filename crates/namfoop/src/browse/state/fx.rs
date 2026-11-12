@@ -175,7 +175,8 @@ impl State {
         let cur = self.fx.cursor;
         match self.fx.chain.spot(cur) {
             Spot::Block | Spot::BranchBlock => match self.fx.chain.leaf(cur) {
-                // le modèle et l'IR se choisissent dans leur onglet (§ 10) : rien à régler ici
+                // le modèle et l'IR n'ont pas de réglage : leur panneau montre leur contenu et
+                // Entrée y ouvre le sélecteur (§ 5 de `docs/design/browse-espaces.md`)
                 Some(Leaf::Fx(s)) => s.spec.params().iter().copied().map(Field::Param).collect(),
                 _ => Vec::new(),
             },
@@ -297,11 +298,12 @@ impl State {
         match self.fx.chain.spot(cur) {
             Spot::Block | Spot::BranchBlock => {
                 let Some(l) = self.fx.chain.leaf(cur) else { return "réglages".into() };
-                in_branch(match l {
-                    Leaf::Fx(s) => format!("{} : {}", s.spec.kind(), s.spec.help()),
-                    Leaf::Nam { .. } => "modèle : Entrée ouvre l'onglet Modèles".to_string(),
-                    Leaf::Ir { .. } => "IR : Entrée ouvre l'onglet IR".to_string(),
-                })
+                match l {
+                    Leaf::Fx(s) => in_branch(format!("{} : {}", s.spec.kind(), s.spec.help())),
+                    // le bloc du modèle et celui du baffle montrent leur contenu en entier (§ 5)
+                    Leaf::Nam { .. } => format!("nam{} · modèle", self.branch_of(cur)),
+                    Leaf::Ir { .. } => format!("ir{} · baffle", self.branch_of(cur)),
+                }
             }
             Spot::Split => match self.fx.chain.split_at(cur.top()) {
                 Some(s) => format!(
@@ -334,14 +336,19 @@ impl State {
             self.message = Some("aucun bloc ne correspond au filtre".into());
             return false;
         };
+        // `nam` / `ir` : le bloc est posé vide et le sélecteur s'ouvre aussitôt (§ 5)
         let leaf = match e.kind {
-            // un nouveau bloc `nam` prend le modèle en écoute, un `ir` l'IR en écoute
-            "nam" => Leaf::Nam { model: self.model, on: true },
-            "ir" => Leaf::Ir { ir: self.ir, on: true },
+            "nam" => Leaf::Nam { model: None, on: true },
+            "ir" => Leaf::Ir { ir: IrChoice::None, on: true },
             k => Leaf::fx(FxSpec::default_of(k).expect("au catalogue")),
         };
+        let pick = matches!(e.kind, "nam" | "ir");
         let msg = self.insert_leaf(leaf, c.before);
-        self.message = Some(msg);
+        if pick {
+            self.open_picker(true);
+        } else {
+            self.message = Some(msg);
+        }
         true
     }
 
@@ -372,22 +379,6 @@ impl State {
             _ => {}
         }
         Some(Action::None)
-    }
-
-    /// Entrée sur un bloc `nam` / `ir` : l'onglet Modèles (ou IR) prend ce bloc pour cible.
-    fn open_library_tab(&mut self, nam: bool) -> Action {
-        self.fx.target = Some(self.fx.cursor);
-        self.sync_from_target();
-        self.tab = if nam { Tab::Models } else { Tab::Irs };
-        self.message = Some(
-            if nam {
-                "onglet Modèles : ↑↓ écoute le modèle de ce bloc · Tab revient aux Effets"
-            } else {
-                "onglet IR : ↑↓ écoute l'IR de ce bloc · Tab revient aux Effets"
-            }
-            .into(),
-        );
-        Action::None
     }
 
     /// Touches de l'onglet Effets ; `None` : touche commune (Tab, q, Échap au dernier niveau...).
@@ -492,12 +483,11 @@ impl State {
                     .into(),
                 );
             }
-            // Entrée : les réglages ; sur un `nam` / `ir`, l'onglet qui choisit dans la bibliothèque
+            // Entrée : les réglages ; sur un `nam` / `ir`, le sélecteur sur place (§ 5)
             Key::Enter => {
-                match self.fx.chain.leaf(self.fx.cursor) {
-                    Some(Leaf::Nam { .. }) => return Some(self.open_library_tab(true)),
-                    Some(Leaf::Ir { .. }) => return Some(self.open_library_tab(false)),
-                    _ => {}
+                if matches!(self.fx.chain.leaf(self.fx.cursor), Some(Leaf::Nam { .. } | Leaf::Ir { .. })) {
+                    self.open_picker(false);
+                    return Some(Action::None);
                 }
                 if self.fields().is_empty() {
                     self.message = Some("rien à régler ici".into());

@@ -143,7 +143,10 @@ mod tests {
         }
         assert_eq!(s.tab, Tab::Fx);
         s.on_key(Key::Char('a')); // ouvre le catalogue
-        s.on_key(Key::Enter); // ajoute le premier bloc proposé
+        for c in "gate".chars() {
+            s.on_key(Key::Char(c));
+        }
+        s.on_key(Key::Enter); // ajoute le gate
         assert_eq!(s.unsaved().len(), 1, "{:?}", s.unsaved());
         assert!(s.unsaved()[0].contains("chaîne : 1 bloc"), "{:?}", s.unsaved());
         assert_eq!(s.on_key(Key::Char('q')), Action::None);
@@ -162,6 +165,9 @@ mod tests {
             s.on_key(Key::Tab);
         }
         s.on_key(Key::Char('a'));
+        for c in "gate".chars() {
+            s.on_key(Key::Char(c));
+        }
         s.on_key(Key::Enter); // ajoute
         s.on_key(Key::Char('x')); // retiré
         assert!(s.unsaved().is_empty(), "{:?}", s.unsaved());

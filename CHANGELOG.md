@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#133)
+- `browse`, onglet Effets : **Entrée sur un bloc `nam` ou `ir` ouvre la liste de la bibliothèque
+  sur place**, dans le panneau sous le synoptique (cadre jaune), au lieu d'envoyer dans l'onglet
+  Modèles ou IR. ↑↓ **essaie le son dans la chaîne, avec ses effets** (le synoptique montre
+  l'essai, la liste marque `● actuel` et `◀ à l'essai`), Entrée garde, Échap remet exactement
+  l'ancien. `o` n'écoute que ce bloc et son baffle voisin, `r` coupe les effets, `/` filtre. Un
+  essai n'est **pas** une modification : `q` ne demande rien de plus, et il est refusé tant qu'un
+  choix est en cours. Le panneau montre le **nom complet** du modèle (variante, pack, identifiant,
+  badge IR, mini-spectre, grain), que l'étiquette du synoptique tronque. Choisir `nam` ou `ir` dans
+  le catalogue pose `nam·(à choisir)` et ouvre aussitôt la liste (Échap retire le bloc). Les
+  mélanges enregistrés sont en tête de la liste des IR, les conseillées marquées `★`.
+  Épique #131, spécification `docs/design/browse-espaces.md` § 5.
+
 ### Corrigé (#70)
 - `namfoop latency` mesure à n'importe quel niveau de retour. Le retour était cherché avec un
   **seuil fixe** de 0,05 (-26 dBFS) : à travers PipeWire, l'étage de volume atténue et **étale**

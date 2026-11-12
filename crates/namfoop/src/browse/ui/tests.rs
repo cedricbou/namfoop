@@ -305,7 +305,10 @@ fn unsaved_changes_window_lists_what_would_be_lost() {
     }
     assert_eq!(s.tab, Tab::Fx);
     s.on_key(Key::Char('a')); // catalogue
-    s.on_key(Key::Enter); // ajoute le bloc choisi
+    for c in "gate".chars() {
+        s.on_key(Key::Char(c));
+    }
+    s.on_key(Key::Enter); // ajoute le gate
     assert_eq!(s.on_key(Key::Char('q')), crate::browse::state::Action::None);
     assert!(s.confirm_quit);
     let t = screen(&s);
@@ -491,4 +494,75 @@ fn a_narrow_terminal_scrolls_horizontally_to_keep_the_cursor_visible() {
     let syn = synoptic::build(&s);
     assert_eq!(syn.scroll_for(40), 0, "curseur au début : pas de défilement");
     assert!(syn.lines(40, 0)[0].to_string().contains("lpf 100"));
+}
+
+/// Le panneau sous le synoptique montre le **contenu entier** du bloc `nam` / `ir` sous le curseur
+/// (nom complet, pack, identifiant, badge), et dit qu'Entrée change de modèle (§ 5).
+#[test]
+fn the_panel_shows_the_whole_content_of_a_nam_or_ir_block() {
+    use crate::browse::state::chain::{Block, Cursor, Leaf};
+    use crate::browse::state::tests::with_chain;
+    let mut s = with_chain(vec![
+        Block::Leaf(Leaf::Nam { model: Some(1), on: true }),
+        Block::Leaf(Leaf::Ir { ir: crate::browse::state::IrChoice::Item(2), on: true }),
+    ]);
+    s.show_meters = false;
+    s.fx.cursor = Cursor::Top(0);
+    let t = screen(&s);
+    assert!(t.contains("nam · modèle"), "titre du panneau :\n{t}");
+    assert!(t.contains("800D Modern") && t.contains("[MESA 800D]") && t.contains("m002"), "{t}");
+    assert!(t.contains("IR requise"), "{t}");
+    assert!(t.contains("Entrée : changer de modèle, essayé dans la chaîne"), "{t}");
+    assert!(t.contains("Entrée choisir le modèle"), "barre d'aide :\n{t}");
+    s.fx.cursor = Cursor::Top(1);
+    let t = screen(&s);
+    assert!(t.contains("ir · baffle") && t.contains("Powerhouse 410") && t.contains("i003"), "{t}");
+    assert!(t.contains("Entrée : changer d'IR, essayée dans la chaîne"), "{t}");
+}
+
+/// Le sélecteur s'ouvre **dans ce panneau** (cadre jaune), le synoptique reste visible au-dessus ;
+/// il tient en 80×25 (4 lignes de liste au moins) et montre `● actuel` / `◀ à l'essai` (§ 5, § 7).
+#[test]
+fn the_picker_opens_under_the_synoptic_and_fits_a_small_terminal() {
+    use crate::browse::state::chain::{Block, Cursor, Leaf};
+    use crate::browse::state::tests::{fx_block, with_chain};
+    let mut s = with_chain(vec![
+        fx_block("gate:threshold=-50"),
+        Block::Leaf(Leaf::Nam { model: Some(1), on: true }),
+        Block::Leaf(Leaf::Ir { ir: crate::browse::state::IrChoice::Item(2), on: true }),
+    ]);
+    s.fx.cursor = Cursor::Top(1);
+    s.on_key(Key::Enter); // ouvre le sélecteur
+    s.on_key(Key::Down); // essai du modèle suivant
+    for (w, h) in [(80, 25), (110, 33)] {
+        let t = crate::tui::screen_text(w, h, |f| render(&s, &Status::default(), f));
+        // le synoptique est toujours là, le sélecteur dessous
+        assert!(t.contains("IN ─ gate -50 ─"), "{w}×{h} :\n{t}");
+        assert!(t.contains("nam · choisir le modèle"), "{w}×{h} :\n{t}");
+        assert!(t.contains("● actuel") && t.contains("◀ à l'essai"), "{w}×{h} :\n{t}");
+        assert!(t.contains("à l'essai : rien n'est gardé"), "{w}×{h} :\n{t}");
+        assert!(t.contains("↑↓ essayer dans la chaîne") && t.contains("Échap revenir à l'ancien"), "{t}");
+        // au moins quatre lignes de liste : les trois modèles et la ligne de filtre
+        let rows = t.lines().filter(|l| l.contains("m00")).count();
+        assert_eq!(rows, 3, "les trois modèles sont visibles en {w}×{h} :\n{t}");
+        assert!(t.contains("/ pour filtrer"), "{w}×{h} :\n{t}");
+    }
+    // le synoptique montre l'essai, pas l'ancien modèle
+    let t = screen(&s);
+    assert!(t.contains("nam·Angel_v2") && !t.contains("nam·800D"), "le synoptique montre l'essai :\n{t}");
+    // écoute isolée : le titre le dit, et le reste du synoptique s'assombrit
+    s.on_key(Key::Char('o'));
+    let t = screen(&s);
+    assert!(t.contains("ÉCOUTE ISOLÉE (o)"), "{t}");
+    let syn = crate::browse::ui::synoptic::build(&s);
+    let line = &syn.lines(400, 0)[1];
+    let fg = |pat: &str| line.spans.iter().find(|sp| sp.content.contains(pat)).map(|sp| sp.style.fg);
+    assert_eq!(fg("gate -50"), Some(Some(Color::DarkGray)), "le reste est assombri");
+    assert_ne!(fg("ir·Powerhouse"), Some(Some(Color::DarkGray)), "le baffle voisin reste clair");
+    // un bloc tout juste posé par le catalogue : Échap ne rien ajouter
+    s.on_key(Key::Esc);
+    s.on_key(Key::Char('a'));
+    s.on_key(Key::Enter);
+    let t = screen(&s);
+    assert!(t.contains("Échap ne rien ajouter"), "{t}");
 }
