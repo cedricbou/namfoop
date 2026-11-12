@@ -194,6 +194,9 @@ pub struct State {
     pub meters: meters::MeterDisplay,
     /// `v` : vumètres du synoptique affichés ou masqués.
     pub show_meters: bool,
+    /// Overlay d'aide (`h` ou `?`) : la liste des touches de l'écran où l'on est. N'importe quelle
+    /// touche le referme.
+    pub help: bool,
     /// Fenêtre « Modifications non enregistrées » ouverte par `q` : seul `Q` quitte.
     pub confirm_quit: bool,
     /// Chaîne d'effets au lancement et dernier mélange enregistré : ce qui est « modifié » se
@@ -237,6 +240,7 @@ impl State {
             chain_meters: None,
             meters: meters::MeterDisplay::default(),
             show_meters: true,
+            help: false,
             confirm_quit: false,
             start_fx: chain::Chain::default(),
             saved_blend: (Vec::new(), true),
@@ -363,9 +367,30 @@ impl State {
         self.moved();
     }
 
+    /// Une saisie de texte est en cours : les lettres s'y écrivent, elles ne sont pas des
+    /// commandes (filtre d'un onglet ou du sélecteur, nom d'un mélange, texte de l'éditeur,
+    /// filtre du catalogue).
+    pub fn typing(&self) -> bool {
+        self.filtering
+            || self.naming.is_some()
+            || self.fx.catalog.is_some()
+            || self.editor.as_ref().is_some_and(|e| e.typing.is_some())
+            || self.picker.as_ref().is_some_and(|p| p.filtering)
+    }
+
     pub fn on_key(&mut self, key: Key) -> Action {
         if self.confirm_quit {
             return self.confirm_quit_key(key);
+        }
+        // l'aide : n'importe quelle touche la referme, et `h` l'ouvre hors saisie
+        if self.help {
+            self.help = false;
+            return Action::None;
+        }
+        if matches!(key, Key::Char('h') | Key::Char('?')) && !self.typing() {
+            self.help = true;
+            self.message = None;
+            return Action::None;
         }
         if self.editor.is_some() {
             return self.editor_key(key);

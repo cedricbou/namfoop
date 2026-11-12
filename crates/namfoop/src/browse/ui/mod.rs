@@ -458,40 +458,33 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     );
 
     let keys: String = match (s.naming.is_some(), s.filtering, s.tab) {
+        _ if s.help => "h ou n'importe quelle touche : fermer l'aide".into(),
         _ if s.confirm_quit && s.empty_chain_warning().is_some() => {
             "Entrée mettre dans la chaîne et rester   Q quitter quand même   Échap rester".into()
         }
         _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester".into(),
         _ if s.send.is_some() => {
             let space = if s.send.as_ref().is_some_and(|x| x.with_ir) { "   Espace cocher" } else { "" };
-            format!("↑↓ choisir{space}   Entrée valider   Échap annuler")
+            format!("↑↓ choisir{space}   Entrée valider   Échap annuler   h aide")
         }
         _ if s.place.is_some() => {
-            "←→↑↓ choisir l'endroit   Entrée poser après le curseur   Échap annuler, retour à la Bibliothèque"
+            "←→↑↓ choisir l'endroit   Entrée poser après le curseur   Échap annuler, retour à la Bibliothèque   h aide"
                 .into()
         }
         _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
             "tape le texte   Entrée valider   Échap annuler".into()
         }
         _ if s.editor.is_some() => {
-            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer le changement aux modèles filtrés   Échap fermer".into()
+            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer aux modèles filtrés   b/r A/B   h aide   Échap fermer".into()
         }
         _ if !lib => fx::fx_keys(s),
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),
-        (_, _, Tab::Models) => "↑↓ écouter   Entrée mettre dans la chaîne   Tab/→ IR   e calibrer   c épingler réf.   r A/B   b avec/sans IR   / filtrer   2 Chaîne   q".into(),
-        (_, _, Tab::Irs) => {
-            "↑↓ écouter   Entrée mettre dans la chaîne   Tab/←→ onglets   espace → mélange   c épingler réf.   r A/B   b avec/sans IR   / filtrer   2 Chaîne   q".into()
-        }
-        (_, _, Tab::Blend) => {
-            "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   2 Chaîne   q".into()
-        }
+        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Blend) => "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   h aide   2 Chaîne   q quitter".into(),
     };
-    f.render_widget(
-        Paragraph::new(Line::from(Span::styled(format!(" {keys}"), Style::new().fg(Color::DarkGray))))
-            .wrap(ratatui::widgets::Wrap { trim: false }),
-        foot,
-    );
+    f.render_widget(Paragraph::new(help_bar(&keys, foot.width)), foot);
 
     if s.confirm_quit {
         windows::render_confirm_quit(s, body, f);
@@ -499,6 +492,55 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     if s.send.is_some() {
         windows::render_send(s, body, f);
     }
+    // l'aide passe par-dessus tout (y compris le catalogue et le sélecteur)
+    if s.help {
+        windows::render_help(s, f.area(), f);
+    }
+}
+
+/// La barre d'aide, sur les **deux lignes** du bas. Elle est coupée **aux séparateurs de touches**
+/// (trois espaces) et non au milieu d'un mot, et quand le terminal est trop étroit les touches du
+/// milieu sautent (remplacées par `…`) : les **touches de sortie** — les trois dernières, `h aide`,
+/// l'autre espace et `q quitter` — restent toujours lisibles (#150). L'overlay `h` donne le détail.
+fn help_bar(keys: &str, width: u16) -> Vec<Line<'static>> {
+    let w = (width as usize).max(24) - 1;
+    let grey = Style::new().fg(Color::DarkGray);
+    let seg: Vec<&str> = keys.split("   ").filter(|p| !p.is_empty()).collect();
+    let cut = seg.len().saturating_sub(3);
+    // range les segments sur deux lignes au plus ; `None` : ça ne tient pas
+    let lay = |parts: &[&str]| -> Option<Vec<String>> {
+        let mut lines: Vec<String> = vec![String::new()];
+        for p in parts {
+            let n = p.chars().count();
+            let line = lines.last_mut().expect("une ligne");
+            if line.is_empty() {
+                if n + 1 > w {
+                    return None;
+                }
+                *line = format!(" {p}");
+            } else if line.chars().count() + 3 + n <= w {
+                *line = format!("{line}   {p}");
+            } else {
+                if lines.len() == 2 || n + 1 > w {
+                    return None;
+                }
+                lines.push(format!(" {p}"));
+            }
+        }
+        Some(lines)
+    };
+    for n in (0..=cut).rev() {
+        let mut parts: Vec<&str> = seg[..n].to_vec();
+        if n < cut {
+            parts.push("…");
+        }
+        parts.extend_from_slice(&seg[cut..]);
+        if let Some(lines) = lay(&parts) {
+            return lines.into_iter().map(|l| Line::styled(l, grey)).collect();
+        }
+    }
+    // terminal minuscule : on coupe net
+    vec![Line::styled(format!(" {}", keys.chars().take(w).collect::<String>()), grey)]
 }
 
 /// Pendant un essai du sélecteur : ce qu'on entend n'est pas encore gardé (§ 5).

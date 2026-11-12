@@ -50,7 +50,10 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 le thread de construction, qui rend aussi la table des vumètres par bloc
                 (dsp::meter::ChainMeters, #107), overrides.toml), plan.rs (la chaîne demandée au
                 thread de construction : chemins résolus, blocs coupés retirés, solo en muets) ; `import --review` l'ouvre sur les
-                modèles importés (browse::Start)
+                modèles importés (browse::Start) ; ui/windows.rs les fenêtres (« non enregistré »,
+                « mettre dans la chaîne ») et l'OVERLAY D'AIDE `h`, contextuel, par-dessus tout
+                l'écran ; ui/mod.rs : help_bar coupe la barre du bas aux séparateurs de touches et
+                garde toujours les trois dernières (h aide / l'autre espace / q quitter), #150
 setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)

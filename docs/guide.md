@@ -839,6 +839,11 @@ Trois règles tiennent l'ensemble :
   Depuis l'onglet **Mélange**, Entrée envoie le mélange ; s'il n'est pas encore enregistré, il l'est
   d'abord sous le nom proposé. Sur « son direct » (ou « aucune IR »), un message dit qu'il n'y a
   rien à envoyer.
+- **`h` (ou `?`) ouvre l'aide** : toutes les touches de l'écran où tu es — Bibliothèque (selon
+  l'onglet), Chaîne, sélecteur d'un bloc, catalogue, fenêtre « mettre dans la chaîne », mode pose,
+  éditeur `e`. N'importe quelle touche la referme. La barre du bas, elle, reste affichée en
+  permanence et finit **toujours** par `h aide`, l'autre espace (`1` / `2`) et `q quitter` : sur un
+  terminal étroit, les touches du milieu sautent (un `…` le dit) mais jamais celles-là.
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
   lettres sont des commandes.
 - **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un

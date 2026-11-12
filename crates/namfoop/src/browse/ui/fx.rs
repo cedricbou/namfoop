@@ -9,7 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use super::super::state::chain::Spot;
+use super::super::state::chain::{Leaf, Spot};
 use super::super::state::fx::FxFocus;
 use super::super::state::State;
 use super::{cursor_span, synoptic};
@@ -234,37 +234,48 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
     );
 }
 
-/// Touches affichées en bas de l'onglet, selon ce que le curseur désigne (§ 7).
+/// Touches affichées en bas de l'espace Chaîne, selon ce que le curseur désigne (§ 7). Chaque
+/// barre finit par les touches qui permettent d'en **sortir** (`h`, `1`, `q`) : c'est l'aide
+/// permanente, l'overlay `h` donne le détail (#150).
 pub fn fx_keys(s: &State) -> String {
+    // la queue commune : ce qu'on oublie et qu'il faut toujours pouvoir lire
+    const SORTIE: &str = "   v vumètres   r sans effets   h aide   1 Bibliothèque   q quitter";
     if let Some(p) = s.picker.as_ref() {
         if p.filtering {
             return "tape le filtre   Entrée valider   Échap effacer".into();
         }
         let esc = if p.is_new { "Échap ne rien ajouter" } else { "Échap revenir à l'ancien" };
         return format!(
-            "↑↓ essayer dans la chaîne   Entrée garder   {esc}   c actuel / essai                o écouter ce bloc seul   r sans effets   / filtrer"
+            "↑↓ essayer dans la chaîne   Entrée garder   {esc}   c actuel / essai   o ce bloc seul   r sans effets   / filtrer   h aide"
         );
     }
     if s.fx.catalog.is_some() {
-        return "tape pour filtrer   ↑↓ choisir   Entrée ajoute   Échap annule".into();
+        return "tape pour filtrer   ↑↓ choisir   Entrée ajouter   Échap annuler".into();
     }
     if s.fx.focus == FxFocus::Params {
-        return "↑↓ réglage   ←→ valeur   Maj+←→ pas fin   Échap retour à la chaîne".into();
+        return "↑↓ réglage   ←→ valeur   Maj+←→ pas fin   Échap retour à la chaîne   h aide".into();
     }
-    if matches!(s.fx.chain.leaf(s.fx.cursor), Some(super::super::state::chain::Leaf::Nam { .. })) {
-        return "←→ série   Entrée choisir le modèle   a/i ajouter   s mettre en parallèle                   [ ] déplacer   x retirer   b couper   r sans effets"
-            .into();
-    }
-    if matches!(s.fx.chain.leaf(s.fx.cursor), Some(super::super::state::chain::Leaf::Ir { .. })) {
-        return "←→ série   Entrée choisir l'IR   a/i ajouter   s mettre en parallèle                   [ ] déplacer   x retirer   b couper   r sans effets"
-            .into();
-    }
-    match s.fx.chain.spot(s.fx.cursor) {
-        Spot::Empty => "a ajouter un bloc (nam, ir, effets)   Tab onglets   q quitter",
-        Spot::Block => "←→ série   a/i ajouter   s mettre en parallèle   [ ] déplacer   x retirer   b couper   v vumètres   Entrée régler",
-        Spot::Split => "↓ branches   + branche   Entrée mode et coupures   [ ] déplacer le parallèle   x défaire   a/i ajouter",
-        Spot::Header => "↑↓ branche   Entrée gain, phase   m muet   o solo   p phase   + branche   x retirer la branche   a ajouter au début",
-        Spot::BranchBlock => "←→ série   ↑↓ branche   { } changer de branche   [ ] déplacer (sort aux extrémités)   a/i ajouter   x retirer   Entrée régler",
-    }
-    .into()
+    let leaf = s.fx.chain.leaf(s.fx.cursor);
+    let head = match (leaf, s.fx.chain.spot(s.fx.cursor)) {
+        (Some(Leaf::Nam { .. }), _) => {
+            "←→↑↓ se déplacer   Entrée choisir le modèle   a/i ajouter   s parallèle   [ ] déplacer   x retirer   b couper".to_string()
+        }
+        (Some(Leaf::Ir { .. }), _) => {
+            "←→↑↓ se déplacer   Entrée choisir l'IR   a/i ajouter   s parallèle   [ ] déplacer   x retirer   b couper".to_string()
+        }
+        (_, Spot::Empty) => "a ajouter un bloc (nam, ir, effets)".to_string(),
+        (_, Spot::Block) => {
+            "←→ série   Entrée régler   a/i ajouter   s parallèle   [ ] déplacer   x retirer   b couper".to_string()
+        }
+        (_, Spot::Split) => {
+            "↓ branches   Entrée mode et coupures   + branche   [ ] déplacer   x défaire   a/i ajouter".to_string()
+        }
+        (_, Spot::Header) => {
+            "↑↓ branche   Entrée gain et phase   m muet   o solo   p phase   + branche   x retirer la branche".to_string()
+        }
+        (_, Spot::BranchBlock) => {
+            "←→↑↓ se déplacer   { } changer de branche   [ ] déplacer   Entrée régler   a/i ajouter   x retirer".to_string()
+        }
+    };
+    format!("{head}{SORTIE}")
 }
