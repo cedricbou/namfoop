@@ -21,7 +21,7 @@ Raspberry Pi.
 
 ```sh
 git clone --recurse-submodules https://github.com/cedricbou/namfoop.git && cd namfoop
-cargo build --release                         # prérequis : rustup, gcc, alsa-lib, pipewire-jack
+cargo build --release                         # prérequis : voir « Prérequis de compilation »
 ./target/release/namfoop import nam/         # zips (Tone3000, packs achetés) -> library/
 ./target/release/namfoop models               # inventaire des modèles et IR
 ./target/release/namfoop setup                # une fois : carte, entrées, sorties, buffer
@@ -31,11 +31,44 @@ cargo build --release                         # prérequis : rustup, gcc, alsa-l
 ./target/release/namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
 ```
 
+Si le dépôt a été cloné sans `--recurse-submodules`, la compilation s'arrête sur `nam-sys` avec
+« NeuralAmpModelerCore absent » : lancer `git submodule update --init --recursive` à la racine du
+dépôt, puis relancer `cargo build --release`.
+
 Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : `namfoop meta`
 (corriger les métadonnées d'un modèle : type de capture, gain d'entrée, IR préférée), `namfoop render`
 (traiter un WAV), `namfoop bench` (coût CPU), `namfoop latency` (mesure aller-retour),
 `namfoop ports` (ports JACK), `namfoop fx` (effets à placer avant ou après le modèle avec `--pre` /
 `--post`). Sans matériel : `namfoop --backend sim run -m b7k`.
+
+## Prérequis de compilation
+
+Il faut un compilateur C++20 (le moteur NAM est compilé avec le projet), `pkg-config`, `git`, et les
+fichiers de développement d'ALSA et de JACK. Rust s'installe avec [rustup](https://rustup.rs), qui
+prend tout seul la version fixée par `rust-toolchain.toml`.
+
+Arch Linux et dérivées (Manjaro, EndeavourOS, CachyOS) :
+
+```sh
+sudo pacman -S --needed base-devel git rustup alsa-lib pipewire-jack
+```
+
+Ubuntu, Debian et dérivées (Mint, Pop!_OS, Raspberry Pi OS) :
+
+```sh
+sudo apt install build-essential pkg-config git libasound2-dev libjack-jackd2-dev pipewire-jack
+```
+
+Fedora :
+
+```sh
+sudo dnf install gcc-c++ pkgconf-pkg-config git alsa-lib-devel pipewire-jack-audio-connection-kit-devel
+```
+
+Sans ces paquets, la compilation s'arrête sur `jack-sys` ou `alsa-sys` avec « Package jack (ou alsa)
+was not found in the pkg-config search path ». Sur Arch, `pipewire-jack` (ou `jack2`) fournit à la
+fois les fichiers de développement et la bibliothèque ; sur Debian / Ubuntu, `libjack-jackd2-dev`
+sert à compiler et `pipewire-jack` à parler à PipeWire à l'exécution.
 
 ## Documentation
 
