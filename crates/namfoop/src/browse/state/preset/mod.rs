@@ -83,11 +83,47 @@ impl State {
         }
     }
 
+    /// La place du preset courant dans la banque (pour `PgDn` / `PgUp` et l'en-tête).
+    pub fn preset_index(&self) -> Option<usize> {
+        let p = self.preset.as_ref()?;
+        self.presets.iter().position(|x| x.path == p.path)
+    }
+
+    /// **Preset suivant / précédent** (`PgDn` / `PgUp`, #158) : le geste du pédalier. L'ordre est
+    /// celui de la banque, et on **boucle** du dernier au premier. Si la chaîne n'est pas
+    /// enregistrée, on demande une fois (`switch_to`).
+    pub(super) fn step_preset(&mut self, down: bool) -> Action {
+        let n = self.presets.len();
+        if n == 0 {
+            self.message = Some("aucun preset enregistré : S enregistre la chaîne".into());
+            return Action::None;
+        }
+        let next = match self.preset_index() {
+            Some(i) if down => (i + 1) % n,
+            Some(i) => (i + n - 1) % n,
+            // jamais chargé : on entre dans la banque par le bout qui va dans le sens
+            None if down => 0,
+            None => n - 1,
+        };
+        if n == 1 && self.preset_index() == Some(next) {
+            self.message = Some(format!("un seul preset : « {} »", self.presets[next].name));
+            return Action::None;
+        }
+        self.switch_to(next)
+    }
+
     /// Ce que l'en-tête affiche à droite : le preset courant et s'il est à jour (§ 110).
     pub fn preset_label(&self) -> (String, bool) {
         let saved = self.unsaved().is_empty();
         match &self.preset {
-            Some(p) => (format!("preset : {}", p.name), saved),
+            // la place dans la banque : le repère du pédalier (#158)
+            Some(p) => {
+                let place = match (self.preset_index(), self.presets.len()) {
+                    (Some(i), n) if n > 1 => format!(" {}/{n}", i + 1),
+                    _ => String::new(),
+                };
+                (format!("preset{place} : {}", p.name), saved)
+            }
             None if saved => (String::new(), true),
             None => ("chaîne non enregistrée".into(), false),
         }
@@ -259,7 +295,14 @@ impl State {
         self.preset = Some(PresetRef { name: name.clone(), path });
         self.mark_start();
         self.space = super::space::Space::Chain;
-        self.message = Some(format!("preset « {name} » chargé"));
+        let place = match (
+            self.presets.iter().position(|x| x.path == self.preset.as_ref().expect("posé").path),
+            self.presets.len(),
+        ) {
+            (Some(i), n) if n > 1 => format!(" ({}/{n})", i + 1),
+            _ => String::new(),
+        };
+        self.message = Some(format!("preset « {name} » chargé{place}"));
         self.play()
     }
 

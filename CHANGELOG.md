@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#158)
+- `browse`, espace Chaîne : **PgDn / PgUp passent au preset suivant / précédent**, dans l'ordre de
+  la banque et en boucle — le geste du pédalier, pour essayer ou répéter sans passer par la banque.
+  L'en-tête donne la place (`preset 2/7 : Chill verse ✓`), et une chaîne non enregistrée fait
+  demander une fois (`S` enregistrer puis charger, Entrée charger quand même, Échap rester). Dans
+  la Bibliothèque, PgUp / PgDn continuent de défiler les listes.
+- Mesuré (x86, en pseudo-terminal, de la touche à la chaîne installée) : **81 ms** pour `nam › ir`,
+  **204 ms** pour un preset à deux modèles en parallèle — c'est le chargement des modèles qui
+  domine. Le son ne se coupe pas (la chaîne précédente joue jusqu'au fondu de 20 ms) : c'est un
+  retard, pas un trou. Pour changer de son sur un temps, il faudra la banque préchargée de #6.
+
 ### Ajouté (#110)
 - `browse` : **enregistrer et retrouver ses chaînes**. **`S`** écrit la chaîne en preset dans
   `library/presets/` (nom proposé, modifiable), **`P`** ouvre la **banque** — la liste des presets

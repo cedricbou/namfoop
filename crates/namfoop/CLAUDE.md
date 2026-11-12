@@ -107,6 +107,15 @@ concernée). Erreurs : `anyhow`.
 
 ## Faits mesurés
 
+- **Bascule d'un preset** (`PgDn` / `PgUp`, #158 ; x86, profil `ci`, backend sim, mesurée en
+  pseudo-terminal : de la touche à la ligne `NAMFOOP_BROWSE_TRACE`, écrite quand la chaîne est
+  **dans** le thread audio) : **81 ms** pour `nam › ir`, **82 ms** pour `gate › nam › ir › reverb`,
+  **204 ms** pour un parallèle à **deux** NAM. C'est le **chargement des modèles** qui domine
+  (≈ 80 ms le premier, ≈ 120 ms le second), pas le nombre d'effets. Le son ne se coupe pas : la
+  chaîne précédente joue jusqu'au fondu de 20 ms, donc c'est un **retard**, pas un trou. Assez bon
+  pour essayer et répéter ; pour changer de son sur un temps, il faudra la banque préchargée en
+  mémoire (#6). **Pi 5 non mesuré** (#44 / #45).
+
 - Niveau d'entrée : les captures Tone3000 n'ont pas d'`input_level_dbu`. Avec la basse de
   l'utilisateur dans l'iTwo (crête ~ -12 dBFS), il a fallu -18 dB d'entrée pour retrouver le son des
   démos (Bassman 800 « presque clair », THD < 5 % jusqu'à -6 dBFS de sinus) -> cible de calibration :

@@ -246,6 +246,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("◇", "la sortie du parallèle : a y ajoute après lui (↑ : le ◆)"));
         v.push(key_line("v / r", "vumètres · avec ou sans effets"));
         v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
+        v.push(key_line("PgDn / PgUp", "preset suivant / précédent (la banque en boucle)"));
         v.push(key_line("t", "déplier le TOML du preset"));
         v.push(key_line("1", "revenir à la Bibliothèque (le banc d'essai)"));
         v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));
