@@ -102,7 +102,11 @@ impl State {
     /// La **chaîne** en une ligne (essai du sélecteur compris) : les blocs audibles, un parallèle
     /// entre `◆[ … | … ]`. `(vide)` quand il n'y a rien.
     pub fn chain_text(&self) -> String {
-        let c = self.shown_chain();
+        self.chain_line(&self.shown_chain())
+    }
+
+    /// Une chaîne en une ligne (la chaîne écoutée, ou celle d'un preset de la banque).
+    pub fn chain_line(&self, c: &chain::Chain) -> String {
         let audible = |l: &Leaf| l.on() && !(self.fx.bypass_all && matches!(l, Leaf::Fx(_)));
         let parts: Vec<String> = c
             .blocks

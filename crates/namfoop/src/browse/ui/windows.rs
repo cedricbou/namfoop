@@ -176,6 +176,19 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("Échap", "fermer sans enregistrer"));
         return ("Modifier et calibrer le modèle (e)".into(), v);
     }
+    if s.bank.is_some() {
+        v.push(key_line("↑↓", "choisir un preset"));
+        v.push(key_line("Entrée", "le charger (la chaîne en cours est remplacée)"));
+        v.push(key_line("/", "filtrer par nom ou identifiant"));
+        v.push(key_line("S", "enregistrer la chaîne en cours comme preset"));
+        v.push(key_line("Échap", "fermer la banque"));
+        v.push(Line::raw(""));
+        v.push(Line::styled(
+            " Les presets vivent dans library/presets/ ; un son manquant est signalé en rouge.",
+            Style::new().fg(Color::DarkGray),
+        ));
+        return ("Banque de presets".into(), v);
+    }
     if s.fx.catalog.is_some() {
         v.push(key_line("tape", "filtrer le catalogue"));
         v.push(key_line("↑↓", "choisir"));
@@ -232,6 +245,8 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("m / o / p", "muet · solo · polarité de la branche"));
         v.push(key_line("◇", "la sortie du parallèle : a y ajoute après lui (↑ : le ◆)"));
         v.push(key_line("v / r", "vumètres · avec ou sans effets"));
+        v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
+        v.push(key_line("t", "déplier le TOML du preset"));
         v.push(key_line("1", "revenir à la Bibliothèque (le banc d'essai)"));
         v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));
         return ("Chaîne · le synoptique est l'éditeur".into(), v);
@@ -262,6 +277,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
             v.push(key_line("s", "sauver le mélange dans library/cabs/"));
         }
     }
+    v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
     v.push(key_line("2", "aller à la Chaîne (effets, parallèles)"));
     v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));
     let tab = match s.tab {
@@ -296,6 +312,131 @@ pub(super) fn render_help(s: &State, area: Rect, f: &mut Frame) {
             Block::bordered()
                 .border_style(Style::new().fg(Color::Cyan))
                 .title(Span::styled(title, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)))
+                .style(Style::new().bg(Color::Black)),
+        ),
+        at,
+    );
+}
+
+/// La **banque** de presets (`P`, #110) : la liste, le filtre `/`, et la chaîne de chacun en une
+/// ligne. Un preset dont un son manque est grisé, avec la raison à la place de sa chaîne.
+pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
+    let Some(bank) = s.bank.as_ref() else { return };
+    let rows = s.bank_rows();
+    let cur = s.bank_cursor();
+    let mut lines = vec![if bank.filtering || !bank.filter.is_empty() {
+        Line::from(vec![
+            Span::styled(" filtre : ", Style::new().fg(Color::Cyan)),
+            Span::raw(format!("{}{}", bank.filter, if bank.filtering { "█" } else { "" })),
+        ])
+    } else {
+        Line::styled(" / pour filtrer", Style::new().fg(Color::DarkGray))
+    }];
+    if rows.is_empty() {
+        lines.push(Line::styled(
+            if s.presets.is_empty() {
+                "   aucun preset : S enregistre la chaîne dans library/presets/"
+            } else {
+                "   rien ne correspond au filtre"
+            },
+            Style::new().fg(Color::DarkGray),
+        ));
+    }
+    let name_w = rows.iter().map(|&i| s.presets[i].name.chars().count()).max().unwrap_or(0).min(32);
+    let shown = window(rows.len(), cur, (area.height as usize).saturating_sub(7).max(1));
+    let rest = rows.len() - shown.end;
+    for k in shown {
+        let i = rows[k];
+        let p = &s.presets[i];
+        let broken = p.chain.is_none();
+        let courant = s.preset.as_ref().is_some_and(|r| r.path == p.path);
+        lines.push(Line::from(vec![
+            cursor_span(k == cur),
+            Span::styled(format!("{:<6}", p.id), Style::new().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{:<w$}", p.name, w = name_w),
+                if broken {
+                    Style::new().fg(Color::DarkGray)
+                } else if courant {
+                    Style::new().fg(Color::Green).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::new()
+                },
+            ),
+            Span::styled(
+                format!("  {}", s.preset_line(i)),
+                if broken { Style::new().fg(Color::Red) } else { Style::new().fg(Color::DarkGray) },
+            ),
+            Span::styled(if courant { "  ◀ en place" } else { "" }, Style::new().fg(Color::Green)),
+        ]));
+    }
+    if rest > 0 {
+        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(Color::DarkGray)));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        "  ↑↓ choisir · Entrée charger · / filtrer · Échap fermer · S enregistrer la chaîne",
+        Style::new().fg(Color::DarkGray),
+    ));
+    let title = " Banque de presets ";
+    let w = (lines.iter().map(|l| l.width()).max().unwrap_or(40).max(title.chars().count()) as u16 + 4)
+        .min(area.width);
+    let h = (lines.len() as u16 + 2).min(area.height);
+    let at = Rect {
+        x: area.x + (area.width.saturating_sub(w)) / 2,
+        y: area.y + (area.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    };
+    f.render_widget(Clear, at);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::bordered()
+                .border_style(Style::new().fg(Color::Cyan))
+                .title(Span::styled(title, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)))
+                .style(Style::new().bg(Color::Black)),
+        ),
+        at,
+    );
+}
+
+/// « La chaîne n'est pas enregistrée » : demandé **une fois** avant de charger un autre preset.
+pub(super) fn render_confirm_switch(s: &State, body: Rect, f: &mut Frame) {
+    let vers = s.pending_preset.and_then(|i| s.presets.get(i)).map(|p| p.name.clone()).unwrap_or_default();
+    let mut lines = vec![Line::from(Span::styled(
+        format!("Charger « {vers} » remplacerait la chaîne en cours."),
+        Style::new().fg(Color::Yellow),
+    ))];
+    for what in s.unsaved() {
+        lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
+    }
+    lines.push(Line::raw(""));
+    for (k, t) in [
+        ("  S", "      enregistrer la chaîne, puis charger"),
+        ("  Entrée", " charger quand même"),
+        ("  Échap", "  rester (par défaut)"),
+    ] {
+        lines.push(Line::from(vec![
+            Span::styled(k, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(t),
+        ]));
+    }
+    let w = (lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16 + 4).min(body.width);
+    let h = (lines.len() as u16 + 2).min(body.height);
+    let at = Rect {
+        x: body.x + (body.width.saturating_sub(w)) / 2,
+        y: body.y + (body.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    };
+    f.render_widget(Clear, at);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::bordered()
+                .title(Span::styled(
+                    " La chaîne n'est pas enregistrée ",
+                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                ))
                 .style(Style::new().bg(Color::Black)),
         ),
         at,

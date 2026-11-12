@@ -671,3 +671,73 @@ fn the_output_of_a_parallel_is_visible_and_explained() {
     let sur = line.spans.iter().find(|sp| sp.content.contains('◇')).expect("le ◇ est là");
     assert_eq!(sur.style.bg, Some(Color::Cyan), "le curseur est dessus");
 }
+
+/// Les presets à l'écran (#110) : l'indicateur de l'en-tête, la banque (`P`), la fenêtre de
+/// bascule, et le TOML replié puis déplié (`t`).
+#[test]
+fn presets_on_screen() {
+    use crate::browse::state::chain::{Block, Cursor, Leaf};
+    use crate::browse::state::tests::{fx_block, with_chain};
+    let mut s = with_chain(vec![Block::Leaf(Leaf::Nam { model: Some(1), on: true }), fx_block("reverb")]);
+    s.show_meters = false;
+    s.fx.cursor = Cursor::Top(0);
+    s.mark_start();
+    // aucun preset : l'en-tête ne dit rien, le panneau annonce le TOML replié
+    let t = screen(&s);
+    assert!(!t.contains("non enregistré"), "{t}");
+    assert!(t.contains("▸ preset TOML (t)"), "{t}");
+    // la chaîne change : l'en-tête le signale
+    s.on_key(Key::Char('x'));
+    let t = screen(&s);
+    assert!(t.contains("chaîne non enregistrée ● non enregistré (S)"), "{t}");
+    // `S` demande le nom
+    s.on_key(Key::Char('S'));
+    let t = screen(&s);
+    assert!(t.contains("nom du preset :"), "{t}");
+    s.on_key(Key::Esc);
+    // un preset en place : nom et ✓
+    s.mark_preset_saved("Chill verse".into(), "/x/Chill verse.preset.toml".into());
+    let t = screen(&s);
+    assert!(t.contains("preset : Chill verse ✓"), "{t}");
+    // la banque
+    let spec = s.to_preset("Chill verse");
+    let autre = {
+        let o = with_chain(vec![fx_block("chorus")]);
+        o.to_preset("Punk chorus")
+    };
+    s.adopt_presets(vec![
+        ("p3k8".into(), "Chill verse".into(), "/x/Chill verse.preset.toml".into(), spec),
+        ("p9zz".into(), "Punk chorus".into(), "/x/Punk chorus.preset.toml".into(), autre),
+    ]);
+    s.on_key(Key::Char('P'));
+    for (w, h) in [(80, 25), (160, 50)] {
+        let t = crate::tui::screen_text(w, h, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("Banque de presets"), "{w}×{h} :\n{t}");
+        assert!(t.contains("p3k8") && t.contains("Chill verse"), "{w}×{h} :\n{t}");
+        assert!(t.contains("p9zz") && t.contains("Punk chorus"), "{w}×{h} :\n{t}");
+        assert!(t.contains("◀ en place"), "le preset courant est marqué :\n{t}");
+        assert!(t.contains("Entrée charger") && t.contains("/ filtrer"), "{w}×{h} :\n{t}");
+    }
+    // la fenêtre de bascule quand la chaîne n'est pas enregistrée
+    s.on_key(Key::Esc);
+    s.on_key(Key::Char('b'));
+    s.on_key(Key::Char('P'));
+    s.on_key(Key::Down);
+    s.on_key(Key::Enter);
+    let t = screen(&s);
+    assert!(t.contains("La chaîne n'est pas enregistrée"), "{t}");
+    assert!(t.contains("Charger « Punk chorus » remplacerait"), "{t}");
+    assert!(t.contains("S      enregistrer la chaîne, puis charger"), "{t}");
+    assert!(t.contains("Entrée charger quand même"), "{t}");
+    s.on_key(Key::Esc);
+    // `t` : le TOML déplié
+    s.on_key(Key::Char('t'));
+    let t = crate::tui::screen_text(100, 40, |f| render(&s, &Status::default(), f));
+    assert!(t.contains("▾ preset TOML (t)"), "{t}");
+    assert!(t.contains("kind = \"nam\"") || t.contains("kind = \"fx\""), "{t}");
+    // la fenêtre de `q` propose d'enregistrer d'abord
+    s.on_key(Key::Char('t'));
+    s.on_key(Key::Char('q'));
+    let t = screen(&s);
+    assert!(t.contains("S enregistrer puis quitter"), "aide :\n{t}");
+}

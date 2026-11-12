@@ -841,6 +841,31 @@ Trois règles tiennent l'ensemble :
   Depuis l'onglet **Mélange**, Entrée envoie le mélange ; s'il n'est pas encore enregistré, il l'est
   d'abord sous le nom proposé. Sur « son direct » (ou « aucune IR »), un message dit qu'il n'y a
   rien à envoyer.
+- **Enregistrer et retrouver ses chaînes : les presets.** **`S`** enregistre la chaîne en cours
+  dans `library/presets/<nom>.preset.toml` (un nom est proposé, Entrée valide, Échap annule) ;
+  **`P`** ouvre la **banque** : la liste des presets avec leur identifiant court, leur chaîne en une
+  ligne, le filtre `/`, et Entrée pour en **charger** un. En haut à droite, l'en-tête dit toujours
+  où tu en es : `preset : Chill verse ✓`, ou `● non enregistré (S)` dès que la chaîne diffère de ce
+  qui est enregistré (c'est l'**état** qui est comparé : défaire ton changement efface l'alerte).
+
+  Charger un preset alors que la chaîne n'est pas enregistrée demande d'abord, **une fois** : `S`
+  enregistrer puis charger, Entrée charger quand même, Échap rester. La fenêtre de `q` propose la
+  même chose (`S` enregistrer puis quitter). Un preset dont un son a disparu de la bibliothèque
+  reste listé, en rouge, avec la raison : le charger est refusé, mais il est réparable à la main
+  (le fichier est du TOML lisible, et l'identifiant court y sert de filet si tu as juste déplacé
+  un `.nam`).
+
+  **`t`** déplie le TOML du preset sous le synoptique (replié par défaut : `▸ preset TOML (t)`) —
+  pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.
+
+  ```sh
+  namfoop browse          # S enregistrer, P la banque, t le TOML
+  ```
+
+  Les presets sont rangés dans la bibliothèque, comme tes mélanges d'IR : ils suivent donc la même
+  sauvegarde et la même copie vers le Pi. Ils contiennent la chaîne **entière** (blocs, parallèles,
+  branches, blocs coupés) avec **tous** les paramètres des effets, pour qu'un preset sonne pareil
+  dans un an ; le gain d'entrée propre à un modèle reste, lui, dans `library/overrides.toml`.
 - **`h` (ou `?`) ouvre l'aide** : toutes les touches de l'écran où tu es — Bibliothèque (selon
   l'onglet), Chaîne, sélecteur d'un bloc, catalogue, fenêtre « mettre dans la chaîne », mode pose,
   éditeur `e`. N'importe quelle touche la referme. La barre du bas, elle, reste affichée en
