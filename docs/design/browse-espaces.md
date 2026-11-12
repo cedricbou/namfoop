@@ -258,7 +258,20 @@ quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée
   `valide (Entrée) ou annule (Échap) le choix d'abord`.
 - **Seuil du panneau Spectre : 128 colonnes** (police 10×20 pressentie sur le Pi, non définitive).
 
-## 10. Tests attendus
+## 10. Aide à l'écran (ajouté le 12/11/2026, #150)
+
+Deux niveaux, parce que la barre du bas ne peut pas tout dire :
+
+- **la barre permanente** (deux lignes, en bas) garde le contexte **et les touches de sortie** :
+  elle finit toujours par `h aide`, l'autre espace (`1 Bibliothèque` / `2 Chaîne`) et `q quitter`.
+  Elle est coupée aux **séparateurs de touches**, jamais au milieu d'un mot ; si le terminal est
+  trop étroit, les touches du milieu sautent et un `…` le signale — les trois dernières restent ;
+- **l'overlay `h`** (ou `?`) donne **toutes** les touches de l'écran où l'on est : Bibliothèque
+  (selon l'onglet), Chaîne (synoptique ou réglages), sélecteur, catalogue, fenêtre « mettre dans la
+  chaîne », mode pose, éditeur `e`. N'importe quelle touche le referme ; pendant une saisie (filtre,
+  nom, catalogue) `h` s'écrit. Il se dessine par-dessus tout l'écran, donc il tient en 80×25.
+
+## 11. Tests attendus
 
 Logique dans `browse::state` (pure, horloge fournie) : chaque règle des § 2 à 6, dont « ↑↓ dans la
 Bibliothèque laisse la chaîne identique », « Échap du sélecteur rend la chaîne identique », « un essai

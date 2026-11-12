@@ -104,7 +104,7 @@ fn spectrum_panel_with_reference_on_wide_terminals() {
     assert!(wide.contains("◆ 121 Lower - Cap") && wide.contains("Powerhouse 410"), "légende : {wide}");
     assert!(wide.contains("Powerhouse 410 vs ◆ 121 Lower - Cap"), "{wide}");
     assert!(wide.contains("sub +6") && wide.contains("air -6"), "{wide}");
-    assert!(wide.contains("c épingler réf."), "{wide}");
+    assert!(wide.contains("c réf.") && wide.contains("h aide"), "barre d'aide : {wide}");
     // terminal étroit : pas de panneau
     let narrow = crate::tui::screen_text(110, 30, |f| render(&s, &Status::default(), f));
     assert!(!narrow.contains("Spectre"), "{narrow}");
@@ -227,8 +227,6 @@ fn the_quit_window_signals_an_empty_chain() {
     assert!(t.contains("mélange d'IR"), "{t}");
 }
 
-mod chain;
-
 /// Le seuil du panneau Spectre : **128 colonnes** (police 10×20 sur l'écran 1280×800 du Pi, #138).
 /// À 128, la liste et le panneau restent lisibles côte à côte — pas plus tronqués qu'à 130.
 #[test]
@@ -254,3 +252,5 @@ fn the_spectrum_panel_appears_from_128_columns() {
     let cut = |t: &str| t.lines().filter(|l| l.contains("i001")).count();
     assert_eq!(cut(&t128), cut(&t130), "la ligne de l'IR reste visible");
 }
+
+mod chain;

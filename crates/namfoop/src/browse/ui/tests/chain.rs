@@ -508,3 +508,123 @@ fn the_catalog_window_is_drawn_whatever_the_block_under_the_cursor() {
         assert!(!t.contains("ajouter après le curseur"), "{quoi} : refermée\n{t}");
     }
 }
+
+/// La barre permanente du bas rappelle **toujours** comment sortir : `h` (l'aide), `1` / `2`
+/// (l'autre espace) et `q` (quitter) — c'est ce qui manquait dans la Chaîne (#150). Et plus aucun
+/// trou dans les textes.
+#[test]
+fn the_permanent_help_bar_always_says_how_to_get_out() {
+    use crate::browse::state::chain::{Block, Branch, Cursor, Leaf, Mode, Split};
+    use crate::browse::state::tests::{fx, fx_block, with_chain};
+    let chain = vec![
+        Block::Leaf(Leaf::Nam { model: Some(0), on: true }),
+        Block::Leaf(Leaf::Ir { ir: crate::browse::state::IrChoice::Item(2), on: true }),
+        fx_block("reverb"),
+        Block::Split(Split {
+            mode: Mode::Copy,
+            freqs: vec![],
+            branches: vec![Branch::with(vec![fx("peak")]), Branch::default()],
+        }),
+    ];
+    let spots = [
+        (Cursor::Top(0), "bloc nam", "Entrée choisir le modèle"),
+        (Cursor::Top(1), "bloc ir", "Entrée choisir l'IR"),
+        (Cursor::Top(2), "effet", "Entrée régler"),
+        (Cursor::Top(3), "parallèle", "Entrée mode et coupures"),
+        (Cursor::Header { top: 3, b: 0 }, "en-tête de branche", "m muet"),
+        (Cursor::Block { top: 3, b: 0, j: 0 }, "bloc de branche", "{ } changer de branche"),
+    ];
+    for (cursor, quoi, attendu) in spots {
+        let mut s = with_chain(chain.clone());
+        s.fx.cursor = cursor;
+        for w in [80, 120, 190] {
+            let t = crate::tui::screen_text(w, 30, |f| render(&s, &Status::default(), f));
+            let mut der: Vec<&str> = t.lines().rev().take(3).collect();
+            der.reverse();
+            let bas: String = der.join(" ");
+            assert!(bas.contains(attendu), "{quoi} en {w} colonnes : {bas}");
+            // les touches de sortie sont là à toutes les largeurs
+            for touche in ["h aide", "1 Bibliothèque", "q quitter"] {
+                assert!(bas.contains(touche), "{quoi} en {w} colonnes, « {touche} » manque : {bas}");
+            }
+            // dès qu'il y a la place, tout y est ; sinon le milieu saute, marqué d'un `…`
+            let complet = bas.contains("v vumètres") && bas.contains("r sans effets");
+            if w > 80 {
+                assert!(complet, "{quoi} en {w} colonnes : {bas}");
+            } else {
+                assert!(
+                    complet || bas.contains('…'),
+                    "{quoi} en 80 colonnes : la coupe est signalée : {bas}"
+                );
+            }
+            assert!(!t.contains("essai                o"), "plus de trou dans les textes :\n{t}");
+        }
+    }
+    // chaîne vide, et les trois écrans de la Bibliothèque
+    let mut s = with_chain(Vec::new());
+    s.fx.cursor = Cursor::Empty;
+    let t = screen(&s);
+    let mut der: Vec<&str> = t.lines().rev().take(3).collect();
+    der.reverse();
+    let bas: String = der.join(" ");
+    assert!(bas.contains("a ajouter un bloc") && bas.contains("q quitter"), "{bas}");
+    let mut lib = sample();
+    for onglet in ["Modèles", "IR", "Mélange"] {
+        let t = screen(&lib);
+        let mut der: Vec<&str> = t.lines().rev().take(3).collect();
+        der.reverse();
+        let bas: String = der.join(" ");
+        assert!(
+            bas.contains("h aide") && bas.contains("2 Chaîne") && bas.contains("q quitter"),
+            "{onglet} : {bas}"
+        );
+        lib.on_key(Key::Tab);
+    }
+}
+
+/// L'overlay `h` : contextuel, il se referme à n'importe quelle touche, et `h` pendant une saisie
+/// s'écrit dans le filtre (#150).
+#[test]
+fn the_help_overlay_is_contextual() {
+    use crate::browse::state::chain::{Block, Cursor, Leaf};
+    use crate::browse::state::tests::with_chain;
+    // Bibliothèque
+    let mut s = sample();
+    s.on_key(Key::Char('h'));
+    let t = screen(&s);
+    assert!(t.contains("Aide · Bibliothèque · Modèles"), "{t}");
+    assert!(t.contains("écouter au banc d'essai") && t.contains("mettre le son du banc"), "{t}");
+    assert!(t.contains("fermer cette aide"), "{t}");
+    s.on_key(Key::Char('h'));
+    assert!(!screen(&s).contains("fermer cette aide"), "h referme");
+    // n'importe quelle touche referme, et elle n'agit pas
+    s.on_key(Key::Char('h'));
+    s.on_key(Key::Char('2'));
+    assert!(!s.help && s.space == crate::browse::state::space::Space::Library, "la touche referme sans agir");
+    // pendant une saisie, h s'écrit
+    s.on_key(Key::Char('/'));
+    s.on_key(Key::Char('h'));
+    assert!(!s.help && s.filter == "h", "filtre : {:?}", s.filter);
+    s.on_key(Key::Esc);
+    // Chaîne, puis sélecteur
+    let mut s = with_chain(vec![Block::Leaf(Leaf::Nam { model: Some(0), on: true })]);
+    s.fx.cursor = Cursor::Top(0);
+    s.on_key(Key::Char('h'));
+    let t = screen(&s);
+    assert!(t.contains("Aide · Chaîne · le synoptique est l'éditeur"), "{t}");
+    assert!(t.contains("muet · solo · polarité") && t.contains("vumètres"), "{t}");
+    s.on_key(Key::Esc);
+    s.on_key(Key::Enter); // sélecteur
+    s.on_key(Key::Char('h'));
+    let t = crate::tui::screen_text(100, 30, |f| render(&s, &Status::default(), f));
+    assert!(t.contains("Aide · Chaîne · choisir le modèle d'un bloc"), "{t}");
+    assert!(t.contains("essayer dans la chaîne") && t.contains("actuel ↔ essai"), "{t}");
+    assert!(t.contains("la chaîne n'est pas modifiée"), "{t}");
+    s.on_key(Key::Esc);
+    // catalogue
+    s.on_key(Key::Esc);
+    s.on_key(Key::Char('a'));
+    s.on_key(Key::Char('h')); // dans le catalogue, h filtre (saisie)
+    assert!(!s.help, "le catalogue filtre à la frappe");
+    s.on_key(Key::Esc);
+}

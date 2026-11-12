@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#150)
+- `browse` : **`h` (ou `?`) ouvre l'aide des touches**, contextuelle — Bibliothèque (selon
+  l'onglet), Chaîne (synoptique ou réglages), sélecteur d'un bloc, catalogue, fenêtre « mettre dans
+  la chaîne », mode pose, éditeur `e`. N'importe quelle touche la referme ; pendant une saisie, `h`
+  s'écrit. Elle se dessine par-dessus tout l'écran et tient en 80×25.
+
+### Corrigé (#150)
+- `browse`, Chaîne : la barre d'aide du bas **avait perdu les touches qui permettent d'en sortir**
+  (`q` quitter, `1` Bibliothèque, `v` vumètres) et annonçait encore « Tab onglets » sur une chaîne
+  vide. Chaque barre finit maintenant par `v vumètres   r sans effets   h aide   1 Bibliothèque
+  q quitter`. Elle est aussi coupée **aux séparateurs de touches** et non au milieu d'un mot : sur
+  un terminal étroit, les touches du milieu sautent (un `…` le signale) et les trois dernières
+  restent lisibles. Deux textes contenaient un trou de 16 espaces (continuation de littéral
+  recollée par `cargo fmt`).
+
 ### Corrigé (#148)
 - `browse`, Chaîne : **la fenêtre du catalogue (`a` / `i`) ne s'affichait pas** quand le curseur
   était sur un bloc `nam` ou `ir` — le panneau du bloc sortait du rendu avant elle. Le catalogue
