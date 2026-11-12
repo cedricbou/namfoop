@@ -176,6 +176,10 @@ s'écrit `{ fx = "...", on = false }`.
 
 ## 10. Hors maquette, à confirmer pendant la réalisation
 
+> **Remplacé (épique #131).** Le premier point ci-dessous — les onglets Modèles / IR agissent sur le bloc
+> choisi dans la chaîne — est abandonné : voir [`browse-espaces.md`](browse-espaces.md) (Bibliothèque et
+> Chaîne, sélecteur sur place).
+
 - Onglets Modèles / IR : ils agissent sur le bloc `nam` / `ir` choisi dans la chaîne (par défaut le
   premier), le titre de l'onglet le dit ; Entrée sur un `nam` ouvre l'onglet Modèles (#109).
 - Défilement horizontal du synoptique dans un terminal étroit (#108).
