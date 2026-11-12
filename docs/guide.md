@@ -86,8 +86,9 @@ pas par les aux.
 
 ## 3. Installation
 
-Prérequis (Arch Linux) : `rustup` (Rust stable), `gcc`, `alsa-lib`, `pipewire-jack` (ou `jack2`),
-`git`.
+Prérequis : un compilateur C++20, `pkg-config`, `git`, `rustup`, et les fichiers de développement
+d'ALSA et de JACK. Les paquets à installer sur Arch, Ubuntu / Debian et Fedora sont listés dans le
+[README](../README.md#prérequis-de-compilation).
 
 ```sh
 git clone --recurse-submodules https://github.com/cedricbou/namfoop.git
