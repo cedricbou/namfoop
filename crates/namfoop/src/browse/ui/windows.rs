@@ -2,6 +2,7 @@
 //! (`q`, § 8 de `browse-chaine.md`) et « Mettre « … » dans la chaîne » (Entrée dans la
 //! Bibliothèque, § 4 de `browse-espaces.md`). La fenêtre du catalogue est dans `ui/fx.rs`.
 
+use super::super::state::chain::Spot;
 use super::super::state::fx::FxFocus;
 use super::*;
 
@@ -202,6 +203,18 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         return (format!("Chaîne · choisir {quoi} d'un bloc"), v);
     }
     if s.space == Space::Chain {
+        if s.fx.chain.spot(s.fx.cursor) == Spot::Merge {
+            v.push(key_line("a", "ajouter un bloc **après** le parallèle"));
+            v.push(key_line("i", "ajouter à la fin de la première branche"));
+            v.push(key_line("←→", "la fin de la 1re branche · le bloc qui suit le parallèle"));
+            v.push(key_line("↑", "le `◆` : mode, coupures, `+` branche, `x` défaire, `[ ]` déplacer"));
+            v.push(Line::raw(""));
+            v.push(Line::styled(
+                " Les branches se somment ici. Ses réglages propres (niveau, mix) viendront.",
+                Style::new().fg(Color::DarkGray),
+            ));
+            return ("Chaîne · sortie du parallèle (◇)".into(), v);
+        }
         if s.fx.focus == FxFocus::Params {
             v.push(key_line("↑↓", "choisir le réglage"));
             v.push(key_line("←→", "changer la valeur (Maj : pas fin)"));
@@ -217,6 +230,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("[ ] / { }", "déplacer dans la chaîne · changer de branche"));
         v.push(key_line("b", "couper ou remettre le bloc"));
         v.push(key_line("m / o / p", "muet · solo · polarité de la branche"));
+        v.push(key_line("◇", "la sortie du parallèle : a y ajoute après lui (↑ : le ◆)"));
         v.push(key_line("v / r", "vumètres · avec ou sans effets"));
         v.push(key_line("1", "revenir à la Bibliothèque (le banc d'essai)"));
         v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));

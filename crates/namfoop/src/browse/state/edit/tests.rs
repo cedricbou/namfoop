@@ -61,10 +61,22 @@ fn the_cursor_walks_the_chain_in_two_dimensions() {
     assert_eq!(s.fx.cursor, Cursor::Header { top: 1, b: 0 });
     s.on_key(Key::Right);
     assert_eq!(s.fx.cursor, Cursor::Block { top: 1, b: 0, j: 0 });
-    // au bout de la branche : ce qui suit le parallèle
+    // au bout de la branche : la **sortie** du parallèle (`◇`, #152), puis ce qui le suit
+    s.on_key(Key::Right);
+    assert_eq!(s.fx.cursor, Cursor::Merge(1));
+    assert_eq!(s.fx.chain.spot(s.fx.cursor), Spot::Merge);
     s.on_key(Key::Right);
     assert_eq!(s.fx.cursor, Cursor::Top(2));
-    // ← depuis là : la fin de la branche 1
+    // ← depuis le bloc qui suit : la sortie (miroir de →), puis la fin de la branche 1
+    s.on_key(Key::Left);
+    assert_eq!(s.fx.cursor, Cursor::Merge(1));
+    // ↑ depuis la sortie : le `◆`, d'où tout le parallèle se règle
+    s.on_key(Key::Up);
+    assert_eq!(s.fx.cursor, Cursor::Top(1));
+    s.on_key(Key::Right);
+    s.on_key(Key::Right);
+    s.on_key(Key::Right);
+    assert_eq!(s.fx.cursor, Cursor::Merge(1));
     s.on_key(Key::Left);
     assert_eq!(s.fx.cursor, Cursor::Block { top: 1, b: 0, j: 0 });
     // ← : l'en-tête, puis le `◆`, puis le bloc d'avant
@@ -417,4 +429,66 @@ fn every_edit_asks_for_a_deferred_audition() {
     // bouger le curseur ne reconstruit rien
     s.on_key(Key::Right);
     assert_eq!(s.tick(2000), Action::None);
+}
+
+/// La **sortie** d'un parallèle (`◇`, #152) : on y ajoute **après** le parallèle — le geste qui
+/// manquait quand il est en bout de chaîne —, `i` ajoute à la fin de sa première branche, et tout
+/// le reste se règle depuis le `◆`.
+#[test]
+fn the_output_of_a_parallel_is_where_you_add_after_it() {
+    let mut s = with_chain(vec![
+        fx_block("hpf:freq=30"),
+        copy(vec![branch("B1", 0.0, vec![fx("lpf:freq=250")]), branch("B2", -3.0, vec![nam(), ir()])]),
+    ]);
+    // le scénario de l'utilisateur : le parallèle est le dernier bloc, le curseur est dans une branche
+    s.fx.cursor = Cursor::Block { top: 1, b: 1, j: 1 };
+    s.on_key(Key::Right);
+    assert_eq!(s.fx.cursor, Cursor::Merge(1), "→ au bout d'une branche : la sortie");
+    s.on_key(Key::Right);
+    assert_eq!(s.fx.cursor, Cursor::Merge(1), "le parallèle est le dernier bloc : on y reste");
+    // `a` ajoute après le parallèle, en une touche
+    s.on_key(Key::Char('a'));
+    for c in "reverb".chars() {
+        s.on_key(Key::Char(c));
+    }
+    s.on_key(Key::Enter);
+    assert_eq!(shape(&s), "hpf 30 [B1:lpf 250 | B2:nam·B7K Ultra ir·121 Lower - Cap] reverb");
+    assert_eq!(s.fx.cursor, Cursor::Top(2), "le curseur suit le bloc posé");
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("ajouté après le parallèle")), "{:?}", s.message);
+    // `i` sur la sortie : à la fin de la première branche (le rang où elle se trouve)
+    s.fx.cursor = Cursor::Merge(1);
+    s.on_key(Key::Char('i'));
+    for c in "peak".chars() {
+        s.on_key(Key::Char(c));
+    }
+    s.on_key(Key::Enter);
+    assert_eq!(shape(&s), "hpf 30 [B1:lpf 250 peak | B2:nam·B7K Ultra ir·121 Lower - Cap] reverb");
+    assert_eq!(s.fx.cursor, Cursor::Block { top: 1, b: 0, j: 1 });
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("à la fin de la branche B1")), "{:?}", s.message);
+    // le reste se règle depuis le `◆` : les touches d'édition le disent, sans rien faire
+    s.fx.cursor = Cursor::Merge(1);
+    let before = s.fx.chain.clone();
+    for key in [Key::Char('x'), Key::Char('s'), Key::Char('['), Key::Char(']'), Key::Char('b')] {
+        s.on_key(key);
+        assert_eq!(s.fx.chain, before, "{key:?} ne touche pas la chaîne");
+        assert!(
+            s.message.as_deref().is_some_and(|m| m.contains("↑ pour le régler")),
+            "{key:?} : {:?}",
+            s.message
+        );
+    }
+    // ↑ : le `◆` ; et la sortie disparaît avec le parallèle (clamp)
+    s.on_key(Key::Up);
+    assert_eq!(s.fx.cursor, Cursor::Top(1));
+    s.fx.cursor = Cursor::Merge(1);
+    assert_eq!(s.fx.chain.spot(s.fx.cursor), Spot::Merge);
+    s.fx.cursor = Cursor::Top(1);
+    s.on_key(Key::Char('x')); // défait le parallèle
+    assert_eq!(s.fx.chain.splits(), 0);
+    assert_eq!(s.fx.chain.clamp(Cursor::Merge(1)), Cursor::Top(1), "plus de parallèle, plus de sortie");
+    // sur la sortie, pas de réglage propre pour l'instant, mais un titre qui dit ce qu'elle somme
+    let mut s = with_chain(vec![copy(vec![branch("B1", 0.0, vec![]), branch("B2", 0.0, vec![])])]);
+    s.fx.cursor = Cursor::Merge(0);
+    assert!(s.fields().is_empty());
+    assert_eq!(s.fields_title(), "sortie du parallèle · 2 branches sommées");
 }

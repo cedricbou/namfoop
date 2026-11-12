@@ -194,7 +194,8 @@ fn the_synoptic_draws_the_four_shapes_with_aligned_columns() {
     ]);
     assert_eq!(lines.len(), 2);
     assert!(lines[0].starts_with("IN ─ gate -60 ─ ◆─┬─ < 150 Hz ─ son direct"), "{}", lines[0]);
-    assert!(lines[0].contains("-2 dB ─┬─ peak ─ reverb ─ OUT"), "{}", lines[0]);
+    // la sortie du parallèle (`◇`, #152) se dessine entre les branches et ce qui suit
+    assert!(lines[0].contains("-2 dB ─┬─ ◇ ─ peak ─ reverb ─ OUT"), "{}", lines[0]);
     assert!(lines[1].contains("└─ > 150 Hz ─ nam·B7K Ultra ─ ir·121 Lower - Cap ─"), "{}", lines[1]);
     assert!(lines[1].contains("0 dB ─┘"), "{}", lines[1]);
     // les gains sont alignés à droite, dans la même colonne
@@ -216,7 +217,7 @@ fn the_synoptic_draws_the_four_shapes_with_aligned_columns() {
     assert!(lines[0].contains("◆─┬─ propre ─ lpf 250 ─ comp 8:1"), "{}", lines[0]);
     assert!(lines[1].contains("├─ fuzz   ─ nam·B7K Ultra ─"), "{}", lines[1]);
     assert!(lines[2].contains("└─ ampli  ─ nam·800D Modern ─ peak"), "{}", lines[2]);
-    assert!(lines[0].contains("0 dB ─┬─ gate -50 ─ OUT"), "{}", lines[0]);
+    assert!(lines[0].contains("0 dB ─┬─ ◇ ─ gate -50 ─ OUT"), "{}", lines[0]);
     assert!(lines[1].contains("-3 dB ─┤"), "{}", lines[1]);
     assert!(lines[2].contains("-4 dB ─┘"), "{}", lines[2]);
     for (a, b, ra, rb) in [('┬', '├', 0, 1), ('├', '└', 1, 2)] {
@@ -627,4 +628,46 @@ fn the_help_overlay_is_contextual() {
     s.on_key(Key::Char('h')); // dans le catalogue, h filtre (saisie)
     assert!(!s.help, "le catalogue filtre à la frappe");
     s.on_key(Key::Esc);
+}
+
+/// La sortie d'un parallèle à l'écran (#152) : le `◇` est dessiné, le curseur s'y voit, le panneau
+/// dit ce qu'elle somme, et la barre d'aide comme l'overlay `h` disent quoi en faire.
+#[test]
+fn the_output_of_a_parallel_is_visible_and_explained() {
+    use crate::browse::state::chain::{Block, Branch, Cursor, Mode, Split};
+    use crate::browse::state::tests::{fx, fx_block, with_chain};
+    let mut s = with_chain(vec![
+        fx_block("hpf:freq=30"),
+        Block::Split(Split {
+            mode: Mode::Bands,
+            freqs: vec![150.0],
+            branches: vec![Branch { gain_db: -2.0, ..Default::default() }, Branch::with(vec![fx("peak")])],
+        }),
+    ]);
+    s.show_meters = false;
+    s.fx.cursor = Cursor::Merge(1);
+    for (w, h) in [(80, 25), (128, 40)] {
+        let t = crate::tui::screen_text(w, h, |f| render(&s, &Status::default(), f));
+        assert!(t.contains("─ ◇ ─ OUT"), "{w}×{h} : la sortie est dessinée\n{t}");
+        assert!(t.contains("sortie du parallèle · 2 branches sommées"), "{w}×{h} :\n{t}");
+        assert!(t.contains("◇ somme de 2 branches") && t.contains("bandes"), "{w}×{h} :\n{t}");
+        assert!(t.contains("< 150 Hz -2 dB") && t.contains("> 150 Hz 0 dB"), "les gains :\n{t}");
+        assert!(t.contains("a : ajouter après le parallèle"), "{w}×{h} :\n{t}");
+        let mut der: Vec<&str> = t.lines().rev().take(3).collect();
+        der.reverse();
+        let bas = der.join(" ");
+        assert!(bas.contains("a ajouter après le parallèle") && bas.contains("↑ le parallèle (◆)"), "{bas}");
+        assert!(bas.contains("h aide") && bas.contains("q quitter"), "{bas}");
+    }
+    // l'aide `h` a sa section
+    s.on_key(Key::Char('h'));
+    let t = crate::tui::screen_text(100, 30, |f| render(&s, &Status::default(), f));
+    assert!(t.contains("Aide · Chaîne · sortie du parallèle (◇)"), "{t}");
+    assert!(t.contains("après** le parallèle") || t.contains("après le parallèle"), "{t}");
+    s.on_key(Key::Esc);
+    // le curseur s'y voit (fond cyan sur le ◇)
+    let syn = crate::browse::ui::synoptic::build(&s);
+    let line = &syn.lines(400, 0)[0];
+    let sur = line.spans.iter().find(|sp| sp.content.contains('◇')).expect("le ◇ est là");
+    assert_eq!(sur.style.bg, Some(Color::Cyan), "le curseur est dessus");
 }

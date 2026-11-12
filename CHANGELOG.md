@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#152)
+- `browse`, Chaîne : la **sortie d'un parallèle** devient une case du curseur, dessinée `◇` à son
+  bord droit (`IN ─ ◆─┬─ … ─┬─ ◇ ─ OUT`). **`a` y ajoute après le parallèle** : c'est la façon
+  directe de poser un bloc derrière un parallèle en bout de chaîne, là où il fallait le mettre dans
+  une branche puis l'en sortir avec `]`. `i` ajoute à la fin de la première branche, `↑` remonte au
+  `◆` (d'où le parallèle se règle, se déplace et se défait), et `→` depuis le bout d'une branche —
+  ou `←` depuis le bloc qui suit — y amène. Le panneau du bas montre ce qu'elle somme (branches,
+  mode, gains). Inspiré du marché, où le point de fusion est un objet sélectionnable (bloc **Merge**
+  de Helix, **Mixer** de Quad Cortex et Fractal) ; ses réglages propres (niveau, mix) viendront
+  (#153).
+
 ### Ajouté (#150)
 - `browse` : **`h` (ou `?`) ouvre l'aide des touches**, contextuelle — Bibliothèque (selon
   l'onglet), Chaîne (synoptique ou réglages), sélecteur d'un bloc, catalogue, fenêtre « mettre dans

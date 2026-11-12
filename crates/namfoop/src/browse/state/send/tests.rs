@@ -196,9 +196,8 @@ fn place_mode_only_moves_and_poses() {
         assert_eq!(s.fx.chain, before, "{key:?} n'édite rien en mode pose");
         assert!(s.place.is_some() && !s.confirm_quit, "{key:?} ne sort pas du mode pose");
     }
-    // ↓ puis → : dans la deuxième branche, sur son bloc
+    // ↓↓ puis → : dans la deuxième branche, sur son bloc
     s.on_key(Key::Down);
-    s.on_key(Key::Right);
     s.on_key(Key::Down);
     s.on_key(Key::Right);
     assert_eq!(s.fx.cursor, Cursor::Block { top: 0, b: 1, j: 0 });

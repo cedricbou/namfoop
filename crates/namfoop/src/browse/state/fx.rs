@@ -186,7 +186,8 @@ impl State {
                 v
             }
             Spot::Header => vec![Field::Gain, Field::Phase, Field::Mute, Field::Solo],
-            Spot::Empty => Vec::new(),
+            // la sortie du parallèle : pas de réglage propre pour l'instant (#153)
+            Spot::Merge | Spot::Empty => Vec::new(),
         }
     }
 
@@ -315,6 +316,10 @@ impl State {
                 }
                 _ => "branche".into(),
             },
+            Spot::Merge => match self.fx.chain.split_at(cur.top()) {
+                Some(sp) => format!("sortie du parallèle · {} branches sommées", sp.branches.len()),
+                None => "sortie du parallèle".into(),
+            },
             Spot::Empty => "réglages".into(),
         }
     }
@@ -409,6 +414,24 @@ impl State {
                 }
                 Key::Enter | Key::Esc => {
                     self.fx.focus = FxFocus::Chain;
+                    return Some(Action::None);
+                }
+                _ => {}
+            }
+        }
+        // La **sortie** d'un parallèle (`◇`) ne sert qu'à ajouter autour de lui : tout le reste se
+        // règle depuis le `◆` (#152). On le dit une fois pour toutes, plutôt que touche par touche.
+        if self.fx.chain.spot(self.fx.cursor) == Spot::Merge {
+            match key {
+                Key::Char('s' | '+' | '=' | 'x' | '[' | ']' | '{' | '}' | 'b' | 'm' | 'o' | 'p')
+                | Key::Backspace => {
+                    self.message = Some(super::edit::MERGE_ELSEWHERE.into());
+                    return Some(Action::None);
+                }
+                Key::Enter | Key::Tab | Key::BackTab => {
+                    self.message = Some(
+                        "la sortie somme les branches ; ses réglages propres (niveau, mix) viendront".into(),
+                    );
                     return Some(Action::None);
                 }
                 _ => {}

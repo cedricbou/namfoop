@@ -14,7 +14,10 @@ tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs c
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod.rs état et
                 navigation ; lists.rs listes des onglets Modèles / IR ; chain.rs la chaîne en blocs
-                éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot) ; label.rs étiquettes du
+                éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot, dont Cursor::Merge : la
+                SORTIE d'un parallèle, le ◇ de son bord droit, d'où `a` ajoute après lui — #152,
+                inspiré du bloc Merge / Mixer du marché ; tout le reste du parallèle se règle depuis
+                le ◆) ; label.rs étiquettes du
                 synoptique ; edit/ navigation 2D et règles d'édition (s, +, x, [ ], { }, b, m/o/p) ;
                 space.rs les DEUX ESPACES (§ 2 de browse-espaces.md) : Space::Library (onglets
                 Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
