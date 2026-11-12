@@ -16,9 +16,13 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 navigation ; lists.rs listes des onglets Modèles / IR ; chain.rs la chaîne en blocs
                 éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot) ; label.rs étiquettes du
                 synoptique ; edit/ navigation 2D et règles d'édition (s, +, x, [ ], { }, b, m/o/p) ;
-                target.rs quel bloc nam / ir les onglets Modèles et IR visent (§ 10, retiré par
-                #134) et la chaîne telle qu'on l'écoute (plan : essai du sélecteur et écoute isolée
-                comprises) ; picker.rs le sélecteur sur place d'un bloc nam / ir (§ 5 de
+                space.rs les DEUX ESPACES (§ 2 de browse-espaces.md) : Space::Library (onglets
+                Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
+                effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2
+                changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
+                Entrée y met le son du banc dans la chaîne (§ 4) ; heard_bench / chain_text pour la
+                ligne d'écoute ; target.rs la chaîne telle qu'on l'écoute selon l'espace (plan :
+                banc à nu, ou blocs édités avec l'essai du sélecteur et l'écoute isolée) ; picker.rs le sélecteur sur place d'un bloc nam / ir (§ 5 de
                 browse-espaces.md : Entrée ouvre la liste sous le synoptique, ↑↓ essaie DANS la
                 chaîne sans l'écrire — l'essai n'est posé que par plan() / shown_chain(), donc
                 unsaved() l'ignore et Échap n'a rien à défaire ; o isole le bloc et son voisin) ; meters.rs balistique des vumètres ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
@@ -28,7 +32,8 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 editor.rs éditeur `e` avec écoute du gain et grain remesuré, blend.rs mélanges, fx.rs onglet
                 Effets (fenêtre du catalogue, réglages de l'élément sous le curseur — effet,
                 parallèle ou branche —, écoute différée, v vumètres) ; navigation :
-                Tab / Maj+Tab en boucle, → / ← de proche en proche (switch_tab, testée dans les deux sens),
+                Tab / Maj+Tab en boucle sur les TROIS onglets, → / ← de proche en proche
+                (space.rs : switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
                 panneau ≥ 130 col., editor.rs, fx.rs onglet Effets, picker.rs (contenu entier du
                 bloc nam / ir sous le curseur, et le sélecteur), rows.rs (une ligne de modèle /

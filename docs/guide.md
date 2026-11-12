@@ -52,10 +52,10 @@ micro ─▶ entrée micro ─────────────────�
 | Étage | Rôle | Réglages |
 |---|---|---|
 | trim | adapte le niveau de **ta** basse au niveau attendu par les modèles | `calibrate`, `--trim` |
-| pré | effets avant le modèle : gate, compresseur, EQ ([§ 10](#10-effets)) | `--pre`, onglet Effets de `browse` |
+| pré | effets avant le modèle : gate, compresseur, EQ ([§ 10](#10-effets)) | `--pre`, espace Chaîne de `browse` |
 | NAM | le modèle d'ampli / pédale / rig | `-m`, `--input-db`, `--output-db`, `--size` |
 | IR | le baffle (seulement si le modèle n'en contient pas) | `-i`, `--ir-ms` |
-| post | effets après le baffle : EQ, chorus, delay, réverbe ([§ 10](#10-effets)) | `--post`, onglet Effets de `browse` |
+| post | effets après le baffle : EQ, chorus, delay, réverbe ([§ 10](#10-effets)) | `--post`, espace Chaîne de `browse` |
 | niveau | volume de sortie cohérent d'un modèle à l'autre | `--level`, `--target-db` |
 | master | volume final | `--master-db` |
 | limiteur | empêche la sortie de dépasser -1 dBFS | `--no-limiter` pour l'enlever |
@@ -651,15 +651,34 @@ namfoop browse
 Le navigateur plein écran **joue en direct**, avec la carte et le routage de `setup`. Le son
 change **sans coupure ni clic**, par un fondu de 20 ms.
 
-Quatre onglets : **Modèles**, **IR**, **Mélange**, **Effets**. **Tab** passe à l'onglet suivant
-(en boucle), **Maj+Tab** au précédent ; **→ / ←** vont aussi d'un onglet à l'autre (dans
-l'onglet Effets, ← revient au Mélange depuis la colonne du catalogue). Le nombre entre
-parenthèses donne ce qui est disponible (« Effets (12) » : 12 effets au catalogue) ; « ● 2 »
-signale deux effets dans la chaîne.
+**Deux espaces**, parce que ce sont deux activités : la **Bibliothèque** (`1`), où l'on
+cherche un son, et la **Chaîne** (`2`), où l'on le règle.
+
+| | **Bibliothèque** (magenta) | **Chaîne** (cyan) |
+|---|---|---|
+| Contenu | onglets **Modèles**, **IR**, **Mélange** | le **synoptique** de la chaîne, l'éditeur, les réglages |
+| Ce qu'on entend | le **banc d'essai** : `basse › modèle › IR`, **sans aucun effet** | la **chaîne** telle qu'elle est éditée |
+
+`1` et `2` changent d'espace depuis n'importe où (sauf pendant une saisie ou un choix en cours) et
+**l'écoute suit**, avec le fondu habituel. Chaque espace garde son état : le curseur et le son du
+banc d'un côté, la chaîne et son curseur de l'autre. Dans la Bibliothèque, **Tab** passe à l'onglet
+suivant (en boucle), **Maj+Tab** au précédent, **→ / ←** vont de proche en proche — ils ne mènent
+plus à la Chaîne, et → sur Mélange le dit. L'en-tête rappelle les deux espaces et le nombre de
+blocs de la chaîne (`2 Chaîne ● 5 blocs`).
+
+Trois règles tiennent l'ensemble :
+
+1. **parcourir n'écrit jamais dans la chaîne** — écrire est un geste explicite (Entrée) ;
+2. **on sait toujours ce qu'on écoute** : le bandeau du cadre et la ligne `♪` sous lui le disent
+   (`♪ banc : basse › …`, avec la chaîne rappelée en gris ; ou `♪ chaîne : basse › …`) ;
+3. **on ne quitte pas la chaîne pour remplir un bloc** : le choix se fait sur place (Entrée sur un
+   bloc `nam` ou `ir`, [ci-dessous](#choisir-le-modèle-ou-lir-dun-bloc-sur-place)).
 
 - **Onglet Modèles** : identifiant, badge « IR incluse » ou « IR requise », type de capture.
-  ↑↓ écoute le modèle sous le curseur, après 150 ms d'arrêt (on peut défiler vite sans tout
-  recharger). Pour un modèle sans baffle, la meilleure IR conseillée est posée d'office. Pour une
+  ↑↓ **écoute** le modèle sous le curseur au banc d'essai, après 150 ms d'arrêt (on peut défiler
+  vite sans tout recharger) — et **rien d'autre** : la chaîne n'est pas touchée. `◀ écouté` marque
+  ce que joue le banc ; un **`●` vert** devant un modèle (ou une IR) rappelle que la chaîne
+  l'utilise. **Entrée** met le son du banc dans la chaîne (ci-dessous). Pour un modèle sans baffle, la meilleure IR conseillée est posée d'office. Pour une
   capture qui inclut son baffle, l'IR est retirée. La première ligne, **son direct (DI, sans
   modèle)**, joue ta basse telle quelle : choisis-la puis une IR dans l'onglet IR pour **écouter
   une IR seule** (comparer les micros d'un pack, préparer un mélange). L'IR en cours est gardée
@@ -688,7 +707,7 @@ signale deux effets dans la chaîne.
 
   Un **indicateur A/B** reste affiché en haut à droite, à côté des onglets : `A <ton choix>` et
   `B ◆ <référence>`. Celui qu'on entend est surligné (A en cyan, B en jaune), et `IR COUPÉE` est
-  en rouge. Dans la liste, `◀ en cours (A)` ou `◀ en cours (B)` marque l'IR jouée.
+  en rouge. Dans la liste, `◀ écoutée (A)` ou `◀ écoutée (B)` marque l'IR jouée.
 
   Pas à pas : dans l'onglet IR, place-toi sur une IR et `c` (elle devient B). Choisis ensuite une
   **autre** IR avec ↑↓ (elle devient A), puis `r` pour basculer. Si tu épingles l'IR en cours de
@@ -700,7 +719,7 @@ signale deux effets dans la chaîne.
 - **Onglet Mélange** : `+`/`-` règle le gain de l'IR choisie (par pas de 1 dB), `p` inverse sa
   polarité, `a` active ou coupe l'alignement automatique, `x` la retire. Chaque changement
   s'écoute aussitôt. `s` sauve le mélange dans `library/cabs/` (Entrée valide le nom proposé).
-- **Onglet Effets** (le quatrième, Tab ou → depuis le Mélange) : le **synoptique** de la chaîne,
+- **Espace Chaîne** (`2`) : le **synoptique** de la chaîne,
   qui est aussi l'**éditeur**, puis les **réglages** de ce qui est sous le curseur (barre, valeur,
   unité, aide et plage) et la **ligne de commande équivalente**, à copier dans `run`.
 
@@ -740,6 +759,7 @@ signale deux effets dans la chaîne.
   | **Entrée** | les **réglages** de ce qui est sous le curseur : les paramètres d'un effet, le mode et les coupures d'un parallèle, le gain et la phase d'une branche. Sur un bloc `nam` ou `ir`, ouvre le **sélecteur sur place** (ci-dessous) |
   | **`v`** | masque / affiche les vumètres |
 
+  <a id="choisir-le-modèle-ou-lir-dun-bloc-sur-place"></a>
   **Choisir le modèle ou l'IR d'un bloc, sur place.** Quand le curseur est sur un bloc `nam` ou
   `ir`, le panneau sous le synoptique montre son contenu **en entier** (nom complet, variante,
   pack, identifiant, badge IR, mini-spectre, grain) — ce que l'étiquette du synoptique, coupée à 16
@@ -778,6 +798,12 @@ signale deux effets dans la chaîne.
   chaîne s'exprime en options (`-m`, `-i`, `--pre`, `--post`), le panneau du bas donne la ligne de
   commande ; dès qu'il y a un parallèle, il faut un **preset** — l'enregistrement viendra avec
   eux (#6).
+- **Mettre le son du banc dans la chaîne : Entrée.** Quand la chaîne est **vide**, elle devient
+  `nam › ir` (ou le modèle seul si son baffle est inclus, ou l'IR seule depuis l'onglet IR) : c'est
+  le parcours « j'ouvre `browse`, je choisis un son », et le message rappelle que `2` sert ensuite
+  à l'habiller d'effets. Quand elle n'est pas vide, le remplacement d'un bloc se fait pour l'instant
+  depuis la Chaîne, sur le bloc (Entrée dessus) ; la fenêtre « quel bloc remplacer » vient avec
+  l'issue #135.
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
   lettres sont des commandes.
 - **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un
@@ -791,7 +817,7 @@ signale deux effets dans la chaîne.
   l'éditeur `e` — `q` ouvre une fenêtre qui liste ce qui serait perdu : **`Q`** (majuscule, un geste
   volontaire) quitte sans enregistrer, **Échap ou n'importe quelle autre touche** fait rester. Il
   n'y a rien à confirmer si tu as défait tes changements ou tout enregistré : c'est l'état qui est
-  comparé, pas un drapeau.
+  comparé, pas un drapeau. Parcourir la Bibliothèque n'ajoute donc **jamais** rien à confirmer.
 
 En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
 exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
@@ -1075,9 +1101,10 @@ premier pour ne pas couper les queues des effets ; la réverbe en dernier pour r
 
 ### Parcours type : régler en jouant, puis jouer
 
-1. **Choisir le son de base** : `namfoop browse`, onglets Modèles et IR
+1. **Choisir le son de base** : `namfoop browse`, espace **Bibliothèque** : ↑↓ écoute au banc
+   d'essai, **Entrée** met le son dans la chaîne
    ([§ 6](#choisir-son-son-en-jouant--namfoop-browse)).
-2. **Ajouter les effets** : Tab (ou →) jusqu'à l'onglet **Effets** (12 effets au catalogue). Dans le catalogue, `a` ajoute l'effet
+2. **Ajouter les effets** : `2` pour l'espace **Chaîne** (12 effets au catalogue). Dans le catalogue, `a` ajoute l'effet
    choisi en pré, `A` en post. Ses réglages s'ouvrent aussitôt : ↑↓ choisit le paramètre, ←→ change
    la valeur (Maj + ←→ : pas fin). Chaque changement s'entend 150 ms après la dernière touche.
 3. **Comparer** : `r` bascule avec et sans effets ; `b` coupe seulement l'effet choisi.

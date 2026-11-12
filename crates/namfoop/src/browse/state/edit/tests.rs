@@ -336,7 +336,7 @@ fn enter_on_a_nam_block_opens_the_picker_on_that_block() {
     assert!(p.nam && !p.is_new);
     assert_eq!(p.current, Some(1), "l'actuel est le modèle du bloc");
     assert_eq!(s.pick_cursor(), 1, "le curseur s'ouvre sur l'actuel");
-    assert_eq!(s.tab, Tab::Fx, "on ne change pas d'écran");
+    assert_eq!(s.space, space::Space::Chain, "on ne change pas d'espace");
     assert_eq!(shape(&s), "nam·B7K Ultra nam·800D Modern", "la chaîne n'a pas bougé");
 }
 

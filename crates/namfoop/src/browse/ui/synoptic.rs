@@ -390,7 +390,8 @@ pub fn height(st: &State) -> u16 {
 /// Titre du cadre : modèles actifs, parallèles, et l'alerte de charge au-delà du seuil.
 pub fn title(chain: &Chain) -> (String, Option<String>) {
     let nam = chain.active_nam();
-    let text = format!("chaîne — NAM actifs : {nam} · parallèles : {}", chain.splits());
+    // le bandeau de l'espace Chaîne (§ 2 de `docs/design/browse-espaces.md`)
+    let text = format!("♪ CHAÎNE — NAM actifs : {nam} · parallèles : {}", chain.splits());
     // Seuil retenu avec l'utilisateur (#111) : on alerte dès 2 modèles actifs et on ne refuse
     // rien. Le coût est linéaire (×N) et 2 modèles restent confortables sur x86, mais le Pi 5
     // n'est pas mesuré (#44 / #45) : prudence tant qu'on ne connaît pas la machine de scène.
