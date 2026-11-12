@@ -801,9 +801,39 @@ Trois règles tiennent l'ensemble :
 - **Mettre le son du banc dans la chaîne : Entrée.** Quand la chaîne est **vide**, elle devient
   `nam › ir` (ou le modèle seul si son baffle est inclus, ou l'IR seule depuis l'onglet IR) : c'est
   le parcours « j'ouvre `browse`, je choisis un son », et le message rappelle que `2` sert ensuite
-  à l'habiller d'effets. Quand elle n'est pas vide, le remplacement d'un bloc se fait pour l'instant
-  depuis la Chaîne, sur le bloc (Entrée dessus) ; la fenêtre « quel bloc remplacer » vient avec
-  l'issue #135.
+  à l'habiller d'effets.
+
+  Dès qu'elle n'est pas vide, une **fenêtre** demande où va le son — même s'il n'y a qu'un bloc du
+  bon type, parce qu'il faut aussi décider du sort de l'IR :
+
+  ```
+  ┌ Mettre « SVT Classic · clean » dans la chaîne ─────────────────────────┐
+  │ ▶ remplacer  nam·Fuzz Face (Fuzz Face · bass) (branche fuzz)           │
+  │   remplacer  nam·SVT Classic (SVT Classic · clean) (branche ampli)     │
+  │   ajouter un bloc nam…  (tu choisis l'endroit dans la chaîne)          │
+  │                                                                        │
+  │  [x] avec son IR (8x10 SM57) dans le bloc ir voisin                    │
+  │                                                                        │
+  │  Entrée valider · Espace cocher · Échap annuler                        │
+  └────────────────────────────────────────────────────────────────────────┘
+  ```
+
+  Une ligne `remplacer` par bloc `nam` (ou `ir`) de la chaîne, dans l'ordre du synoptique, avec le
+  **nom complet** du modèle en place et sa branche ; `ajouter` en dernier. ↑↓ choisit, **Espace**
+  coche, Entrée valide, Échap annule (rien n'est changé). La case **« avec son IR »** n'apparaît
+  que pour un modèle qui a besoin d'une IR quand le banc en joue une ; cochée, l'IR du banc va dans
+  le bloc `ir` qui suit le `nam` visé — et si ce bloc n'existe pas, il est ajouté juste après.
+
+  - **Remplacer** : on reste dans la Bibliothèque, le message dit ce qui a changé (`nam·B7K Ultra
+    (branche > 150 Hz) remplacé par nam·SVT Classic › ir·8x10 SM57 · 2 pour voir la chaîne`).
+  - **Ajouter** : on passe dans la Chaîne en **mode pose**. Le cadre demande `♪ CHAÎNE · où poser
+    nam·… › ir·… ?`, les flèches déplacent le curseur comme d'habitude, **Entrée pose après le
+    curseur** (mêmes règles que `a`), Échap annule et ramène à la Bibliothèque. Aucune autre touche
+    d'édition ne passe en mode pose. Après la pose on reste dans la Chaîne, `[ ]` déplace le bloc.
+
+  Depuis l'onglet **Mélange**, Entrée envoie le mélange ; s'il n'est pas encore enregistré, il l'est
+  d'abord sous le nom proposé. Sur « son direct » (ou « aucune IR »), un message dit qu'il n'y a
+  rien à envoyer.
 - **`/` filtre** la liste : tape des mots (`121 lower`), Entrée pour valider. Hors filtre, les
   lettres sont des commandes.
 - **`e` modifie et calibre** le modèle sous le curseur, sans couper le son (voir ci-dessous). Un

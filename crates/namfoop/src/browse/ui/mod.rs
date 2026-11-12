@@ -17,6 +17,7 @@ mod picker;
 mod rows;
 mod spectrum;
 pub mod synoptic;
+mod windows;
 
 use editor::*;
 pub use spectrum::SPECTRUM_MIN_WIDTH;
@@ -458,6 +459,14 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
 
     let keys: String = match (s.naming.is_some(), s.filtering, s.tab) {
         _ if s.confirm_quit => "Q quitter sans enregistrer   Échap ou toute autre touche : rester".into(),
+        _ if s.send.is_some() => {
+            let space = if s.send.as_ref().is_some_and(|x| x.with_ir) { "   Espace cocher" } else { "" };
+            format!("↑↓ choisir{space}   Entrée valider   Échap annuler")
+        }
+        _ if s.place.is_some() => {
+            "←→↑↓ choisir l'endroit   Entrée poser après le curseur   Échap annuler, retour à la Bibliothèque"
+                .into()
+        }
         _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
             "tape le texte   Entrée valider   Échap annuler".into()
         }
@@ -482,7 +491,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     );
 
     if s.confirm_quit {
-        render_confirm_quit(s, body, f);
+        windows::render_confirm_quit(s, body, f);
+    }
+    if s.send.is_some() {
+        windows::render_send(s, body, f);
     }
 }
 
@@ -498,49 +510,6 @@ fn trial_line(s: &State) -> Option<String> {
         "   à l'essai : rien n'est gardé tant que tu ne valides pas (Entrée) · c pour réentendre l'actuel"
             .into()
     })
-}
-
-/// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un
-/// geste volontaire pour quitter (`Q` majuscule). Elle se dessine en dernier, par-dessus l'onglet.
-fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
-    let mut lines = vec![Line::from(Span::styled(
-        "Ceci n'est pas enregistré :",
-        Style::new().add_modifier(Modifier::BOLD),
-    ))];
-    for what in s.unsaved() {
-        lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
-    }
-    lines.push(Line::raw(""));
-    lines.push(Line::from(vec![
-        Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        Span::raw("     quitter sans enregistrer"),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::raw(" ou toute autre touche : rester (par défaut)"),
-    ]));
-
-    let w = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16 + 4;
-    let w = w.min(body.width);
-    let h = (lines.len() as u16 + 2).min(body.height);
-    let area = Rect {
-        x: body.x + (body.width.saturating_sub(w)) / 2,
-        y: body.y + (body.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    };
-    f.render_widget(Clear, area);
-    f.render_widget(
-        Paragraph::new(lines).block(
-            Block::bordered()
-                .title(Span::styled(
-                    " Modifications non enregistrées ",
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-                ))
-                .style(Style::new().bg(Color::Black)),
-        ),
-        area,
-    );
 }
 
 #[cfg(test)]

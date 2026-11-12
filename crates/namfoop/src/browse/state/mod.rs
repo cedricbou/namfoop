@@ -182,6 +182,10 @@ pub struct State {
     pub fx: fx::FxState,
     /// Sélecteur sur place d'un bloc `nam` / `ir` de la chaîne (§ 5), quand il est ouvert.
     pub picker: Option<picker::Picker>,
+    /// Fenêtre « Mettre « … » dans la chaîne » (§ 4), quand elle est ouverte.
+    pub send: Option<send::Send>,
+    /// Mode pose : où poser ce qu'on envoie dans la chaîne (§ 4).
+    pub place: Option<send::Place>,
     /// Effets changés : écoute à reconstruire après `AUDITION_DELAY_MS` sans touche.
     fx_due: Option<u64>,
     /// Vumètres par bloc et par branche de la chaîne **en écoute** (#107) : la table arrive avec la
@@ -227,6 +231,8 @@ impl State {
             blend_profile: None,
             fx: fx::FxState::default(),
             picker: None,
+            send: None,
+            place: None,
             fx_due: None,
             chain_meters: None,
             meters: meters::MeterDisplay::default(),
@@ -406,6 +412,13 @@ impl State {
             }
             return Action::None;
         }
+        // la fenêtre « mettre dans la chaîne » et le mode pose prennent la main (§ 4)
+        if let Some(a) = self.send_key(key) {
+            return a;
+        }
+        if let Some(a) = self.place_key(key) {
+            return a;
+        }
         // le sélecteur sur place prend toutes les touches : valider ou annuler d'abord (§ 5)
         if let Some(a) = self.picker_key(key) {
             return a;
@@ -549,6 +562,7 @@ mod lists;
 pub mod meters;
 pub mod picker;
 mod quit;
+pub mod send;
 pub mod space;
 mod target;
 

@@ -20,7 +20,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
                 effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2
                 changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
-                Entrée y met le son du banc dans la chaîne (§ 4) ; heard_bench / chain_text pour la
+                send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
+                sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
+                la Chaîne) ; heard_bench / chain_text pour la
                 ligne d'écoute ; target.rs la chaîne telle qu'on l'écoute selon l'espace (plan :
                 banc à nu, ou blocs édités avec l'essai du sélecteur et l'écoute isolée) ; picker.rs le sélecteur sur place d'un bloc nam / ir (§ 5 de
                 browse-espaces.md : Entrée ouvre la liste sous le synoptique, ↑↓ essaie DANS la
