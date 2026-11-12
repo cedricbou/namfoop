@@ -18,7 +18,9 @@ plus la table des vumètres (`meter.rs`), seule à poser des sondes ; `describe(
 les options CLI, qui **produisent** une `ChainSpec` via `to_chain_spec()` — `--crossover HZ` = bandes
 [HZ], grave = son direct),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
-chargement), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
+chargement), `preset.rs` (**presets** `.preset.toml` : la chaîne enregistrée — blocs, parallèles,
+branches ; chemins **relatifs** à la bibliothèque avec l'identifiant court en filet ; effets écrits
+au complet par serde pour que le son soit figé ; `to_blocks()` donne les `BlockSpec` du temps réel), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
 `from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : 2 à `MAX_BRANCHES` = 4 branches, mode copie ou bandes
 (`SplitMode::Bands`, 1 à 3 coupures croissantes, crossover LR4) ; par branche `SplitBranch` : gain,
 polarité, muet (muette = pas traitée) ; réglages vérifiés à la construction (`Result`), jamais en RT ;
@@ -148,9 +150,10 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 ## Dette connue
 
-- `ChainSpec` n'a pas de format TOML : les presets, c'est #6 (proposition de format dans
-  `docs/design/browse-chaine.md` § 9). Les blocs portent des chemins, pas des identifiants de
-  bibliothèque.
+- `ChainSpec` n'a pas de format TOML **et n'en aura pas** : c'est `preset.rs` qui porte la forme
+  enregistrée (`PresetSpec`, § 9 de `docs/design/browse-chaine.md`, fixé par #157), avec des
+  chemins **relatifs** à la bibliothèque et l'identifiant court en filet ; `ChainSpec` reste la
+  forme du temps réel (chemins absolus, réglages résolus). `PresetSpec::to_blocks` fait le pont.
 - `meter.rs` refait les deux fonctions atomiques d'`engine::meters` (`fetch_max` / `take`) :
   `dsp` ne peut pas dépendre d'`engine`. À unifier dans le sens `engine` -> `dsp` un jour.
 - Les vumètres de l'entrée et de la sortie de la chaîne ne sont pas dans `ChainMeters` :
@@ -172,6 +175,8 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolver), gain.rs, limiter.rs,
                   chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs,
                   blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement),
+                  preset.rs (presets .preset.toml : la chaîne enregistrée, chemins relatifs + identifiant
+                  de secours, tous les paramètres d'effet écrits -> to_blocks pour le temps réel),
                   profile.rs (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB),
                   swap.rs (changement de chaîne à chaud : SwapHandle envoie une Chain construite,
                   SwapChain fond en ~20 ms, l'ancienne repart vers le contrôle — jamais libérée en RT)

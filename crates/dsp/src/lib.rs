@@ -15,6 +15,7 @@ pub mod ir;
 pub mod limiter;
 pub mod meter;
 pub mod nam;
+pub mod preset;
 pub mod profile;
 pub mod split;
 pub mod swap;
@@ -43,6 +44,9 @@ pub enum Error {
     /// Effet : nom ou paramètre inconnu, valeur hors plage...
     #[error("{0}")]
     Fx(String),
+    /// Preset : fichier illisible, ou son d'un bloc introuvable.
+    #[error("preset {0} : {1}")]
+    Preset(String, String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

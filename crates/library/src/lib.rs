@@ -64,6 +64,8 @@ pub enum Kind {
     Ir,
     /// Mélange d'IR (`library/cabs/*.cab.toml`).
     Cab,
+    /// Preset : une chaîne enregistrée (`library/presets/*.preset.toml`, #157).
+    Preset,
 }
 
 impl Kind {
@@ -72,13 +74,14 @@ impl Kind {
             Kind::Model => 'm',
             Kind::Ir => 'i',
             Kind::Cab => 'c',
+            Kind::Preset => 'p',
         }
     }
     fn ext(self) -> &'static str {
         match self {
             Kind::Model => "nam",
             Kind::Ir => "wav",
-            Kind::Cab => "toml",
+            Kind::Cab | Kind::Preset => "toml",
         }
     }
     fn label(self) -> &'static str {
@@ -86,6 +89,7 @@ impl Kind {
             Kind::Model => "modèle",
             Kind::Ir => "IR",
             Kind::Cab => "mélange",
+            Kind::Preset => "preset",
         }
     }
 }
@@ -154,18 +158,25 @@ fn pack_of(rel: &str) -> String {
 impl Library {
     pub fn scan(root: &Path) -> Self {
         let mut entries = Vec::new();
-        for kind in [Kind::Model, Kind::Ir, Kind::Cab] {
+        for kind in [Kind::Model, Kind::Ir, Kind::Cab, Kind::Preset] {
             let mut files = Vec::new();
             walk(root, kind.ext(), &mut files);
-            if kind == Kind::Cab {
-                files.retain(|p| dsp::blend::is_cab_file(p));
+            // deux sortes de TOML dans la bibliothèque : les mélanges et les presets
+            match kind {
+                Kind::Cab => files.retain(|p| dsp::blend::is_cab_file(p)),
+                Kind::Preset => files.retain(|p| dsp::preset::is_preset_file(p)),
+                _ => {}
             }
             let mut batch: Vec<Entry> = files
                 .into_iter()
                 .map(|path| {
                     let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
                     let pack = pack_of(&rel);
-                    let stem = dsp::blend::display_name(&path);
+                    let stem = if kind == Kind::Preset {
+                        dsp::preset::display_name(&path)
+                    } else {
+                        dsp::blend::display_name(&path)
+                    };
                     Entry { kind, id: String::new(), path, rel, pack, stem }
                 })
                 .collect();
@@ -222,6 +233,30 @@ impl Library {
     /// Pour `-i` : mélanges et IR.
     pub fn resolve_ir(&self, query: &str) -> Result<PathBuf> {
         self.resolve_in(query, &[Kind::Cab, Kind::Ir])
+    }
+
+    /// Un preset par son identifiant court ou ses mots-clés (`--preset`, #159).
+    pub fn resolve_preset(&self, query: &str) -> Result<PathBuf> {
+        self.resolve_in(query, &[Kind::Preset])
+    }
+
+    /// Le preset chargé, prêt à jouer (chemins relatifs résolus dans la bibliothèque).
+    pub fn preset(&self, path: &Path) -> Result<dsp::preset::PresetSpec> {
+        let mut spec = dsp::preset::PresetSpec::load(path)?;
+        // le fichier peut être ailleurs que dans `presets/` : la bibliothèque, c'est `self.root`
+        spec.base = self.root.clone();
+        Ok(spec)
+    }
+
+    /// Le chemin d'un son par son identifiant court : c'est le **filet** des presets quand un
+    /// fichier a bougé (`PresetSpec::to_blocks`).
+    pub fn path_of_id(&self, id: &str) -> Option<PathBuf> {
+        self.entries.iter().find(|e| e.id.eq_ignore_ascii_case(id)).map(|e| e.path.clone())
+    }
+
+    /// Où enregistrer un preset : `library/presets/<nom>.preset.toml`.
+    pub fn preset_path(&self, name: &str) -> PathBuf {
+        self.root.join("presets").join(format!("{}.preset.toml", name.replace(['/', '\\'], "-")))
     }
 
     fn resolve_in(&self, query: &str, kinds: &[Kind]) -> Result<PathBuf> {
@@ -410,140 +445,4 @@ pub fn read_meta(path: &Path) -> Result<NamMeta> {
 }
 
 #[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    /// Bibliothèque factice : (chemin relatif, contenu).
-    pub fn fake_library(tag: &str, files: &[(&str, &str)]) -> PathBuf {
-        // dossier unique par appel : les tests tournent en parallèle
-        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let d = std::env::temp_dir().join(format!("namfoop-lib-{tag}-{}-{n}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        for (rel, content) in files {
-            let p = d.join(rel);
-            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-            std::fs::write(p, content).unwrap();
-        }
-        d
-    }
-
-    fn svt() -> PathBuf {
-        fake_library(
-            "svt",
-            &[
-                ("nam/Ampeg SVT/Ampeg SVT - Ultra Lo SM57.nam", "{}"),
-                ("nam/Ampeg SVT/Ampeg SVT - Ultra Hi SM57.nam", "{}"),
-                ("nam/Ampeg SVT/Ampeg SVT - Gain 10 Ultra Lo and Hi SM57.nam", "{}"),
-                ("nam/Ampeg SVT/Ampeg SVT - MD 421.nam", "{}"),
-                ("nam/Laney/GP12SMX Angel.nam", "{}"),
-                ("nam/Laney/GP12SMX Angel_v2.nam", "{}"),
-                ("nam/Laney v2 pack/Scooped.nam", "{}"),
-            ],
-        )
-    }
-
-    fn name(lib: &Library, q: &str) -> Result<String> {
-        lib.resolve(q, Kind::Model).map(|p| p.file_stem().unwrap().to_string_lossy().into_owned())
-    }
-
-    #[test]
-    fn natural_order() {
-        let mut v = vec!["Mix 10", "Mix 2", "mix 1", "Mix 11", "Cab10_Mix1", "Cab1_Mix3", "Cab1_Mix1"];
-        v.sort_by(|a, b| natural_cmp(a, b));
-        assert_eq!(v, ["Cab1_Mix1", "Cab1_Mix3", "Cab10_Mix1", "mix 1", "Mix 2", "Mix 10", "Mix 11"]);
-    }
-
-    #[test]
-    fn keyword_resolution() {
-        let d = svt();
-        let lib = Library::scan(&d);
-        assert_eq!(name(&lib, "md 421").unwrap(), "Ampeg SVT - MD 421");
-        // deux fichiers contiennent tous les mots, un seul contient l'expression exacte
-        assert_eq!(name(&lib, "ultra lo sm57").unwrap(), "Ampeg SVT - Ultra Lo SM57");
-        assert_eq!(name(&lib, "ULTRA LO SM57").unwrap(), "Ampeg SVT - Ultra Lo SM57");
-        assert!(name(&lib, "sm57").is_err(), "ambigu");
-        assert!(name(&lib, "b7k").is_err(), "absent");
-        let _ = std::fs::remove_dir_all(d);
-    }
-
-    #[test]
-    fn whole_words_beat_substrings() {
-        let d = svt();
-        let lib = Library::scan(&d);
-        // « v2 » est un mot entier du nom de fichier Angel_v2, pas d'Angel (ni du pack « v2 pack »)
-        assert_eq!(name(&lib, "angel v2").unwrap(), "GP12SMX Angel_v2");
-        // sans « v2 » : le nom sans mot superflu l'emporte
-        assert_eq!(name(&lib, "angel").unwrap(), "GP12SMX Angel");
-        assert_eq!(name(&lib, "laney angel").unwrap(), "GP12SMX Angel");
-        let err = name(&lib, "sm57").unwrap_err().to_string();
-        assert!(err.contains(" m"), "les candidats affichent leur identifiant : {err}");
-        let _ = std::fs::remove_dir_all(d);
-    }
-
-    #[test]
-    fn ids_are_stable_unique_and_resolvable() {
-        let d = svt();
-        let a = Library::scan(&d);
-        let ids: Vec<&str> = a.entries.iter().map(|e| e.id.as_str()).collect();
-        let mut sorted = ids.clone();
-        sorted.sort();
-        sorted.dedup();
-        assert_eq!(sorted.len(), ids.len(), "identifiants uniques");
-        assert!(ids.iter().all(|i| i.starts_with('m') && i.len() >= 4));
-        // ajouter un fichier ne change pas les identifiants existants (hors collision)
-        std::fs::write(d.join("nam/Laney/Other.nam"), "{}").unwrap();
-        let b = Library::scan(&d);
-        for e in &a.entries {
-            let same = b.entries.iter().find(|x| x.rel == e.rel).unwrap();
-            assert_eq!(same.id, e.id);
-        }
-        let target = &a.entries[2];
-        assert_eq!(a.resolve(&target.id.to_uppercase(), Kind::Model).unwrap(), target.path);
-        let _ = std::fs::remove_dir_all(d);
-    }
-
-    #[test]
-    fn cabs_are_indexed_and_resolved_with_irs() {
-        let d = fake_library(
-            "cab",
-            &[
-                ("ir/Fender/121 Lower - Cap.wav", ""),
-                (
-                    "cabs/Fender 70 mix.cab.toml",
-                    "name = \"x\"\n[[ir]]\nfile = \"ir/Fender/121 Lower - Cap.wav\"\n",
-                ),
-                ("cabs/notes.toml", ""),
-            ],
-        );
-        let lib = Library::scan(&d);
-        let cabs: Vec<&Entry> = lib.of_kind(Kind::Cab).collect();
-        assert_eq!(cabs.len(), 1, "seuls les .cab.toml");
-        assert_eq!(cabs[0].stem, "Fender 70 mix");
-        assert!(cabs[0].id.starts_with('c'));
-        assert_eq!(lib.resolve_ir("70 mix").unwrap(), cabs[0].path);
-        assert_eq!(lib.resolve_ir(&cabs[0].id).unwrap(), cabs[0].path);
-        assert!(lib.resolve_ir("121 lower").unwrap().ends_with("121 Lower - Cap.wav"));
-        let _ = std::fs::remove_dir_all(d);
-    }
-
-    #[test]
-    fn colliding_ids_are_lengthened() {
-        let mut batch: Vec<Entry> = (0..3000)
-            .map(|i| Entry {
-                kind: Kind::Ir,
-                id: String::new(),
-                path: PathBuf::new(),
-                rel: format!("ir/p/{i}.wav"),
-                pack: "p".into(),
-                stem: i.to_string(),
-            })
-            .collect();
-        assign_ids(&mut batch);
-        let mut ids: Vec<&str> = batch.iter().map(|e| e.id.as_str()).collect();
-        ids.sort();
-        let n = ids.len();
-        ids.dedup();
-        assert_eq!(ids.len(), n, "3000 IR : identifiants uniques malgré les collisions à 3 caractères");
-    }
-}
+pub mod tests;

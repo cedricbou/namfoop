@@ -1,7 +1,8 @@
 # library — bibliothèque de sons
 
 **Responsabilité.** Tout ce qui concerne les fichiers de sons, sans jamais toucher la carte son :
-index de `library/` (identifiants courts, recherche, métadonnées .nam), import des packs
+index de `library/` (identifiants courts `m…` modèles, `i…` IR, `c…` mélanges, `p…` **presets**
+(`presets/*.preset.toml`, #157), recherche, métadonnées .nam), import des packs
 (`import/`), corrections de l'utilisateur (`overrides.rs`, `library/overrides.toml`, par
 empreinte du contenu), besoin d'IR et IR conseillées (`recommend.rs`), profils des IR
 (`profile.rs`) et des modèles avec la basse de l'utilisateur (`model_profile.rs`).
@@ -53,7 +54,8 @@ vrai .nam est nécessaire.
 
 ```
 crates/library/   bibliothèque de sons, sans carte son (voir crates/library/CLAUDE.md) :
-                  lib.rs (index de library/, identifiants m…/i…/c…, recherche, métadonnées .nam),
+                  lib.rs (index de library/, identifiants m…/i…/c…/p… (presets), recherche,
+                  métadonnées .nam ; resolve_preset / preset / path_of_id / preset_path),
                   import/ (mod.rs : run -> Outcome ; scan.rs, classify.rs, validate.rs),
                   overrides.rs, recommend.rs, profile.rs, model_profile.rs, error.rs
 ```

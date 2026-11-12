@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#157)
+- **Format de preset** : une chaîne enregistrée vit dans `library/presets/<nom>.preset.toml` et est
+  **indexée comme les mélanges d'IR** — identifiant court `p…`, recherche par mots-clés. Le fichier
+  décrit les blocs dans l'ordre, les parallèles (mode, coupures) et leurs branches (nom, gain,
+  polarité, muet ; le solo n'est jamais enregistré), les blocs coupés compris.
+- Les effets y sont écrits **au complet** (tous leurs paramètres) et non dans la syntaxe compacte de
+  la ligne de commande : un preset doit sonner pareil dans un an, même si une valeur par défaut
+  change entre deux versions. Les modèles et les IR sont cités par **chemin relatif** à la
+  bibliothèque, avec leur **identifiant court en filet** : si un fichier a bougé, le son est
+  retrouvé par son identifiant et un avertissement le dit ; sinon le message nomme le preset, le
+  fichier et l'identifiant pour pouvoir réparer le TOML à la main.
+- Le § 9 de `docs/design/browse-chaine.md` (format « à fixer dans #6 ») est tranché en conséquence.
+  Refs #6 ; débloque #110 (enregistrer et ouvrir un preset depuis `browse`).
+
 ### Ajouté (#152)
 - `browse`, Chaîne : la **sortie d'un parallèle** devient une case du curseur, dessinée `◇` à son
   bord droit (`IN ─ ◆─┬─ … ─┬─ ◇ ─ OUT`). **`a` y ajoute après le parallèle** : c'est la façon

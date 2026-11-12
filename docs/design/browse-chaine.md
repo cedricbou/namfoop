@@ -195,8 +195,48 @@ capture NAM) : `hpf 30 › comp 4:1 › ◆ copie [propre : lpf 250 › comp 8:1
 Quatre bandes : `comp › ◆ bandes 100 / 400 / 1600 [direct | nam svt › ir 8x10 | -3 dB : nam fuzz › ir
 4x10 | -6 dB : chorus] › delay`.
 
-Format TOML : proposition, à fixer dans #6. Le solo n'est jamais enregistré ; un bloc coupé
-s'écrit `{ fx = "...", on = false }`.
+**Format TOML : fixé le 12/11/2026 (#157).** La proposition compacte ci-dessus est **abandonnée**
+au profit d'une forme **structurée**, écrite par `serde` (`dsp::preset`), pour une raison précise :
+la syntaxe compacte n'écrit que ce qui diffère du défaut, donc changer un jour la valeur par défaut
+d'un paramètre changerait **en silence** le son des presets déjà enregistrés. La forme retenue écrit
+**tous** les paramètres, est uniforme à l'intérieur d'une branche, et ne demande aucun analyseur
+maison. L'écran la replie de toute façon (`t`, #110).
+
+```toml
+name = "Chill verse"
+
+[[block]]
+kind = "nam"
+file = "nam/MESA _ BOOGIE BASS 800D/MESA BASS 800D - SEND - FAT CLASSIC ROCK.nam"
+id = "m2z7"                 # filet : si le fichier a bougé, l'identifiant retrouve le son
+
+[[block]]
+kind = "fx"
+on = false                  # bloc coupé (`b`) : gardé tel quel
+[block.fx]
+type = "gate"
+threshold = -60.0
+hysteresis = 6.0
+# … tous les paramètres de l'effet
+
+[[block]]
+kind = "split"
+mode = "bands"              # ou "copy"
+freqs = [150.0]
+  [[block.branch]]
+  gain_db = -2.0            # branche vide = son direct
+  [[block.branch]]
+  gain_db = 0.0
+    [[block.branch.block]]
+    kind = "ir"
+    file = "ir/Mesa Powerhouse 410 & 410+215/Mesa Powerhouse 410 (SM57 + MD421).wav"
+    id = "iq60"
+```
+
+Les fichiers vivent dans `library/presets/<nom>.preset.toml` et sont **indexés comme les mélanges
+d'IR** : identifiant court `p…`, recherche par mots-clés (#157). Le solo n'est jamais enregistré ;
+le muet et la polarité d'une branche, si. Le gain d'entrée propre à un modèle reste dans
+`library/overrides.toml`, le trim et le niveau dans la config.
 
 ## 10. Remplacé par l'épique #131 (deux espaces)
 
