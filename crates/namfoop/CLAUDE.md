@@ -45,7 +45,7 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 (space.rs : switch_tab, testée dans les deux sens),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
                 panneau ≥ 128 col. (#138 : police 10×20 du Pi), paramétré par courbes + référence (Bibliothèque : la référence
-                épinglée ◆ ; sélecteur : l'actuel ●), editor.rs, fx.rs onglet Effets, picker.rs (contenu entier du
+                épinglée ◆ ; sélecteur : l'actuel ●), editor.rs, fx.rs espace Chaîne, picker.rs (contenu entier du
                 bloc nam / ir sous le curseur, et le sélecteur), rows.rs (une ligne de modèle /
                 d'IR, partagée par les onglets et le sélecteur), synoptic.rs (le synoptique de la
                 chaîne : une ligne par branche, vumètres au-dessus, colonnes alignées, défilement
