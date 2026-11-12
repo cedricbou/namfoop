@@ -12,12 +12,13 @@ pub const AUDITION_DELAY_MS: u64 = 150;
 /// Délai sans changement d'entrée avant de mesurer le grain dans l'éditeur.
 pub const GRAIN_DELAY_MS: u64 = 300;
 
+/// Les onglets de la **Bibliothèque** (la Chaîne est un espace, pas un onglet : § 2 et § 6 de
+/// `docs/design/browse-espaces.md`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tab {
     Models,
     Irs,
     Blend,
-    Fx,
 }
 
 #[derive(Clone, Debug)]
@@ -149,10 +150,12 @@ pub enum Action {
 }
 
 pub struct State {
+    /// L'espace où l'on travaille, et donc ce qu'on entend (§ 2).
+    pub space: space::Space,
     pub tab: Tab,
     pub models: Vec<Item>,
     pub irs: Vec<Item>,
-    pub cursor: [usize; 4],
+    pub cursor: [usize; 3],
     pub filter: String,
     pub filtering: bool,
     pub model: Option<usize>,
@@ -201,10 +204,11 @@ pub struct State {
 impl State {
     pub fn new(models: Vec<Item>, irs: Vec<Item>) -> Self {
         Self {
+            space: space::Space::Library,
             tab: Tab::Models,
             models,
             irs,
-            cursor: [0; 4],
+            cursor: [0; 3],
             filter: String::new(),
             filtering: false,
             model: None,
@@ -244,7 +248,6 @@ impl State {
             Tab::Models => self.model_list().len(),
             Tab::Irs => self.ir_rows().len(),
             Tab::Blend => self.blend.len(),
-            Tab::Fx => self.fx.len(),
         }
     }
 
@@ -252,15 +255,10 @@ impl State {
         self.cursor[self.tab_index()].min(self.row_count().saturating_sub(1))
     }
 
-    /// Demande l'écoute de ce qui est choisi. Le modèle et l'IR en écoute vont d'abord dans leur
-    /// bloc de la chaîne (§ 10 : les onglets Modèles et IR agissent sur le bloc visé) ; sans bloc,
-    /// un est créé — ouvrir `browse` et choisir un modèle suffit donc à l'entendre.
+    /// Demande l'écoute de ce qu'on a choisi. **Parcourir n'écrit jamais dans la chaîne** (§ 2,
+    /// règle 1) : le modèle et l'IR du banc restent au banc, et c'est `plan()` qui décide de la
+    /// chaîne réellement installée selon l'espace.
     fn play(&mut self) -> Action {
-        // pendant un choix sur place, le bloc est à l'essai : les onglets n'y écrivent pas
-        if self.picker.is_none() {
-            self.push_to_chain(true);
-            self.push_to_chain(false);
-        }
         Action::Play { model: self.effective_model(), ir: self.effective_ir() }
     }
 
@@ -274,6 +272,12 @@ impl State {
 
     /// Applique la sélection courante (modèle ou IR sous le curseur) et demande l'écoute.
     fn select_current(&mut self) -> Action {
+        self.apply_cursor();
+        self.play()
+    }
+
+    /// Pose au banc le modèle (ou l'IR) sous le curseur, sans demander l'écoute.
+    pub(super) fn apply_cursor(&mut self) {
         self.pending = None;
         match self.tab {
             Tab::Models => {
@@ -289,9 +293,9 @@ impl State {
                             }
                             _ => "son direct de la basse + IR (sans modèle)".into(),
                         });
-                        return self.play();
+                        return;
                     }
-                    None => return Action::None,
+                    None => return,
                 };
                 self.model = Some(m);
                 self.fresh();
@@ -309,18 +313,16 @@ impl State {
                     }
                     _ => {}
                 }
-                self.play()
             }
             Tab::Irs => {
                 self.fresh();
                 match self.ir_rows().get(self.cursor()) {
                     Some(IrRow::NoIr) => self.ir = IrChoice::None,
                     Some(IrRow::Ir { index, .. }) => self.ir = IrChoice::Item(*index),
-                    None => return Action::None,
+                    None => {}
                 }
-                self.play()
             }
-            Tab::Blend | Tab::Fx => Action::None,
+            Tab::Blend => {}
         }
     }
 
@@ -353,22 +355,6 @@ impl State {
         let n = self.row_count();
         self.cursor[self.tab_index()] = c.min(n.saturating_sub(1));
         self.moved();
-    }
-
-    /// Onglet voisin (`dir` ±1) ; `wrap` : du dernier au premier et inversement (Tab).
-    fn switch_tab(&mut self, dir: isize, wrap: bool) {
-        const TABS: [Tab; 4] = [Tab::Models, Tab::Irs, Tab::Blend, Tab::Fx];
-        let i = self.tab as isize + dir;
-        let next = if wrap {
-            i.rem_euclid(4)
-        } else if (0..4).contains(&i) {
-            i
-        } else {
-            return;
-        };
-        self.tab = TABS[next as usize];
-        self.filter.clear();
-        self.pending = None;
     }
 
     pub fn on_key(&mut self, key: Key) -> Action {
@@ -424,7 +410,13 @@ impl State {
         if let Some(a) = self.picker_key(key) {
             return a;
         }
-        if self.tab == Tab::Fx {
+        // `1` / `2` changent d'espace depuis n'importe où (hors saisie et hors choix en cours)
+        match key {
+            Key::Char('1') => return self.go_to(space::Space::Library),
+            Key::Char('2') => return self.go_to(space::Space::Chain),
+            _ => {}
+        }
+        if self.space == space::Space::Chain {
             if let Some(a) = self.fx_key(key) {
                 return a;
             }
@@ -449,7 +441,8 @@ impl State {
             Key::Down => self.set_cursor(c + 1),
             Key::PageUp => self.set_cursor(c.saturating_sub(10)),
             Key::PageDown => self.set_cursor(c + 10),
-            Key::Enter => return self.select_current(),
+            // Entrée met le son du banc dans la chaîne (§ 4), il ne « choisit » plus
+            Key::Enter => return self.send_to_chain(),
             Key::Char('e') if self.tab == Tab::Models => return self.open_editor(),
             Key::Char('c') if self.tab == Tab::Models => {
                 if let Some(m) = self.model_at_cursor() {
@@ -556,6 +549,7 @@ mod lists;
 pub mod meters;
 pub mod picker;
 mod quit;
+pub mod space;
 mod target;
 
 #[cfg(test)]

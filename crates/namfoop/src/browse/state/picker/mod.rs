@@ -197,10 +197,6 @@ impl State {
                 Leaf::Fx(_) => {}
             }
         }
-        // les onglets Modèles / IR visent désormais ce bloc et écoutent ce qu'il contient : sans ça,
-        // la prochaine écoute y réécrirait leur choix (#134 les séparera tout à fait de la chaîne)
-        self.fx.target = Some(p.at);
-        self.sync_from_target();
         let label = self.fx.chain.leaf(p.at).map(|l| self.leaf_label(l)).unwrap_or_default();
         self.message = Some(format!("{label}{} : « {what} » gardé", self.branch_of(p.at)));
         self.fx_due = Some(self.now);
@@ -332,7 +328,8 @@ impl State {
                 self.fx_due = Some(self.now);
             }
             Key::Char('/') => self.picker.as_mut().expect("ouvert").filtering = true,
-            Key::Char('q') => {
+            // `q` et les touches d'espace attendent la fin du choix (§ 2 et § 5)
+            Key::Char('q') | Key::Char('1') | Key::Char('2') => {
                 self.message = Some("valide (Entrée) ou annule (Échap) le choix d'abord".into())
             }
             // `e` (calibrer) est réservé à la Bibliothèque (§ 9) : rien, sans message

@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Changé (#134)
+- `browse` est désormais en **deux espaces** au lieu de quatre onglets : la **Bibliothèque** (`1` :
+  Modèles, IR, Mélange) et la **Chaîne** (`2` : l'ancien onglet Effets). **Ce qu'on entend suit
+  l'espace** : dans la Bibliothèque, le **banc d'essai** `basse › modèle › IR` **sans aucun bloc de
+  la chaîne**, pas même le gate ; dans la Chaîne, la chaîne éditée. Le fondu habituel au passage.
+- **Parcourir n'écrit plus jamais dans la chaîne** (le constat de #125 : « quand je reviens sur cet
+  écran et que je change, ça change mes effets ») : ↑↓, l'IR conseillée posée d'office, `c`, `r`,
+  `b`, l'éditeur `e` et le Mélange n'agissent plus que sur le banc. Écrire est un geste explicite :
+  **Entrée** met le son du banc dans la chaîne (chaîne vide : elle devient `nam › ir`).
+- L'en-tête montre les deux espaces et le nombre de blocs (`2 Chaîne ● 5 blocs`), le cadre porte un
+  bandeau (`♪ BANC D'ESSAI · … · sans effets, la chaîne n'est pas touchée` / `♪ CHAÎNE — NAM
+  actifs : …`), et une **ligne d'écoute** dit en clair ce qui sort (`♪ banc : …` avec la chaîne
+  rappelée en gris, ou `♪ chaîne : …`). Dans les listes, `◀ écouté` / `◀ écoutée` remplace
+  `◀ en cours`, et un `●` vert rappelle ce que la chaîne utilise.
+- Tab, Maj+Tab et → / ← restent dans la Bibliothèque (→ sur Mélange : `→ ne va pas plus loin : 2
+  pour la Chaîne`). Dans la Chaîne, Tab garde son rôle (les réglages).
+  Épique #131, spécification `docs/design/browse-espaces.md` § 2, § 3, § 4 et § 6.
+
 ### Ajouté (#133)
 - `browse`, onglet Effets : **Entrée sur un bloc `nam` ou `ir` ouvre la liste de la bibliothèque
   sur place**, dans le panneau sous le synoptique (cadre jaune), au lieu d'envoyer dans l'onglet

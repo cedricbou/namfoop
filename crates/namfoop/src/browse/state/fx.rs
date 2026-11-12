@@ -132,9 +132,6 @@ pub struct FxState {
     pub catalog: Option<Catalog>,
     /// Réglage choisi dans la colonne de droite.
     pub param: usize,
-    /// Bloc `nam` / `ir` sur lequel agissent les onglets Modèles et IR (§ 10) ; par défaut le
-    /// premier de la chaîne.
-    pub target: Option<Cursor>,
     /// A/B : on écoute sans aucun effet (`r` dans l'onglet).
     pub bypass_all: bool,
 }
@@ -147,7 +144,6 @@ impl Default for FxState {
             focus: FxFocus::Chain,
             catalog: None,
             param: 0,
-            target: None,
             bypass_all: false,
         }
     }
@@ -386,7 +382,6 @@ impl State {
         if let Some(a) = self.catalog_key(key) {
             return Some(a);
         }
-        let spot = self.fx.chain.spot(self.fx.cursor);
         // réglages : ↑↓ choisit, ←→ change, Échap / Entrée reviennent à la chaîne
         if self.fx.focus == FxFocus::Params {
             let n = self.fields().len();
@@ -426,9 +421,6 @@ impl State {
                 self.fx.cursor = self.fx.chain.right(self.fx.cursor);
                 changed = false;
             }
-            // ← sur le premier bloc de la série : onglet précédent (touche commune)
-            Key::Left if spot == Spot::Block && self.fx.cursor.top() == 0 => return None,
-            Key::Left if spot == Spot::Empty => return None,
             Key::Left => {
                 self.fx.cursor = self.fx.chain.left(self.fx.cursor);
                 changed = false;
@@ -483,6 +475,23 @@ impl State {
                     .into(),
                 );
             }
+            // Tab : les réglages de l'élément sous le curseur (§ 5 de `browse-chaine.md`)
+            Key::Tab | Key::BackTab => {
+                if self.fields().is_empty() {
+                    self.message = Some(
+                        match self.fx.chain.leaf(self.fx.cursor) {
+                            Some(Leaf::Nam { .. }) => "Entrée pour choisir le modèle de ce bloc",
+                            Some(Leaf::Ir { .. }) => "Entrée pour choisir l'IR de ce bloc",
+                            _ => "rien à régler ici",
+                        }
+                        .into(),
+                    );
+                } else {
+                    self.fx.focus = FxFocus::Params;
+                    self.fx.param = 0;
+                }
+                changed = false;
+            }
             // Entrée : les réglages ; sur un `nam` / `ir`, le sélecteur sur place (§ 5)
             Key::Enter => {
                 if matches!(self.fx.chain.leaf(self.fx.cursor), Some(Leaf::Nam { .. } | Leaf::Ir { .. })) {
@@ -500,11 +509,6 @@ impl State {
             _ => return None,
         }
         self.fx.cursor = self.fx.chain.clamp(self.fx.cursor);
-        // le curseur est passé sur un `nam` / `ir` : c'est lui que les onglets Modèles et IR visent
-        if matches!(self.fx.chain.leaf(self.fx.cursor), Some(Leaf::Nam { .. } | Leaf::Ir { .. })) {
-            self.fx.target = Some(self.fx.cursor);
-            self.sync_from_target();
-        }
         if changed {
             // écoute différée : la chaîne se reconstruit après AUDITION_DELAY_MS sans touche
             self.fx_due = Some(self.now);

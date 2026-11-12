@@ -342,6 +342,8 @@ pub fn run(
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
     }
+    // le banc démarre sur le modèle (et l'IR) de la chaîne de départ, s'il y en a un (§ 2)
+    st.start_bench_from_chain();
     // référence du « non enregistré » (q demande confirmation) : l'état avant la première touche
     st.mark_start();
     let mut first = Action::None;

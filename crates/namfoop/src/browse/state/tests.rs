@@ -16,10 +16,10 @@ pub fn item(id: &str, label: &str, pack: &str, needs: NeedsIr, rec: Vec<usize>) 
     }
 }
 
-/// Un état avec cette chaîne (les tests d'écran et d'édition partent de là).
+/// Un état avec cette chaîne, dans l'espace Chaîne (les tests d'écran et d'édition partent de là).
 pub fn with_chain(blocks: Vec<chain::Block>) -> State {
     let mut s = sample();
-    s.tab = Tab::Fx;
+    s.space = space::Space::Chain;
     s.fx.chain = chain::Chain { blocks };
     s.fx.cursor = if s.fx.chain.is_empty() { chain::Cursor::Empty } else { chain::Cursor::Top(0) };
     s
@@ -38,6 +38,14 @@ pub fn fx_block(spec: &str) -> chain::Block {
 /// Une branche nommée, avec ses blocs.
 pub fn branch(name: &str, gain_db: f32, blocks: Vec<chain::Leaf>) -> chain::Branch {
     chain::Branch { name: Some(name.into()), gain_db, blocks, ..Default::default() }
+}
+
+impl State {
+    /// Fait passer le **délai d'écoute** : ce que la boucle fait après `AUDITION_DELAY_MS` sans
+    /// touche. Dans la Bibliothèque, ↑↓ ne fait plus qu'écouter — Entrée met dans la chaîne (§ 3).
+    pub fn listen(&mut self) -> Action {
+        self.tick(self.now + AUDITION_DELAY_MS + 1)
+    }
 }
 
 pub fn sample() -> State {
@@ -73,7 +81,7 @@ fn ir_tab_lists_recommended_first_and_filters() {
     let mut s = sample();
     s.on_key(Key::Down); // ligne « son direct »
     s.on_key(Key::Down);
-    s.on_key(Key::Enter); // 800D
+    s.listen(); // 800D
     s.on_key(Key::Tab);
     assert_eq!(s.tab, Tab::Irs);
     let rows = s.ir_rows();
@@ -88,7 +96,7 @@ fn ir_tab_lists_recommended_first_and_filters() {
     assert_eq!(s.ir_rows(), vec![IrRow::Ir { index: 1, recommended: false }]);
     s.on_key(Key::Enter); // sort du filtre
     assert!(!s.filtering && s.filter == "beta");
-    assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(1) });
+    assert_eq!(s.listen(), Action::Play { model: Some(1), ir: IrChoice::Item(1) });
 }
 
 #[test]
@@ -105,7 +113,7 @@ fn build_and_save_a_blend() {
     let mut s = sample();
     s.on_key(Key::Down); // ligne « son direct »
     s.on_key(Key::Down);
-    s.on_key(Key::Enter);
+    s.listen();
     s.on_key(Key::Tab); // IR
     s.on_key(Key::Char('/'));
     for c in "fender".chars() {
@@ -232,12 +240,12 @@ fn ir_chosen_in_ir_tab_becomes_preferred() {
     let mut s = with_meta(sample());
     s.on_key(Key::Down); // ligne « son direct »
     s.on_key(Key::Down);
-    s.on_key(Key::Enter); // 800D, IR conseillée 2
+    s.listen(); // 800D, IR conseillée 2
     s.on_key(Key::Tab);
     s.on_key(Key::Down);
     s.on_key(Key::Down);
     s.on_key(Key::Down);
-    s.on_key(Key::Enter); // IR 1 (non conseillée)
+    s.listen(); // IR 1 (non conseillée)
     assert_eq!(s.ir, IrChoice::Item(1));
     s.on_key(Key::Left);
     assert_eq!(s.on_key(Key::Char('e')), Action::None, "même modèle : le son ne change pas");
@@ -253,19 +261,15 @@ fn direct_row_plays_irs_without_model() {
     assert_eq!(s.model_list()[0], ModelRow::Direct);
     s.on_key(Key::Down);
     s.on_key(Key::Down);
-    s.on_key(Key::Enter); // 800D + IR conseillée
+    s.listen(); // 800D + IR conseillée
     assert_eq!(s.model, Some(1));
     s.on_key(Key::Up);
     s.on_key(Key::Up);
-    assert_eq!(
-        s.on_key(Key::Enter),
-        Action::Play { model: None, ir: IrChoice::Item(2) },
-        "IR gardée, sans modèle"
-    );
+    assert_eq!(s.listen(), Action::Play { model: None, ir: IrChoice::Item(2) }, "IR gardée, sans modèle");
     s.on_key(Key::Tab);
     s.on_key(Key::Down);
     s.on_key(Key::Down);
-    assert_eq!(s.on_key(Key::Enter), Action::Play { model: None, ir: IrChoice::Item(1) });
+    assert_eq!(s.listen(), Action::Play { model: None, ir: IrChoice::Item(1) });
     assert_eq!(s.command_line(None).unwrap(), "namfoop run -i i002");
     s.on_key(Key::Left);
     assert_eq!(s.on_key(Key::Char('e')), Action::None, "pas d'éditeur sans modèle");
@@ -280,7 +284,7 @@ fn reference_and_ab_keys() {
     let mut s = sample();
     s.on_key(Key::Down);
     s.on_key(Key::Down);
-    s.on_key(Key::Enter); // 800D + IR conseillée 2
+    s.listen(); // 800D + IR conseillée 2
     assert_eq!(s.on_key(Key::Char('r')), Action::None, "pas encore de référence");
     // b : avec / sans IR
     assert_eq!(s.on_key(Key::Char('b')), Action::Play { model: Some(1), ir: IrChoice::None });
@@ -300,7 +304,7 @@ fn reference_and_ab_keys() {
     assert_eq!(s.effective_ir(), IrChoice::None);
     // un nouveau choix d'IR s'écoute tel quel
     s.on_key(Key::Up);
-    assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+    assert_eq!(s.listen(), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
     assert!(!s.bypass && !s.listen_ref);
     // c sur la référence la retire
     s.on_key(Key::Down);
@@ -319,7 +323,7 @@ fn ab_with_reference_equal_to_current_ir_is_explained() {
     let mut s = sample();
     s.on_key(Key::Down);
     s.on_key(Key::Down);
-    s.on_key(Key::Enter); // 800D, IR conseillée 2 en écoute
+    s.listen(); // 800D, IR conseillée 2 en écoute
     assert_eq!(s.ab_state(), AbState::NoReference);
     s.on_key(Key::Tab);
     s.on_key(Key::Down); // ligne de l'IR 2 (en cours)
@@ -331,7 +335,7 @@ fn ab_with_reference_equal_to_current_ir_is_explained() {
     assert!(s.message.as_deref().unwrap().contains("même IR"));
     // une autre IR choisie : A = 0, B = ◆ 2
     s.on_key(Key::Down);
-    assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(0) });
+    assert_eq!(s.listen(), Action::Play { model: Some(1), ir: IrChoice::Item(0) });
     assert_eq!(s.ab_state(), AbState::A);
     assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
     assert_eq!(s.ab_state(), AbState::B);
@@ -383,7 +387,7 @@ fn model_ab_keeps_or_drops_the_ir() {
     assert_eq!(s.ref_model, Some(0));
     // A : 800D (sans baffle) + IR conseillée 2
     s.on_key(Key::Down);
-    assert_eq!(s.on_key(Key::Enter), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
+    assert_eq!(s.listen(), Action::Play { model: Some(1), ir: IrChoice::Item(2) });
     assert_eq!(s.ab_state(), AbState::A);
     // B : B7K, sans IR (baffle inclus)
     assert_eq!(s.on_key(Key::Char('r')), Action::Play { model: Some(0), ir: IrChoice::None });
@@ -406,7 +410,7 @@ fn model_ab_same_model_is_explained() {
     let mut s = sample();
     s.on_key(Key::Down);
     s.on_key(Key::Down);
-    s.on_key(Key::Enter);
+    s.listen();
     s.on_key(Key::Char('c'));
     assert_eq!(s.ab_state(), AbState::Same);
     assert_eq!(s.on_key(Key::Char('r')), Action::None);
@@ -431,38 +435,50 @@ fn editor_measures_grain_after_a_pause() {
     assert_eq!(s.tick(2000), Action::None, "une seule mesure");
 }
 
-/// Tab / Maj+Tab font le tour des quatre onglets ; → / ← vont de proche en proche jusqu'aux
-/// Effets et retour (← sur le catalogue des Effets ramène au Mélange).
+/// Tab / Maj+Tab font le tour des **trois** onglets de la Bibliothèque ; → / ← vont de proche en
+/// proche et ne mènent plus à la Chaîne (§ 2) : `1` / `2` changent d'espace.
 #[test]
-fn tabs_are_reachable_both_ways_with_tab_and_arrows() {
-    const ALL: [Tab; 4] = [Tab::Models, Tab::Irs, Tab::Blend, Tab::Fx];
-    for start in 0..4 {
-        for (key, step) in [(Key::Tab, 1), (Key::BackTab, 3)] {
+fn the_three_library_tabs_loop_and_the_arrows_stay_in_the_library() {
+    const ALL: [Tab; 3] = [Tab::Models, Tab::Irs, Tab::Blend];
+    for start in 0..3 {
+        for (key, step) in [(Key::Tab, 1), (Key::BackTab, 2)] {
             let mut s = sample();
             s.tab = ALL[start];
-            for k in 1..=4 {
+            for k in 1..=3 {
                 s.on_key(key);
-                assert_eq!(s.tab, ALL[(start + k * step) % 4], "{key:?} depuis {:?}", ALL[start]);
+                assert_eq!(s.tab, ALL[(start + k * step) % 3], "{key:?} depuis {:?}", ALL[start]);
             }
         }
     }
     let mut s = sample();
-    for want in [Tab::Irs, Tab::Blend, Tab::Fx] {
+    for want in [Tab::Irs, Tab::Blend] {
         s.on_key(Key::Right);
         assert_eq!(s.tab, want);
     }
-    s.on_key(Key::Left);
-    assert_eq!(s.tab, Tab::Blend, "← sur une chaîne vide quitte l'onglet Effets");
-    s.on_key(Key::Left);
-    s.on_key(Key::Left);
+    s.on_key(Key::Right);
+    assert_eq!(s.tab, Tab::Blend, "→ ne va pas plus loin");
+    assert_eq!(s.message.as_deref(), Some("→ ne va pas plus loin : 2 pour la Chaîne"));
+    assert_eq!(s.space, space::Space::Library);
+    for want in [Tab::Irs, Tab::Models] {
+        s.on_key(Key::Left);
+        assert_eq!(s.tab, want);
+    }
     s.on_key(Key::Left);
     assert_eq!(s.tab, Tab::Models, "← s'arrête au premier onglet");
-    // dans les réglages d'un bloc, ←→ changent la valeur sans quitter l'onglet
-    s.tab = Tab::Fx;
-    s.fx.chain = chain::Chain { blocks: vec![fx_block("gain")] };
+
+    // `1` / `2` : l'espace change, et l'écoute suit (fondu habituel)
+    assert!(matches!(s.on_key(Key::Char('2')), Action::Play { .. }));
+    assert_eq!(s.space, space::Space::Chain);
+    assert_eq!(s.on_key(Key::Char('2')), Action::None);
+    assert_eq!(s.message.as_deref(), Some("tu es déjà dans la Chaîne"));
+    assert!(matches!(s.on_key(Key::Char('1')), Action::Play { .. }));
+    assert_eq!(s.space, space::Space::Library);
+    assert_eq!(s.tab, Tab::Models, "chaque espace garde son état");
+    // dans les réglages d'un bloc, ←→ changent la valeur sans quitter l'espace
+    let mut s = with_chain(vec![fx_block("gain")]);
     s.fx.cursor = chain::Cursor::Top(0);
     s.on_key(Key::Enter); // réglages du gain
     s.on_key(Key::Left);
-    assert_eq!(s.tab, Tab::Fx);
+    assert_eq!(s.space, space::Space::Chain);
     assert_eq!(s.fx_args(), "--pre gain:db=-0.5");
 }

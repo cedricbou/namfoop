@@ -12,7 +12,7 @@ basse ─▶ entrée basse ─▶ trim ─▶ NAM ─▶ IR ─▶ niveau ─▶
 
 **État : prototype.** Disponible : chaîne NAM + IR, backends JACK (PipeWire), ALSA direct et carte
 simulée, cartes multicanaux, assistant de configuration et navigateur de sons plein écran (changement sans
-coupure, IR conseillées, mélanges d'IR, onglet Effets), calibration d'entrée et volume
+coupure, IR conseillées, mélanges d'IR, éditeur de chaîne), calibration d'entrée et volume
 aligné sur la basse en direct, effets (gate, compresseur, EQ, crossover, chorus, delay, réverbe),
 rendu hors ligne, bench CPU, mesure de latence. À venir : presets, MIDI, démarrage automatique,
 Raspberry Pi.

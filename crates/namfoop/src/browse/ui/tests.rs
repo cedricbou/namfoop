@@ -14,7 +14,10 @@ fn models_tab_shows_ids_badges_and_current() {
     s.on_key(Key::Enter);
     let t = screen(&s);
     assert!(t.contains("m002") && t.contains("IR requise") && t.contains("IR incluse"), "{t}");
-    assert!(t.contains("◀ en cours") && t.contains("Powerhouse 410"), "{t}");
+    assert!(t.contains("◀ écouté") && t.contains("Powerhouse 410"), "{t}");
+    assert!(t.contains("1 Bibliothèque") && t.contains("2 Chaîne ●"), "les deux espaces :\n{t}");
+    assert!(t.contains("BANC D'ESSAI") && t.contains("sans effets, la chaîne n'est pas touchée"), "{t}");
+    assert!(t.contains("♪ banc : basse › 800D Modern › IR Powerhouse 410"), "ligne d'écoute :\n{t}");
     assert!(t.contains("son direct (DI, sans modèle)"), "{t}");
 }
 
@@ -105,10 +108,10 @@ fn spectrum_panel_with_reference_on_wide_terminals() {
     // A/B : l'en-tête le signale
     s.on_key(Key::Char('r'));
     let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
-    assert!(t.contains(" B ◆ 121 Lower - Cap ") && t.contains("◀ en cours (B)"), "{t}");
+    assert!(t.contains(" B ◆ 121 Lower - Cap ") && t.contains("◀ écoutée (B)"), "{t}");
     s.on_key(Key::Char('b'));
     let t = crate::tui::screen_text(160, 30, |f| render(&s, &Status::default(), f));
-    assert!(t.contains(" IR COUPÉE — b ") && t.contains("IR : coupée (b)"), "{t}");
+    assert!(t.contains(" IR COUPÉE — b ") && t.contains("(IR coupée)"), "ligne d'écoute :\n{t}");
 }
 
 #[test]
@@ -152,7 +155,7 @@ fn models_tab_spectrum_and_model_ab() {
     assert!(t.contains("800D Modern vs ◆ B7K Ultra") && t.contains("sub +3"), "{t}");
     s.on_key(Key::Char('r'));
     let t = crate::tui::screen_text(170, 30, |f| render(&s, &Status::default(), f));
-    assert!(t.contains("◀ en cours (B)") && t.contains("A (r pour revenir)"), "{t}");
+    assert!(t.contains("◀ écouté (B)") && t.contains("A (r pour revenir)"), "{t}");
     // éditeur : grain mesuré affiché sur le champ Entrée
     s.on_key(Key::Char('r'));
     s.editor_grain = Some("crunch 4 %".into());
@@ -205,12 +208,13 @@ fn fx_tab_shows_the_synoptic_the_params_and_the_command_line() {
     s.on_key(Key::Enter); // ses réglages
     for w in [100, 130] {
         let t = crate::tui::screen_text(w, 30, |f| render(&s, &Status::default(), f));
-        assert!(t.contains("Effets (4 blocs)"), "{w} :\n{t}");
+        assert!(t.contains("2 Chaîne ● 4 blocs"), "{w} :\n{t}");
         assert!(
             t.contains("IN ─ gate -50 ─ nam·800D Modern ─ ir·Powerhouse 410 ─ delay ─ OUT"),
             "{w} :\n{t}"
         );
-        assert!(t.contains("chaîne — NAM actifs : 1 · parallèles : 0"), "{w} :\n{t}");
+        assert!(t.contains("♪ CHAÎNE — NAM actifs : 1 · parallèles : 0"), "{w} :\n{t}");
+        assert!(t.contains("♪ chaîne : basse › gate -50 › nam·800D Modern"), "ligne d'écoute :\n{t}");
         // les réglages du delay, générés depuis sa table de paramètres
         assert!(t.contains("delay : écho") && t.contains("feedback") && t.contains("250"), "{w} :\n{t}");
         assert!(t.contains("temps entre deux"), "{w} :\n{t}");
@@ -220,7 +224,11 @@ fn fx_tab_shows_the_synoptic_the_params_and_the_command_line() {
     }
     s.on_key(Key::Char('r'));
     let t = crate::tui::screen_text(100, 30, |f| render(&s, &Status::default(), f));
-    assert!(t.contains("SANS EFFETS") && t.contains("effets coupés"), "{t}");
+    assert!(t.contains("♪ CHAÎNE — SANS EFFETS (r)"), "{t}");
+    assert!(
+        t.contains("♪ chaîne : basse › nam·800D Modern › ir·Powerhouse 410"),
+        "sans effets, la ligne d'écoute ne montre que l'ampli :\n{t}"
+    );
 }
 
 /// Un parallèle : la ligne de commande ne peut plus le décrire, l'écran le dit.
@@ -243,7 +251,8 @@ fn a_chain_with_a_parallel_asks_for_a_preset_instead_of_a_command_line() {
     let t = crate::tui::screen_text(120, 30, |f| render(&s, &Status::default(), f));
     assert!(t.contains("chaîne à enregistrer en preset (S)"), "{t}");
     assert!(t.contains("les branches ne se décrivent pas en ligne de commande"), "{t}");
-    assert!(t.contains("chaîne — NAM actifs : 1 · parallèles : 1"), "{t}");
+    assert!(t.contains("♪ CHAÎNE — NAM actifs : 1 · parallèles : 1"), "{t}");
+    assert!(t.contains("♪ chaîne : basse › gate -60 › ◆[ direct | nam·B7K Ultra ]"), "{t}");
 }
 
 /// La fenêtre du catalogue (`a`) : titre, filtre, entrées (`nam`, `ir` et les effets).
@@ -257,6 +266,7 @@ fn the_catalog_window_filters_as_you_type() {
     assert!(t.contains("ajouter après le curseur"), "{t}");
     assert!(t.contains("nam") && t.contains("modèle NAM") && t.contains("reverb"), "{t}");
     assert!(t.contains("Entrée ajoute") && t.contains("Échap annule"), "{t}");
+    assert!(t.contains("2 Chaîne ● 1 bloc"), "l'en-tête compte les blocs :\n{t}");
     // le filtre : les noms qui commencent par le filtre d'abord
     for c in "rev".chars() {
         s.on_key(Key::Char(c));
@@ -272,22 +282,32 @@ fn the_catalog_window_filters_as_you_type() {
 }
 
 /// En-tête : l'onglet Effets compte les blocs de la chaîne ; dans l'onglet, l'indicateur A/B parle
-/// des effets.
+/// L'en-tête : les deux espaces, le compte des blocs de la chaîne, et la bascule `r`.
 #[test]
-fn fx_tab_header_counts_the_blocks_and_shows_fx_ab() {
+fn the_header_shows_both_spaces_and_counts_the_chain_blocks() {
     let mut s = sample();
     let t = screen(&s);
-    assert!(t.contains("Effets (0 blocs)"), "{t}");
-    assert!(t.contains("Tab/→ onglets IR, Mélange, Effets"), "{t}");
+    assert!(t.contains("1 Bibliothèque") && t.contains("2 Chaîne ● 0 bloc"), "{t}");
+    assert!(t.contains("Entrée mettre dans la chaîne") && t.contains("2 Chaîne"), "aide :\n{t}");
+    // → ne mène plus à la Chaîne : il s'arrête au Mélange
     for _ in 0..3 {
         s.on_key(Key::Right);
     }
     let t = screen(&s);
-    assert!(t.contains("A avec effets") && t.contains("B sans effets"), "{t}");
+    assert!(t.contains("Mélange (0)") && t.contains("→ ne va pas plus loin : 2 pour la Chaîne"), "{t}");
+    // `2` : la Chaîne, et `r` coupe les effets à l'écoute
+    s.on_key(Key::Char('2'));
     s.on_key(Key::Char('a'));
-    s.on_key(Key::Enter); // ajoute le premier bloc du catalogue
+    for c in "reverb".chars() {
+        s.on_key(Key::Char(c));
+    }
+    s.on_key(Key::Enter); // ajoute la réverbe
     let t = screen(&s);
-    assert!(t.contains("Effets (1 blocs)"), "{t}");
+    assert!(t.contains("2 Chaîne ● 1 bloc"), "{t}");
+    assert!(t.contains("♪ chaîne : basse › reverb"), "{t}");
+    s.on_key(Key::Char('r'));
+    let t = screen(&s);
+    assert!(t.contains("SANS EFFETS") && t.contains("♪ chaîne : basse › (vide)"), "{t}");
 }
 
 /// Fenêtre « Modifications non enregistrées » (`q`) : elle dit ce qui serait perdu, n'offre que
@@ -300,10 +320,8 @@ fn unsaved_changes_window_lists_what_would_be_lost() {
     s.on_key(Key::Tab);
     s.on_key(Key::Down);
     s.on_key(Key::Char(' '));
-    for _ in 0..2 {
-        s.on_key(Key::Tab);
-    }
-    assert_eq!(s.tab, Tab::Fx);
+    s.on_key(Key::Char('2'));
+    assert_eq!(s.space, crate::browse::state::space::Space::Chain);
     s.on_key(Key::Char('a')); // catalogue
     for c in "gate".chars() {
         s.on_key(Key::Char(c));

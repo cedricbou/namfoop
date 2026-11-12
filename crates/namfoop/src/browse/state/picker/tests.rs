@@ -6,14 +6,6 @@ use super::super::tests::{branch, fx, sample, with_chain};
 use super::super::*;
 use crate::tui::Key;
 
-/// Une chaîne de départ, le modèle et l'IR du premier bloc repris par les onglets (ce que fait
-/// le curseur en se posant dessus, tant que #134 ne les a pas séparés).
-fn chain_with(blocks: Vec<Block>) -> State {
-    let mut s = with_chain(blocks);
-    s.sync_from_target();
-    s
-}
-
 fn nam(m: usize) -> Leaf {
     Leaf::Nam { model: Some(m), on: true }
 }
@@ -34,7 +26,7 @@ fn heard(s: &State) -> String {
 #[test]
 fn arrows_try_in_the_chain_and_enter_keeps() {
     let mut s =
-        chain_with(vec![Block::Leaf(fx("gate:threshold=-60")), Block::Leaf(nam(0)), Block::Leaf(ir(2))]);
+        with_chain(vec![Block::Leaf(fx("gate:threshold=-60")), Block::Leaf(nam(0)), Block::Leaf(ir(2))]);
     s.mark_start();
     s.fx.cursor = Cursor::Top(1);
     s.on_key(Key::Enter);
@@ -63,7 +55,7 @@ fn arrows_try_in_the_chain_and_enter_keeps() {
 /// Échap remet l'actuel : la chaîne est **identique** à celle d'avant le sélecteur.
 #[test]
 fn escape_puts_the_old_one_back() {
-    let mut s = chain_with(vec![Block::Leaf(nam(0)), Block::Leaf(ir(2))]);
+    let mut s = with_chain(vec![Block::Leaf(nam(0)), Block::Leaf(ir(2))]);
     let before = s.fx.chain.clone();
     s.fx.cursor = Cursor::Top(0);
     s.on_key(Key::Enter);
@@ -81,7 +73,7 @@ fn escape_puts_the_old_one_back() {
 /// voisin, et pas de ligne « aucune IR ».
 #[test]
 fn the_ir_picker_lists_blends_first_and_stars_the_recommended_ones() {
-    let mut s = chain_with(vec![Block::Leaf(nam(1)), Block::Leaf(ir(2))]);
+    let mut s = with_chain(vec![Block::Leaf(nam(1)), Block::Leaf(ir(2))]);
     s.irs[1].blend = true; // un mélange enregistré de `library/cabs/`
     s.fx.cursor = Cursor::Top(1);
     s.on_key(Key::Enter);
@@ -98,7 +90,7 @@ fn the_ir_picker_lists_blends_first_and_stars_the_recommended_ones() {
 /// `o` isole le bloc et son voisin immédiat : on entend `basse › nam › ir`, comme au banc.
 #[test]
 fn o_isolates_the_block_and_its_neighbour() {
-    let mut s = chain_with(vec![
+    let mut s = with_chain(vec![
         Block::Leaf(fx("gate:threshold=-60")),
         Block::Leaf(nam(0)),
         Block::Leaf(ir(2)),
@@ -124,7 +116,7 @@ fn o_isolates_the_block_and_its_neighbour() {
 /// Dans une branche, l'isolement prend le voisin de la **branche**, et le titre nomme celle-ci.
 #[test]
 fn in_a_branch_the_neighbour_is_the_one_of_that_branch() {
-    let mut s = chain_with(vec![Block::Split(Split {
+    let mut s = with_chain(vec![Block::Split(Split {
         mode: Mode::Copy,
         freqs: vec![],
         branches: vec![
@@ -143,7 +135,7 @@ fn in_a_branch_the_neighbour_is_the_one_of_that_branch() {
 /// Le catalogue pose `nam·(à choisir)` et ouvre aussitôt le sélecteur ; Échap retire le bloc.
 #[test]
 fn the_catalog_posts_an_empty_block_and_opens_the_picker() {
-    let mut s = chain_with(vec![Block::Leaf(fx("reverb"))]);
+    let mut s = with_chain(vec![Block::Leaf(fx("reverb"))]);
     s.mark_start();
     s.on_key(Key::Char('a')); // catalogue : `nam` est la première entrée
     s.on_key(Key::Enter);
@@ -170,7 +162,7 @@ fn the_catalog_posts_an_empty_block_and_opens_the_picker() {
 /// Le filtre du sélecteur, et `q` refusé tant qu'un choix est en cours.
 #[test]
 fn the_picker_filters_and_refuses_to_quit() {
-    let mut s = chain_with(vec![Block::Leaf(nam(0))]);
+    let mut s = with_chain(vec![Block::Leaf(nam(0))]);
     s.fx.cursor = Cursor::Top(0);
     s.on_key(Key::Enter);
     s.on_key(Key::Char('/'));
@@ -200,7 +192,7 @@ fn the_picker_filters_and_refuses_to_quit() {
 /// tant qu'un choix est en cours.
 #[test]
 fn the_picker_swallows_the_editing_keys_and_keeps_r() {
-    let mut s = chain_with(vec![Block::Leaf(fx("gate:threshold=-60")), Block::Leaf(nam(0))]);
+    let mut s = with_chain(vec![Block::Leaf(fx("gate:threshold=-60")), Block::Leaf(nam(0))]);
     s.fx.cursor = Cursor::Top(1);
     s.on_key(Key::Enter);
     s.on_key(Key::Char('r'));
@@ -217,7 +209,7 @@ fn the_picker_swallows_the_editing_keys_and_keeps_r() {
 /// reste à l'écoute tant qu'on n'a rien essayé.
 #[test]
 fn a_block_citing_the_live_blend_has_no_current_row() {
-    let mut s = chain_with(vec![Block::Leaf(Leaf::Ir { ir: IrChoice::Blend, on: true })]);
+    let mut s = with_chain(vec![Block::Leaf(Leaf::Ir { ir: IrChoice::Blend, on: true })]);
     s.blend = vec![BlendPart { ir: 0, gain_db: 0.0, invert: false }];
     s.fx.cursor = Cursor::Top(0);
     s.on_key(Key::Enter);
@@ -236,7 +228,7 @@ fn the_library_tabs_do_not_write_into_the_block_being_tried() {
     let mut s = sample();
     s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(0))] };
     s.fx.cursor = Cursor::Top(0);
-    s.tab = Tab::Fx;
+    s.space = space::Space::Chain;
     s.tick(1000);
     s.on_key(Key::Enter);
     s.on_key(Key::Down); // essai du modèle 1

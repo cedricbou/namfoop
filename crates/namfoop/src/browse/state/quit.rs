@@ -79,9 +79,9 @@ mod tests {
     /// remonter, il le dit (#104).
     #[test]
     fn escape_never_quits_and_climbs_back_one_level() {
-        // chaque onglet, sans rien ouvert
+        // chaque onglet de la Bibliothèque, puis la Chaîne, sans rien ouvert
         let mut s = sample();
-        for tab in [Tab::Models, Tab::Irs, Tab::Blend, Tab::Fx] {
+        for tab in [Tab::Models, Tab::Irs, Tab::Blend] {
             while s.tab != tab {
                 s.on_key(Key::Tab);
             }
@@ -89,6 +89,10 @@ mod tests {
             assert_eq!(s.tab, tab, "Échap ne change pas d'onglet");
             assert!(s.message.as_deref().is_some_and(|m| m.contains("q pour quitter")), "{:?}", s.message);
         }
+        s.on_key(Key::Char('2'));
+        assert_eq!(s.on_key(Key::Esc), Action::None);
+        assert_eq!(s.space, space::Space::Chain, "Échap ne change pas d'espace");
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("q pour quitter")), "{:?}", s.message);
         // filtre
         let mut s = sample();
         s.on_key(Key::Char('/'));
@@ -138,10 +142,8 @@ mod tests {
         // chaîne d'effets changée depuis le lancement
         let mut s = sample();
         s.mark_start();
-        for _ in 0..3 {
-            s.on_key(Key::Tab);
-        }
-        assert_eq!(s.tab, Tab::Fx);
+        s.on_key(Key::Char('2'));
+        assert_eq!(s.space, space::Space::Chain);
         s.on_key(Key::Char('a')); // ouvre le catalogue
         for c in "gate".chars() {
             s.on_key(Key::Char(c));
@@ -161,9 +163,7 @@ mod tests {
         // revenir à l'état de départ efface l'alerte (comparaison d'états, pas de drapeau)
         let mut s = sample();
         s.mark_start();
-        for _ in 0..3 {
-            s.on_key(Key::Tab);
-        }
+        s.on_key(Key::Char('2'));
         s.on_key(Key::Char('a'));
         for c in "gate".chars() {
             s.on_key(Key::Char(c));

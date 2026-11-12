@@ -53,7 +53,7 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
         ));
     }
     let (head, warn) = synoptic::title(&s.fx.chain);
-    let head = if s.fx.bypass_all { "chaîne — SANS EFFETS (r)".to_string() } else { head };
+    let head = if s.fx.bypass_all { "♪ CHAÎNE — SANS EFFETS (r)".to_string() } else { head };
     let mut block = Block::bordered().title(title(&head, s.fx.focus == FxFocus::Chain));
     if let Some(w) = warn.filter(|_| !s.fx.bypass_all) {
         block = block.title(Span::styled(w, Style::new().fg(Color::Yellow)));
@@ -124,9 +124,9 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
 
     render_command_line(s, f, cmd);
 
-    // --- la fenêtre du catalogue, par-dessus tout l'onglet ---
+    // --- la fenêtre du catalogue, par-dessus tout l'écran ---
     if s.fx.catalog.is_some() {
-        render_catalog(s, area, f);
+        render_catalog(s, f.area(), f);
     }
 }
 
@@ -170,8 +170,13 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
     if visible.is_empty() {
         lines.push(Line::styled("  aucun bloc", Style::new().fg(Color::DarkGray)));
     }
-    for (i, e) in visible.iter().enumerate() {
-        let on = i == c.cursor.min(visible.len() - 1);
+    // la liste défile si le terminal est petit : l'entrée choisie reste visible
+    let cur = c.cursor.min(visible.len().saturating_sub(1));
+    let shown = super::window(visible.len(), cur, (body.height as usize).saturating_sub(6).max(1));
+    let rest = visible.len() - shown.end;
+    for i in shown {
+        let e = &visible[i];
+        let on = i == cur;
         lines.push(Line::from(vec![
             cursor_span(on),
             Span::styled(
@@ -180,6 +185,9 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
             ),
             Span::styled(e.help.to_string(), Style::new().fg(Color::DarkGray)),
         ]));
+    }
+    if rest > 0 {
+        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(Color::DarkGray)));
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled(
