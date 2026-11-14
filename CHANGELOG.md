@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#175)
+- `browse`, espace Chaîne : taper `nam` ou `gain` dans le catalogue des blocs (`a` / `i`) **effaçait
+  la chaîne** au lieu de filtrer — la lettre `n` était prise par la chaîne vierge de #170 avant
+  d'arriver au filtre, et sur une chaîne enregistrée rien ne le demandait. Le filtre du catalogue
+  reçoit maintenant les lettres avant les touches communes, comme les autres saisies de texte.
+
 ### Ajouté (#172)
 - **La réverbe et le delay du preset quitté finissent de sonner** pendant que le nouveau son
   attaque (la « queue », comme les pédaliers à *trails*). Jusqu'ici la chaîne quittée était coupée

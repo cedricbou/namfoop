@@ -353,8 +353,10 @@ impl State {
         true
     }
 
-    /// Touches de la fenêtre du catalogue. `None` : la fenêtre est fermée.
-    fn catalog_key(&mut self, key: Key) -> Option<Action> {
+    /// Touches de la fenêtre du catalogue. `None` : la fenêtre est fermée. Appelée par `on_key`
+    /// **avec les autres saisies de texte** (#175) : son filtre se tape au clavier, il doit donc
+    /// recevoir les lettres avant que les touches communes (`n`, `S`, `P`, `1`, `2`) les prennent.
+    pub(super) fn catalog_key(&mut self, key: Key) -> Option<Action> {
         let c = self.fx.catalog.as_mut()?;
         match key {
             Key::Esc => {
@@ -384,9 +386,7 @@ impl State {
 
     /// Touches de l'espace Chaîne ; `None` : touche commune (`q`, Échap au dernier niveau...).
     pub(super) fn fx_key(&mut self, key: Key) -> Option<Action> {
-        if let Some(a) = self.catalog_key(key) {
-            return Some(a);
-        }
+        // le catalogue est pris en amont, avec les saisies de texte (#175)
         // réglages : ↑↓ choisit, ←→ change, Échap / Entrée reviennent à la chaîne
         if self.fx.focus == FxFocus::Params {
             let n = self.fields().len();

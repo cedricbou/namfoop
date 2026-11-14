@@ -12,7 +12,11 @@ cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings
 cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
-browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod.rs état et
+browse/         `browse` : state/ (logique pure + horloge fournie, testée : keys.rs LE CLAVIER,
+                seul endroit où l'ordre des couches est écrit — toute SAISIE DE TEXTE (nom, filtre
+                des listes, filtre du catalogue de blocs) passe AVANT les touches communes
+                (1 / 2 / S / P / n), sinon une lettre commune est volée au filtre et agit deux fois
+                (#175 : le « n » de nam et de gain effaçait la chaîne) ; mod.rs état et
                 navigation ; lists.rs listes des onglets Modèles / IR ; chain.rs la chaîne en blocs
                 éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot, dont Cursor::Merge : la
                 SORTIE d'un parallèle, le ◇ de son bord droit, d'où `a` ajoute après lui — #152,
