@@ -53,14 +53,18 @@ fn amp_chain_does_not_allocate_in_process() {
 fn hot_swap_does_not_allocate_in_process() {
     use dsp::Stage;
     let build = |m: &str| AmpSpec { model: Some(example(m)), ..Default::default() }.build(48000, 64).unwrap();
-    let (mut rt, mut ctl) = dsp::swap::swap_pair(build("wavenet.nam"), 48000, 64, 10.0);
+    // avec une queue de preset (#172) : le thread audio traite aussi la chaîne quittée, qui finit
+    // de sonner, et la rend une fois éteinte — toujours sans allouer
+    let (mut rt, mut ctl) = dsp::swap::swap_pair(build("wavenet.nam"), 48000, 64, 10.0, 500.0);
     let mut buf = vec![0.1f32; 64];
     for round in 0..3 {
         // construction (allocations) côté contrôle, hors du bloc surveillé
         assert!(ctl.send(build(if round % 2 == 0 { "lstm.nam" } else { "wavenet.nam" })).is_ok());
-        for _ in 0..20 {
+        // 500 ms de queue (plafond) + son fondu de sortie : 450 blocs de 64 suffisent
+        for _ in 0..450 {
             assert_no_alloc(|| rt.process(&mut buf));
         }
+        assert!(!rt.tailing(), "la queue est éteinte");
         assert_eq!(ctl.collect(), 1, "ancienne chaîne rendue et libérée côté contrôle");
     }
 }

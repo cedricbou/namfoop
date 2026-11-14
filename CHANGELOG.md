@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#172)
+- **La réverbe et le delay du preset quitté finissent de sonner** pendant que le nouveau son
+  attaque (la « queue », comme les pédaliers à *trails*). Jusqu'ici la chaîne quittée était coupée
+  net en 20 ms : c'était le fondu, qui portait sur la **sortie** des deux chaînes ; il porte
+  désormais sur leur **entrée**, si bien que la chaîne qu'on quitte peut continuer à sonner une
+  fois son entrée fermée. Elle s'arrête d'elle-même dès qu'elle est éteinte — mesuré : 0,5 s pour
+  une chaîne sans effet à queue, 1 s pour une réverbe aux défauts, 2 s au plus pour un delay à
+  longue réinjection.
+- Le prix est une deuxième chaîne qui tourne pendant la queue (mesuré ×2,1 par bloc : pour b7k,
+  3,4 % du budget qui passent à 6,8 %). `namfoop run --no-trails` et `namfoop browse --no-trails`
+  coupent la queue si la charge DSP pose problème (Pi, preset à deux modèles en parallèle).
+- Un preset rejoué **dans la seconde qui suit son départ** est rebâti (~80 ms) : sa chaîne finit
+  encore de sonner, elle n'est donc pas revenue dans la banque. Un retard, pas une panne.
+
 ### Ajouté (#170)
 - `browse` : **`n` repart d'une chaîne vierge**. La chaîne se vide, le preset courant est
   **détaché** (l'en-tête n'annonce plus de preset) et `S` propose donc un **nom neuf** : c'est la

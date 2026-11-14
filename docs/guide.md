@@ -878,7 +878,29 @@ Trois règles tiennent l'ensemble :
   la chaîne précédente joue jusqu'au fondu.
 
   Un preset dont la chaîne n'est pas encore préchargée (juste après l'ouverture, ou juste après
-  l'avoir enregistré) se charge comme avant, en ~80 ms : c'est un retard, pas une panne.
+  l'avoir enregistré) se charge comme avant, en ~80 ms : c'est un retard, pas une panne. Même chose
+  pour un preset qu'on **rejoue dans la seconde qui suit son départ** : sa chaîne finit encore de
+  sonner (voir la queue, juste en dessous), donc elle est rebâtie.
+
+  **La queue : la réverbe du preset quitté finit de sonner.** Quand tu changes de preset, la chaîne
+  que tu quittes n'est pas coupée : son entrée se ferme (le fondu de 20 ms) mais sa **réverbe** et
+  ses **répétitions de delay** continuent leur décroissance pendant que le nouveau son attaque,
+  comme sur un pédalier à « trails ». Elle s'arrête d'elle-même dès qu'elle ne sonne plus — mesuré :
+  **0,5 s** pour une chaîne sans effet à queue, **1 s** pour une réverbe aux réglages par défaut,
+  2 s au maximum pour un delay à longue réinjection.
+
+  Le prix : pendant ce temps, **deux chaînes tournent** (la queue et la nouvelle), donc jusqu'à deux
+  fois la charge DSP — pour b7k, 3,4 % du budget d'un bloc qui passent à 6,8 %. C'est sans
+  conséquence sur un PC ; si tu entends des décrochages (`xruns` qui montent dans la barre du bas)
+  sur un Raspberry Pi ou avec un preset à deux modèles en parallèle, coupe la queue :
+
+  ```sh
+  namfoop browse --no-trails     # ou namfoop run --no-trails
+  ```
+
+  La réverbe du preset quitté s'arrête alors net au changement, comme avant, et une seule chaîne
+  tourne. À savoir aussi : un delay dont les répétitions sont espacées de plus de 500 ms voit les
+  suivantes coupées (la queue croit qu'elle s'est tue entre deux répétitions).
 
   **`t`** déplie le TOML du preset sous le synoptique (replié par défaut : `▸ preset TOML (t)`) —
   pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.

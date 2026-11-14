@@ -12,6 +12,10 @@ use engine::{Engine, EngineConfig, Routing};
 const MAX_BLOCK: usize = 1024;
 /// Fondu d'un changement de chaîne (presets à venir ; `run` n'en change pas encore).
 const FADE_MS: f32 = 20.0;
+/// Queue de preset : durée maximale pendant laquelle la chaîne quittée finit de sonner (#172).
+/// Elle s'arrête d'elle-même dès qu'elle est éteinte, ce plafond ne sert qu'aux delays à long
+/// feedback (mesuré : la réverbe par défaut est éteinte en 1,2 s).
+const TRAILS_MS: f32 = 2000.0;
 
 pub fn db(x: f32) -> String {
     if x <= 1e-6 {
@@ -28,6 +32,7 @@ pub fn run(
     routing: &Routing,
     seconds: Option<f64>,
     quiet: bool,
+    trails: bool,
 ) -> Result<()> {
     let limiter = Arc::default();
     // la chaîne des options, ou celle d'un preset (`--preset`, #159)
@@ -42,6 +47,7 @@ pub fn run(
             routing: routing.clone(),
             max_block: MAX_BLOCK,
             fade_ms: FADE_MS,
+            trails_ms: if trails { TRAILS_MS } else { 0.0 },
             quiet: false,
             limiter_meter: limiter,
             input_tap: None,

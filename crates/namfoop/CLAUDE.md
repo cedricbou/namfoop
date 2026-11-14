@@ -76,7 +76,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 espace / q quitter), #150
 setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
-live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)
+live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP) ;
+                FADE_MS / TRAILS_MS : le fondu et la QUEUE DE PRESET (#172, --no-trails la coupe),
+                les mêmes constantes que browse/mod.rs
 offline.rs      `render` (WAV -> chaîne -> WAV) et `bench`
 latency.rs      mesure de latence par impulsion (câble de bouclage ; engine::raw) : le retour est
                 le maximum du signal dans la fenêtre d'écoute, comparé au bruit de fond mesuré juste

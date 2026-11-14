@@ -29,7 +29,9 @@ formes passe-bas / passe-haut / cloche / plateaux / **passe-tout** ; réutilisab
 effets de temps), `fx/` (effets réglables : `FxSpec`, `catalog()`, voir « Ajouter un effet » ; le parallèle **n'est
 pas** un effet : c'est `block::SplitSpec`, et `fx::STRUCTURAL_KINDS` le refuse en mini-syntaxe avec
 un message qui dit où le décrire), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
-envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
+envoie une `Chain` construite, `SwapChain` fond en ~20 ms **sur l'entrée** des deux chaînes, et la
+chaîne quittée passe dans la **queue de preset** (`trails_ms`, #172) : alimentée en silence, sa
+sortie ajoutée à celle de la chaîne en écoute, elle finit de sonner puis repart vers le contrôle —
 jamais libérée en RT ; le contrôle la **libère** (`collect`) ou la **reprend** (`reclaim`) pour la
 garder bâtie, ce que fait `engine::bank`). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
@@ -86,6 +88,31 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 ## Faits mesurés
 
+- **Queue de preset** (#172, `cargo test --release -p dsp --test trails -- --nocapture`, modèle
+  d'exemple WaveNet, bloc 64) : la chaîne quittée finit de sonner, donc **deux chaînes tournent**
+  pendant ce temps — mesuré **×2,1 par bloc**, soit, avec les chiffres du tableau plus bas,
+  45 -> 90 µs pour b7k (3,4 -> 6,8 % du budget) et 104 -> 208 µs pour le modèle le plus lourd.
+  Durée réellement observée de la queue (plafond 2 s) :
+
+  | chaîne quittée | queue |
+  |---|---|
+  | `nam` seul (rien qui sonne) | 521 ms (le minimum : 500 ms de silence exigés + 20 ms de fondu) |
+  | `nam › reverb` (défauts) | 1 000 ms |
+  | `nam › delay 400 ms, feedback 70 %` | 2 000 ms (le plafond : les répétitions continuent) |
+  | n'importe laquelle, `--no-trails` | 23 ms (le fondu de sortie seul) |
+
+  Le fondu porte désormais sur l'**entrée** des deux chaînes (c'est ce qui permet à l'ancienne de
+  continuer à sonner) : mesuré sur un sinus, le son direct n'en souffre pas plus qu'avant. Le pire
+  cas n'est pas la non-linéarité du modèle mais la **corrélation** — deux chaînes qui sortent le
+  même signal s'additionnent, et un fondu à puissance constante les gonfle de **+2,97 dB** avec
+  l'ancien schéma, **+3,54 dB** avec le nouveau (+0,6 dB de plus, sur 20 ms). Aucun creux, et un
+  `gate` dans la chaîne quittée ne se referme pas pendant le fondu.
+
+  Le seuil de silence est **-60 dBFS** et non -80 : mesuré (`render`, b7k + IR, silence en entrée),
+  un modèle NAM alimenté en silence sort un plancher autour de **-62 dBFS** (bruit du réseau,
+  remonté par la normalisation), si bien qu'un seuil plus bas ne se déclencherait jamais. La fenêtre
+  de silence est de 500 ms parce qu'un **delay** ne sort rien entre deux répétitions : plus court,
+  on lui couperait la suivante (exact seulement si `Stage` disait la durée de sa queue, #173).
 - Bench x86 (bloc 64, 48 kHz) : WaveNet 3 canaux ≈ 21 µs (1,6 % du budget), 8 canaux ≈ 42 µs (3,2 %).
 - Les IR sont normalisées sur leur gain moyen 80 Hz–5 kHz (normaliser l'énergie totale saturait de
   +15 dB dans le grave).
@@ -180,7 +207,9 @@ crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolve
                   de secours, tous les paramètres d'effet écrits -> to_blocks pour le temps réel),
                   profile.rs (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB),
                   swap.rs (changement de chaîne à chaud : SwapHandle envoie une Chain construite,
-                  SwapChain fond en ~20 ms, l'ancienne repart vers le contrôle — jamais libérée en RT)
+                  SwapChain fond en ~20 ms sur l'ENTRÉE des deux chaînes, la chaîne quittée finit de
+                  sonner dans la QUEUE DE PRESET (trails_ms, #172) puis repart vers le contrôle —
+                  jamais libérée en RT)
   tests/          propriétés de chaîne (indépendance au bloc), absence d'allocation (assert_no_alloc),
                   rendus de référence golden.rs + golden/*.toml (RMS, crête, enveloppe 50 ms)
 ```

@@ -35,6 +35,11 @@ pub struct EngineConfig {
     pub max_block: usize,
     /// Durée du fondu entre deux chaînes (ms).
     pub fade_ms: f32,
+    /// **Queue de preset** (#172) : durée maximale pendant laquelle la chaîne qu'on quitte finit de
+    /// sonner (réverbe, delay) pendant que la nouvelle attaque. 0 : pas de queue (la chaîne quittée
+    /// n'est gardée que le temps de son fondu de sortie). Elle coûte une deuxième chaîne de DSP
+    /// tant qu'elle sonne, et s'arrête d'elle-même dès qu'elle est éteinte.
+    pub trails_ms: f32,
     /// Pas de log d'info au démarrage de la carte (écrans plein écran).
     pub quiet: bool,
     /// Compteur de réduction du limiteur : le même `Arc` doit être donné à la chaîne
@@ -120,7 +125,8 @@ fn callback(
     meters: Arc<Meters>,
 ) -> Result<(Callback, SwapHandle, Option<TapRx>)> {
     let router = Router::new(&cfg.routing, cfg.max_block)?;
-    let (swap, handle) = dsp::swap::swap_pair(initial, cfg.audio.rate, cfg.max_block, cfg.fade_ms);
+    let (swap, handle) =
+        dsp::swap::swap_pair(initial, cfg.audio.rate, cfg.max_block, cfg.fade_ms, cfg.trails_ms);
     let (tap, tap_rx) = match cfg.input_tap {
         Some(capacity) => {
             let (tx, rx) = rtrb::RingBuffer::new(capacity);
@@ -302,6 +308,7 @@ mod tests {
             routing: Routing::default(),
             max_block: 1024,
             fade_ms: 20.0,
+            trails_ms: 0.0,
             quiet: true,
             limiter_meter: Arc::default(),
             input_tap: None,
