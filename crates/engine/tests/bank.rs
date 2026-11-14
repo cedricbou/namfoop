@@ -120,6 +120,7 @@ fn cost_of_switching_between_preloaded_chains() {
         routing: engine::Routing::default(),
         max_block: 1024,
         fade_ms: 20.0,
+        trails_ms: 0.0,
         quiet: true,
         limiter_meter: std::sync::Arc::default(),
         input_tap: None,

@@ -72,6 +72,10 @@ enum Cmd {
         /// Pas de vumètre (logs seulement)
         #[arg(short, long)]
         quiet: bool,
+        /// Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au
+        /// changement, mais une seule chaîne tourne (moins de charge DSP)
+        #[arg(long)]
+        no_trails: bool,
     },
     /// Traite un WAV hors ligne avec la même chaîne que `run`
     Render {
@@ -160,6 +164,10 @@ enum Cmd {
         /// Filtre initial de la liste (ex: "PopPunk")
         #[arg(long)]
         filter: Option<String>,
+        /// Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au
+        /// changement, mais une seule chaîne tourne (moins de charge DSP)
+        #[arg(long)]
+        no_trails: bool,
         #[command(flatten)]
         routing: cli_routing::RoutingArgs,
     },
@@ -195,10 +203,10 @@ fn main() -> Result<()> {
     // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
     let audio = || cli_audio::settings(&cli.audio, &conf);
     match cli.cmd {
-        Cmd::Run { amp, routing, seconds, quiet } => {
+        Cmd::Run { amp, routing, seconds, quiet, no_trails } => {
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
-            live::run(&audio, &conf, &amp, &routing, seconds, quiet)
+            live::run(&audio, &conf, &amp, &routing, seconds, quiet, !no_trails)
         }
         Cmd::Render { amp, input, output, block } => {
             let input = input.unwrap_or_else(offline::default_input);
@@ -227,7 +235,7 @@ fn main() -> Result<()> {
                 let start = browse::Start { only: Some(&imported), edit: true, ..Default::default() };
                 let (audio, profile) = audio()?;
                 let routing = cli_audio::base_routing(&conf, profile.as_ref());
-                browse::run(&audio, &conf, &args.library, &routing, 1.0, start)?;
+                browse::run(&audio, &conf, &args.library, &routing, 1.0, true, start)?;
             }
             Ok(())
         }
@@ -247,11 +255,11 @@ fn main() -> Result<()> {
             }
             calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
         }
-        Cmd::Browse { library, size, filter, routing } => {
+        Cmd::Browse { library, size, filter, no_trails, routing } => {
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             let start = browse::Start { filter: filter.as_deref(), ..Default::default() };
-            browse::run(&audio, &conf, &library, &routing, size, start)
+            browse::run(&audio, &conf, &library, &routing, size, !no_trails, start)
         }
         Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),
         Cmd::Ports => Ok(audio_io::jack::list_ports(&cli.audio.client_name)?),

@@ -8,7 +8,8 @@ préchargées** (`bank.rs`, #6) vit ici ; c'est elle que MIDI (#7) pilotera. Y v
 seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
 
 **API** (`lib.rs`, rester petit) :
-- `Engine::start(EngineConfig { audio, routing, max_block, fade_ms, quiet, limiter_meter, input_tap }, chaîne)`
+- `Engine::start(EngineConfig { audio, routing, max_block, fade_ms, trails_ms, quiet, limiter_meter,
+  input_tap }, chaîne)`
   -> `Engine` ; erreurs `thiserror` (`error.rs`), messages vus par l'utilisateur (ne pas changer) ;
 - `send_chain(chain)` (rend la chaîne si une autre attend), `take_chain_sender()` (envoi depuis un
   autre thread : `ChainSender::send / send_warm` (chaîne déjà préchauffée) ` / collect / reclaim /
@@ -33,7 +34,9 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
   `Failed(raison)`, `Busy`), `install(chain)` pour une chaîne bâtie ailleurs (l'éditeur de
   `browse`), `collect()` qui **reprend** la chaîne sortante, la **remet à zéro** et la range dans sa
   place, `invalidate(i)` / `resize(n)` quand la banque change, `state(i)`, `progress()`, `playing()`.
-  Une place en échec ne bloque pas la banque ;
+  Une place en échec ne bloque pas la banque. Avec une **queue de preset** (`trails_ms`, #172), la
+  chaîne sortante ne revient qu'une fois éteinte : sa place reste `Out`, et y revenir pendant ce
+  temps donne `NotReady` (l'appelant la rebâtit, ~80 ms : un retard, pas une panne) ;
 - `router` (`Routing`, `OutputRoute`, `Source` avec `FromStr`, `Router`), `meters` (`Meters`,
   `fetch_max`, `take`).
 
@@ -64,6 +67,10 @@ avec deux chaînes successives, routage refusé), puis
   | **bascule d'une chaîne préchargée** | **1 µs** | **1 µs** |
   | remise à zéro au retour (`Chain::reset`) | < 0,1 ms | < 0,1 ms |
   | mémoire résidente par chaîne gardée | **534 kio** | **1 219 kio** |
+
+  La **queue de preset** (#172) retarde le retour de la chaîne sortante du temps qu'elle sonne
+  (mesures dans `crates/dsp/CLAUDE.md`) : c'est voulu, et c'est ce qui rend `NotReady` possible sur
+  une place qu'on vient juste de quitter.
 
   Conséquences retenues : **on précharge toute la banque, sans plafond** (20 presets ≈ 10 à 25 Mio
   de mémoire résidente) ; le préchauffage se paie **une fois**, au préchargement

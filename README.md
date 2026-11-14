@@ -15,7 +15,8 @@ simulée, cartes multicanaux, assistant de configuration et navigateur de sons p
 coupure, IR conseillées, mélanges d'IR, éditeur de chaîne), calibration d'entrée et volume
 aligné sur la basse en direct, effets (gate, compresseur, EQ, crossover, chorus, delay, réverbe),
 presets (enregistrer une chaîne, la rechercher, la rejouer, repartir d'une chaîne vierge, passer à
-la suivante en 20 ms grâce à la banque préchargée en mémoire),
+la suivante en 20 ms grâce à la banque préchargée en mémoire, la réverbe du preset quitté finissant
+de sonner),
 rendu hors ligne, bench CPU, mesure de latence. À venir : MIDI, démarrage
 automatique, Raspberry Pi.
 

@@ -32,6 +32,8 @@ use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
 const FADE_MS: f32 = 20.0;
+/// Queue de preset : la chaîne quittée finit de sonner au plus ce temps (#172).
+const TRAILS_MS: f32 = 2000.0;
 
 /// Préfixe commun des noms d'un pack, coupé sur un séparateur (« 1970 Bassman Cabinet CTS - »).
 fn common_prefix(stems: &[&str]) -> usize {
@@ -212,6 +214,7 @@ pub fn run(
     library: &Path,
     routing: &Routing,
     size: f64,
+    trails: bool,
     start_with: Start,
 ) -> Result<()> {
     let lib = Library::scan(library);
@@ -233,6 +236,7 @@ pub fn run(
             routing: routing.clone(),
             max_block: MAX_BLOCK,
             fade_ms: FADE_MS,
+            trails_ms: if trails { TRAILS_MS } else { 0.0 },
             quiet: true,
             limiter_meter: limiter.clone(),
             input_tap: None,

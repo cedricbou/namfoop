@@ -223,6 +223,9 @@ Options:
   -q, --quiet
           Pas de vumètre (logs seulement)
 
+      --no-trails
+          Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au changement, mais une seule chaîne tourne (moins de charge DSP)
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -855,14 +858,14 @@ Options:
       --filter <FILTER>
           Filtre initial de la liste (ex: "PopPunk")
 
-      --bass-in <BASS_IN>
-          Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
-
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
-      --mic-in <MIC_IN>
-          Entrée du micro [défaut : config]
+      --no-trails
+          Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au changement, mais une seule chaîne tourne (moins de charge DSP)
+
+      --bass-in <BASS_IN>
+          Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -870,11 +873,14 @@ Options:
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
-      --route <N=SOURCE>
-          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
+      --mic-in <MIC_IN>
+          Entrée du micro [défaut : config]
 
       --rate <RATE>
           Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+
+      --route <N=SOURCE>
+          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --client-name <CLIENT_NAME>
           Nom du client JACK

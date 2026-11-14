@@ -229,6 +229,12 @@ mod tests {
 
     /// Une session sur la carte simulée (qui joue une note de basse), et sa banque.
     fn session(n: usize) -> (Engine, Bank) {
+        session_with_trails(n, 0.0)
+    }
+
+    /// La même, avec une **queue de preset** (#172) : la chaîne quittée finit de sonner avant de
+    /// revenir dans sa place.
+    fn session_with_trails(n: usize, trails_ms: f32) -> (Engine, Bank) {
         let cfg = EngineConfig {
             audio: audio_io::Settings {
                 backend: audio_io::Kind::Sim,
@@ -238,6 +244,7 @@ mod tests {
             routing: Routing::default(),
             max_block: 1024,
             fade_ms: 20.0,
+            trails_ms,
             quiet: true,
             limiter_meter: Arc::default(),
             input_tap: None,
@@ -284,6 +291,32 @@ mod tests {
         assert_eq!(bank.state(0), SlotState::Out);
         assert_eq!(bank.playing(), Some(0));
         assert!(matches!(bank.switch(0), Switch::AlreadyPlaying));
+    }
+
+    /// Avec une **queue de preset** (#172), la chaîne quittée ne revient dans sa place qu'une fois
+    /// éteinte : y revenir pendant ce temps donne `NotReady`, et l'appelant la rebâtit comme avant
+    /// (un retard, pas une panne). C'est la limite connue de la queue, pas un accident.
+    #[test]
+    fn a_slot_still_ringing_is_not_ready_yet() {
+        let (_engine, mut bank) = session_with_trails(2, 1500.0);
+        bank.preload(0, &reverb()).unwrap();
+        bank.preload(1, &spec(-6.0)).unwrap();
+        assert!(matches!(bank.switch(0), Switch::Installed(_)));
+        wait_taken(&mut bank);
+        assert!(matches!(bank.switch(1), Switch::Installed(_)));
+        wait_taken(&mut bank);
+        // la place 0 sonne encore : elle n'est pas revenue
+        bank.collect();
+        assert_eq!(bank.state(0), SlotState::Out, "la chaîne finit de sonner");
+        assert!(matches!(bank.switch(0), Switch::NotReady), "à rebâtir tant qu'elle sonne");
+        // puis elle revient d'elle-même, rangée et remise à zéro
+        let t = Instant::now();
+        while bank.state(0) != SlotState::Ready && t.elapsed() < Duration::from_secs(5) {
+            std::thread::sleep(Duration::from_millis(10));
+            bank.collect();
+        }
+        assert_eq!(bank.state(0), SlotState::Ready, "la queue s'éteint et la chaîne est rangée");
+        assert!(matches!(bank.switch(0), Switch::Installed(_)));
     }
 
     #[test]

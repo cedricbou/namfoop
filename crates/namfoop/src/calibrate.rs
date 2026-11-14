@@ -75,6 +75,7 @@ pub fn run(
             routing: routing.clone(),
             max_block: 1024,
             fade_ms: 20.0,
+            trails_ms: 0.0, // calibration : chaîne nue, rien à faire sonner
             quiet: false,
             limiter_meter: Default::default(),
             input_tap: Some(cfg.rate as usize * 2),
