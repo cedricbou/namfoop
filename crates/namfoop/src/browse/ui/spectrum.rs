@@ -7,8 +7,9 @@
 
 use super::*;
 
-/// Largeur minimale du corps pour afficher le panneau spectre à droite de la liste.
-pub const SPECTRUM_MIN_WIDTH: u16 = 128;
+/// Largeur minimale du corps pour afficher le panneau spectre à droite de la liste. C'est aussi ce
+/// qui définit un écran « large » pour le panneau Bandes (#183) : une seule valeur pour les deux.
+pub const SPECTRUM_MIN_WIDTH: u16 = crate::browse::state::bands::WIDE_COLUMNS;
 
 type Profile = std::sync::Arc<dsp::profile::IrProfile>;
 
@@ -32,6 +33,9 @@ pub(super) struct Shown {
     pub grain: Option<(String, Option<String>)>,
     /// Ce que dit le panneau quand il n'y a pas de référence.
     pub hint: &'static str,
+    /// Le panneau **Bandes** est dessiné juste en dessous (#183) : les écarts par zone, qu'il
+    /// montre en colonnes, n'ont plus à être répétés en texte ici.
+    pub bands_shown: bool,
 }
 
 /// Panneau « Spectre » de la Bibliothèque : courbe sous le curseur (ou du mélange), référence
@@ -73,17 +77,30 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
     };
     let grain = (s.tab == Tab::Models)
         .then(|| (grain_of(s, s.model_at_cursor()), s.ref_model.map(|r| grain_of(s, Some(r)))));
+    // sur un écran large, le panneau Bandes se glisse sous la courbe : il ne prend aucune ligne à
+    // la liste, et il remplace la ligne de texte des écarts par zone (#183). Sur un panneau trop
+    // court, la courbe garde toute la place et le texte reste.
+    let (top, panel) = if s.show_bands() && area.height >= bands::HEIGHT + 8 {
+        let [a, b] = Layout::vertical([Constraint::Min(8), Constraint::Length(bands::HEIGHT)]).areas(area);
+        (a, Some(b))
+    } else {
+        (area, None)
+    };
     draw(
         f,
-        area,
+        top,
         &Shown {
             curves,
             reference,
             mark: "◆",
             grain,
             hint: " c : épingler la ligne sous le curseur comme référence (comparaison)",
+            bands_shown: panel.is_some(),
         },
     );
+    if let Some(b) = panel {
+        bands::render(s, f, b);
+    }
 }
 
 /// Panneau « Spectre » du **sélecteur** (§ 5) : la courbe de l'élément sous le curseur, et
@@ -107,6 +124,7 @@ pub(super) fn render_picker_spectrum(s: &State, f: &mut Frame, area: ratatui::la
             mark: "●",
             grain,
             hint: " ↑↓ : essayer un autre son ; l'actuel est superposé en référence",
+            bands_shown: false,
         },
     );
 }
@@ -122,7 +140,8 @@ fn grain_of(s: &State, m: Option<usize>) -> String {
 fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
     use ratatui::symbols::Marker;
     use ratatui::widgets::{Axis, Chart, Dataset, GraphType};
-    let [chart_area, info] = Layout::vertical([Constraint::Min(6), Constraint::Length(4)]).areas(area);
+    let info_h = if shown.bands_shown { 2 } else { 4 };
+    let [chart_area, info] = Layout::vertical([Constraint::Min(6), Constraint::Length(info_h)]).areas(area);
     let curves: Vec<Vec<(f64, f64)>> = shown
         .curves
         .iter()
@@ -172,7 +191,8 @@ fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
 
     let mut text = Vec::new();
     match (shown.curves.last(), &shown.reference) {
-        (Some((name, p, _)), Some((rname, r))) => {
+        // les écarts par zone, en texte : le panneau Bandes les dit mieux quand il est là (#183)
+        (Some((name, p, _)), Some((rname, r))) if !shown.bands_shown => {
             let (a, b) = (library::profile::zones(p), library::profile::zones(r));
             let parts: Vec<String> = library::profile::ZONES
                 .iter()
@@ -185,6 +205,7 @@ fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
             )));
             text.push(Line::raw(format!(" {}", parts.join(" · "))));
         }
+        (Some(_), Some(_)) => {}
         (Some(_), None) => text.push(Line::from(Span::styled(shown.hint, Style::new().fg(Color::DarkGray)))),
         (None, _) => text.push(Line::from(Span::styled(
             " pas de profil pour cette ligne",

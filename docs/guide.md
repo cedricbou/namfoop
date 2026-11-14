@@ -693,6 +693,43 @@ Trois règles tiennent l'ensemble :
   **mélange** résultant, où se voient les annulations entre micros. **`c` épingle** l'IR sous le
   curseur comme **référence** (◆, courbe jaune) ; sous le graphique, les écarts par zone entre
   l'IR et la référence (« sub +4 · … · air −2 »). `c` sur la référence la retire.
+- **Panneau Bandes** (`z`) : le même propos que la courbe, mais lisible d'un regard — un
+  **égaliseur graphique** des sept zones, qui dit ce que la chaîne écoutée (modèle + IR) fait à ta
+  basse :
+
+  ```
+  ┌ Bandes — ce que la chaîne fait à ta basse ─┐
+  │ +12 ┤                                      │
+  │  +6 ┤                      ██  ██          │
+  │   0 ┼──────────────██──██──██──██──        │
+  │  -6 ┤  ██  ██  ██                          │
+  │ -12 ┤  ▼▼  ██                              │
+  │      sub  gr  bm  md  hm  pr air           │
+  │      -26 -19  -9  -3  +3 +11 +19   dB      │
+  └────────────────────────────────────────────┘
+  ```
+
+  Les zones sont celles des étiquettes : sub (40–80 Hz), grave (80–200), bas-médium (200–500),
+  médium (0,5–1,5 kHz), haut-médium (1,5–3,5 kHz), présence (3,5–7 kHz), air (7–14 kHz). L'échelle
+  va de -12 à +12 dB, un demi-bloc valant 3 dB ; `▲` / `▼` signalent une zone qui sort de
+  l'échelle. Vert dans ±3 dB, jaune jusqu'à ±8, rouge au-delà. Le zéro n'est pas un volume : c'est
+  la moyenne 80 Hz – 5 kHz de la chaîne elle-même, donc les colonnes montrent sa **couleur**, pas
+  son niveau.
+
+  L'exemple ci-dessus est une **pédale de fuzz** : elle perd 26 dB de sub et 19 dB de grave, et
+  monte de 19 dB dans l'air. C'est ce qui la fait paraître bien plus forte qu'un ampli alors que
+  [l'alignement de niveau](#volume-de-sortie--level) les met au même RMS — l'oreille entend surtout
+  la zone où le fuzz a mis son énergie.
+
+  Quand une **référence est épinglée** (`c`), les colonnes deviennent l'**écart** entre les deux
+  sons et le titre le dit (« …FAT CLASSIC ROCK vs ◆ …REGGAE ») : le début commun des deux noms est
+  retiré pour qu'on voie ce qui les distingue. `r` retourne la comparaison, et les colonnes avec
+  elle.
+
+  La mesure est **figée** : elle vient du profil déjà calculé avec ta basse, donc les colonnes
+  changent dès que tu bouges le curseur, sans rien coûter au son. À partir de 128 colonnes le
+  panneau se glisse sous la courbe du Spectre et ne prend aucune ligne de liste : il est alors
+  affiché d'office. Sur un terminal plus étroit il s'empile sous la liste et attend `z`.
 - **Onglet Modèles** : chaque modèle affiche son mini-spectre, son **grain** (vert clair, jaune
   crunch, rouge saturé) et ses étiquettes ([profil des modèles](#profil-sonore-et-grain-des-modèles)).
   Le panneau Spectre y montre la courbe du modèle sous le curseur (avec son IR), et une ligne

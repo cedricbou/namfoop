@@ -89,6 +89,27 @@ Tout ce que font aujourd'hui les onglets Modèles, IR et Mélange est conservé 
   C'est un rappel ; le curseur n'y touche pas.
 - `◀ écouté` (modèle) / `◀ écoutée` (IR) marque ce que joue le banc, à la place de `◀ en cours`.
 - **Entrée** : mettre dans la chaîne (§ 4).
+- **Panneau Bandes** (`z`, #183) : un égaliseur graphique des sept zones de
+  `library::profile::ZONES`, qui dit ce que la chaîne **écoutée** (modèle nu + IR du moment) fait à
+  la basse. Mesure **figée** (profils en cache, aucune reconstruction de chaîne, rien dans le
+  thread audio). Écart avec la référence `◆` quand il y en a une, titre débarrassé du début commun
+  des deux noms ; `r` retourne la comparaison.
+
+  ```
+  ┌ Bandes — ce que la chaîne fait à ta basse ─┐
+  │ +12 ┤                                      │
+  │  +6 ┤                      ██  ██          │
+  │   0 ┼──────────────██──██──██──██──        │
+  │  -6 ┤  ██  ██  ██                          │
+  │ -12 ┤  ▼▼  ██                              │
+  │      sub  gr  bm  md  hm  pr air           │
+  │      -26 -19  -9  -3  +3 +11 +19   dB      │
+  └────────────────────────────────────────────┘
+  ```
+
+  Échelle ±12 dB sur 5 lignes (6 dB par ligne, 3 dB par demi-bloc), `▲` / `▼` hors échelle, couleurs
+  des vumètres (vert ±3, jaune ±8, rouge au-delà). Le zéro est la moyenne 80 Hz – 5 kHz de la
+  chaîne : les colonnes montrent sa **couleur**, pas son niveau. 9 lignes, 36 colonnes.
 - Barre d'aide (Modèles) :
   `↑↓ écouter  Entrée mettre dans la chaîne  Tab/→ IR  e calibrer  c épingler réf.  r A/B  b avec/sans IR  / filtrer  2 Chaîne  q`
 
@@ -216,6 +237,12 @@ en 12×24, 80×25 en 16×32. Le sélecteur étant contextuel, il doit rester uti
 prend la hauteur qui reste sous le synoptique, **4 lignes au moins**, et défile. Le panneau Spectre
 demande aujourd'hui 130 colonnes (`SPECTRUM_MIN_WIDTH`) ; il descend à **128** pour la police 10×20, que
 l'utilisateur pense retenir (décision du 12/11/2026, #138).
+
+Le **panneau Bandes** (§ 3) suit la même limite : à partir de 128 colonnes il se glisse **sous la
+courbe du Spectre**, dans la colonne de droite, donc il ne coûte aucune ligne de liste et il est
+affiché d'office (il remplace la ligne de texte des écarts par zone). En dessous de 128 colonnes il
+n'y a pas de colonne de droite : il s'empile sous la liste, masqué par défaut, montré par `z` — et
+seulement si le corps garde de quoi lire la liste (en 80×25 : 5 lignes de liste et le panneau).
 
 ## 8. Non-régression : ce qui ne doit pas bouger
 

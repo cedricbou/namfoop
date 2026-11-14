@@ -39,6 +39,11 @@ pub struct Item {
     pub meta: Option<Box<(ModelMeta, ModelMeta)>>,
     /// IR et mélanges : profil sonore (mini-spectre, étiquettes, courbe).
     pub profile: Option<library::profile::Described>,
+    /// Modèles : la courbe du **modèle nu** (sans IR), mesurée avec la basse de l'utilisateur
+    /// (`library::model_profile::ModelProfile::voicing`). `profile`, lui, y a déjà ajouté l'IR
+    /// conseillée quand le modèle en a besoin : pour montrer la chaîne **réellement écoutée** il
+    /// faut repartir du modèle nu et y poser l'IR du moment (panneau Bandes, #183).
+    pub voicing: Option<std::sync::Arc<dsp::profile::IrProfile>>,
     /// IR : c'est un **mélange enregistré** (`library/cabs/`). Ils passent en tête de la liste du
     /// sélecteur de la Chaîne (§ 5).
     pub blend: bool,
@@ -219,6 +224,12 @@ pub struct State {
     pub level_match: bool,
     /// `v` : vumètres du synoptique affichés ou masqués.
     pub show_meters: bool,
+    /// `z` : panneau Bandes montré ou masqué. `None` : le choix par défaut de l'écran — affiché
+    /// quand il ne coûte aucune ligne de liste (écran large), masqué sinon (#183).
+    pub bands: Option<bool>,
+    /// Largeur du terminal à la dernière image, posée par la boucle d'affichage : elle décide des
+    /// panneaux qui ne tiennent que sur un écran large.
+    pub width: u16,
     /// Overlay d'aide (`h` ou `?`) : la liste des touches de l'écran où l'on est. N'importe quelle
     /// touche le referme.
     pub help: bool,
@@ -275,6 +286,8 @@ impl State {
             meters: meters::MeterDisplay::default(),
             level_match: false,
             show_meters: true,
+            bands: None,
+            width: 0,
             help: false,
             confirm_quit: false,
             start_fx: chain::Chain::default(),
@@ -414,6 +427,7 @@ impl State {
     }
 }
 
+pub mod bands;
 mod blend;
 pub mod chain;
 mod compare;

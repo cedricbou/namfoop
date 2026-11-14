@@ -87,6 +87,39 @@ fn with_profiles(s: &mut State) {
     }
 }
 
+/// Le panneau **Bandes** (#183) : d'office sous la courbe du Spectre sur un écran large, où il ne
+/// coûte aucune ligne de liste ; sous la liste et seulement après `z` sur un écran étroit.
+#[test]
+fn the_bands_panel_shows_the_seven_zones_and_follows_z() {
+    use super::super::state::tests::with_model_profiles;
+    let mut s = sample();
+    with_model_profiles(&mut s);
+    s.model = Some(1);
+    s.ir = IrChoice::Item(2);
+    let shot = |s: &State, w: u16| crate::tui::screen_text(w, 30, |f| render(s, &Status::default(), f));
+
+    s.width = 160;
+    let t = shot(&s, 160);
+    assert!(t.contains("Bandes — ce que la chaîne fait à ta basse"), "{t}");
+    assert!(t.contains("sub") && t.contains("air"), "les sept zones sont nommées : {t}");
+    assert!(t.contains("   0 ┼"), "la ligne du neutre : {t}");
+    assert!(t.contains("Spectre"), "la courbe reste : {t}");
+
+    // écran étroit : il prendrait des lignes de liste, donc il attend `z`
+    s.width = 110;
+    assert!(!shot(&s, 110).contains("Bandes"), "masqué par défaut sous 128 colonnes");
+    s.on_key(Key::Char('z'));
+    let t = shot(&s, 110);
+    assert!(t.contains("Bandes"), "z l'affiche : {t}");
+    assert!(t.contains("800D Modern"), "la liste reste lisible : {t}");
+
+    // une référence épinglée : les colonnes deviennent un écart, le titre le dit
+    s.width = 160;
+    s.ref_model = Some(0);
+    let t = shot(&s, 160);
+    assert!(t.contains("vs ◆"), "{t}");
+}
+
 #[test]
 fn spectrum_panel_with_reference_on_wide_terminals() {
     let mut s = sample();

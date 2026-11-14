@@ -12,6 +12,7 @@ pub fn item(id: &str, label: &str, pack: &str, needs: NeedsIr, rec: Vec<usize>) 
         recommended: rec,
         meta: None,
         profile: None,
+        voicing: None,
         blend: false,
     }
 }
@@ -366,17 +367,32 @@ fn ab_with_reference_equal_to_current_ir_is_explained() {
     assert!(s.message.as_deref().unwrap().contains("copies identiques"));
 }
 
-fn with_model_profiles(s: &mut State) {
+/// Des profils mesurés pour chaque modèle **et** chaque IR, tous différents (sinon `c` / `r` les
+/// prendraient pour des copies identiques). Les modèles reçoivent en plus leur `voicing`, la courbe
+/// du modèle nu dont le panneau Bandes a besoin (#183).
+pub fn with_model_profiles(s: &mut State) {
+    let curve = |offset: f32, slope: f32| {
+        std::sync::Arc::new(dsp::profile::IrProfile {
+            bands_db: (0..28).map(|i| offset + (i as f32 - 14.0) * slope).collect(),
+            low_cut_hz: 40.0,
+            high_cut_hz: 6000.0,
+        })
+    };
     for (k, m) in s.models.iter_mut().enumerate() {
         m.profile = Some(library::profile::Described {
-            profile: std::sync::Arc::new(dsp::profile::IrProfile {
-                bands_db: vec![k as f32; 28],
-                low_cut_hz: 40.0,
-                high_cut_hz: 6000.0,
-            }),
+            profile: curve(k as f32, -0.3),
             spark: String::new(),
             tags: vec![],
             grain: Some(format!("crunch {k} %")),
+        });
+        m.voicing = Some(curve(k as f32, -0.3));
+    }
+    for (k, it) in s.irs.iter_mut().enumerate() {
+        it.profile = Some(library::profile::Described {
+            profile: curve(2.0 * k as f32, 0.5),
+            spark: String::new(),
+            tags: vec![],
+            grain: None,
         });
     }
 }

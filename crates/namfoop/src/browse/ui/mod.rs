@@ -12,6 +12,7 @@ use super::state::{AbState, Editor, Field, IrChoice, IrRow, ModelRow, State, Tab
 use crate::tui::{meter_marked, meter_width};
 use library::recommend::NeedsIr;
 
+mod bands;
 mod editor;
 mod footer;
 mod fx;
@@ -411,7 +412,17 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         f.render_widget(Paragraph::new(lines).block(bench_block()), list);
         render_spectrum(s, f, spectrum);
     } else {
-        f.render_widget(Paragraph::new(lines).block(bench_block()), body);
+        // écran étroit : pas de colonne de droite, le panneau Bandes (z) prend des lignes à la
+        // liste — et seulement s'il en reste assez pour lire la liste (#183)
+        let room = body.height >= bands::HEIGHT + 4;
+        if s.show_bands() && room {
+            let [list, panel] =
+                Layout::vertical([Constraint::Min(4), Constraint::Length(bands::HEIGHT)]).areas(body);
+            f.render_widget(Paragraph::new(lines).block(bench_block()), list);
+            bands::render(s, f, panel);
+        } else {
+            f.render_widget(Paragraph::new(lines).block(bench_block()), body);
+        }
     }
 
     let mut meters = vec![Span::raw(" in ")];

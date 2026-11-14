@@ -45,8 +45,8 @@ pub(super) fn keys(s: &State, lib: bool) -> String {
         _ if !lib => fx::fx_keys(s),
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),
-        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   S enregistrer   P banque   n vierge   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   P banque   n vierge   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Blend) => "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   S enregistrer   P banque   n vierge   z bandes   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   P banque   n vierge   z bandes   h aide   2 Chaîne   q quitter".into(),
+        (_, _, Tab::Blend) => "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   z bandes   h aide   2 Chaîne   q quitter".into(),
     }
 }

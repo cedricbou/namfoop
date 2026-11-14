@@ -94,6 +94,7 @@ pub fn index(
                 recommended: Vec::new(),
                 meta: None,
                 profile: profiles.by_rel.get(&e.rel).cloned(),
+                voicing: None,
                 blend: kind == Kind::Cab,
             });
         }
@@ -103,6 +104,8 @@ pub fn index(
         .map(|e| {
             let mut it = model_item(lib, e, default_ir, &by_rel);
             it.profile = model_profiles.by_rel.get(&e.rel).cloned();
+            // le modèle nu, pour le panneau Bandes : `profile` contient déjà l'IR conseillée (#183)
+            it.voicing = model_profiles.measures.get(&e.rel).map(|m| std::sync::Arc::new(m.voicing.clone()));
             it
         })
         .collect();
@@ -153,6 +156,7 @@ fn model_item(
         recommended,
         meta,
         profile: None,
+        voicing: None,
         blend: false,
     }
 }
@@ -428,6 +432,8 @@ pub fn run(
                     Built::Err(e) => st.message = Some(format!("chargement impossible : {e}")),
                 }
             }
+            // la largeur décide des panneaux réservés aux écrans larges (Bandes, #183)
+            st.width = session.terminal.size().map(|s| s.width).unwrap_or(0);
             let m = engine.meters();
             status.in_peak = m.in_peak.max(status.in_peak * 0.85); // retombée douce
             status.out_peak = m.out_peak.max(status.out_peak * 0.85);

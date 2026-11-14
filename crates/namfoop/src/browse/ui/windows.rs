@@ -289,6 +289,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
             v.push(key_line("s", "sauver le mélange dans library/cabs/"));
         }
     }
+    v.push(key_line("z", "panneau Bandes : ce que la chaîne fait aux 7 zones (sub … air)"));
     v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
     v.push(key_line("n", "nouvelle chaîne vierge (on passe à la Chaîne pour la bâtir)"));
     v.push(key_line("2", "aller à la Chaîne (effets, parallèles)"));

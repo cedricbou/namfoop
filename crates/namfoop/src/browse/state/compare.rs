@@ -6,20 +6,32 @@ use super::*;
 impl State {
     /// Modèle réellement écouté : la référence en écoute B (`r`), sinon le choix.
     pub fn effective_model(&self) -> Option<usize> {
-        match (self.listen_ref, self.ref_model) {
-            (true, Some(m)) => Some(m),
-            _ => self.model,
-        }
+        self.model_of(self.listen_ref)
     }
 
     /// IR réellement écoutée : aucune si coupée (`b`), la référence en écoute B (`r`), sinon le choix.
     /// En A/B de modèles, le modèle B garde l'IR en cours s'il en a besoin, et n'en a pas si son
     /// baffle est inclus.
     pub fn effective_ir(&self) -> IrChoice {
+        self.ir_of(self.listen_ref)
+    }
+
+    /// Le modèle du côté A (`false` : ton choix) ou B (`true` : la référence épinglée) de l'A/B.
+    /// `effective_model` n'est que le côté **écouté** ; le panneau Bandes a besoin des deux pour
+    /// montrer un écart (#183).
+    pub(super) fn model_of(&self, listen_ref: bool) -> Option<usize> {
+        match (listen_ref, self.ref_model) {
+            (true, Some(m)) => Some(m),
+            _ => self.model,
+        }
+    }
+
+    /// L'IR du côté A ou B de l'A/B (voir [`State::model_of`]).
+    pub(super) fn ir_of(&self, listen_ref: bool) -> IrChoice {
         if self.bypass {
             return IrChoice::None;
         }
-        match (self.listen_ref, self.reference, self.ref_model) {
+        match (listen_ref, self.reference, self.ref_model) {
             (true, Some(r), _) => IrChoice::Item(r),
             (true, None, Some(m)) => match (self.models[m].needs, self.ir) {
                 (NeedsIr::No, _) => IrChoice::None,
@@ -30,6 +42,11 @@ impl State {
             },
             _ => self.ir,
         }
+    }
+
+    /// Y a-t-il une référence épinglée (`c`) ? Alors le panneau Bandes compare les deux côtés.
+    pub(super) fn has_reference(&self) -> bool {
+        self.ref_model.is_some() || self.reference.is_some()
     }
 
     /// Le modèle choisi est la référence, ou une copie identique (même mesure).

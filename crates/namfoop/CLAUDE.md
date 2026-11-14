@@ -23,6 +23,13 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 inspiré du bloc Merge / Mixer du marché ; tout le reste du parallèle se règle depuis
                 le ◆) ; label.rs étiquettes du
                 synoptique ; edit/ navigation 2D et règles d'édition (s, +, x, [ ], { }, b, m/o/p) ;
+                bands.rs LE PANNEAU BANDES (#183) : State::bands rend les 7 zones de
+                library::profile::ZONES pour la chaîne ÉCOUTÉE (Item::voicing, le modèle NU, plus
+                l'IR du moment via model_profile::with_ir — Item::profile, lui, contient déjà l'IR
+                conseillée), ou l'ÉCART avec la référence ◆ ; mesure FIGÉE (profils en cache, aucune
+                chaîne rebâtie) ; WIDE_COLUMNS = 128 est la source unique de SPECTRUM_MIN_WIDTH, et
+                show_bands() suit `z` (State::bands) ou, à défaut, l'écran (State::width, posée à
+                chaque image par la boucle) ;
                 meters.rs vumètres du synoptique (+ level_align_db : L'ALIGNEMENT SUR LE DI de la
                 chaîne installée, publié par dsp::meter::ChainMeters::level_db, #178 — il annule
                 tout bloc `gain`, donc ui/synoptic.rs le montre grisé en bout de chaîne, le panneau
@@ -79,7 +86,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 thread de construction : chemins résolus, blocs coupés retirés, solo en muets) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start) ; ui/windows.rs les fenêtres (« non enregistré »,
                 « mettre dans la chaîne ») et l'OVERLAY D'AIDE `h`, contextuel, par-dessus tout
-                l'écran ; ui/footer.rs LA BARRE DU BAS (les touches de l'écran où l'on est, la
+                l'écran ; ui/bands.rs le DESSIN du panneau Bandes (colonnes verticales, ±12 dB sur
+                5 lignes, 3 dB par demi-bloc, ▲/▼ hors échelle ; sous la courbe du Spectre à partir
+                de 128 colonnes, sinon sous la liste) ; ui/footer.rs LA BARRE DU BAS (les touches de l'écran où l'on est, la
                 première couche qui a la main gagne) ; ui/mod.rs : help_bar la coupe aux
                 séparateurs de touches et garde toujours les trois dernières (h aide / l'autre
                 espace / q quitter), #150
