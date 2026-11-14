@@ -6,6 +6,7 @@
 //! - `ui.rs`    rendu ratatui (testé avec TestBackend)
 //! - ici        index de la bibliothèque, audio (routeur + SwapChain), thread de construction
 
+mod build;
 mod plan;
 mod state;
 mod ui;
@@ -18,15 +19,15 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::amp::AmpArgs;
 use crate::config::{CalibrationExt, LoadedConfig};
 use crate::tui;
 use audio_io::Settings;
+use build::{bank_requests, Built, Job};
 use engine::{Engine, EngineConfig, Routing};
 use library::overrides::{ModelOverride, Overrides};
 use library::recommend::{needs_ir, recommend, NeedsIr};
 use library::{content_hash, Kind, Library};
-use plan::{block_specs, plan_blocks, Request};
+use plan::{plan_blocks, Request};
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
@@ -194,36 +195,6 @@ fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
     }
 }
 
-enum Built {
-    /// Chaîne installée, avec la table de ses vumètres par bloc et par branche (#107).
-    Ok(dsp::meter::ChainMeters),
-    Err(String),
-}
-
-fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
-    AmpArgs {
-        model: req.first_model().map(|p| p.display().to_string()),
-        ir: req.first_ir().map(|p| p.display().to_string()),
-        input_db: req.input_db,
-        output_db: 0.0,
-        trim: None,
-        level: None,
-        target_db: None,
-        no_limiter: false,
-        size,
-        ir_ms: 200.0,
-        master_db: 0.0,
-        pre: Vec::new(),
-        post: Vec::new(),
-        crossover: None,
-        crossover_low_db: 0.0,
-        crossover_high_db: 0.0,
-        // `browse` décrit ses blocs lui-même : le preset n'entre pas dans le cadre
-        preset: None,
-        library: library.to_path_buf(),
-    }
-}
-
 /// Ce que le navigateur montre au départ.
 #[derive(Default)]
 pub struct Start<'a> {
@@ -271,52 +242,9 @@ pub fn run(
     if engine.sample_rate() != cfg.rate {
         bail!("le flux tourne à {} Hz, attendu {} Hz (option --rate)", engine.sample_rate(), cfg.rate);
     }
-    let mut handle = engine.take_chain_sender().expect("pris une seule fois");
-
-    // construction des chaînes hors temps réel : la demande la plus récente gagne
-    let (tx_req, rx_req) = mpsc::channel::<Request>();
-    let (tx_built, rx_built) = mpsc::channel::<Built>();
-    let (conf2, lib_dir, rate, limiter) = (conf.clone(), library.to_path_buf(), cfg.rate, limiter);
-    std::thread::Builder::new().name("namfoop-build".into()).spawn(move || {
-        while let Ok(mut req) = rx_req.recv() {
-            while let Ok(newer) = rx_req.try_recv() {
-                req = newer;
-            }
-            let trace_line = req.trace();
-            // le cadre (trim, niveau, master, limiteur) vient des options et de la config ; les
-            // blocs, eux, sont ceux de l'éditeur. Avec les vumètres par bloc : la table est
-            // préallouée ici et voyage avec la chaîne.
-            let built = amp_args(&lib_dir, size, &req).spec(&conf2, Some(limiter.clone())).and_then(|spec| {
-                let lib = Library::scan(&lib_dir);
-                let mut chain_spec = spec.to_chain_spec();
-                chain_spec.blocks = block_specs(&req.blocks, &lib, &req, size);
-                Ok(chain_spec.build_with_meters(rate, MAX_BLOCK)?)
-            });
-            match built {
-                Ok((mut chain, meters)) => loop {
-                    match handle.send(chain) {
-                        Ok(()) => {
-                            trace(&format!(
-                                "{trace_line} mesures=blocs:{} parallèles:{}",
-                                meters.blocks.len(),
-                                meters.splits.len()
-                            ));
-                            let _ = tx_built.send(Built::Ok(meters));
-                            break;
-                        }
-                        Err(c) => {
-                            chain = c;
-                            std::thread::sleep(Duration::from_millis(5));
-                        }
-                    }
-                },
-                Err(e) => {
-                    let _ = tx_built.send(Built::Err(format!("{e:#}")));
-                }
-            }
-            handle.collect();
-        }
-    })?;
+    let handle = engine.take_chain_sender().expect("pris une seule fois");
+    // construction des chaînes hors temps réel, et préchargement de la banque de presets (#6)
+    let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size)?;
 
     // grain de l'éditeur : mesuré hors temps réel avec la basse de l'utilisateur, la plus récente gagne
     let (tx_grain, rx_grain) = mpsc::channel::<(usize, f32, PathBuf)>();
@@ -350,6 +278,9 @@ pub fn run(
     st.start_bench_from_chain();
     // référence du « non enregistré » (q demande confirmation) : l'état avant la première touche
     st.mark_start();
+    // les chaînes des presets sont bâties à l'avance, entre deux demandes (#6)
+    let mut bank_reqs = bank_requests(&st, &audition);
+    let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
     let mut first = Action::None;
     if start_with.edit {
         // premier modèle (la ligne « son direct » est en tête sans filtre)
@@ -389,17 +320,21 @@ pub fn run(
                         blend_spec("écoute", &st, true).save(&audition)?;
                         st.blend_profile = dsp::profile::IrProfile::of_file(&audition).ok().map(Arc::new);
                     }
-                    let req = Request {
+                    let mut req = Request {
                         blocks: plan_blocks(&plan.blocks, &st, &audition),
                         input_db: st.input_offset(),
+                        preset: None,
                     };
+                    // cette chaîne est-elle exactement celle d'un preset ? alors elle est déjà
+                    // bâtie dans la banque (#6) : la comparaison porte sur les blocs résolus
+                    req.preset = bank_reqs.iter().position(|r| r.as_ref() == Some(&req));
                     // même chaîne que la dernière : pas de reconstruction ni de fondu inutile
                     // (le mélange d'écoute garde son nom de fichier mais change de contenu)
                     let same = last_req.as_ref() == Some(&req)
                         && !req.irs().iter().any(|p| p.as_path() == audition.as_path());
                     if !same {
                         last_req = Some(req.clone());
-                        let _ = tx_req.send(req);
+                        let _ = tx_req.send(Job::Chain(req));
                         status.loading = true;
                     }
                 }
@@ -439,8 +374,11 @@ pub fn run(
                         Ok(()) => {
                             st.message = Some(format!("preset « {name} » enregistré ({})", file.display()));
                             st.mark_preset_saved(name, file);
-                            // la banque contient le nouveau preset
+                            // la banque contient le nouveau preset : à précharger de nouveau
                             st.adopt_presets(scan_presets(library));
+                            bank_reqs = bank_requests(&st, &audition);
+                            let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
+                            status.bank = Some((0, bank_reqs.len()));
                             // `S` depuis la fenêtre de `q` : on quitte maintenant que c'est écrit
                             if std::mem::take(&mut st.quit_after_save) {
                                 return Ok(());
@@ -479,6 +417,8 @@ pub fn run(
                 match b {
                     // les vumètres de la chaîne qui vient d'être installée (#107)
                     Built::Ok(meters) => st.set_chain_meters(meters),
+                    Built::Unchanged => {}
+                    Built::Preloading(done, total) => status.bank = Some((done, total)),
                     Built::Err(e) => st.message = Some(format!("chargement impossible : {e}")),
                 }
             }

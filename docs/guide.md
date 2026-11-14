@@ -861,11 +861,15 @@ Trois règles tiennent l'ensemble :
   cours n'est pas enregistrée, on te demande d'abord — une fois. Dans la Bibliothèque, PgUp et PgDn
   continuent de **défiler les listes** : le preset, c'est la chaîne, on en change depuis la Chaîne.
 
-  Compte **environ 80 ms** entre la touche et le nouveau son (mesuré sur PC : 81 ms pour
-  `nam › ir`, 204 ms pour un preset à deux modèles en parallèle — c'est le chargement des modèles
-  qui coûte). Le son ne se coupe pas : la chaîne précédente joue jusqu'au fondu. C'est confortable
-  pour essayer et répéter ; pour tomber pile sur un temps, il faudra la banque préchargée en
-  mémoire (prévue avec les presets MIDI).
+  La bascule est **immédiate** : les chaînes de tous tes presets sont bâties et préchauffées
+  **dès l'ouverture de `browse`**, en tâche de fond (la barre du bas affiche `banque 3/7` tant
+  qu'il en reste), si bien que changer de preset ne charge plus rien. Mesuré sur PC, de la touche
+  au son installé : **20 ms**, le temps du fondu — y compris pour un preset à deux modèles en
+  parallèle, qui demandait 204 ms avant. De quoi tomber sur un temps. Le son ne se coupe jamais :
+  la chaîne précédente joue jusqu'au fondu.
+
+  Un preset dont la chaîne n'est pas encore préchargée (juste après l'ouverture, ou juste après
+  l'avoir enregistré) se charge comme avant, en ~80 ms : c'est un retard, pas une panne.
 
   **`t`** déplie le TOML du preset sous le synoptique (replié par défaut : `▸ preset TOML (t)`) —
   pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.

@@ -14,8 +14,9 @@ basse ─▶ entrée basse ─▶ trim ─▶ NAM ─▶ IR ─▶ niveau ─▶
 simulée, cartes multicanaux, assistant de configuration et navigateur de sons plein écran (changement sans
 coupure, IR conseillées, mélanges d'IR, éditeur de chaîne), calibration d'entrée et volume
 aligné sur la basse en direct, effets (gate, compresseur, EQ, crossover, chorus, delay, réverbe),
-presets (enregistrer une chaîne, la rechercher, la rejouer, passer à la suivante),
-rendu hors ligne, bench CPU, mesure de latence. À venir : MIDI, banque préchargée, démarrage
+presets (enregistrer une chaîne, la rechercher, la rejouer, passer à la suivante en 20 ms grâce à
+la banque préchargée en mémoire),
+rendu hors ligne, bench CPU, mesure de latence. À venir : MIDI, démarrage
 automatique, Raspberry Pi.
 
 ## Démarrage rapide

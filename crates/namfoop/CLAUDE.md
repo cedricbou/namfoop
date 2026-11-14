@@ -55,9 +55,15 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 bloc nam / ir sous le curseur, et le sélecteur), rows.rs (une ligne de modèle /
                 d'IR, partagée par les onglets et le sélecteur), synoptic.rs (le synoptique de la
                 chaîne : une ligne par branche, vumètres au-dessus, colonnes alignées, défilement
-                horizontal), tests.rs), mod.rs (index, Engine + ChainSender dans
-                le thread de construction, qui rend aussi la table des vumètres par bloc
-                (dsp::meter::ChainMeters, #107), overrides.toml), plan.rs (la chaîne demandée au
+                horizontal), tests.rs), mod.rs (index, Engine, boucle d'affichage,
+                overrides.toml), build.rs (LE THREAD DE CONSTRUCTION : il possède la
+                engine::bank::Bank — donc l'envoi de chaînes —, bâtit la chaîne demandée hors temps
+                réel avec sa table de vumètres (dsp::meter::ChainMeters, #107), et PRÉCHARGE les
+                chaînes des presets entre deux demandes (#6) : une bascule n'installe plus qu'une
+                chaîne déjà prête. Une demande porte la place de banque dont elle est exactement la
+                chaîne (Request::preset, égalité des blocs résolus) ; dès qu'on édite, isole ou
+                essaie un son, elle vaut None et la chaîne est rebâtie. Job::Bank(reqs) rejoue le
+                préchargement après chaque enregistrement de preset), plan.rs (la chaîne demandée au
                 thread de construction : chemins résolus, blocs coupés retirés, solo en muets) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start) ; ui/windows.rs les fenêtres (« non enregistré »,
                 « mettre dans la chaîne ») et l'OVERLAY D'AIDE `h`, contextuel, par-dessus tout
@@ -111,14 +117,16 @@ concernée). Erreurs : `anyhow`.
 
 ## Faits mesurés
 
-- **Bascule d'un preset** (`PgDn` / `PgUp`, #158 ; x86, profil `ci`, backend sim, mesurée en
+- **Bascule d'un preset** (`PgDn` / `PgUp` ; x86, profil `ci`, backend sim, mesurée en
   pseudo-terminal : de la touche à la ligne `NAMFOOP_BROWSE_TRACE`, écrite quand la chaîne est
-  **dans** le thread audio) : **81 ms** pour `nam › ir`, **82 ms** pour `gate › nam › ir › reverb`,
-  **204 ms** pour un parallèle à **deux** NAM. C'est le **chargement des modèles** qui domine
-  (≈ 80 ms le premier, ≈ 120 ms le second), pas le nombre d'effets. Le son ne se coupe pas : la
-  chaîne précédente joue jusqu'au fondu de 20 ms, donc c'est un **retard**, pas un trou. Assez bon
-  pour essayer et répéter ; pour changer de son sur un temps, il faudra la banque préchargée en
-  mémoire (#6). **Pi 5 non mesuré** (#44 / #45).
+  **dans** le thread audio) : **20 à 21 ms** depuis la banque préchargée (#167), pour les trois
+  presets de test — y compris le parallèle à **deux** NAM. C'est le fondu, et c'est aussi le plancher
+  de la mesure (la boucle d'affichage scrute le clavier toutes les 30 ms). Avant la banque (#158) :
+  **81 ms** pour `nam › ir`, **82 ms** pour `gate › nam › ir › reverb`, **204 ms** pour le parallèle
+  à deux NAM — le **chargement des modèles** dominait (≈ 80 ms le premier, ≈ 120 ms le second), pas
+  le nombre d'effets. Le son ne se coupe dans aucun des deux cas : la chaîne précédente joue jusqu'au
+  fondu. Un preset pas encore préchargé retombe sur l'ancien chemin. **Pi 5 non mesuré**
+  (#44 / #45) ; coût mémoire et détail du préchargement : `crates/engine/CLAUDE.md`.
 
 - Niveau d'entrée : les captures Tone3000 n'ont pas d'`input_level_dbu`. Avec la basse de
   l'utilisateur dans l'iTwo (crête ~ -12 dBFS), il a fallu -18 dB d'entrée pour retrouver le son des
