@@ -361,6 +361,37 @@ fn the_catalog_filter_gets_the_letters_of_the_common_keys() {
     assert!(s.fx.chain.is_empty(), "n hors catalogue : chaîne vierge");
 }
 
+/// Volume aligné sur le DI : un bloc `gain` ajouté le dit tout de suite, et le panneau de réglages
+/// le redit tant que le curseur est dessus (#178). Sans alignement, pas d'avertissement.
+#[test]
+fn a_gain_block_warns_when_the_volume_is_aligned_on_the_di() {
+    let add_gain = |aligned: bool| -> State {
+        let mut s = with_chain(vec![fx_block("hpf:freq=30")]);
+        s.level_match = aligned;
+        s.on_key(Key::Char('a'));
+        for c in "gain".chars() {
+            s.on_key(Key::Char(c));
+        }
+        s.on_key(Key::Enter);
+        s
+    };
+    let s = add_gain(true);
+    assert_eq!(shape(&s), "hpf 30 gain", "le bloc est bien ajouté");
+    let msg = s.message.clone().expect("un message");
+    assert!(msg.contains("aligné sur le DI"), "{msg}");
+    assert!(msg.contains("saturation"), "le message dit ce que le gain fait encore : {msg}");
+    assert!(s.gain_cancelled_by_alignment(), "le curseur est sur le gain : le panneau prévient");
+    // sur un autre bloc, plus d'avertissement
+    let mut s = s;
+    s.on_key(Key::Left);
+    assert!(!s.gain_cancelled_by_alignment(), "l'avertissement ne suit que le bloc gain");
+
+    let s = add_gain(false);
+    let msg = s.message.clone().expect("un message");
+    assert!(!msg.contains("DI"), "sans alignement, rien à signaler : {msg}");
+    assert!(!s.gain_cancelled_by_alignment());
+}
+
 /// Entrée sur un bloc `nam` ouvre le **sélecteur sur place** sur ce bloc, curseur sur son modèle
 /// actuel ; la chaîne ne change qu'avec Entrée (§ 5 de `docs/design/browse-espaces.md`).
 #[test]

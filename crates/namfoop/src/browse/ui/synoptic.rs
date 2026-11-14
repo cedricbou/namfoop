@@ -230,6 +230,15 @@ pub fn build(st: &State) -> Synoptic {
             }
         }
     }
+    // L'alignement de niveau sur le DI (`level = "match"`) : ce n'est pas un bloc de la chaîne —
+    // ni éditable, ni déplaçable, d'où le gris — mais c'est le **dernier étage réel** avant la
+    // sortie, et il annule tout gain posé dans la chaîne. Le cacher laissait croire à un vumètre
+    // OUT cassé (#178).
+    if let (Some(db), false) = (st.level_align_db(), chain.is_empty()) {
+        g.add(0, &format!("niveau DI {db:+.1} dB"), Style::new().fg(Color::DarkGray), false, Vec::new());
+        g.plain(0, " ─ ", line_style());
+        g.sync();
+    }
     g.add(0, "OUT", io, false, m(MeterAt::Output, MeterKind::Peak, 3, false));
     Synoptic { grid: g, show_meters, cursor_cols }
 }
@@ -442,6 +451,23 @@ mod tests {
         assert_eq!(cells[0].style.fg, Some(Color::Red));
         // ouvert : barre normale
         assert_eq!(meter_cells(-6.0, 0.0, MeterKind::Gate, 6, false)[0].text, "█████▍");
+    }
+
+    /// L'alignement de niveau sur le DI se voit en queue de synoptique, juste avant `OUT` : sans
+    /// lui, un bloc `gain` qui ne change rien à la sortie reste inexplicable (#178).
+    #[test]
+    fn the_di_alignment_is_shown_just_before_out() {
+        use crate::browse::state::tests::{fx_block, with_chain};
+        let mut s = with_chain(vec![fx_block("gain:db=-40")]);
+        s.show_meters = false;
+        let text = |s: &State| build(s).lines(400, 0)[0].to_string();
+        // tant qu'aucune chaîne n'est installée, il n'y a rien de mesuré à montrer
+        assert!(text(&s).ends_with("gain ─ OUT"), "{}", text(&s));
+        s.set_chain_meters(dsp::meter::ChainMeters { level_db: Some(40.9), ..Default::default() });
+        assert!(text(&s).ends_with("gain ─ niveau DI +40.9 dB ─ OUT"), "{}", text(&s));
+        // chaîne vidée : plus d'alignement, et surtout pas celui de la chaîne précédente
+        s.fx.chain.blocks.clear();
+        assert!(!text(&s).contains("niveau DI"), "{}", text(&s));
     }
 
     /// Toutes les lignes d'un parallèle ont la même largeur, et les traits verticaux tombent dans

@@ -344,13 +344,31 @@ impl State {
             k => Leaf::fx(FxSpec::default_of(k).expect("au catalogue")),
         };
         let pick = matches!(e.kind, "nam" | "ir");
-        let msg = self.insert_leaf(leaf, c.before);
+        let mut msg = self.insert_leaf(leaf, c.before);
+        // un `gain` dans une chaîne alignée sur le DI ne sert pas à ce qu'on croit : le dire tout
+        // de suite plutôt que de laisser chercher pourquoi la sortie ne bouge pas (#178)
+        if e.kind == "gain" && self.level_match {
+            msg += " — mais le volume est aligné sur le DI : il ne changera pas la sortie, \
+                    seulement la saturation de ce qui suit";
+        }
         if pick {
             self.open_picker(true);
         } else {
             self.message = Some(msg);
         }
         true
+    }
+
+    /// Le bloc sous le curseur est-il un `gain` que l'**alignement sur le DI** annule (#178) ?
+    /// Posé après un modèle il ne change plus rien du tout ; posé avant, il n'agit que sur la
+    /// saturation, l'alignement rattrapant le niveau derrière lui.
+    pub fn gain_cancelled_by_alignment(&self) -> bool {
+        self.level_match
+            && self
+                .fx
+                .chain
+                .leaf(self.fx.cursor)
+                .is_some_and(|l| matches!(l, Leaf::Fx(f) if f.spec.kind() == "gain"))
     }
 
     /// Touches de la fenêtre du catalogue. `None` : la fenêtre est fermée. Appelée par `on_key`

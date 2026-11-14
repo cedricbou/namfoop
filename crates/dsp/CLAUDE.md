@@ -6,8 +6,9 @@ chaîne, changement de chaîne à chaud, analyses hors ligne.
 **Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `meter.rs`
 (vumètres d'affichage : `Meter` (f32 dans un `AtomicU32`, maximum gardé jusqu'à la lecture qui
 remet à zéro), `BlockMeters { peak, action }` (`action` = réduction du comp / fermeture du gate),
-`BranchMeters { sum, blocks }`, `SplitMeters`, `ChainMeters` (préallouée, `clear()`), et l'étage
-`Probe` qui ne touche pas au signal), `block.rs`
+`BranchMeters { sum, blocks }`, `SplitMeters`, `ChainMeters` (préallouée, `clear()`, et
+`level_db` : l'alignement sur le DI mesuré à la construction, que l'écran doit montrer, #178), et
+l'étage `Probe` qui ne touche pas au signal), `block.rs`
 (**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, master_db, limiter }`,
 `BlockSpec::{Fx, Nam, Ir, Split}`, `SplitSpec`/`BranchSpec` (nom, gain, polarité, muet, blocs) ;
 `validate()` refuse un parallèle dans une branche (un seul niveau) ; `build()` charge, aligne les
@@ -87,6 +88,16 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   niveaux (crête/RMS) et des comparaisons numériques.
 
 ## Faits mesurés
+
+- **L'alignement sur le DI annule tout gain de la chaîne** (#178, #25). En `Level::Match`,
+  `build_inner` fait passer l'enregistrement de calibration dans la chaîne **entière déjà
+  construite** et pousse le gain inverse **après** tous les blocs : il compense donc exactement ce
+  qu'on y ajoute. Mesuré (`render -m mrhr --level match --post gain:db=$g`, sinus 110 Hz) : bloc à
+  -40 dB -> alignement **+40,9 dB** ; à 0 -> +0,9 ; à +24 -> **-23,1** ; sortie identique aux trois
+  (crête -11,6 dBFS, RMS -16,4). La compensation est bornée à ±60 dB. Un gain **avant** un modèle
+  n'est pas annulé en tant que **drive** (la saturation change), seulement en niveau.
+  Conséquences : seul `master_db` (après l'alignement) change le volume ; `ChainMeters::level_db`
+  publie la valeur pour que `browse` la montre ; un niveau par preset reste à faire (#179).
 
 - **Queue de preset** (#172, `cargo test --release -p dsp --test trails -- --nocapture`, modèle
   d'exemple WaveNet, bloc 64) : la chaîne quittée finit de sonner, donc **deux chaînes tournent**

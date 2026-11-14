@@ -23,6 +23,11 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 inspiré du bloc Merge / Mixer du marché ; tout le reste du parallèle se règle depuis
                 le ◆) ; label.rs étiquettes du
                 synoptique ; edit/ navigation 2D et règles d'édition (s, +, x, [ ], { }, b, m/o/p) ;
+                meters.rs vumètres du synoptique (+ level_align_db : L'ALIGNEMENT SUR LE DI de la
+                chaîne installée, publié par dsp::meter::ChainMeters::level_db, #178 — il annule
+                tout bloc `gain`, donc ui/synoptic.rs le montre grisé en bout de chaîne, le panneau
+                de réglages prévient sur un `gain` (State::gain_cancelled_by_alignment) et l'ajout
+                d'un `gain` le dit ; State::level_match vient de la config (level = "match")) ;
                 space.rs les DEUX ESPACES (§ 2 de browse-espaces.md) : Space::Library (onglets
                 Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
                 effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2

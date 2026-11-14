@@ -104,6 +104,13 @@ pub struct ChainMeters {
     pub blocks: Vec<BlockMeters>,
     /// Les parallèles, dans l'ordre des blocs.
     pub splits: Vec<SplitMeters>,
+    /// L'**alignement de niveau sur le DI** (`Level::Match`), en dB, mesuré une fois à la
+    /// construction : c'est le dernier étage réel avant la sortie, et il **annule** tout gain posé
+    /// dans la chaîne (#178). L'écran doit pouvoir le montrer, d'où sa place ici : la table est ce
+    /// qui voyage avec la chaîne installée, banque préchargée comprise. `None` : pas en mode
+    /// « match » (rien n'est ajouté). Ce n'est pas un vumètre — valeur fixe, pas d'atomique —
+    /// donc `clear()` n'y touche pas.
+    pub level_db: Option<f32>,
 }
 
 impl ChainMeters {

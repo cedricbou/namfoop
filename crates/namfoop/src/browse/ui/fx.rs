@@ -140,6 +140,14 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
             Style::new().fg(Color::DarkGray),
         )),
     }
+    // un `gain` sous le curseur dans une chaîne alignée sur le DI : dire pourquoi la valeur qu'on
+    // tourne ne change rien à la sortie (#178)
+    if s.gain_cancelled_by_alignment() {
+        lines.push(Line::styled(
+            "   ⚠ volume aligné sur le DI : ce gain ne change pas la sortie, seulement la saturation",
+            Style::new().fg(Color::Yellow),
+        ));
+    }
     // ce que le parallèle propose en plus, sous ses réglages
     if s.fx.chain.spot(s.fx.cursor) == Spot::Split {
         lines.push(Line::styled(

@@ -137,7 +137,9 @@ pub(super) fn spawn(
                 if let Some(i) = req.preset {
                     match bank.switch(i) {
                         engine::bank::Switch::Installed(meters) => {
-                            trace(&format!("{} préchargée place={i}", req.trace()));
+                            let align =
+                                meters.level_db.map(|d| format!(" niveauDI={d:+.1}")).unwrap_or_default();
+                            trace(&format!("{} préchargée place={i}{align}", req.trace()));
                             let _ = tx_built.send(Built::Ok(meters));
                             continue;
                         }
@@ -164,9 +166,11 @@ pub(super) fn spawn(
                         match bank.install(chain) {
                             Ok(()) => {
                                 trace(&format!(
-                                    "{trace_line} mesures=blocs:{} parallèles:{}",
+                                    "{trace_line} mesures=blocs:{} parallèles:{}{}",
                                     meters.blocks.len(),
-                                    meters.splits.len()
+                                    meters.splits.len(),
+                                    // l'alignement sur le DI, s'il y en a un (#178)
+                                    meters.level_db.map(|d| format!(" niveauDI={d:+.1}")).unwrap_or_default()
                                 ));
                                 let _ = tx_built.send(Built::Ok(meters));
                                 break;
