@@ -100,6 +100,8 @@ impl State {
             Key::Char('1') => return self.go_to(space::Space::Library),
             Key::Char('2') => return self.go_to(space::Space::Chain),
             Key::Char('S') => return self.save_preset(),
+            // `n` : repartir d'une chaîne vierge, depuis les deux espaces (#170)
+            Key::Char('n') => return self.new_chain_or_confirm(),
             Key::Char('P') => {
                 self.bank = Some(preset::Bank::default());
                 self.message = if self.presets.is_empty() {

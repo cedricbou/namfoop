@@ -4,6 +4,7 @@
 use super::super::chain::{Block, Branch, Cursor, Leaf, Mode, Split};
 use super::super::tests::{branch, fx, fx_block, sample, with_chain};
 use super::super::*;
+use super::Pending;
 use crate::tui::Key;
 use dsp::preset::{PresetBlock, PresetSpec};
 
@@ -168,9 +169,9 @@ fn the_bank_loads_a_preset_and_asks_once_if_needed() {
     s.on_key(Key::Char('x'));
     s.on_key(Key::Char('P'));
     s.on_key(Key::Enter);
-    assert!(s.confirm_switch && s.pending_preset.is_some(), "la fenêtre s'ouvre");
+    assert!(s.confirm_switch && s.pending_switch.is_some(), "la fenêtre s'ouvre");
     s.on_key(Key::Esc);
-    assert!(!s.confirm_switch && s.pending_preset.is_none());
+    assert!(!s.confirm_switch && s.pending_switch.is_none());
     assert_eq!(s.message.as_deref(), Some("on reste sur cette chaîne"));
     // Entrée : on charge quand même
     s.on_key(Key::Char('P'));
@@ -185,7 +186,7 @@ fn the_bank_loads_a_preset_and_asks_once_if_needed() {
     s.on_key(Key::Enter);
     assert!(s.confirm_switch);
     s.on_key(Key::Char('S'));
-    assert!(!s.confirm_switch && s.naming_preset && s.pending_preset.is_some());
+    assert!(!s.confirm_switch && s.naming_preset && s.pending_switch.is_some());
 }
 
 /// La fenêtre de `q` gagne `S` : enregistrer puis quitter (#110).
@@ -258,7 +259,7 @@ fn page_keys_step_through_the_bank() {
     // chaîne modifiée : la bascule demande une fois (même fenêtre que la banque)
     s.on_key(Key::Char('x'));
     s.on_key(Key::PageDown);
-    assert!(s.confirm_switch && s.pending_preset == Some(1), "{:?}", s.pending_preset);
+    assert!(s.confirm_switch && s.pending_switch == Some(Pending::Preset(1)), "{:?}", s.pending_switch);
     s.on_key(Key::Esc);
     assert_eq!(s.preset.as_ref().unwrap().name, "Ampli", "on reste");
 
@@ -279,4 +280,104 @@ fn page_keys_step_through_the_bank() {
     lib.on_key(Key::PageDown);
     assert!(lib.cursor() > avant, "la liste défile");
     assert!(lib.preset.is_none(), "aucun preset chargé depuis la Bibliothèque");
+}
+
+/// `n` : une **chaîne vierge**, détachée du preset courant (#170). C'est le seul moyen de bâtir une
+/// chaîne neuve sans vider celle d'un preset — et donc sans risquer de réenregistrer par-dessus lui.
+#[test]
+fn n_starts_a_blank_chain_detached_from_the_preset() {
+    let p = |name: &str, m: usize| with_chain(vec![Block::Leaf(nam(m))]).to_preset(name);
+    let mut s = with_chain(vec![Block::Leaf(nam(0)), fx_block("reverb")]);
+    s.mark_start();
+    s.adopt_presets(vec![
+        ("p1".into(), "Ampli".into(), "/x/a.preset.toml".into(), p("Ampli", 0)),
+        ("p2".into(), "Fuzz".into(), "/x/f.preset.toml".into(), p("Fuzz", 1)),
+    ]);
+    // un preset chargé : la chaîne est la sienne, et `S` reprendrait son nom
+    s.on_key(Key::PageDown);
+    assert_eq!(s.preset.as_ref().unwrap().name, "Ampli");
+    assert_eq!(s.default_preset_name(), "Ampli");
+
+    // `n` : rien à perdre (le preset est la référence), donc tout de suite
+    assert!(matches!(s.on_key(Key::Char('n')), Action::Play { .. }), "la chaîne vide s'installe");
+    assert!(s.fx.chain.is_empty(), "chaîne vierge");
+    assert_eq!(s.fx.cursor, Cursor::Empty);
+    assert!(s.preset.is_none(), "détaché du preset : plus de preset courant");
+    assert_eq!(s.preset_label(), (String::new(), true), "l'en-tête n'annonce ni preset ni alerte");
+    assert!(s.unsaved().is_empty(), "la chaîne vide est la nouvelle référence");
+    assert_eq!(s.space, space::Space::Chain, "on arrive dans la Chaîne pour la bâtir");
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("vierge")), "{:?}", s.message);
+    // `S` ne réenregistre pas « Ampli » : la chaîne est vide, il n'y a rien à écrire
+    s.on_key(Key::Char('S'));
+    assert_eq!(s.message.as_deref(), Some("chaîne vide : rien à enregistrer"));
+    assert!(s.naming.is_none());
+    // déjà vierge et sans preset : `n` ne refait rien et le dit
+    s.on_key(Key::Char('n'));
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("déjà vierge")), "{:?}", s.message);
+
+    // un bloc ajouté : `S` propose un nom neuf, pas celui de l'ancien preset (et au singulier)
+    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(1))] };
+    s.fx.cursor = Cursor::Top(0);
+    assert_eq!(s.default_preset_name(), "800D Modern + 1 bloc");
+    // `PgDn` après un `n` repart du premier preset de la banque
+    s.mark_start();
+    s.on_key(Key::PageDown);
+    assert_eq!(s.preset.as_ref().unwrap().name, "Ampli");
+}
+
+/// `n` sur une chaîne non enregistrée demande **une fois**, comme une bascule de preset (#158) :
+/// Échap reste, Entrée repart quand même, `S` enregistre d'abord et la chaîne vierge attend
+/// l'écriture (reprise dans `browse/mod.rs`).
+#[test]
+fn n_asks_once_when_the_chain_is_not_saved() {
+    let mut s = with_chain(vec![Block::Leaf(nam(0)), fx_block("reverb")]);
+    s.mark_start();
+    s.on_key(Key::Char('x')); // la chaîne change
+    assert!(!s.unsaved().is_empty());
+
+    // Échap : on reste, la chaîne est intacte
+    s.on_key(Key::Char('n'));
+    assert!(s.confirm_switch && s.pending_switch == Some(Pending::New), "{:?}", s.pending_switch);
+    s.on_key(Key::Esc);
+    assert!(!s.confirm_switch && s.pending_switch.is_none());
+    assert!(!s.fx.chain.is_empty(), "rien n'est perdu");
+
+    // Entrée : on repart quand même
+    s.on_key(Key::Char('n'));
+    assert!(s.confirm_switch);
+    assert!(matches!(s.on_key(Key::Enter), Action::Play { .. }));
+    assert!(s.fx.chain.is_empty());
+
+    // `S` : enregistrer d'abord, la chaîne vierge attend l'écriture
+    let mut s = with_chain(vec![Block::Leaf(nam(0)), fx_block("reverb")]);
+    s.mark_start();
+    s.on_key(Key::Char('x'));
+    s.on_key(Key::Char('n'));
+    s.on_key(Key::Char('S'));
+    assert!(!s.confirm_switch && s.naming_preset);
+    assert_eq!(s.pending_switch, Some(Pending::New), "la chaîne vierge attend l'écriture");
+    // et c'est bien elle qui s'installe quand `browse` reprend l'attente
+    let what = s.pending_switch.take().expect("en attente");
+    s.naming = None;
+    s.mark_preset_saved("Avant".into(), "/x/avant.preset.toml".into());
+    assert!(matches!(s.apply_pending(what), Action::Play { .. }));
+    assert!(s.fx.chain.is_empty() && s.preset.is_none());
+}
+
+/// `n` marche aussi depuis la fenêtre de la banque (`P`), qu'elle referme (#170).
+#[test]
+fn n_works_from_the_bank_window() {
+    let mut s = with_chain(vec![Block::Leaf(nam(0))]);
+    s.mark_start();
+    s.adopt_presets(vec![(
+        "p1".into(),
+        "Ampli".into(),
+        "/x/a.preset.toml".into(),
+        with_chain(vec![Block::Leaf(nam(0))]).to_preset("Ampli"),
+    )]);
+    s.on_key(Key::Char('P'));
+    assert!(s.bank.is_some());
+    assert!(matches!(s.on_key(Key::Char('n')), Action::Play { .. }));
+    assert!(s.bank.is_none(), "la banque se referme");
+    assert!(s.fx.chain.is_empty() && s.preset.is_none());
 }

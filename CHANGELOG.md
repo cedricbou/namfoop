@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#170)
+- `browse` : **`n` repart d'une chaîne vierge**. La chaîne se vide, le preset courant est
+  **détaché** (l'en-tête n'annonce plus de preset) et `S` propose donc un **nom neuf** : c'est la
+  façon de construire une chaîne de plus sans vider celle d'un preset et sans risquer de
+  réenregistrer par-dessus lui. `n` marche depuis les deux espaces et depuis la banque (qu'il
+  referme) ; si la chaîne en cours n'est pas enregistrée, il demande d'abord, une fois (la même
+  fenêtre que la bascule de preset : `S` enregistrer puis repartir, Entrée repartir quand même,
+  Échap rester).
+- Le nom proposé par `S` se met au singulier quand il n'y a qu'un bloc (`800D Modern + 1 bloc`).
+
 ### Ajouté (#167)
 - `browse` : **changer de preset est désormais immédiat**. Les chaînes de tous les presets sont
   bâties et préchauffées dès l'ouverture, en tâche de fond (la barre du bas affiche `banque 3/7`

@@ -4,6 +4,7 @@
 
 use super::super::state::chain::Spot;
 use super::super::state::fx::FxFocus;
+use super::super::state::preset::Pending;
 use super::*;
 
 /// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un
@@ -181,6 +182,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("Entrée", "le charger (la chaîne en cours est remplacée)"));
         v.push(key_line("/", "filtrer par nom ou identifiant"));
         v.push(key_line("S", "enregistrer la chaîne en cours comme preset"));
+        v.push(key_line("n", "repartir d'une chaîne vierge (la banque se referme)"));
         v.push(key_line("Échap", "fermer la banque"));
         v.push(Line::raw(""));
         v.push(Line::styled(
@@ -246,6 +248,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("◇", "la sortie du parallèle : a y ajoute après lui (↑ : le ◆)"));
         v.push(key_line("v / r", "vumètres · avec ou sans effets"));
         v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
+        v.push(key_line("n", "nouvelle chaîne vierge (le preset courant est détaché)"));
         v.push(key_line("PgDn / PgUp", "preset suivant / précédent (la banque en boucle)"));
         v.push(key_line("t", "déplier le TOML du preset"));
         v.push(key_line("1", "revenir à la Bibliothèque (le banc d'essai)"));
@@ -279,6 +282,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         }
     }
     v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
+    v.push(key_line("n", "nouvelle chaîne vierge (on passe à la Chaîne pour la bâtir)"));
     v.push(key_line("2", "aller à la Chaîne (effets, parallèles)"));
     v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));
     let tab = match s.tab {
@@ -401,21 +405,27 @@ pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
     );
 }
 
-/// « La chaîne n'est pas enregistrée » : demandé **une fois** avant de charger un autre preset.
+/// « La chaîne n'est pas enregistrée » : demandé **une fois** avant de charger un autre preset ou
+/// de repartir d'une chaîne vierge (`n`, #170).
 pub(super) fn render_confirm_switch(s: &State, body: Rect, f: &mut Frame) {
-    let vers = s.pending_preset.and_then(|i| s.presets.get(i)).map(|p| p.name.clone()).unwrap_or_default();
-    let mut lines = vec![Line::from(Span::styled(
-        format!("Charger « {vers} » remplacerait la chaîne en cours."),
-        Style::new().fg(Color::Yellow),
-    ))];
+    let what = match s.pending_switch {
+        Some(Pending::New) => "Repartir d'une chaîne vierge remplacerait la chaîne en cours.".to_string(),
+        Some(Pending::Preset(i)) => format!(
+            "Charger « {} » remplacerait la chaîne en cours.",
+            s.presets.get(i).map(|p| p.name.as_str()).unwrap_or_default()
+        ),
+        None => String::new(),
+    };
+    let mut lines = vec![Line::from(Span::styled(what, Style::new().fg(Color::Yellow)))];
     for what in s.unsaved() {
         lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
     }
     lines.push(Line::raw(""));
+    let go = if s.pending_switch == Some(Pending::New) { "repartir" } else { "charger" };
     for (k, t) in [
-        ("  S", "      enregistrer la chaîne, puis charger"),
-        ("  Entrée", " charger quand même"),
-        ("  Échap", "  rester (par défaut)"),
+        ("  S", format!("      enregistrer la chaîne, puis {go}")),
+        ("  Entrée", format!(" {go} quand même")),
+        ("  Échap", "  rester (par défaut)".to_string()),
     ] {
         lines.push(Line::from(vec![
             Span::styled(k, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),

@@ -855,6 +855,15 @@ Trois règles tiennent l'ensemble :
   (le fichier est du TOML lisible, et l'identifiant court y sert de filet si tu as juste déplacé
   un `.nam`).
 
+  **Repartir de zéro : `n`.** Une chaîne **vierge**, détachée du preset courant : la chaîne se vide
+  (la basse passe en son direct le temps que tu ajoutes le premier bloc avec `a`), l'en-tête
+  n'annonce plus de preset, et `S` proposera donc un **nom neuf** au lieu de réenregistrer par-dessus
+  celui que tu viens d'écouter. C'est la façon de construire une chaîne de plus sans toucher aux
+  presets existants — avant, il fallait partir d'une chaîne en place, la vider bloc par bloc et
+  bien penser à changer son nom en l'enregistrant. `n` marche depuis les deux espaces et depuis la
+  banque (qu'il referme) ; si la chaîne en cours n'est pas enregistrée, il demande d'abord, une
+  fois (`S` enregistrer puis repartir, Entrée repartir quand même, Échap rester).
+
   **Passer d'un preset à l'autre comme sur un pédalier** : dans l'espace Chaîne, **PgDn** va au
   preset suivant et **PgUp** au précédent, dans l'ordre de la banque et **en boucle** (du dernier
   on revient au premier). L'en-tête donne la place : `preset 2/7 : Chill verse ✓`. Si la chaîne en
@@ -875,7 +884,7 @@ Trois règles tiennent l'ensemble :
   pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.
 
   ```sh
-  namfoop browse          # S enregistrer, P la banque, t le TOML
+  namfoop browse          # S enregistrer, P la banque, n chaîne vierge, t le TOML
   ```
 
   Les presets sont rangés dans la bibliothèque, comme tes mélanges d'IR : ils suivent donc la même
