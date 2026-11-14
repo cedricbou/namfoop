@@ -12,6 +12,10 @@
 #
 # Préfixe de branche : feat (défaut), fix si le label « bug » est présent, docs si « documentation »
 # est le seul label.
+#
+# Garde-fous (#128) : `start` ne réutilise jamais un nom de branche déjà pris (local ou origin),
+# `pr` ne reprend qu'une PR OUVERTE, et `merge` refuse une PR déjà fusionnée puis vérifie que le
+# commit de fusion est bien sur origin/main avant d'annoncer un succès.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -20,6 +24,15 @@ die() { echo "✗ $*" >&2; exit 1; }
 need_clean() { [[ -z $(git status --porcelain) ]] || die "arbre de travail non propre : commiter ou ranger d'abord"; }
 branch() { git branch --show-current; }
 issue_of_branch() { [[ $(branch) =~ ^(feat|fix|docs)/([0-9]+)- ]] && echo "${BASH_REMATCH[2]}"; }
+branch_exists() {
+  git show-ref -q --verify "refs/heads/$1" && return 0
+  [[ -n $(git ls-remote --heads origin "$1" 2>/dev/null) ]]
+}
+# Numéro de la PR portant cette branche head, dans l'état demandé (open | merged | all) ; vide s'il
+# n'y en a pas. `gh pr view` sans argument prendrait aussi une PR fusionnée pour la nôtre (#128).
+pr_of_branch() {
+  gh pr list --state "$1" --head "$(branch)" --limit 1 --json number --jq '.[0].number // empty'
+}
 
 slug() {
   iconv -f utf-8 -t ascii//TRANSLIT <<<"$1" 2>/dev/null | tr '[:upper:]' '[:lower:]' \
@@ -45,7 +58,14 @@ cmd_start() {
   [[ $labels == documentation ]] && prefix=docs
   git checkout -q main
   git pull -q --ff-only
-  local b="$prefix/$n-$(slug "$title")"
+  local base="$prefix/$n-$(slug "$title")" b k=2
+  b=$base
+  # Un nom de branche réutilisé reprendrait la PR déjà fusionnée de la même head (#128) : on
+  # cherche un nom libre, localement ET sur origin.
+  while branch_exists "$b"; do
+    b="$base-$k"; k=$((k + 1))
+  done
+  [[ $b == "$base" ]] || echo "« $base » existe déjà (locale ou distante) : branche « $b »"
   git checkout -q -b "$b"
   echo "branche : $b  (issue #$n : $title)"
 }
@@ -68,10 +88,15 @@ cmd_pr() {
     die "du code a changé sans entrée dans CHANGELOG.md (« Non publié »)"
   fi
   git push -q -u origin "$(branch)"
-  if gh pr view --json number >/dev/null 2>&1; then
-    echo "PR existante mise à jour : $(gh pr view --json url --jq .url)"
+  local open_pr merged_pr
+  open_pr=$(pr_of_branch open)
+  if [[ -n $open_pr ]]; then
+    echo "PR existante mise à jour : $(gh pr view "$open_pr" --json url --jq .url)"
     return
   fi
+  merged_pr=$(pr_of_branch merged)
+  [[ -z $merged_pr ]] ||
+    echo "⚠ la PR #$merged_pr, déjà fusionnée, porte la branche « $(branch) » : on en crée une nouvelle"
   local title body
   title=$(gh issue view "$n" --json title --jq .title)
   body=$(cat <<EOF
@@ -108,13 +133,23 @@ wait_checks() {
 cmd_merge() {
   local n pr
   n=$(issue_of_branch) || die "pas sur une branche de fonctionnalité"
-  pr=$(gh pr view --json number --jq .number) || die "pas de PR pour $(branch) : scripts/feature.sh pr"
+  pr=$(pr_of_branch open)
+  if [[ -z $pr ]]; then
+    local old
+    old=$(gh pr list --state all --head "$(branch)" --limit 1 --json number,state \
+      --jq '.[0] | select(.state != "OPEN") | "#\(.number) (\(.state | ascii_downcase))"')
+    [[ -z $old ]] || die "la seule PR de « $(branch) » est $old : il n'y a rien à fusionner.
+  Renommer la branche (git branch -m $(branch)-2), puis scripts/feature.sh pr"
+    die "pas de PR ouverte pour $(branch) : scripts/feature.sh pr"
+  fi
   need_clean
   [[ -z $(git log --oneline "origin/$(branch)..HEAD" 2>/dev/null) ]] || die "commits non poussés : scripts/feature.sh pr"
   echo "attente de la CI de la PR #$pr…"
   wait_checks "$pr"
   gh pr checks "$pr" --watch --interval 20 >/dev/null || { gh pr checks "$pr"; die "CI en échec : corriger avant de fusionner"; }
-  local title link coauthors
+  local title link coauthors head touched
+  head=$(git rev-parse HEAD)
+  mapfile -t touched < <(git diff --name-only main...HEAD)
   title=$(gh pr view "$pr" --json title --jq .title)
   link=$(gh pr view "$pr" --json body --jq .body | grep -E '^(Closes|Refs) #' | head -1 || true)
   # co-auteurs repris des commits de la branche (rien d'imposé)
@@ -122,9 +157,23 @@ cmd_merge() {
   gh pr merge "$pr" --squash --delete-branch --subject "$title (#$pr)" --body "$link${coauthors:+
 
 $coauthors}"
+  # Ne JAMAIS annoncer un succès sans l'avoir vérifié (#128) : la PR doit être fusionnée et son
+  # commit de fusion présent sur origin/main.
+  git fetch -q --prune
+  local state oid
+  state=$(gh pr view "$pr" --json state --jq .state)
+  oid=$(gh pr view "$pr" --json mergeCommit --jq '.mergeCommit.oid // empty')
+  [[ $state == MERGED && -n $oid ]] ||
+    die "la PR #$pr n'est pas fusionnée (état $state) : RIEN n'a été livré sur main"
+  git merge-base --is-ancestor "$oid" origin/main ||
+    die "le commit de fusion $oid de la PR #$pr n'est pas sur origin/main : RIEN n'a été livré"
   git checkout -q main
   git pull -q --ff-only
-  git fetch -q --prune
+  # Dernier filet : chaque fichier touché par la branche doit être identique dans main (une autre
+  # PR fusionnée entre-temps sur les mêmes fichiers expliquerait un écart : on avertit, c'est tout).
+  if (( ${#touched[@]} )) && ! git diff --quiet "$head" main -- "${touched[@]}"; then
+    echo "⚠ main diffère de la branche sur : $(git diff --name-only "$head" main -- "${touched[@]}" | tr '\n' ' ')"
+  fi
   echo "✓ PR #$pr fusionnée, main à jour : $(git log --oneline -1)"
 }
 
@@ -142,5 +191,5 @@ case ${1:-} in
   pr) shift; cmd_pr "$@" ;;
   merge) shift; cmd_merge "$@" ;;
   status) shift; cmd_status "$@" ;;
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  *) sed -n '2,20p' "$0"; exit 1 ;;
 esac

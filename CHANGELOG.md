@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#128)
+- `scripts/feature.sh` ne peut plus annoncer un faux succès : `merge` ne dit « fusionnée, main à
+  jour » qu'après avoir vérifié que la PR est à l'état `MERGED` **et** que son commit de fusion est
+  bien un ancêtre d'`origin/main` ; il refuse une PR déjà fusionnée au lieu de la prendre pour la
+  sienne, `pr` ne reprend qu'une PR **ouverte**, et `start` ne réutilise jamais un nom de branche
+  déjà pris (local ou `origin`) — il ajoute un suffixe. C'est ce qui avait fait croire qu'un commit
+  était livré alors qu'il était resté sur la branche.
+- Nouveau `scripts/test-feature.sh` (lancé par `check.sh`) : rejoue ces scénarios **hors ligne**,
+  sur un dépôt jetable avec un faux `gh` — branche déjà prise, PR déjà fusionnée, PR qui reste
+  ouverte, GitHub qui annonce une fusion sans rien livrer, et le chemin nominal. Lancé contre
+  l'ancienne version du script, il échoue (le faux succès y est bien reproduit).
+
 ### Ajouté (#159)
 - **`namfoop presets`** liste la banque enregistrée (identifiant court, nom, la chaîne en une
   ligne, parallèles compris), comme `namfoop models` pour les sons.

@@ -58,6 +58,9 @@ step "build (profil $PROFILE)"
 cargo build -q --profile "$PROFILE"
 BIN=./target/$PROFILE/namfoop
 
+step "cycle de développement (scripts/feature.sh, hors-ligne, faux gh)"
+scripts/test-feature.sh
+
 step "documentation (aide CLI, docs/cli.md, guide, README, exemples, pas de sons versionnés)"
 scripts/check-docs.sh
 
