@@ -177,6 +177,37 @@ fn level_match_includes_effects() {
     assert_eq!(spec.describe(), "NAM wavenet › gain:db=-6 › niveau DI");
 }
 
+/// L'alignement sur le DI **annule** un bloc `gain`, et sa valeur est publiée dans la table de
+/// vumètres pour que l'écran puisse la montrer (#178).
+#[test]
+fn the_di_alignment_cancels_a_gain_block_and_is_published() {
+    use dsp::block::{BlockSpec, ChainSpec};
+    use dsp::chain::Level;
+    use std::sync::Arc;
+    let reference = signal(48000);
+    let align_of = |db: f32| -> ChainSpec {
+        ChainSpec {
+            blocks: vec![BlockSpec::Fx(format!("gain:db={db}").parse().unwrap())],
+            level: Level::Match { reference: Arc::new(reference.clone()), sample_rate: 48000 },
+            ..Default::default()
+        }
+    };
+    for db in [-40.0, 0.0, 24.0] {
+        let (mut chain, meters) = align_of(db).build_with_meters(48000, 64).unwrap();
+        let align = meters.level_db.expect("l'alignement est publié");
+        assert!((align + db).abs() < 0.01, "gain {db} dB compensé par {align:+.2} dB");
+        let mut out = reference.clone();
+        for c in out.chunks_mut(64) {
+            chain.process(c);
+        }
+        let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
+        assert!(diff.abs() < 0.01, "gain {db} dB : sortie à {diff:+.2} dB du DI");
+    }
+    // hors du mode « match », rien n'est ajouté donc rien n'est publié
+    let plain = ChainSpec { blocks: align_of(-6.0).blocks, ..Default::default() };
+    assert_eq!(plain.build_with_meters(48000, 64).unwrap().1.level_db, None);
+}
+
 /// Chaîne en blocs : un parallèle avec un modèle dans une branche, une polarité inversée et une
 /// branche muette — le cas le plus chargé de l'ADR 0006.
 fn multi_band_chain(n: usize) -> dsp::block::ChainSpec {

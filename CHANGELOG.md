@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#178)
+- `browse` : un bloc `gain` posé dans la chaîne **ne changeait pas le niveau de sortie** et rien ne
+  le disait — le même bloc à -40 ou à +24 dB donnait exactement la même sortie. La cause n'est pas
+  le bloc : avec le volume aligné sur le DI (`level = "match"`, après `calibrate`), l'alignement se
+  mesure sur la chaîne entière et son gain est ajouté **après** tout le reste, donc il compense
+  exactement ce qu'on vient d'ajouter. Le vumètre du bloc baissait pendant que celui d'`OUT` ne
+  bougeait pas, de quoi croire à un vumètre cassé.
+- L'alignement est désormais **visible** : un dernier étage grisé en bout de synoptique, avec sa
+  valeur (« niveau DI -11,1 dB »), qui bouge en direct quand on règle un bloc. Il n'est pas
+  éditable : ce n'est pas un bloc de la chaîne. `browse` prévient aussi à l'ajout d'un `gain` et
+  sous ses réglages, et l'aide (`h`) l'explique.
+- Le guide dit maintenant ce qui marche quand même : un `gain` **avant** le modèle (c'est un drive,
+  pas un volume), `--master-db` pour la sortie. Un niveau de sortie **par preset**, appliqué après
+  l'alignement, reste à faire (#179, et #25 pour le même par modèle).
+
 ### Corrigé (#175)
 - `browse`, espace Chaîne : taper `nam` ou `gain` dans le catalogue des blocs (`a` / `i`) **effaçait
   la chaîne** au lieu de filtrer — la lettre `n` était prise par la chaîne vierge de #170 avant

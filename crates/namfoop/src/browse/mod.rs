@@ -19,7 +19,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::config::{CalibrationExt, LoadedConfig};
+use crate::config::{CalibrationExt, LevelMode, LoadedConfig};
 use crate::tui;
 use audio_io::Settings;
 use build::{bank_requests, Built, Job};
@@ -273,6 +273,8 @@ pub fn run(
     let audition = std::env::temp_dir().join(format!("namfoop-audition-{}.cab.toml", std::process::id()));
     let mut last_req: Option<Request> = None;
     let mut st = State::new(models, irs);
+    // volume aligné sur le DI : l'alignement annule les blocs `gain`, l'écran doit le dire (#178)
+    st.level_match = conf.level == LevelMode::Match;
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
     }

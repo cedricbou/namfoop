@@ -213,6 +213,10 @@ pub struct State {
     /// chaîne construite, `meters` garde ce que les barres montrent.
     pub chain_meters: Option<dsp::meter::ChainMeters>,
     pub meters: meters::MeterDisplay,
+    /// La config aligne-t-elle le volume sur le DI (`level = "match"`, #178) ? Alors un bloc `gain`
+    /// posé dans la chaîne est annulé par cet alignement : l'écran doit le dire. La **valeur** de
+    /// l'alignement, elle, arrive avec la chaîne installée (`chain_meters`), donc plus tard.
+    pub level_match: bool,
     /// `v` : vumètres du synoptique affichés ou masqués.
     pub show_meters: bool,
     /// Overlay d'aide (`h` ou `?`) : la liste des touches de l'écran où l'on est. N'importe quelle
@@ -269,6 +273,7 @@ impl State {
             fx_due: None,
             chain_meters: None,
             meters: meters::MeterDisplay::default(),
+            level_match: false,
             show_meters: true,
             help: false,
             confirm_quit: false,

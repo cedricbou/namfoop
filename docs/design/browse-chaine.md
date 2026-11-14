@@ -46,6 +46,14 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
   traits en gris. Bloc coupé : gris barré. Branche muette, ou hors solo quand une branche est en
   solo : toute la ligne assombrie. Curseur : fond cyan.
 - Chaîne vide : `IN ─ (chaîne vide : a pour ajouter) ─ OUT`.
+- **Alignement de niveau sur le DI** (`level = "match"`), en bout de chaîne juste avant `OUT`, en
+  gris : `─ niveau DI -11.1 dB ─ OUT` (#178). Ce n'est **pas un bloc** : pas de curseur dessus, pas
+  de réglage, pas de déplacement, pas de vumètre. Sa valeur est celle de la chaîne **installée**
+  (elle arrive avec sa table de vumètres, comme les barres) et change à chaque reconstruction. Il
+  est caché quand la chaîne est vide ou quand le volume n'est pas aligné sur le DI. Il est là parce
+  qu'il **annule tout bloc `gain`** de la chaîne : sans lui à l'écran, un `gain` sans effet sur
+  `OUT` est incompréhensible. Un `gain` sous le curseur ajoute en plus un avertissement sous ses
+  réglages (§ 6), et l'ajout d'un `gain` le dit dans le message.
 - Titre du cadre : `chaîne — NAM actifs : N · parallèles : P`, plus ` ⚠ CPU ≈ ×N (à mesurer sur Pi 5)` en
   jaune au-delà du seuil (#111 le fixe ; la maquette alerte dès 2). NAM actifs = blocs `nam` non coupés,
   dans une branche audible.

@@ -732,6 +732,20 @@ Trois règles tiennent l'ensemble :
   IN ─ gate -60 ─ nam·b7k ─ ir·sm57 ─ delay ─ OUT
   ```
 
+  En volume aligné sur le DI (`level = "match"`, après `calibrate`), un dernier étage **grisé**
+  apparaît avant `OUT` avec sa valeur :
+
+  ```
+  IN ─ nam·b7k ─ ir·sm57 ─ niveau DI -11.1 dB ─ OUT
+  ```
+
+  Ce n'est pas un bloc : on ne le choisit pas, on ne le règle pas, on ne le déplace pas. C'est
+  l'alignement qui ramène la chaîne au volume de ta basse en direct — mesuré à chaque
+  reconstruction, donc il bouge quand tu règles un bloc. Il explique une surprise classique : un
+  bloc `gain` dans la chaîne **ne change pas le niveau de sortie**, parce que cet étage le
+  compense exactement (voir [`--level`](#volume-de-sortie--level)). `browse` le dit aussi quand tu
+  ajoutes un `gain`, et sous ses réglages.
+
   Les barres vont de -60 à 0 dBFS, en huitièmes de caractère : vert, **jaune** au-dessus de -9 dB,
   **rouge** au-dessus de -1 dB (là, le limiteur travaille). Elles montent tout de suite et
   descendent de 28 dB par seconde, comme un vumètre d'enceinte. Deux barres se lisent autrement :
@@ -1196,9 +1210,25 @@ Les captures sortent à des niveaux très différents (de -14 à -40 dB). Trois 
 | `normalize` | (défaut sans calibration) la loudness annoncée par le modèle est ramenée à `--target-db` (-18 dB, la convention NAM) |
 | `raw` | sortie brute du modèle, sans correction |
 
-`--master-db` règle le volume final. `--output-db` ajoute un gain juste après le modèle : utile
-en `normalize` et `raw`, mais **sans effet en `match`**, dont l'alignement vient après. Le grain
-d'un modèle se règle par l'entrée (`--input-db`, ou l'entrée propre au modèle :
+`--master-db` règle le volume final.
+
+**En `match`, aucun gain posé dans la chaîne ne change le volume de sortie.** L'alignement se
+mesure sur la chaîne entière et son gain est ajouté **après** tout le reste : il compense donc
+exactement ce que tu viens d'ajouter. Cela vaut pour `--output-db`, pour `--post gain:db=…` et pour
+un bloc `gain` de l'éditeur de `browse` — mis en dernier juste avant `OUT`, il ne fait rien du
+tout. Mesuré : avec un bloc à -40 dB l'alignement vaut +40,9 dB, avec le même à +24 dB il vaut
+-23,1 dB, et la sortie est identique dans les deux cas.
+
+Ce qui marche quand même :
+
+| Ce que tu veux | Comment |
+|---|---|
+| plus ou moins de **saturation** | un `gain` (ou `--input-db`) **avant** le modèle : l'alignement rattrape le niveau derrière, il reste le grain |
+| **baisser ou monter la sortie** | `--master-db` (après l'alignement), ou `--level normalize` si tu renonces à l'alignement |
+| **équilibrer deux presets** entre eux | pas encore : un niveau par preset est prévu (issue #179) |
+
+`browse` montre cet étage en bout de synoptique (« niveau DI -11.1 dB ») et prévient quand tu poses
+un `gain`. Le grain d'un modèle se règle par l'entrée (`--input-db`, ou l'entrée propre au modèle :
 [tutoriel d'import](#tutoriel--dun-zip-acheté-à-un-son-prêt-pour-la-scène)).
 
 ### IR : `--ir-ms`
@@ -1233,7 +1263,7 @@ trim › effets pré › modèle NAM › IR › effets post › niveau › maste
 | `chorus` | ondulation dans le médium, grave sec | post |
 | `delay` | écho | post, vers la fin |
 | `reverb` | un peu d'espace, surtout dans les in-ears | post, en dernier |
-| `gain` | monter ou baisser le niveau à un point de la chaîne | où il faut |
+| `gain` | monter ou baisser le niveau à un point de la chaîne | où il faut — mais **avant** le modèle en volume aligné sur le DI, où il ne change que la saturation ([`--level`](#volume-de-sortie--level)) |
 | parallèle | 2 à 4 branches (copie ou bandes) : ce n'est pas un effet mais un **bloc de la chaîne**, décrit dans un preset (#6) ; `--crossover` en ligne de commande | — |
 
 Ordre conseillé : **pré** `gate › comp`, **post** `EQ › chorus › delay › reverb`. Le gate vient en

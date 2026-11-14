@@ -514,7 +514,7 @@ impl ChainSpec {
             meters: with_meters.then(ChainMeters::default),
         };
         build.blocks(&self.blocks, &mut chain)?;
-        let meters = build.meters.take();
+        let mut meters = build.meters.take();
         if self.blocks.iter().any(|b| !matches!(b, BlockSpec::Nam { .. } | BlockSpec::Ir { .. })) {
             log::info!("chaîne : {}", self.describe());
         }
@@ -534,6 +534,10 @@ impl ChainSpec {
                 let g = (20.0 * (ri / ro).log10()).clamp(-60.0, 60.0) as f32;
                 log::info!("niveau aligné sur le DI : {g:+.1} dB");
                 chain.push(Gain::db(g, "niveau DI"));
+                // l'écran doit pouvoir le montrer : il annule tout gain posé dans la chaîne (#178)
+                if let Some(m) = meters.as_mut() {
+                    m.level_db = Some(g);
+                }
             } else {
                 log::warn!("référence de niveau silencieuse : pas d'alignement");
             }
