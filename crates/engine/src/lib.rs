@@ -2,6 +2,7 @@
 //! échangeable à chaud (`dsp::swap`) et publie les vumètres. Seule crate qui démarre un flux.
 //! Voir `CLAUDE.md` de la crate.
 
+pub mod bank;
 mod error;
 pub mod meters;
 pub mod raw;
@@ -149,6 +150,30 @@ impl ChainSender {
         }
         rt::prewarm(&mut chain, self.block, self.rate);
         self.handle.send(chain)
+    }
+
+    /// Comme [`ChainSender::send`] pour une chaîne **déjà préchauffée** (banque préchargée, #6) :
+    /// le préchauffage coûte 27 à 53 ms, inutile de le repayer à chaque bascule.
+    pub fn send_warm(&mut self, chain: dsp::Chain) -> std::result::Result<(), dsp::Chain> {
+        if !self.handle.idle() {
+            return Err(chain);
+        }
+        self.handle.send(chain)
+    }
+
+    /// Reprend une chaîne rendue par le thread audio au lieu de la libérer (banque préchargée).
+    pub fn reclaim(&mut self) -> Option<dsp::Chain> {
+        self.handle.reclaim()
+    }
+
+    /// Fréquence réelle de la carte.
+    pub fn rate(&self) -> u32 {
+        self.rate
+    }
+
+    /// Taille de bloc réelle de la carte (préchauffage).
+    pub fn block(&self) -> usize {
+        self.block
     }
 
     /// Libère (hors temps réel) les chaînes retirées par le thread audio.

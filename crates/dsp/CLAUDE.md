@@ -30,7 +30,8 @@ effets de temps), `fx/` (effets réglables : `FxSpec`, `catalog()`, voir « Ajou
 pas** un effet : c'est `block::SplitSpec`, et `fx::STRUCTURAL_KINDS` le refuse en mini-syntaxe avec
 un message qui dit où le décrire), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms, l'ancienne repart vers le contrôle —
-jamais libérée en RT). `tests/` : propriétés de chaîne (indépendance au bloc), absence
+jamais libérée en RT ; le contrôle la **libère** (`collect`) ou la **reprend** (`reclaim`) pour la
+garder bâtie, ce que fait `engine::bank`). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
 enveloppe 50 ms).
 

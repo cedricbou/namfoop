@@ -8,6 +8,10 @@
 //!
 //! Une seule chaîne en attente à la fois : si le contrôle envoie plus vite que le thread audio ne
 //! consomme, `send` rend la chaîne refusée (le contrôle garde la plus récente et réessaie).
+//!
+//! Le contrôle peut soit **libérer** les chaînes retirées ([`SwapHandle::collect`]), soit les
+//! **reprendre** ([`SwapHandle::reclaim`]) pour les garder bâties et les rejouer sans les
+//! reconstruire : c'est ce que fait `engine::bank`.
 
 use rtrb::{Consumer, Producer, RingBuffer};
 
@@ -70,10 +74,16 @@ impl SwapHandle {
     /// Libère (ici, hors temps réel) les chaînes rendues par le thread audio. Renvoie leur nombre.
     pub fn collect(&mut self) -> usize {
         let mut n = 0;
-        while self.rx_old.pop().is_ok() {
+        while self.reclaim().is_some() {
             n += 1;
         }
         n
+    }
+
+    /// **Reprend** une chaîne rendue par le thread audio au lieu de la libérer, pour la garder
+    /// bâtie et la rejouer sans la reconstruire (banque préchargée, #6). À appeler hors temps réel.
+    pub fn reclaim(&mut self) -> Option<Chain> {
+        self.rx_old.pop().ok().map(|b| *b)
     }
 
     /// Plus aucune chaîne en attente côté audio (la dernière envoyée a été prise).
