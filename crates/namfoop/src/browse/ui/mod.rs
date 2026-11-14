@@ -6,12 +6,14 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph};
 use ratatui::Frame;
 
+use super::state::preset::Pending;
 use super::state::space::Space;
 use super::state::{AbState, Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
 use crate::tui::{meter_marked, meter_width};
 use library::recommend::NeedsIr;
 
 mod editor;
+mod footer;
 mod fx;
 mod picker;
 mod rows;
@@ -480,41 +482,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         now,
     );
 
-    let keys: String = match (s.naming.is_some(), s.filtering, s.tab) {
-        _ if s.help => "h ou n'importe quelle touche : fermer l'aide".into(),
-        _ if s.bank.is_some() => {
-            "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   h aide".into()
-        }
-        _ if s.confirm_switch => {
-            "S enregistrer puis charger   Entrée charger quand même   Échap rester".into()
-        }
-        _ if s.confirm_quit && s.empty_chain_warning().is_some() => {
-            "Entrée mettre dans la chaîne et rester   Q quitter quand même   Échap rester".into()
-        }
-        _ if s.confirm_quit => {
-            "S enregistrer puis quitter   Q quitter sans enregistrer   Échap rester".into()
-        }
-        _ if s.send.is_some() => {
-            let space = if s.send.as_ref().is_some_and(|x| x.with_ir) { "   Espace cocher" } else { "" };
-            format!("↑↓ choisir{space}   Entrée valider   Échap annuler   h aide")
-        }
-        _ if s.place.is_some() => {
-            "←→↑↓ choisir l'endroit   Entrée poser après le curseur   Échap annuler, retour à la Bibliothèque   h aide"
-                .into()
-        }
-        _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
-            "tape le texte   Entrée valider   Échap annuler".into()
-        }
-        _ if s.editor.is_some() => {
-            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer aux modèles filtrés   b/r A/B   h aide   Échap fermer".into()
-        }
-        _ if !lib => fx::fx_keys(s),
-        (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
-        (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),
-        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   S enregistrer   P banque   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   P banque   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Blend) => "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   h aide   2 Chaîne   q quitter".into(),
-    };
+    let keys = footer::keys(s, lib);
     f.render_widget(Paragraph::new(help_bar(&keys, foot.width)), foot);
 
     if s.confirm_quit {

@@ -259,7 +259,7 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
 pub fn fx_keys(s: &State) -> String {
     // la queue commune : ce qu'on oublie et qu'il faut toujours pouvoir lire
     const SORTIE: &str =
-        "   v vumètres   r sans effets   PgDn/PgUp preset   S enregistrer   P banque   t TOML   h aide   1 Bibliothèque   q quitter";
+        "   v vumètres   r sans effets   PgDn/PgUp preset   S enregistrer   P banque   n vierge   t TOML   h aide   1 Bibliothèque   q quitter";
     if let Some(p) = s.picker.as_ref() {
         if p.filtering {
             return "tape le filtre   Entrée valider   Échap effacer".into();
@@ -270,7 +270,8 @@ pub fn fx_keys(s: &State) -> String {
         );
     }
     if s.bank.is_some() {
-        return "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   h aide".into();
+        return "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   n vierge   h aide"
+            .into();
     }
     if s.fx.catalog.is_some() {
         return "tape pour filtrer   ↑↓ choisir   Entrée ajouter   Échap annuler".into();

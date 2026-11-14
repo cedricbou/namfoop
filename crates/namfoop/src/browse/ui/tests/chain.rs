@@ -730,6 +730,27 @@ fn presets_on_screen() {
     assert!(t.contains("S      enregistrer la chaîne, puis charger"), "{t}");
     assert!(t.contains("Entrée charger quand même"), "{t}");
     s.on_key(Key::Esc);
+    // `n` sur la même chaîne non enregistrée : la fenêtre parle de repartir, pas de charger (#170)
+    s.on_key(Key::Char('n'));
+    let t = screen(&s);
+    assert!(t.contains("La chaîne n'est pas enregistrée"), "{t}");
+    assert!(t.contains("Repartir d'une chaîne vierge remplacerait"), "{t}");
+    assert!(t.contains("S      enregistrer la chaîne, puis repartir"), "{t}");
+    assert!(t.contains("Entrée repartir quand même"), "{t}");
+    assert!(t.contains("S enregistrer puis repartir"), "la barre du bas :\n{t}");
+    s.on_key(Key::Esc);
+    // on repart vraiment : chaîne vide, plus de preset en en-tête, et la barre invite à ajouter
+    s.mark_start();
+    s.on_key(Key::Char('n'));
+    let t = screen(&s);
+    assert!(!t.contains("preset : Chill verse"), "le preset est détaché :\n{t}");
+    assert!(t.contains("nouvelle chaîne vierge"), "{t}");
+    assert!(t.contains("a ajouter un bloc"), "la barre du bas invite à bâtir :\n{t}");
+    assert!(t.contains("n vierge"), "la touche reste rappelée :\n{t}");
+    // on remet la chaîne et le preset en place pour la suite du test, puis on la change de nouveau
+    s.on_key(Key::Char('P'));
+    s.on_key(Key::Enter);
+    s.on_key(Key::Char('b'));
     // `t` : le TOML déplié
     s.on_key(Key::Char('t'));
     let t = crate::tui::screen_text(100, 40, |f| render(&s, &Status::default(), f));

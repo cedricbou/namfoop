@@ -196,9 +196,10 @@ pub struct State {
     pub show_toml: bool,
     /// Fichier du mélange d'IR enregistré (chemin relatif, identifiant) : un preset le cite.
     blend_file: Option<(String, String)>,
-    /// Preset à charger dès que la chaîne modifiée est réglée (fenêtre de bascule).
-    pub pending_preset: Option<usize>,
-    /// Fenêtre « la chaîne n'est pas enregistrée » d'une bascule de preset.
+    /// Ce qu'on veut mettre à la place de la chaîne en cours dès qu'elle est réglée (fenêtre de
+    /// bascule) : un preset, ou une chaîne vierge (`n`, #170).
+    pub pending_switch: Option<preset::Pending>,
+    /// Fenêtre « la chaîne n'est pas enregistrée » d'une bascule (preset ou chaîne vierge).
     pub confirm_switch: bool,
     /// `S` depuis la fenêtre de `q` : enregistrer **puis** quitter.
     pub quit_after_save: bool,
@@ -260,7 +261,7 @@ impl State {
             naming_preset: false,
             show_toml: false,
             blend_file: None,
-            pending_preset: None,
+            pending_switch: None,
             confirm_switch: false,
             quit_after_save: false,
             send: None,

@@ -383,15 +383,15 @@ pub fn run(
                             if std::mem::take(&mut st.quit_after_save) {
                                 return Ok(());
                             }
-                            // une bascule attendait l'enregistrement (fenêtre de bascule)
-                            if let Some(i) = st.pending_preset.take() {
-                                first = st.load_preset(i);
+                            // une bascule attendait l'enregistrement (preset ou chaîne vierge)
+                            if let Some(what) = st.pending_switch.take() {
+                                first = st.apply_pending(what);
                             }
                         }
                         Err(e) => {
                             st.message = Some(format!("enregistrement impossible : {e:#}"));
                             st.quit_after_save = false;
-                            st.pending_preset = None;
+                            st.pending_switch = None;
                         }
                     }
                 }

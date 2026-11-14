@@ -27,8 +27,11 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 de la bibliothèque <-> chemins relatifs + identifiant en filet), la banque `P`
                 (presets déjà convertis : charger ne lit aucun fichier), `S` (nom proposé, écrit par
                 browse/mod.rs via Action::SavePreset), l'indicateur de l'en-tête (unsaved() dont le
-                preset est la référence : mark_preset_saved), `t` le TOML replié, et la bascule qui
-                demande une fois (confirm_switch) ;
+                preset est la référence : mark_preset_saved), `t` le TOML replié, la bascule qui
+                demande une fois (confirm_switch) et `n` la CHAÎNE VIERGE (#170 : chaîne vide,
+                preset DÉTACHÉ pour que `S` propose un nom neuf, mark_start sur la chaîne vide) ;
+                les deux passent par pending_switch: Option<Pending> (Preset(i) | New), que
+                browse/mod.rs reprend après l'écriture d'un preset ;
                 send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la
@@ -67,8 +70,10 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : mod
                 thread de construction : chemins résolus, blocs coupés retirés, solo en muets) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start) ; ui/windows.rs les fenêtres (« non enregistré »,
                 « mettre dans la chaîne ») et l'OVERLAY D'AIDE `h`, contextuel, par-dessus tout
-                l'écran ; ui/mod.rs : help_bar coupe la barre du bas aux séparateurs de touches et
-                garde toujours les trois dernières (h aide / l'autre espace / q quitter), #150
+                l'écran ; ui/footer.rs LA BARRE DU BAS (les touches de l'écran où l'on est, la
+                première couche qui a la main gagne) ; ui/mod.rs : help_bar la coupe aux
+                séparateurs de touches et garde toujours les trois dernières (h aide / l'autre
+                espace / q quitter), #150
 setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par backend)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP)

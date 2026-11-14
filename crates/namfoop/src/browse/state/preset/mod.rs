@@ -1,6 +1,6 @@
 //! Les **presets** dans `browse` (#110) : `S` enregistre la chaîne, `P` ouvre la **banque** (la
-//! chercher, la réouvrir), `t` déplie le TOML, et l'en-tête dit si quelque chose n'est pas
-//! enregistré.
+//! chercher, la réouvrir), `n` repart d'une **chaîne vierge** (#170), `t` déplie le TOML, et
+//! l'en-tête dit si quelque chose n'est pas enregistré.
 //!
 //! La conversion chaîne ⇄ preset est **ici**, pure et testée : la chaîne éditée porte des **index**
 //! de la bibliothèque, le fichier porte des **chemins relatifs** et l'identifiant court en filet
@@ -18,6 +18,14 @@ use super::*;
 pub struct PresetRef {
     pub name: String,
     pub path: PathBuf,
+}
+
+/// Ce qui doit remplacer la chaîne en cours : un preset de la banque, ou une **chaîne vierge**
+/// (`n`, #170). Les deux passent par la même fenêtre « la chaîne n'est pas enregistrée ».
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pending {
+    Preset(usize),
+    New,
 }
 
 /// Un preset de la banque, sa chaîne déjà résolue (la bascule ne lit donc aucun fichier).
@@ -139,9 +147,10 @@ impl State {
             _ => None,
         });
         let n = self.fx.chain.count();
+        let blocs = if n > 1 { "blocs" } else { "bloc" };
         match first {
-            Some(m) => format!("{m} + {n} blocs"),
-            None => format!("chaîne de {n} blocs"),
+            Some(m) => format!("{m} + {n} {blocs}"),
+            None => format!("chaîne de {n} {blocs}"),
         }
     }
 
@@ -372,6 +381,8 @@ impl State {
                 self.bank = None;
                 self.message = None;
             }
+            // `n` : repartir d'une chaîne vierge (#170) ; la banque se referme
+            Key::Char('n') => return Some(self.new_chain_or_confirm()),
             _ => {}
         }
         Some(Action::None)
@@ -379,14 +390,56 @@ impl State {
 
     /// Charger un preset, en demandant **une fois** si la chaîne n'est pas enregistrée (#158).
     pub(super) fn switch_to(&mut self, i: usize) -> Action {
-        if self.unsaved().is_empty() {
-            return self.load_preset(i);
+        self.replace_chain(Pending::Preset(i))
+    }
+
+    /// **`n` : repartir d'une chaîne vierge** (#170), en demandant une fois si la chaîne n'est pas
+    /// enregistrée. C'est le seul moyen de bâtir une chaîne neuve sans vider celle d'un preset (et
+    /// sans risquer de réenregistrer par-dessus lui).
+    pub(super) fn new_chain_or_confirm(&mut self) -> Action {
+        if self.fx.chain.is_empty() && self.preset.is_none() {
+            self.message = Some("la chaîne est déjà vierge : a ajoute un bloc".into());
+            return Action::None;
         }
-        self.pending_preset = Some(i);
+        self.replace_chain(Pending::New)
+    }
+
+    /// Mettre `what` à la place de la chaîne en cours : tout de suite s'il n'y a rien à perdre,
+    /// après la fenêtre « la chaîne n'est pas enregistrée » sinon.
+    fn replace_chain(&mut self, what: Pending) -> Action {
+        if self.unsaved().is_empty() {
+            return self.apply_pending(what);
+        }
+        self.pending_switch = Some(what);
         self.confirm_switch = true;
         self.bank = None;
         self.message = None;
         Action::None
+    }
+
+    /// Installe ce qui attendait : la chaîne du preset, ou une chaîne vierge.
+    pub fn apply_pending(&mut self, what: Pending) -> Action {
+        match what {
+            Pending::Preset(i) => self.load_preset(i),
+            Pending::New => self.new_chain(),
+        }
+    }
+
+    /// La chaîne devient **vide** et plus aucun preset n'est courant : `S` proposera donc un nom
+    /// neuf, et l'en-tête n'affiche plus de preset. La basse passe en son direct le temps qu'on
+    /// ajoute le premier bloc.
+    fn new_chain(&mut self) -> Action {
+        self.fx.chain = chain::Chain::default();
+        self.fx.cursor = chain::Cursor::Empty;
+        self.fx.focus = super::fx::FxFocus::Chain;
+        self.fx.catalog = None;
+        self.picker = None;
+        self.bank = None;
+        self.preset = None;
+        self.mark_start();
+        self.space = super::space::Space::Chain;
+        self.message = Some("nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant)".into());
+        self.play()
     }
 
     /// Touche reçue pendant la fenêtre « la chaîne n'est pas enregistrée » d'une bascule.
@@ -399,14 +452,14 @@ impl State {
             }
             Key::Enter => {
                 self.confirm_switch = false;
-                match self.pending_preset.take() {
-                    Some(i) => self.load_preset(i),
+                match self.pending_switch.take() {
+                    Some(what) => self.apply_pending(what),
                     None => Action::None,
                 }
             }
             _ => {
                 self.confirm_switch = false;
-                self.pending_preset = None;
+                self.pending_switch = None;
                 self.message = Some("on reste sur cette chaîne".into());
                 Action::None
             }

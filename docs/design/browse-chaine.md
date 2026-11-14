@@ -118,6 +118,7 @@ IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ 
 | `v` | vumètres affichés / masqués. | `vumètres masqués` |
 | `t` | déplie / replie le TOML du preset (replié par défaut, une ligne `▸ preset TOML (t)`). | |
 | `S` | enregistrer le preset (§ 8). | |
+| `n` | **nouvelle chaîne vierge** (§ 8). | `nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant)` / `la chaîne est déjà vierge : a ajoute un bloc` |
 | `q` | quitter (§ 8). | |
 
 **Catalogue** (fenêtre au-dessus du synoptique) : titre `ajouter après le curseur` (ou `avant`),
@@ -165,6 +166,16 @@ s'affiche dessous.
   avec `S` enregistrer puis quitter, `Q` quitter sans enregistrer, `Échap` rester (défaut).
   **Toute autre touche reste** ; Maj, Ctrl, Alt seuls n'ont aucun effet.
 - Avant les presets (#104) : même fenêtre sans `S`.
+- `n` (**chaîne vierge**, #170) : la chaîne devient vide, le curseur `Empty`, et le preset courant
+  est **détaché** (`preset = None`) — l'en-tête n'annonce plus de preset et `S` proposera donc un
+  nom neuf au lieu de réenregistrer par-dessus l'ancien. La chaîne vide devient la référence du
+  « non enregistré » (`mark_start`), et on arrive dans l'espace Chaîne (c'est là qu'on bâtit).
+  Si la chaîne en cours n'est pas enregistrée, la **même fenêtre que la bascule de preset**
+  demande d'abord, une fois : titre `La chaîne n'est pas enregistrée`, première ligne
+  `Repartir d'une chaîne vierge remplacerait la chaîne en cours.`, puis `S` enregistrer la chaîne
+  puis repartir, `Entrée` repartir quand même, `Échap` rester (défaut). `n` marche depuis les deux
+  espaces et depuis la fenêtre de la banque (qu'il referme) ; sur une chaîne déjà vide et sans
+  preset, il ne fait rien et le dit.
 
 ## 9. Exemples (boutons de la maquette)
 
