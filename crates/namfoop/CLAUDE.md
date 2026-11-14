@@ -150,6 +150,8 @@ scripts/gen-cli-doc.sh    régénère docs/cli.md
 scripts/install-hooks.sh  hooks : pre-commit (refus sur main + check.sh --quick), commit-msg (Refs #n),
                           pre-push (refus vers main)
 scripts/feature.sh        cycle issue -> branche -> PR -> merge (start | pr | merge | status)
+scripts/test-feature.sh   teste ce cycle HORS LIGNE (dépôt jetable + faux gh) : branche réutilisée,
+                          PR déjà fusionnée, fusion qui n'a pas eu lieu (#128) ; lancé par check.sh
 docs/                     guide.md (utilisateur), cli.md (généré), architecture.md, adr/ (décisions)
 .github/workflows/        CI : check.yml (check.sh --quick, sans bibliothèque de sons),
                           pr-rules.yml (issue référencée, nom de branche, CHANGELOG)
@@ -224,6 +226,8 @@ Règles :
 - la PR référence l'issue (`Closes #n`, ou `Refs #n` si des tests matériels restent à faire) et met
   à jour `CHANGELOG.md` si elle touche au code (vérifié en CI et par `feature.sh pr`) ;
 - fusion seulement CI verte (`feature.sh merge` attend et refuse sinon) ; squash uniquement ;
+  `merge` ne dit « fusionnée » qu'après avoir vérifié que le commit de fusion est sur `origin/main`,
+  et refuse une PR déjà fusionnée ; `start` ne réutilise jamais un nom de branche pris (#128) ;
 - les tests matériels restants se cochent dans l'issue (label `test matériel`) ; un agent les
   demande à l'utilisateur ;
 - les limites découvertes en route deviennent des issues (label `dette technique`) plutôt que
