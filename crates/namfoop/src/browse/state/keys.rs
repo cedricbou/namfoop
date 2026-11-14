@@ -1,6 +1,8 @@
 //! Le **clavier** de `browse` : qui prend la main, et dans quel ordre. C'est le seul endroit où
-//! l'ordre des couches est écrit — fenêtres (quitter, bascule de preset), saisies de texte, banque,
-//! « mettre dans la chaîne » et mode pose, sélecteur sur place, puis les touches de l'espace.
+//! l'ordre des couches est écrit — fenêtres (quitter, bascule de preset), saisies de texte (nom,
+//! filtre des listes, **filtre du catalogue** : une saisie passe toujours avant les touches
+//! communes, #175), banque, « mettre dans la chaîne » et mode pose, sélecteur sur place, puis les
+//! touches de l'espace.
 //!
 //! Chaque couche modale rend `Some(Action)` quand elle a consommé la touche (voir `picker`,
 //! `send`, `preset`), ce qui évite qu'une touche agisse à deux endroits.
@@ -80,6 +82,12 @@ impl State {
                 _ => {}
             }
             return Action::None;
+        }
+        // le filtre du catalogue de blocs se tape au clavier : il prend les lettres avant les
+        // touches communes, sinon `n` (chaîne vierge) mangerait le « n » de `nam` et de `gain`
+        // et effacerait la chaîne au lieu de filtrer (#175)
+        if let Some(a) = self.catalog_key(key) {
+            return a;
         }
         // la banque de presets, la fenêtre « mettre dans la chaîne » et le mode pose prennent la main
         if let Some(a) = self.bank_key(key) {

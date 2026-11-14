@@ -333,6 +333,34 @@ fn the_catalog_filter_puts_names_first() {
     assert_eq!(kinds(&s).len(), super::super::fx::entries().len(), "filtre vide : tout");
 }
 
+/// Le filtre du catalogue reçoit **toutes** les lettres, y compris celles des touches communes :
+/// taper `gain` ou `nam` filtre et n'efface pas la chaîne (#175 : `n` ouvre une chaîne vierge, mais
+/// pas au milieu d'une saisie).
+#[test]
+fn the_catalog_filter_gets_the_letters_of_the_common_keys() {
+    for (filtre, attendu, forme) in
+        [("gain", "gain", "hpf 30 gain reverb"), ("nam", "nam", "hpf 30 nam·(à choisir) reverb")]
+    {
+        let mut s = with_chain(vec![fx_block("hpf:freq=30"), fx_block("reverb")]);
+        s.mark_start();
+        s.on_key(Key::Char('a'));
+        for c in filtre.chars() {
+            s.on_key(Key::Char(c));
+        }
+        let cat = s.fx.catalog.as_ref().expect("le catalogue est resté ouvert");
+        assert_eq!(cat.filter, filtre, "le filtre a reçu les lettres");
+        assert_eq!(cat.selected().unwrap().kind, attendu);
+        assert_eq!(shape(&s), "hpf 30 reverb", "la chaîne est intacte pendant la saisie");
+        s.on_key(Key::Enter);
+        assert_eq!(shape(&s), forme, "le bloc est ajouté");
+    }
+    // hors saisie, `n` repart bien d'une chaîne vierge
+    let mut s = with_chain(vec![fx_block("hpf:freq=30")]);
+    s.mark_start();
+    s.on_key(Key::Char('n'));
+    assert!(s.fx.chain.is_empty(), "n hors catalogue : chaîne vierge");
+}
+
 /// Entrée sur un bloc `nam` ouvre le **sélecteur sur place** sur ce bloc, curseur sur son modèle
 /// actuel ; la chaîne ne change qu'avec Entrée (§ 5 de `docs/design/browse-espaces.md`).
 #[test]
