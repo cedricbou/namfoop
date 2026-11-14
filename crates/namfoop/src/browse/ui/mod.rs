@@ -37,6 +37,9 @@ pub struct Status {
     pub limiter: f32,
     pub xruns: u64,
     pub loading: bool,
+    /// Où en est le préchargement de la banque de presets (places prêtes, places en tout, #6) :
+    /// affiché tant qu'il reste des places à bâtir.
+    pub bank: Option<(usize, usize)>,
     pub device: String,
 }
 
@@ -431,6 +434,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     meters.push(Span::raw(format!("   dsp {:>4.0} %  xruns {}", st.load * 100.0, st.xruns)));
     if st.loading {
         meters.push(Span::styled("  chargement…", Style::new().fg(Color::Yellow)));
+    }
+    // préchargement de la banque : visible seulement tant qu'il reste des places (#6)
+    if let Some((done, total)) = st.bank.filter(|(d, t)| d < t) {
+        meters.push(Span::styled(format!("  banque {done}/{total}"), Style::new().fg(Color::DarkGray)));
     }
     // la ligne d'écoute : on sait toujours ce qu'on entend (§ 2, règle 2)
     let (heard, second) = if lib {

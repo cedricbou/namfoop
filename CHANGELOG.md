@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#167)
+- `browse` : **changer de preset est désormais immédiat**. Les chaînes de tous les presets sont
+  bâties et préchauffées dès l'ouverture, en tâche de fond (la barre du bas affiche `banque 3/7`
+  tant qu'il en reste), et `PgDn` / `PgUp` ne font plus qu'installer une chaîne déjà prête. Mesuré
+  de la touche au son installé, en pseudo-terminal : **20 ms** (le fondu) pour les trois presets de
+  test, dont le parallèle à deux modèles qui demandait **204 ms** — et 81 ms pour `nam › ir`.
+- Un preset pas encore préchargé (juste après l'ouverture, ou juste après l'avoir enregistré) se
+  charge comme avant : c'est un retard, pas une panne. Enregistrer un preset fait reprécharger la
+  banque, donc la bascule suivante joue bien la **nouvelle** version.
+- Revenir sur un preset ne ramène pas la queue de réverbe de son passage précédent : la chaîne qui
+  sort du thread audio est remise à zéro avant d'être rangée.
+
 ### Interne (#165)
 - `engine` gagne une **banque de chaînes préchargées** (`engine::bank`, premier morceau de #6) :
   les chaînes des presets peuvent être bâties et préchauffées à l'avance, et basculer n'est plus

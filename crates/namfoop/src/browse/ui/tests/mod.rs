@@ -129,6 +129,18 @@ fn input_meter_shows_calibration_mark_and_model_level() {
     assert!(t.contains("┃") && t.contains("→ modèle -30 dB"), "{t}");
 }
 
+/// Le préchargement de la banque se voit tant qu'il reste des places, et disparaît ensuite (#6).
+#[test]
+fn the_bank_preloading_shows_until_it_is_done() {
+    let s = sample();
+    let during = Status { bank: Some((1, 3)), ..Default::default() };
+    let t = crate::tui::screen_text(140, 24, |f| render(&s, &during, f));
+    assert!(t.contains("banque 1/3"), "{t}");
+    let done = Status { bank: Some((3, 3)), ..Default::default() };
+    let t = crate::tui::screen_text(140, 24, |f| render(&s, &done, f));
+    assert!(!t.contains("banque 3/3"), "{t}");
+}
+
 #[test]
 fn models_tab_spectrum_and_model_ab() {
     let mut s = sample();
