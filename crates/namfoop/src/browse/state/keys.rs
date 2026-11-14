@@ -132,6 +132,9 @@ impl State {
             // réglages d'un effet l'ont déjà consommé).
             Key::Esc => self.message = Some("Échap ne quitte pas : q pour quitter".into()),
             Key::Char('q') => return self.quit_or_confirm(),
+            // `z` : le panneau Bandes. Gardé par l'espace, parce qu'une touche non traitée par la
+            // Chaîne retombe ici (`fx_key` rend `None`) et ne doit pas agir à son insu.
+            Key::Char('z') if self.space == space::Space::Library => self.toggle_bands(),
             Key::Char('/') => {
                 if matches!(self.tab, Tab::Models | Tab::Irs) {
                     self.filtering = true;

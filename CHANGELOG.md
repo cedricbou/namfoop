@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#183)
+- `browse`, banc d'essai : **panneau Bandes** (`z`), un égaliseur graphique des sept zones (sub,
+  grave, bas-médium, médium, haut-médium, présence, air) qui montre d'un regard ce que la chaîne
+  écoutée fait à ta basse. L'information existait déjà — mini-spectre, courbe du Spectre, écarts par
+  zone en texte — mais elle ne se lisait pas d'un coup d'œil, et les écarts par zone demandaient une
+  référence épinglée et 128 colonnes.
+- Échelle ±12 dB (3 dB par demi-bloc, `▲` / `▼` hors échelle), couleurs des vumètres. Le zéro est la
+  moyenne 80 Hz – 5 kHz de la chaîne : les colonnes montrent sa **couleur**, pas son niveau. Avec
+  une référence épinglée (`c`), elles deviennent l'écart entre les deux sons, et `r` les retourne.
+- Lecture type : une pédale de fuzz perd 26 dB de sub et 19 dB de grave et monte de 19 dB dans
+  l'air — ce qui explique qu'elle paraisse bien plus forte qu'un ampli à niveau aligné (#181).
+- La mesure est **figée** : elle vient du profil déjà calculé avec ta basse, donc les colonnes
+  suivent le curseur sans reconstruire aucune chaîne et sans rien coûter au son. À partir de 128
+  colonnes le panneau se glisse sous la courbe du Spectre et ne prend aucune ligne de liste : il est
+  affiché d'office. Plus étroit, il s'empile sous la liste et attend `z`.
+
 ### Corrigé (#178)
 - `browse` : un bloc `gain` posé dans la chaîne **ne changeait pas le niveau de sortie** et rien ne
   le disait — le même bloc à -40 ou à +24 dB donnait exactement la même sortie. La cause n'est pas
