@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#165)
+- `engine` gagne une **banque de chaînes préchargées** (`engine::bank`, premier morceau de #6) :
+  les chaînes des presets peuvent être bâties et préchauffées à l'avance, et basculer n'est plus
+  qu'un envoi par la file existante. Mesuré (x86, B7K + IR du bassiste) : **1 µs** pour installer
+  une chaîne préchargée, contre 19 ms de construction + 26 ms de préchauffage pour `nam › ir` et
+  107 + 54 ms pour un parallèle à deux modèles. Une chaîne gardée en mémoire coûte **534 kio**
+  (1,2 Mio à deux modèles) : on précharge toute la banque, sans plafond.
+- La chaîne qui sort du thread audio est désormais **reprise** (`dsp::swap::SwapHandle::reclaim`),
+  **remise à zéro** et rangée dans sa place au lieu d'être libérée : revenir sur un preset ne
+  ramène pas la queue de réverbe de son passage précédent.
+- Rien ne change encore à l'écran : `browse` passera par la banque dans la suite de #6.
+
 ### Interne (#128)
 - `scripts/feature.sh` ne peut plus annoncer un faux succès : `merge` ne dit « fusionnée, main à
   jour » qu'après avoir vérifié que la PR est à l'état `MERGED` **et** que son commit de fusion est

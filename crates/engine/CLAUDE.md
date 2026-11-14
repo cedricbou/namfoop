@@ -3,14 +3,16 @@
 **Responsabilité.** La seule crate qui démarre un flux audio : ouvre la carte via `audio-io`,
 vérifie le routage contre les canaux de la carte (la fréquence réelle est vérifiée par
 l'appelant : une chaîne vide de calibration s'accommode de celle du serveur JACK), route la basse dans une chaîne
-`dsp` échangeable à chaud (`dsp::swap`, fondu), et publie les vumètres. C'est ici que viendront
-une seule fois mlock / cœur dédié (#3), presets (#6), MIDI (#7) et reprise sur carte perdue (#46).
+`dsp` échangeable à chaud (`dsp::swap`, fondu), et publie les vumètres. La **banque de chaînes
+préchargées** (`bank.rs`, #6) vit ici ; c'est elle que MIDI (#7) pilotera. Y viendront aussi, une
+seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
 
 **API** (`lib.rs`, rester petit) :
 - `Engine::start(EngineConfig { audio, routing, max_block, fade_ms, quiet, limiter_meter, input_tap }, chaîne)`
   -> `Engine` ; erreurs `thiserror` (`error.rs`), messages vus par l'utilisateur (ne pas changer) ;
 - `send_chain(chain)` (rend la chaîne si une autre attend), `take_chain_sender()` (envoi depuis un
-  autre thread : `ChainSender::send / collect / idle`), `idle()`, `take_input_tap()` (file `rtrb`
+  autre thread : `ChainSender::send / send_warm` (chaîne déjà préchauffée) ` / collect / reclaim /
+  idle / rate / block`), `idle()`, `take_input_tap()` (file `rtrb`
   de l'entrée basse brute, bloc entier ou bloc perdu compté par `tap_lost()`), `meters()` (crêtes et charge
   remises à zéro, écrêtages cumulés, réduction du limiteur), `xruns()`, `sample_rate()`, `n_in()`,
   `n_out()`, `describe()` (routage) ; la carte est rendue au drop ;
@@ -24,6 +26,14 @@ une seule fois mlock / cœur dédié (#3), presets (#6), MIDI (#7) et reprise su
   avertissement si le gouverneur n'est pas `performance`, `prewarm` (0,25 s de bruit puis 0,5 s
   de silence au bloc réel) pour la chaîne initiale et chaque `send_chain` / `ChainSender::send` ;
   `meters::LoadHistogram` (charge de chaque callback, pas de 1 %) -> `load_summary()` ;
+- `bank` (**banque de chaînes préchargées**, #6) : `Bank::new(sender, max_block)` possède l'envoi
+  de chaînes de la session. Elle est **passive** (aucun thread à elle) : l'appelant appelle
+  `next_waiting()` + `preload(i, &ChainSpec)` quand il a du temps, puis `switch(i)` -> `Switch`
+  (`Installed(ChainMeters)`, `AlreadyPlaying`, `NotReady` — à l'appelant de bâtir comme avant —,
+  `Failed(raison)`, `Busy`), `install(chain)` pour une chaîne bâtie ailleurs (l'éditeur de
+  `browse`), `collect()` qui **reprend** la chaîne sortante, la **remet à zéro** et la range dans sa
+  place, `invalidate(i)` / `resize(n)` quand la banque change, `state(i)`, `progress()`, `playing()`.
+  Une place en échec ne bloque pas la banque ;
 - `router` (`Routing`, `OutputRoute`, `Source` avec `FromStr`, `Router`), `meters` (`Meters`,
   `fetch_max`, `take`).
 
@@ -44,6 +54,23 @@ avec deux chaînes successives, routage refusé), puis
 
 ## Faits mesurés
 
+- **Banque préchargée** (#165, x86, release, `cargo test --release -p engine --test bank --
+  --nocapture --test-threads=1`, modèle B7K + IR Mesa Powerhouse du bassiste, bloc 64) :
+
+  | | `nam › ir` | parallèle à deux `nam › ir` |
+  |---|---|---|
+  | construction (`ChainSpec::build`) | 19 ms | 107 ms |
+  | préchauffage (`rt::prewarm`) | 26 ms | 54 ms |
+  | **bascule d'une chaîne préchargée** | **1 µs** | **1 µs** |
+  | remise à zéro au retour (`Chain::reset`) | < 0,1 ms | < 0,1 ms |
+  | mémoire résidente par chaîne gardée | **534 kio** | **1 219 kio** |
+
+  Conséquences retenues : **on précharge toute la banque, sans plafond** (20 presets ≈ 10 à 25 Mio
+  de mémoire résidente) ; le préchauffage se paie **une fois**, au préchargement
+  (`send_warm`) ; la chaîne sortante est reprise et remise à zéro (gratuit) au lieu d'être
+  reconstruite. Un parallèle coûte **plus** que la somme de ses branches à la construction
+  (107 ms contre 2 × 19) parce que `dsp::split` mesure le retard de **chaque** branche par
+  corrélation, en y faisant passer une sonde — modèles compris.
 - Dénormalisés (#78) : `audio-io` activait déjà le flush-to-zero dans les threads ALSA, JACK et sim
   (`rt::disable_denormals`) ; `engine` le refait au premier callback (tout backend futur couvert).
   Mesuré hors ligne (`render`, b7k + IR dg212, bloc 48) : impulsion puis 10 s de silence en
