@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "audio-io"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "alsa",
  "assert_no_alloc",
@@ -511,7 +511,7 @@ dependencies = [
 
 [[package]]
 name = "dsp"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "assert_no_alloc",
  "fft-convolver",
@@ -533,7 +533,7 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
 name = "engine"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "assert_no_alloc",
  "audio-io",
@@ -951,7 +951,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "library"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "dsp",
  "log",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "model"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -1068,7 +1068,7 @@ dependencies = [
 
 [[package]]
 name = "nam-sys"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "cc",
  "thiserror 2.0.21",
@@ -1076,7 +1076,7 @@ dependencies = [
 
 [[package]]
 name = "namfoop"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_no_alloc",
