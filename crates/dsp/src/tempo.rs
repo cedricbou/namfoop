@@ -32,6 +32,14 @@ pub fn clamp_bpm(bpm: f32) -> f32 {
 pub struct Division {
     /// Étiquette affichée, et acceptée en mini-syntaxe (`delay:division=1/8.`).
     pub label: &'static str,
+    /// Nom de la note en français, **article compris** (`une croche pointée`, `un triolet de
+    /// croche`) : le genre change, donc l'appelant ne peut pas l'ajouter lui-même.
+    /// Les fractions nues se lisent mal : `1/4`
+    /// est **une noire**, donc *un temps*, et non « un quart de temps » — le marché nomme les
+    /// notes pour cette raison (« Quarter notes », « Dotted Eighth notes » chez Strymon).
+    pub name: &'static str,
+    /// Ce que la note vaut **en temps**, en français : c'est la phrase qui lève l'ambiguïté.
+    pub beats_label: &'static str,
     /// Durée en noires. **0 pour `libre`** : l'effet garde alors son temps en millisecondes.
     pub beats: f32,
 }
@@ -55,15 +63,22 @@ impl Division {
 /// basse, et chaque valeur de plus est un cran de plus à traverser sur scène (ADR 0008). En
 /// ajouter une ne coûte qu'une ligne ici.
 pub const DIVISIONS: &[Division] = &[
-    Division { label: "libre", beats: 0.0 },
-    Division { label: "1/16", beats: 0.25 },
-    Division { label: "1/8T", beats: 1.0 / 3.0 },
-    Division { label: "1/8", beats: 0.5 },
-    Division { label: "1/8.", beats: 0.75 },
-    Division { label: "1/4", beats: 1.0 },
-    Division { label: "1/4.", beats: 1.5 },
-    Division { label: "1/2", beats: 2.0 },
-    Division { label: "1/1", beats: 4.0 },
+    Division { label: "libre", name: "", beats_label: "", beats: 0.0 },
+    Division { label: "1/16", name: "une double-croche", beats_label: "un quart de temps", beats: 0.25 },
+    Division {
+        label: "1/8T",
+        name: "un triolet de croche",
+        beats_label: "un tiers de temps",
+        beats: 1.0 / 3.0,
+    },
+    Division { label: "1/8", name: "une croche", beats_label: "un demi-temps", beats: 0.5 },
+    Division {
+        label: "1/8.", name: "une croche pointée", beats_label: "trois quarts de temps", beats: 0.75
+    },
+    Division { label: "1/4", name: "une noire", beats_label: "un temps", beats: 1.0 },
+    Division { label: "1/4.", name: "une noire pointée", beats_label: "un temps et demi", beats: 1.5 },
+    Division { label: "1/2", name: "une blanche", beats_label: "deux temps", beats: 2.0 },
+    Division { label: "1/1", name: "une ronde", beats_label: "quatre temps", beats: 4.0 },
 ];
 
 /// Indice de `libre` : le défaut de tout paramètre `division`.
@@ -156,6 +171,13 @@ mod tests {
             assert_eq!(index_of(d.label).map(at), Some(*d), "{}", d.label);
             assert!(!d.label.contains(['=', ',', ' ']), "{} : illisible en mini-syntaxe", d.label);
         }
+        // chaque note est nommée et dit ce qu'elle vaut en temps : c'est ce qui lève l'ambiguïté
+        // de la fraction nue (`1/4` = une noire = UN temps, pas un quart de temps)
+        for d in &DIVISIONS[1..] {
+            assert!(!d.name.is_empty() && !d.beats_label.is_empty(), "{}", d.label);
+        }
+        assert_eq!(at(index_of("1/4").unwrap()).beats_label, "un temps");
+        assert_eq!(at(index_of("1/16").unwrap()).beats_label, "un quart de temps");
     }
 
     /// Les durées du marché, à 120 BPM : la noire vaut 500 ms et la croche pointée 375.

@@ -196,6 +196,11 @@ concernée). Erreurs : `anyhow`.
   une 3ᵉ frappe une seconde plus tard **repart** une séquence (`59.3`, exactement la règle des
   ±40 %), puis des frappes à 750 ms convergent (`67.6`, `70.8`) vers 80. L'étoile « non
   enregistré » apparaît bien à la première frappe mesurée.
+  `*` n'agit que dans l'espace **Chaîne** (#207) : le banc d'essai n'est pas un preset, et y taper
+  faisait apparaître « non enregistré » alors qu'on écoutait des modèles. `State::field_help` rend
+  l'aide du réglage sous le curseur, **dynamique** pour une division (`1/4 = une noire, soit un
+  temps (500 ms à 120 BPM)`) : la colonne de valeur du panneau ne fait que **9 caractères**, donc
+  tout ce qui doit s'expliquer va dans cette ligne, pas dans la valeur.
   **Piège pour écrire ces tests** : il faut poser la taille du pseudo-terminal (`TIOCSWINSZ`),
   sinon ratatui ne dessine rien du tout ; et **ne pas scruter l'écran pour une valeur qui change** —
   ratatui n'écrit que les cellules modifiées, si bien qu'un `♩ 92 (preset)` arrive en morceaux

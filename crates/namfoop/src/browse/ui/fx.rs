@@ -130,7 +130,7 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
     }
     match fields.get(s.fx.param) {
         Some(field) => {
-            lines.push(Line::styled(format!("   {}", field.help()), Style::new().fg(Color::DarkGray)))
+            lines.push(Line::styled(format!("   {}", s.field_help(*field)), Style::new().fg(Color::DarkGray)))
         }
         None => lines.push(Line::styled(
             match s.fx.chain.spot(s.fx.cursor) {

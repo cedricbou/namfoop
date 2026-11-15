@@ -622,9 +622,81 @@ fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
     assert!(msg.contains("division"), "{msg}");
     assert_eq!(s.field_value(field(&s, "time")).0, "(489 ms)", "la valeur n'a pas bougé");
 
-    // au-delà du tampon de 2 s, la valeur le dit (une ronde à 60 BPM demanderait 4 s)
+    // au-delà du tampon de 2 s, la valeur est écrêtée (une ronde à 60 BPM demanderait 4 s) et
+    // c'est la ligne d'aide, qui a la place, qui l'explique — la colonne ne fait que 9 caractères
     let Some(Leaf::Fx(slot)) = s.fx.chain.leaf_mut(s.fx.cursor) else { panic!("un delay") };
     slot.spec.set("division", dsp::tempo::index_of("1/1").unwrap()).expect("ronde");
     tap_tempo(&mut s, 60.0, t + 5000);
-    assert_eq!(s.field_value(field(&s, "time")).0, "(2000 ms, plafond)");
+    assert_eq!(s.field_value(field(&s, "time")).0, "(2000 ms)");
+    assert!(s.field_value(field(&s, "time")).0.len() <= 9, "la colonne fait 9 caractères");
+    let help = s.field_help(field(&s, "division"));
+    assert!(help.contains("écrêté"), "{help}");
+}
+
+/// **La ligne d'aide dit ce que vaut la note** : une fraction nue se lit mal — `1/4` est une
+/// *noire*, donc **un temps**, et non « un quart de temps » (#207). C'est exactement la confusion
+/// que l'utilisateur a eue, et c'est là qu'elle se lève.
+#[test]
+fn the_help_line_says_what_the_note_is_worth() {
+    let mut s = with_chain(vec![fx_block("delay:time=400")]);
+    s.on_key(Key::Enter);
+    let division = *s.fields().iter().find(|f| f.name() == "division").expect("division");
+    let set = |s: &mut State, label: &str| {
+        let Some(Leaf::Fx(slot)) = s.fx.chain.leaf_mut(s.fx.cursor) else { panic!("un delay") };
+        slot.spec.set("division", dsp::tempo::index_of(label).expect(label)).expect(label);
+    };
+
+    // `libre` : c'est `time` qui agit, et l'aide le dit
+    let help = s.field_help(division);
+    assert!(help.contains("libre") && help.contains("millisecondes"), "{help}");
+
+    // la noire vaut UN temps, et 500 ms à 120 BPM
+    set(&mut s, "1/4");
+    let help = s.field_help(division);
+    assert!(help.contains("noire"), "{help}");
+    assert!(help.contains("un temps"), "{help}");
+    assert!(help.contains("500 ms") && help.contains("120 BPM"), "{help}");
+
+    // la double-croche, elle, vaut bien un quart de temps
+    set(&mut s, "1/16");
+    let help = s.field_help(division);
+    assert!(help.contains("double-croche") && help.contains("un quart de temps"), "{help}");
+    assert!(help.contains("125 ms"), "{help}");
+
+    // et la durée suit le tempo entendu
+    tap_tempo(&mut s, 92.0, 1000);
+    set(&mut s, "1/4");
+    let help = s.field_help(division);
+    assert!(help.contains("652 ms") && help.contains("92 BPM"), "{help}");
+
+    // un réglage ordinaire garde son aide fixe
+    let feedback = *s.fields().iter().find(|f| f.name() == "feedback").expect("feedback");
+    assert_eq!(s.field_help(feedback), feedback.help());
+}
+
+/// Le **banc d'essai n'est pas un preset** : y taper ne doit rien modifier, et la touche dit où
+/// elle agit (#207).
+#[test]
+fn the_tap_does_nothing_in_the_library_space() {
+    let mut s = with_chain(vec![fx_block("delay:division=1/8.")]);
+    s.mark_start();
+    s.on_key(Key::Char('1')); // espace Bibliothèque
+    let before = s.heard_tempo_bpm();
+    s.tick(0);
+    s.on_key(Key::Char('*'));
+    s.tick(500);
+    s.on_key(Key::Char('*'));
+    assert_eq!(s.heard_tempo_bpm(), before, "le tempo n'a pas bougé");
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Preset);
+    assert!(s.unsaved().is_empty(), "rien ne doit être marqué modifié : {:?}", s.unsaved());
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("Chaîne")), "{:?}", s.message);
+
+    // dans la Chaîne, en revanche, il agit
+    s.on_key(Key::Char('2'));
+    s.tick(1000);
+    s.on_key(Key::Char('*'));
+    s.tick(1500);
+    s.on_key(Key::Char('*'));
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Tap);
+    assert_eq!(s.heard_tempo_bpm(), 120.0);
 }

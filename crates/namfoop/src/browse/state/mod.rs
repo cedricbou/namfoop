@@ -401,10 +401,43 @@ impl State {
         self.tempo.source()
     }
 
+    /// L'aide du réglage sous le curseur. Dynamique pour une **division** : la fraction nue se lit
+    /// mal (`1/4` est une *noire*, donc **un temps**, et non « un quart de temps »), donc on nomme
+    /// la note, on dit ce qu'elle vaut en temps, et on donne la durée au tempo courant (#207).
+    pub fn field_help(&self, f: fx::Field) -> String {
+        let fx::Field::Param(p) = f else { return f.help().to_string() };
+        if p.unit != dsp::fx::Unit::Division {
+            return f.help().to_string();
+        }
+        let v = match self.fx.chain.leaf(self.fx.cursor) {
+            Some(chain::Leaf::Fx(s)) => s.spec.get(p.name).unwrap_or(p.default),
+            _ => p.default,
+        };
+        let d = dsp::tempo::at(v);
+        let bpm = self.heard_tempo_bpm();
+        let Some(ms) = d.ms_at(bpm) else {
+            return "« libre » : time agit en millisecondes · choisis une note pour suivre le tempo"
+                .to_string();
+        };
+        let max = dsp::fx::delay::MAX_SECONDS * 1000.0;
+        let capped = if ms > max {
+            format!(" → écrêté à {max:.0} ms, le tampon du delay")
+        } else {
+            String::new()
+        };
+        format!("{} = {}, soit {} ({ms:.0} ms à {bpm:.0} BPM){capped}", d.label, d.name, d.beats_label)
+    }
+
     /// Un **tap** (`*`) : il donne le tempo *et* modifie le preset, comme tout autre réglage
     /// (#110) — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de preset
     /// restaure celui du preset suivant.
     fn tap_tempo(&mut self) -> Action {
+        // le banc d'essai n'est pas un preset : il n'a ni volume ni tempo propres, et y taper
+        // ferait apparaître « non enregistré » alors qu'on écoute seulement des modèles (#207)
+        if self.space == space::Space::Library {
+            self.message = Some("le tap tempo est dans l'espace Chaîne (2)".into());
+            return Action::None;
+        }
         self.tempo.tap(self.now * 1000);
         let bpm = self.tempo.bpm();
         if self.tempo.source() == engine::tempo::TempoSource::Tap {

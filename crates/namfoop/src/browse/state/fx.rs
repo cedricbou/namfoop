@@ -209,8 +209,10 @@ impl State {
         if target != name {
             return None;
         }
-        let max = dsp::fx::delay::MAX_SECONDS * 1000.0;
-        Some(if ms > max { format!("({max:.0} ms, plafond)") } else { format!("({ms:.0} ms)") })
+        // la colonne de valeur du panneau fait 9 caractères : le plafond, lui, se dit dans la
+        // ligne d'aide (`State::field_help`), qui a la place de l'expliquer
+        let ms = ms.min(dsp::fx::delay::MAX_SECONDS * 1000.0);
+        Some(format!("({ms:.0} ms)"))
     }
 
     /// Valeur affichée d'un réglage, et sa position dans sa plage (pour la barre).
