@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+_Rien pour l'instant._
+
+## 0.5.0 — 2026-11-15
+
+**Le tempo.** Les effets de temps se règlent en divisions rythmiques, chaque preset porte son
+tempo, `*` le tape, un clic de métronome peut partir dans les in-ears, et la queue d'un preset
+quitté dure exactement ce qu'elle doit. Plus le volume et le tempo devenus **vivants** (réglables
+sans rebâtir la chaîne) et la banque de presets préchargée (bascule en 21 ms).
+
 ### Corrigé (#230)
 - **Le clic de métronome est percussif.** Son enveloppe montait en **12,6 ms** (mesuré), ce qui en
   faisait un bip tonal, noyé sous une basse au lieu de la percer. Trois sons sont désormais
@@ -285,6 +294,14 @@ ensuite (épique #188, [ADR 0008](docs/adr/0008-tempo-et-divisions.md)).
   sur un dépôt jetable avec un faux `gh` — branche déjà prise, PR déjà fusionnée, PR qui reste
   ouverte, GitHub qui annonce une fusion sans rien livrer, et le chemin nominal. Lancé contre
   l'ancienne version du script, il échoue (le faux succès y est bien reproduit).
+
+## 0.2.0 à 0.4.0 — entrées jamais roulées
+
+_Les tags `v0.2.0` (10/11), `v0.3.0` (11/11) et `v0.4.0` (14/11) ont été posés sans rouler la
+section « Non publié » : leurs entrées sont donc rassemblées ici, dans l'ordre d'arrivée, sans être
+réparties entre les trois versions — les replacer aurait demandé de deviner. Elles couvrent le
+découpage en crates (#47), le temps réel (#3), les neuf effets (#5), l'éditeur de chaîne en blocs
+(#103) et les presets (#157, #110, #158, #159)._
 
 ### Ajouté (#159)
 - **`namfoop presets`** liste la banque enregistrée (identifiant court, nom, la chaîne en une

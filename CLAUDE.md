@@ -66,6 +66,12 @@ même commit. check-docs vérifie aussi les exemples, l'absence de sons versionn
 par crate cité ici et dans `docs/architecture.md`, et la taille des fichiers (> 600 lignes :
 avertissement, > 1 000 : échec).
 
+**Publier une version** : rouler « Non publié » dans une section `## X.Y.Z — AAAA-MM-JJ`, aligner
+`version` de `[workspace.package]` (sinon `namfoop --version` ment : il a annoncé 0.1.0 jusqu'à
+0.5.0), puis un tag **annoté** `vX.Y.Z` dont le message dit ce que la version apporte
+(`git tag -a v0.5.0 -m "namfoop 0.5.0 — …"`). Les tags 0.2.0 à 0.4.0 ont sauté les deux premières
+étapes : leurs entrées sont regroupées en bloc dans le CHANGELOG, faute de pouvoir les replacer.
+
 ## Conventions
 
 - Messages, logs, docs, commentaires en **français** ; identifiants en anglais.
