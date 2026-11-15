@@ -177,7 +177,8 @@ impl AmpSpec {
             level: self.level.clone(),
             // le volume est propre au preset (#179) : les options de ligne de commande n'en ont pas,
             // `--master-db` joue ce rôle pour `run`
-            volume_db: 0.0,
+            // les options de ligne de commande n'ont pas de volume de preset (#179)
+            volume: crate::block::Volume::Db(0.0),
             master_db: self.master_db,
             limiter: self.limiter.clone(),
         }

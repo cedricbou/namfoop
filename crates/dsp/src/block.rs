@@ -86,6 +86,46 @@ pub struct BranchSpec {
     pub blocks: Vec<BlockSpec>,
 }
 
+/// Le volume d'une chaîne : figé à la construction, ou **vivant** (ADR 0007).
+#[derive(Clone, Debug)]
+pub enum Volume {
+    /// Figé à la construction (dB) : `run`, `render`, `bench` et les rendus de référence. Au
+    /// neutre, aucun étage n'est posé.
+    Db(f32),
+    /// **Vivant** : la case est lue une fois par bloc, et l'étage rampe vers chaque nouvelle valeur
+    /// (`gain::LiveGain`). C'est ce que pose `browse`, pour que `,` / `.` s'entendent sans rebâtir
+    /// la chaîne (#187). L'étage est alors posé **même au neutre** : la case bougera.
+    Live(crate::param::Control),
+}
+
+impl Default for Volume {
+    fn default() -> Self {
+        Volume::Db(0.0)
+    }
+}
+
+impl Volume {
+    /// La valeur en dB, quelle que soit sa forme (pour les logs et `describe`).
+    pub fn db(&self) -> f32 {
+        match self {
+            Volume::Db(v) => *v,
+            Volume::Live(c) => c.get(),
+        }
+    }
+}
+
+impl From<f32> for Volume {
+    fn from(db: f32) -> Self {
+        Volume::Db(db)
+    }
+}
+
+impl From<crate::param::Control> for Volume {
+    fn from(c: crate::param::Control) -> Self {
+        Volume::Live(c)
+    }
+}
+
 /// Une chaîne complète : trim, blocs, puis niveau, volume, master et limiteur (qui restent en fin
 /// de chaîne, hors de l'éditeur).
 #[derive(Clone, Debug, Default)]
@@ -94,11 +134,11 @@ pub struct ChainSpec {
     pub trim_db: f32,
     pub blocks: Vec<BlockSpec>,
     pub level: Level,
-    /// **Volume propre à la chaîne** (dB), appliqué **après** l'alignement de niveau et **avant**
-    /// le master (#179). C'est le seul gain qu'un preset peut porter sans être annulé par
+    /// **Volume propre à la chaîne**, appliqué **après** l'alignement de niveau et **avant** le
+    /// master (#179). C'est le seul gain qu'un preset peut porter sans être annulé par
     /// `Level::Match` : l'alignement se mesure sur les blocs, pas sur lui. Il sert à équilibrer
     /// les presets entre eux ; le master, lui, reste le volume de la scène.
-    pub volume_db: f32,
+    pub volume: Volume,
     pub master_db: f32,
     pub limiter: Option<LimiterSpec>,
 }
@@ -416,8 +456,9 @@ impl ChainSpec {
             }
             _ => {}
         }
-        if self.volume_db != 0.0 {
-            parts.push(format!("volume {:+.1} dB", self.volume_db));
+        // un volume vivant se décrit comme un volume figé : la valeur du moment, rien à 0
+        if self.volume.db() != 0.0 {
+            parts.push(format!("volume {:+.1} dB", self.volume.db()));
         }
         if self.master_db != 0.0 {
             parts.push(format!("master {:+.1} dB", self.master_db));
@@ -562,8 +603,17 @@ impl ChainSpec {
             }
         }
         // après l'alignement : c'est ce qui le distingue d'un bloc `gain`, que l'alignement annule
-        if self.volume_db != 0.0 {
-            chain.push(Gain::db(self.volume_db, "volume"));
+        match &self.volume {
+            // au neutre, pas d'étage du tout : les rendus hors ligne restent identiques au bit
+            Volume::Db(v) if *v != 0.0 => {
+                chain.push(Gain::db(*v, "volume"));
+            }
+            Volume::Db(_) => {}
+            // vivant : l'étage est posé **même au neutre**, sinon la case ne serait lue par
+            // personne et le réglage resterait muet (plus rien ne rebâtit la chaîne, #187)
+            Volume::Live(c) => {
+                chain.push(crate::gain::LiveGain::new(c.clone(), sample_rate, "volume"));
+            }
         }
         if self.master_db != 0.0 {
             chain.push(Gain::db(self.master_db, "master"));

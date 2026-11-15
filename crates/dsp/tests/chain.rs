@@ -192,24 +192,41 @@ fn the_preset_volume_survives_the_di_alignment() {
     use dsp::chain::Level;
     use std::sync::Arc;
     let reference = signal(48000);
-    let spec = |volume_db: f32| ChainSpec {
+    let spec = |volume: dsp::block::Volume| ChainSpec {
         // un bloc `gain` dans la chaîne : l'alignement l'annule, lui
         blocks: vec![BlockSpec::Fx("gain:db=-12".parse().unwrap())],
         level: Level::Match { reference: Arc::new(reference.clone()), sample_rate: 48000 },
-        volume_db,
+        volume,
         ..Default::default()
     };
-    for v in [-6.0, 0.0, 3.0] {
-        let mut chain = spec(v).build(48000, 64).unwrap();
+    let level_of = |chain: &mut dsp::Chain| -> f32 {
         let mut out = reference.clone();
         for c in out.chunks_mut(64) {
             chain.process(c);
         }
-        let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
+        20.0 * (rms(&out) / rms(&reference)).log10()
+    };
+    for v in [-6.0, 0.0, 3.0] {
+        let mut chain = spec(v.into()).build(48000, 64).unwrap();
+        let diff = level_of(&mut chain);
         assert!((diff - v).abs() < 0.01, "volume {v} dB : sortie à {diff:+.2} dB du DI");
     }
-    assert!(spec(-6.0).describe().contains("volume -6.0 dB"), "{}", spec(-6.0).describe());
-    assert!(!spec(0.0).describe().contains("volume"), "un volume nul ne se dit pas");
+    assert!(spec((-6.0).into()).describe().contains("volume -6.0 dB"), "{}", spec((-6.0).into()).describe());
+    assert!(!spec(0.0.into()).describe().contains("volume"), "un volume nul ne se dit pas");
+
+    // vivant (#187) : la même chose, mais réglable après la construction — et la chaîne est bâtie
+    // alors que la case vaut 0, le cas qui n'aurait aucun étage si on gardait le garde-fou
+    let control = dsp::param::Control::new(0.0);
+    let mut chain = spec(control.clone().into()).build(48000, 64).unwrap();
+    assert!(level_of(&mut chain).abs() < 0.01, "au neutre, le volume vivant ne change rien");
+    for v in [-6.0, 3.0, 0.0] {
+        control.set(v);
+        chain.reset(); // comme `engine::bank` sur une chaîne reprise : pas de rampe à mesurer ici
+        let diff = level_of(&mut chain);
+        assert!((diff - v).abs() < 0.01, "case à {v} dB : sortie à {diff:+.2} dB du DI");
+    }
+    control.set(-6.0);
+    assert!(spec(control.into()).describe().contains("volume -6.0 dB"), "la case se décrit aussi");
 }
 
 /// L'alignement sur le DI **annule** un bloc `gain`, et sa valeur est publiée dans la table de

@@ -117,7 +117,7 @@ pub(super) fn spawn(
             let mut spec = amp_args(&lib_dir, size, req).spec(&conf2, Some(limiter.clone()))?.to_chain_spec();
             spec.blocks = block_specs(&req.blocks, lib, req, size);
             // le volume du preset, après l'alignement de niveau (#179)
-            spec.volume_db = req.volume_db;
+            spec.volume = req.volume_db.into();
             Ok(spec)
         };
         let mut wanted: Option<Request> = None;
