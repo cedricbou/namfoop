@@ -25,16 +25,35 @@ pub fn db(x: f32) -> String {
     }
 }
 
+/// Ce que `run` fait de la session, en plus de la chaîne : les options qui ne décrivent pas le son.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Session {
+    /// Arrêt automatique après N secondes (tests).
+    pub seconds: Option<f64>,
+    /// Pas de vumètre.
+    pub quiet: bool,
+    /// Garder la **queue de preset** (#172).
+    pub trails: bool,
+    /// Clic de métronome dans les sorties in-ear (#201).
+    pub click: bool,
+}
+
 pub fn run(
     cfg: &audio_io::Settings,
     conf: &LoadedConfig,
     amp: &AmpArgs,
     routing: &Routing,
-    seconds: Option<f64>,
-    quiet: bool,
-    trails: bool,
+    s: Session,
 ) -> Result<()> {
+    let Session { seconds, quiet, trails, click } = s;
     let limiter = Arc::default();
+    let metronome = conf.config.metronome.unwrap_or_default();
+    if click && !routing.outputs.iter().any(|o| o.click) {
+        bail!(
+            "--click : aucune sortie ne reçoit le clic. Déclare une sortie « in-ear » avec \
+             `namfoop setup`, ou ajoute `click = true` à une sortie de [routing] dans la config"
+        );
+    }
     // la chaîne des options, ou celle d'un preset (`--preset`, #159)
     let spec = amp.chain_spec(conf, Some(Arc::clone(&limiter)))?;
     let chain = spec.build(cfg.rate, MAX_BLOCK)?;
@@ -51,7 +70,15 @@ pub fn run(
             quiet: false,
             limiter_meter: limiter,
             input_tap: None,
-            metronome: None, // `run` : le clic viendra avec son option (#201)
+            // le clic du métronome : allumé d'emblée par `--click`, et seulement dans les sorties
+            // déclarées in-ear (`namfoop setup`). Le tempo est celui du preset ou de `--tempo` :
+            // `run` n'a ni tap ni horloge, donc une case figée suffit (ADR 0008).
+            metronome: click.then(|| engine::metronome::MetronomeConfig {
+                gain: dsp::param::Control::new(dsp::db_to_gain(metronome.level_db)),
+                tempo: dsp::param::Control::new(spec.tempo.bpm()),
+                downbeat: dsp::param::Control::new(0.0),
+                beats_per_bar: metronome.beats_per_bar,
+            }),
         },
         chain,
     )?;

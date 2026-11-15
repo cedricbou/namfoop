@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#201)
+- **Le clic du métronome s'allume** : `k` dans `browse`, `--click` pour `run`. Éteint au démarrage,
+  toujours, et il ne s'enregistre pas dans un preset — c'est une aide d'écoute, pas un son. Allumé,
+  l'en-tête l'affiche à côté du tempo : `♩ 104 (tap) ·clic`.
+- **Il va dans les sorties déclarées « in-ear »** par `namfoop setup`, et nulle part ailleurs : c'est
+  la même information que l'assistant demande déjà, donc il n'y a rien de plus à régler, et le clic
+  ne peut pas atterrir dans le sondier.
+- Quand **aucune sortie ne le reçoit**, `k` le dit et renvoie à `setup` au lieu d'allumer un clic
+  inaudible ; `run --click` refuse de démarrer plutôt que de jouer sans clic en silence.
+- Réglages dans `[metronome]` de la config : `level_db` (-18) et `beats_per_bar` (4, accent sur le
+  premier temps).
+
 ### Ajouté (#197)
 - **Le socle du métronome.** Une sortie peut recevoir le **clic** en plus de sa source
   (`click = true` dans `[[routing.outputs]]`) : les in-ears veulent la basse **et** le clic, donc ce

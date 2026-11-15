@@ -63,7 +63,10 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
   le clic aux seules sorties qui portent `click = true` — jamais substitué à leur source (les
   in-ears veulent la basse **et** le clic), et si **aucune** sortie ne le demande le générateur
   n'est même pas créé. C'est la garantie qui compte : un clic parti dans le sondier en concert est
-  une catastrophe, et un test le vérifie. `meters` (`Meters`, `fetch_max`, `take`).
+  une catastrophe, et un test le vérifie. **Le clic est ajouté après le limiteur** (il n'est pas
+  dans la chaîne) et n'entre pas dans `RouteStats` : sur une sortie déjà au plafond, la somme peut
+  donc écrêter sans que `[CLIP SORTIE]` le dise. Dit dans le guide ; à reprendre si ça gêne à
+  l'usage. `meters` (`Meters`, `fetch_max`, `take`).
 
 `limiter_meter` : le même `Arc<AtomicU32>` doit être donné à la chaîne (`LimiterSpec::meter`).
 

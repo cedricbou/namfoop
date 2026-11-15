@@ -76,6 +76,10 @@ enum Cmd {
         /// changement, mais une seule chaîne tourne (moins de charge DSP)
         #[arg(long)]
         no_trails: bool,
+        /// Clic de métronome au tempo, dans les sorties déclarées « in-ear » par `namfoop setup`
+        /// (jamais dans le sondier). Niveau et temps par mesure : [metronome] de la config
+        #[arg(long)]
+        click: bool,
     },
     /// Traite un WAV hors ligne avec la même chaîne que `run`
     Render {
@@ -203,10 +207,11 @@ fn main() -> Result<()> {
     // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
     let audio = || cli_audio::settings(&cli.audio, &conf);
     match cli.cmd {
-        Cmd::Run { amp, routing, seconds, quiet, no_trails } => {
+        Cmd::Run { amp, routing, seconds, quiet, no_trails, click } => {
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
-            live::run(&audio, &conf, &amp, &routing, seconds, quiet, !no_trails)
+            let session = live::Session { seconds, quiet, trails: !no_trails, click };
+            live::run(&audio, &conf, &amp, &routing, session)
         }
         Cmd::Render { amp, input, output, block } => {
             let input = input.unwrap_or_else(offline::default_input);

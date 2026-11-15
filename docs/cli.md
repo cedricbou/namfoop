@@ -229,6 +229,9 @@ Options:
       --no-trails
           Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au changement, mais une seule chaîne tourne (moins de charge DSP)
 
+      --click
+          Clic de métronome au tempo, dans les sorties déclarées « in-ear » par `namfoop setup` (jamais dans le sondier). Niveau et temps par mesure : [metronome] de la config
+
   -h, --help
           Print help (see a summary with '-h')
 ```
