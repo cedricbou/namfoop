@@ -124,6 +124,8 @@ pub(super) fn spawn(
             Ok(spec)
         };
         let mut wanted: Option<Request> = None;
+        // une seule ligne de trace par attente de la file audio, pas une toutes les 5 ms (#191)
+        let mut busy = false;
         loop {
             // vider la file : les banques s'enregistrent, la dernière chaîne demandée gagne
             let mut got = false;
@@ -139,6 +141,11 @@ pub(super) fn spawn(
                 }
             }
             if let Some(req) = wanted.take() {
+                // témoin (#191) : normalement le thread audio a déjà pris la chaîne précédente
+                // (un bloc, ~1,3 ms) ; si la file est encore pleine, c'est lui qui est en retard
+                if !bank.idle() {
+                    trace("file audio encore pleine : la chaîne précédente n'a pas été prise");
+                }
                 // preset déjà préchargé : l'installer ne charge rien
                 if let Some(i) = req.preset {
                     match bank.switch(i) {
@@ -150,18 +157,36 @@ pub(super) fn spawn(
                             continue;
                         }
                         engine::bank::Switch::AlreadyPlaying => {
+                            // la banque croit que c'est déjà cette place qu'on entend : rien n'est
+                            // installé. Si l'écran dit autre chose, le bug est là (#191)
+                            trace(&format!("banque place={i} : DÉJÀ EN JEU, rien installé"));
                             let _ = tx_built.send(Built::Unchanged);
                             continue;
                         }
                         engine::bank::Switch::Busy => {
+                            if !busy {
+                                busy = true;
+                                trace(&format!("banque place={i} : occupée, réessai dans 5 ms"));
+                            }
                             wanted = Some(req); // le thread audio n'a pas encore pris la précédente
                             std::thread::sleep(Duration::from_millis(5));
                             continue;
                         }
                         // pas (encore) préchargée, ou impossible : on bâtit comme avant
-                        engine::bank::Switch::NotReady | engine::bank::Switch::Failed(_) => {}
+                        engine::bank::Switch::NotReady => {
+                            // la chaîne de cette place est encore dans le thread audio (queue de
+                            // preset, #172) ou pas encore préchargée : on la rebâtit (#191)
+                            trace(&format!(
+                                "banque place={i} : pas prête ({:?}), chaîne rebâtie",
+                                bank.state(i)
+                            ));
+                        }
+                        engine::bank::Switch::Failed(why) => {
+                            trace(&format!("banque place={i} : préchargement en échec ({why})"));
+                        }
                     }
                 }
+                busy = false;
                 let trace_line = req.trace();
                 let built = (|| -> Result<_> {
                     let spec = to_spec(&req, &Library::scan(&lib_dir))?;
@@ -172,7 +197,8 @@ pub(super) fn spawn(
                         match bank.install(chain) {
                             Ok(()) => {
                                 trace(&format!(
-                                    "{trace_line} mesures=blocs:{} parallèles:{}{}",
+                                    "{trace_line} BÂTIE{} mesures=blocs:{} parallèles:{}{}",
+                                    req.preset.map(|i| format!(" (place {i})")).unwrap_or_default(),
                                     meters.blocks.len(),
                                     meters.splits.len(),
                                     // l'alignement sur le DI, s'il y en a un (#178)
