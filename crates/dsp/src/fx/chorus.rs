@@ -5,6 +5,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::{BuildCtx, Effect, ParamInfo, Unit};
+
+/// Marge de queue (ms) pour l'étalement d'une transitoire par les passe-haut de sortie (#173).
+const FILTER_SPREAD_MS: f32 = 20.0;
 use crate::biquad::{Biquad, Shape};
 use crate::{Result, Stage};
 
@@ -118,6 +121,10 @@ impl Effect for ChorusParams {
             mix: self.mix / 100.0,
             hp_wet: [hp(), hp()],
             hp_dry: [hp(), hp()],
+            // la voix modulée sort au plus `delay + depth` après l'entrée, et rien n'est
+            // réinjecté ; la marge couvre l'étalement de la transitoire par les passe-haut
+            // (mesuré : 33 ms réels pour 30 + 10 annoncés aux réglages extrêmes)
+            tail_ms: self.delay + self.depth + FILTER_SPREAD_MS,
         }))
     }
 }
@@ -135,6 +142,8 @@ pub struct Chorus {
     mix: f32,
     hp_wet: [Biquad; 2],
     hp_dry: [Biquad; 2],
+    /// Queue entendue (ms) : le retard maximal de la voix modulée, pas de réinjection (#173).
+    tail_ms: f32,
 }
 
 /// Interpolation de Hermite (Catmull-Rom) entre `y0` et `y1`, `t` dans [0, 1).
@@ -179,6 +188,10 @@ impl Stage for Chorus {
         for b in self.hp_wet.iter_mut().chain(self.hp_dry.iter_mut()) {
             b.reset();
         }
+    }
+
+    fn tail_ms(&self) -> f32 {
+        self.tail_ms
     }
 
     fn name(&self) -> &str {

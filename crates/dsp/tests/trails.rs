@@ -96,6 +96,16 @@ fn what_a_tail_costs_and_how_long_it_lasts() {
     let (ms, _, _) = measure(&["reverb"], 0.0);
     println!("  nam › reverb, --no-trails          queue {ms:6.0} ms (le fondu de sortie seul)");
     assert!(ms > 0.0 && ms < 60.0, "sans queue, la chaîne part tout de suite : {ms} ms");
+
+    // #173 : une chaîne **qui ne sonne pas** ne doit plus être gardée en vie. Avant, la queue
+    // attendait 500 ms de silence mesuré et payait donc deux chaînes pendant 521 ms pour rien ;
+    // maintenant elle demande la durée à la chaîne, qui répond 0.
+    let (ms, _, _) = measure(&[], 2000.0);
+    assert!(ms < 100.0, "une chaîne sans queue doit partir tout de suite : {ms} ms (#173)");
+
+    // et une chaîne qui sonne est gardée le temps qu'elle a annoncé, sans être coupée à 500 ms
+    let (ms, _, _) = measure(&["reverb"], 2000.0);
+    assert!(ms > 1000.0, "la réverbe par défaut annonce ~1,1 s de queue : {ms} ms (#173)");
 }
 
 /// Le fondu porte maintenant sur l'**entrée** des deux chaînes (#172) : vérifier qu'il ne creuse ni

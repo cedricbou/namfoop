@@ -28,6 +28,22 @@ pub use chain::Chain;
 /// Un étage mono qui traite le buffer sur place.
 pub trait Stage: Send {
     fn process(&mut self, buf: &mut [f32]);
+    /// Combien de temps (ms) cet étage peut **encore sonner** une fois son entrée silencieuse
+    /// (#173). Défaut **0** : un gain, un EQ, un gate, un modèle NAM n'ont pas de queue.
+    ///
+    /// C'est ce que la **queue de preset** (`swap::SwapChain`) garde la chaîne quittée en vie :
+    /// elle le *demande* au lieu de le deviner en écoutant le silence, ce qui coupait les
+    /// répétitions d'un delay espacées de plus de 500 ms et faisait tourner deux chaînes pour rien
+    /// pendant un demi-tiers de seconde sur un `nam › ir` qui ne sonne pas.
+    ///
+    /// Convention : la durée pour tomber sous **-60 dBFS**, le même seuil d'audibilité que celui
+    /// qu'utilisait la mesure (un modèle NAM alimenté en silence sort déjà un plancher à -62).
+    /// `Chain` **somme** celle de ses étages (une réverbe derrière un delay continue de sonner
+    /// après la dernière répétition) et `Split` prend le **maximum** de ses branches.
+    /// Appelable depuis le temps réel : aucune allocation, aucune panique.
+    fn tail_ms(&self) -> f32 {
+        0.0
+    }
     /// Remet l'état interne à zéro (queues de réverbe, historique du modèle...).
     /// **Hors temps réel** : peut allouer (NAM refait son prewarm).
     fn reset(&mut self) {}

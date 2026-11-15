@@ -43,6 +43,13 @@ impl Chain {
         self.stages.iter().map(|s| s.as_ref())
     }
 
+    /// Ce que la chaîne peut encore sonner (ms) une fois son entrée silencieuse : la **somme** de
+    /// ses étages (#173). Une réverbe derrière un delay continue de sonner après la dernière
+    /// répétition, donc les queues s'ajoutent le long de la série.
+    pub fn tail_ms(&self) -> f32 {
+        self.stages.iter().map(|s| s.tail_ms()).sum()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.stages.is_empty()
     }

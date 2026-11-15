@@ -301,6 +301,12 @@ impl Split {
 }
 
 impl Stage for Split {
+    /// Le **maximum** des branches audibles (#173) : elles sonnent en parallèle, donc la plus
+    /// longue décide. Une branche muette n'est pas traitée, elle ne sonne pas.
+    fn tail_ms(&self) -> f32 {
+        self.branches.iter().filter(|b| !b.muted).map(|b| b.chain.tail_ms()).fold(0.0f32, f32::max)
+    }
+
     fn process(&mut self, buf: &mut [f32]) {
         let max = self.dry.len();
         for chunk in buf.chunks_mut(max) {
