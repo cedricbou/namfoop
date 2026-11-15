@@ -100,11 +100,26 @@ avec deux chaînes successives, routage refusé), puis
 
 ## Faits mesurés sur les tests
 
-- **`sim_session_swaps_chains` échoue 3 fois sur 12 en isolation** (mesuré le 15/11/2026, x86 16
-  cœurs au repos, `cargo test -p engine --lib sim_session_swaps_chains`) : 0 xrun de référence puis
-  1 pendant les échanges, donc la garde de #114 ne se déclenche pas. Détail et piste de correction
-  dans #130 — **un échec de ce test dans une PR qui ne touche pas au chemin audio ne veut rien
-  dire** : relancer le job.
+- **`sim_session_swaps_chains` était instable : 3 échecs sur 12 en isolation** (x86 16 cœurs au
+  repos), corrigé par #130. Deux causes, et la seconde est la plus instructive :
+  1. **les deux fenêtres n'étaient pas comparables** — la référence durait 400 ms sans rien faire,
+     la phase d'échange 800 ms **plus** un `rt::prewarm` par `send_chain` (0,25 s de bruit + 0,5 s
+     de silence chacun, sur le thread de contrôle). Une machine qui lâche une période par seconde
+     montrait donc 0 au repos et 1 pendant les échanges, et le test l'imputait au code. La
+     référence dure maintenant exactement aussi longtemps que **toute** la phase d'échange ;
+  2. **référence propre, on tolère quand même 1 xrun** : la phase d'échange charge vraiment le
+     processeur, et c'est elle qui pousse un flux limite au-delà du bord. Un vrai défaut
+     décrocherait à **chaque** échange, donc au moins 2 fois (le test en fait 2).
+
+  Ce qu'on ne fait **pas** : comparer les deux comptes quand la référence décroche déjà. La phase
+  d'échange travaille strictement plus, donc sous charge elle décroche proportionnellement plus, et
+  aucun seuil ne sépare « échanger coûte du processeur » de « échanger a un défaut ». Une première
+  version comparait `swapping <= idle + 1` : mesuré, 48 boucles de charge sur 16 cœurs la font
+  échouer. On retombe donc sur la règle de #114 : on le dit et on ne conclut pas.
+
+  Vérifié dans les trois sens : **15 / 15** au repos (contre 9 / 12 avant) ; sous 48 processus de
+  charge, le test passe en annonçant « 3 xrun au repos, 2 pendant les échanges — ne conclut pas » ;
+  et deux décrochages simulés avec une référence propre le font bien échouer, un seul est toléré.
 - `sim_session_swaps_chains` n'exige pas 0 xrun dans l'absolu : la carte simulée en compte un dès
   que son thread a une période de retard, ce qui mesure la machine, pas le code (#114, une PR cassée
   par un runner partagé). Le test prend une **référence** sans échange : si le flux décroche déjà
