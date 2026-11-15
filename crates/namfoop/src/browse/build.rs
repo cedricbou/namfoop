@@ -159,8 +159,6 @@ pub(super) fn spawn(
         };
         let mut wanted: Option<Request> = None;
         let mut banks: Vec<Vec<Option<Request>>> = Vec::new();
-        // une seule ligne de trace par attente de la file audio, pas une toutes les 5 ms (#191)
-        let mut busy = false;
         loop {
             // vider la file : les banques s'enregistrent, la dernière chaîne demandée gagne
             let drained = drain(&rx_req, &mut wanted, &mut banks);
@@ -172,29 +170,6 @@ pub(super) fn spawn(
             }
             let got = drained.chain;
             if let Some(req) = wanted.take() {
-                // témoin (#191) : normalement le thread audio a déjà pris la chaîne précédente
-                // (un bloc, ~1,3 ms) ; si la file est encore pleine, c'est lui qui est en retard
-                if !bank.idle() {
-                    trace("file audio encore pleine : la chaîne précédente n'a pas été prise");
-                }
-                // l'état complet de la banque, en une ligne : la place que la banque croit
-                // entendre, et ce que devient chaque place (#191)
-                if !bank.is_empty() {
-                    let places: Vec<String> = (0..bank.len())
-                        .map(|i| match bank.state(i) {
-                            engine::bank::SlotState::Waiting => "attente".to_string(),
-                            engine::bank::SlotState::Ready => "prête".to_string(),
-                            engine::bank::SlotState::Out => "sortie".to_string(),
-                            engine::bank::SlotState::Failed(_) => "échec".to_string(),
-                        })
-                        .collect();
-                    trace(&format!(
-                        "banque : en jeu={} places=[{}] demande preset={}",
-                        bank.playing().map(|i| i.to_string()).unwrap_or_else(|| "aucune".into()),
-                        places.join(", "),
-                        req.preset.map(|i| i.to_string()).unwrap_or_else(|| "hors banque".into())
-                    ));
-                }
                 // preset déjà préchargé : l'installer ne charge rien
                 if let Some(i) = req.preset {
                     match bank.switch(i) {
@@ -206,36 +181,19 @@ pub(super) fn spawn(
                             continue;
                         }
                         engine::bank::Switch::AlreadyPlaying => {
-                            // la banque croit que c'est déjà cette place qu'on entend : rien n'est
-                            // installé. Si l'écran dit autre chose, le bug est là (#191)
-                            trace(&format!("banque place={i} : DÉJÀ EN JEU, rien installé"));
                             let _ = tx_built.send(Built::Unchanged);
                             continue;
                         }
                         engine::bank::Switch::Busy => {
-                            if !busy {
-                                busy = true;
-                                trace(&format!("banque place={i} : occupée, réessai dans 5 ms"));
-                            }
                             wanted = Some(req); // le thread audio n'a pas encore pris la précédente
                             std::thread::sleep(Duration::from_millis(5));
                             continue;
                         }
-                        // pas (encore) préchargée, ou impossible : on bâtit comme avant
-                        engine::bank::Switch::NotReady => {
-                            // la chaîne de cette place est encore dans le thread audio (queue de
-                            // preset, #172) ou pas encore préchargée : on la rebâtit (#191)
-                            trace(&format!(
-                                "banque place={i} : pas prête ({:?}), chaîne rebâtie",
-                                bank.state(i)
-                            ));
-                        }
-                        engine::bank::Switch::Failed(why) => {
-                            trace(&format!("banque place={i} : préchargement en échec ({why})"));
-                        }
+                        // pas (encore) préchargée (sa chaîne est encore dans le thread audio, queue
+                        // de preset #172), ou impossible : on bâtit comme avant
+                        engine::bank::Switch::NotReady | engine::bank::Switch::Failed(_) => {}
                     }
                 }
-                busy = false;
                 let trace_line = req.trace();
                 let built = (|| -> Result<_> {
                     let spec = to_spec(&req, &Library::scan(&lib_dir))?;

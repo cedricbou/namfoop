@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Modifié (#193)
+- Les traces de diagnostic posées pour la chasse de #191 (une ligne par touche, l'état de la banque
+  à chaque demande) sont retirées : elles n'avaient de sens que pour cette enquête. Le relevé garde
+  ce qui répond à « quelle chaîne joue vraiment », horodatage compris.
+- `NAMFOOP_BROWSE_TRACE` n'est plus relu dans l'environnement à chaque ligne : éteinte, la trace ne
+  coûte plus qu'une lecture atomique (elle n'a jamais été appelée depuis le thread audio, où écrire
+  un fichier est interdit).
+
 ### Corrigé (#191)
 - **Le son suit toujours la bascule de preset.** En enchaînant très vite deux presets, on pouvait
   entendre celui d'il y a un ou deux appuis alors que l'écran affichait déjà le bon : la chaîne
