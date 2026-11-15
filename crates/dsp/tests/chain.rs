@@ -74,9 +74,11 @@ fn rms(x: &[f32]) -> f32 {
     (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt()
 }
 
-/// Mode « match » : le volume traité (NAM + IR) égale celui du DI de référence.
+/// Mode « match » : la **loudness** du son traité (NAM + IR) égale celle du DI de référence. C'est
+/// une loudness pondérée K et non un RMS large (#181) : le RMS, lui, s'écarte de quelques dB,
+/// puisque le son traité ne met pas son énergie aux mêmes fréquences que la basse nue.
 #[test]
-fn level_match_equalizes_rms_with_di() {
+fn level_match_equalizes_loudness_with_di() {
     use dsp::chain::Level;
     use std::sync::Arc;
     let ir = test_ir("match");
@@ -90,8 +92,11 @@ fn level_match_equalizes_rms_with_di() {
             ..Default::default()
         };
         let out = render(&spec, 64, &reference);
-        let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
-        assert!(diff.abs() < 0.5, "trim {trim} : écart de niveau {diff:.2} dB");
+        let loud = dsp::profile::loudness_db(&out, 48000) - dsp::profile::loudness_db(&reference, 48000);
+        assert!(loud.abs() < 0.5, "trim {trim} : écart de loudness {loud:.2} dB");
+        // le RMS large, lui, n'est plus égal : c'est le changement voulu par #181
+        let large = 20.0 * (rms(&out) / rms(&reference)).log10();
+        assert!(large.abs() < 6.0, "trim {trim} : écart de RMS {large:.2} dB, invraisemblable");
     }
     let _ = std::fs::remove_file(ir);
 }
@@ -160,6 +165,8 @@ fn trim_before_pre_effects_sounds_the_same() {
 }
 
 /// Le niveau « match » se mesure sur la chaîne avec ses effets : un `post` à -6 dB est compensé.
+/// Un gain est le seul cas où la compensation est **exacte** : il ne change pas le spectre, donc
+/// loudness et RMS bougent ensemble (#181).
 #[test]
 fn level_match_includes_effects() {
     use dsp::chain::Level;
@@ -172,8 +179,8 @@ fn level_match_includes_effects() {
         ..Default::default()
     };
     let out = render(&spec, 64, &reference);
-    let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
-    assert!(diff.abs() < 0.5, "écart de niveau {diff:.2} dB");
+    let loud = dsp::profile::loudness_db(&out, 48000) - dsp::profile::loudness_db(&reference, 48000);
+    assert!(loud.abs() < 0.5, "écart de loudness {loud:.2} dB");
     assert_eq!(spec.describe(), "NAM wavenet › gain:db=-6 › niveau DI");
 }
 

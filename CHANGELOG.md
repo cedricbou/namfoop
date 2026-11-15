@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Modifié (#181)
+- Le **niveau « match »** (volume aligné sur ta basse en direct) compare maintenant des **loudness
+  pondérées K** (ITU-R BS.1770, la norme de la diffusion) au lieu de RMS larges : l'oreille n'entend
+  pas le fondamental d'une basse comme ses harmoniques, et un son qui a mis son énergie dans le
+  médium-aigu s'entend plus fort à RMS égal. **Le volume de tes chaînes change donc un peu** — à
+  écouter.
+- Mesuré sur la bibliothèque : un fuzz est aligné **1,2 dB plus bas** qu'avant, un ampli à 0,1 dB
+  près comme avant, soit **1,3 dB** de correction relative entre les deux. C'est le bon sens, mais
+  ça ne suffit pas à faire tenir un fuzz à côté d'un clair : pour ça, c'est le **volume du preset**
+  (#179) qui tranche.
+- Une pondération **A** a été mesurée et écartée : elle ignore tellement le grave qu'elle
+  alignerait le fuzz **plus haut** encore que le RMS large.
+- Le log dit les deux (« niveau aligné sur le DI : +4.4 dB (loudness pondérée ; RMS large :
+  +5.6 dB) »), de quoi comparer à l'oreille.
+
 ### Ajouté (#179)
 - **Volume par preset** (`,` et `.` dans l'espace Chaîne de `browse`, par pas d'1 dB, de -24 à
   +12 dB) : chaque preset porte son propre niveau de sortie, enregistré dans son `.preset.toml`.

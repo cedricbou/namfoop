@@ -537,10 +537,21 @@ impl ChainSpec {
                 chain.process(c);
             }
             chain.reset();
+            // On compare des **loudness pondérées K** (ITU-R BS.1770) et non des RMS larges : à RMS
+            // égal, un son qui a mis son énergie là où l'oreille est sensible — un fuzz — s'entend
+            // bien plus fort (#181, mesures dans `crates/dsp/CLAUDE.md`). Le RMS large reste
+            // mesuré, et logué, pour pouvoir comparer les deux à l'oreille.
             let (ri, ro) = (crate::chain::rms(&reference), crate::chain::rms(&out));
-            if ri > 1e-6 && ro > 1e-9 {
-                let g = (20.0 * (ri / ro).log10()).clamp(-60.0, 60.0) as f32;
-                log::info!("niveau aligné sur le DI : {g:+.1} dB");
+            let (li, lo) = (
+                crate::profile::loudness_db(&reference, sample_rate),
+                crate::profile::loudness_db(&out, sample_rate),
+            );
+            if ri > 1e-6 && ro > 1e-9 && li.is_finite() && lo.is_finite() {
+                let g = (li - lo).clamp(-60.0, 60.0);
+                let large = (20.0 * (ri / ro).log10()).clamp(-60.0, 60.0) as f32;
+                log::info!(
+                    "niveau aligné sur le DI : {g:+.1} dB (loudness pondérée ; RMS large : {large:+.1} dB)"
+                );
                 chain.push(Gain::db(g, "niveau DI"));
                 // l'écran doit pouvoir le montrer : il annule tout gain posé dans la chaîne (#178)
                 if let Some(m) = meters.as_mut() {

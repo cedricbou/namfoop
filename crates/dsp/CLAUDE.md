@@ -25,7 +25,8 @@ chargement), `preset.rs` (**presets** `.preset.toml` : la chaîne enregistrée, 
 **avant** `blocks` : en TOML une valeur ne s'écrit pas après un tableau de tables) — blocs, parallèles,
 branches ; chemins **relatifs** à la bibliothèque avec l'identifiant court en filet ; effets écrits
 au complet par serde pour que le son soit figé ; `to_blocks()` donne les `BlockSpec` du temps réel), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
-`from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : 2 à `MAX_BRANCHES` = 4 branches, mode copie ou bandes
+`from_transfer`, distorsion harmonique, **`loudness_db`** : loudness pondérée K d'ITU-R BS.1770,
+dont se sert `Level::Match`, #181), `split.rs` (étage parallèle `Split` : 2 à `MAX_BRANCHES` = 4 branches, mode copie ou bandes
 (`SplitMode::Bands`, 1 à 3 coupures croissantes, crossover LR4) ; par branche `SplitBranch` : gain,
 polarité, muet (muette = pas traitée) ; réglages vérifiés à la construction (`Result`), jamais en RT ;
 retards mesurés par corrélation et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db`,
@@ -91,6 +92,35 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   niveaux (crête/RMS) et des comparaisons numériques.
 
 ## Faits mesurés
+
+- **L'alignement sur le DI compare des loudness pondérées K** (#181), et non des RMS larges :
+  `profile::loudness_db` (ITU-R BS.1770 sans porte ; les deux biquads de la norme reconstruits par
+  les formules RBJ aux fréquences et Q de ses pôles, donc valables à **toute** fréquence
+  d'échantillonnage — vérifié à 44,1 / 48 / 96 kHz). Mesuré sur la bibliothèque de l'utilisateur
+  (`render -m <id> -i auto` sur son DI de calibration, le log donne les deux) :
+
+  | modèle | pondérée K | RMS large | écart |
+  |---|---|---|---|
+  | Big Fuzz (pedal, très saturé 71 %) | +4,4 dB | +5,6 dB | **-1,2** |
+  | Agressive Scooped Mids (pedal) | +1,8 | +2,4 | -0,6 |
+  | Clean Comp Preamp (pedal) | +1,1 | +1,4 | -0,3 |
+  | Ampeg SVT (amp_cab) | +1,0 | +0,9 | **+0,1** |
+  | MESA 800D FAT CLASSIC ROCK | +6,3 | +6,8 | -0,5 |
+  | Fender Bassman 800 | +17,9 | +18,4 | -0,5 |
+
+  Donc **1,3 dB** de correction relative entre le fuzz et l'ampli : réel, dans le bon sens, et
+  **insuffisant** à lui seul — le problème que l'utilisateur entendait (#181) est une différence de
+  **timbre** (+18 dB au-dessus de 500 Hz à RMS égal) qu'aucun nombre unique ne résume. Le réglage
+  qui tranche est le **volume par preset** (#179).
+
+  La **pondération A a été mesurée et écartée** : estimée sur les sept zones des courbes en cache,
+  l'écart fuzz − ampli vaut +15,4 dB en RMS large, **+17,9 dB** pondéré K, mais **+12,0 dB** pondéré
+  A. A ignore tellement le grave qu'elle baisse surtout l'ampli (riche en grave) et alignerait donc
+  le fuzz **plus haut** que le RMS large : le mauvais sens. K reste aussi le bon choix physique à
+  niveau de scène, où les courbes isosoniques sont plus plates qu'à bas niveau.
+
+  Conséquence sur les rendus de référence : `golden/full.toml` (le seul en `Level::Match`) a été
+  régénéré, RMS 0,2099 -> 0,1923.
 
 - **L'alignement sur le DI annule tout gain de la chaîne** (#178, #25). En `Level::Match`,
   `build_inner` fait passer l'enregistrement de calibration dans la chaîne **entière déjà
