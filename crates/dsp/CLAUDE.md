@@ -3,7 +3,14 @@
 **Responsabilité.** Les traitements, sans carte son ni config : étages mono (trait `Stage`),
 chaîne, changement de chaîne à chaud, analyses hors ligne.
 
-**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs` (`Gain` figé, et `LiveGain` qui suit
+**Fichiers / API.** Le trait `Stage` (dans `lib.rs`) a **`tail_ms()`** (défaut 0, #173) : combien
+de temps l'étage peut encore sonner une fois son entrée silencieuse, à -60 dBFS près. `Chain` les
+**somme** (une réverbe derrière un delay sonne après la dernière répétition), `Split` prend le
+**maximum** de ses branches audibles, et c'est ce que la queue de preset garde en vie. Chaque étage
+à queue le déclare : `Delay` depuis son état **vivant** (le temps dépend du tempo, #195) et son
+`mix`, `Reverb` depuis son RT60 + predelay pondérés par son `mix`, `IrStage` depuis sa longueur,
+`Chorus` depuis son retard modulé ; un gain, un EQ, un gate, un NAM n'annoncent rien.
+Puis : `nam.rs`, `ir.rs` (fft-convolver), `gain.rs` (`Gain` figé, et `LiveGain` qui suit
 une case `param::Control` : lecture **une fois par bloc**, rampe de `RAMP_MS` = 20 ms comptées en
 **échantillons**, qui traverse les frontières de bloc — jamais une rampe étalée sur le buffer, qui
 ferait dépendre le son de la taille de bloc ; case lue à la construction ET à `reset()`, sinon une
@@ -65,7 +72,8 @@ un message qui dit où le décrire), `swap.rs` (changement de chaîne à chaud :
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms **sur l'entrée** des deux chaînes, et la
 chaîne quittée passe dans la **queue de preset** (`trails_ms`, #172) : alimentée en silence, sa
 sortie ajoutée à celle de la chaîne en écoute, elle finit de sonner puis repart vers le contrôle —
-jamais libérée en RT ; le contrôle la **libère** (`collect`) ou la **reprend** (`reclaim`) pour la
+jamais libérée en RT. Depuis #173, la durée est **demandée** à la chaîne (`Stage::tail_ms`) et non
+plus devinée en écoutant le silence : `QUIET_PEAK` / `QUIET_MS` ont disparu ; le contrôle la **libère** (`collect`) ou la **reprend** (`reclaim`) pour la
 garder bâtie, ce que fait `engine::bank`). `tests/` : propriétés de chaîne (indépendance au bloc), absence
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
 enveloppe 50 ms).
@@ -173,14 +181,15 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   d'exemple WaveNet, bloc 64) : la chaîne quittée finit de sonner, donc **deux chaînes tournent**
   pendant ce temps — mesuré **×2,1 par bloc**, soit, avec les chiffres du tableau plus bas,
   45 -> 90 µs pour b7k (3,4 -> 6,8 % du budget) et 104 -> 208 µs pour le modèle le plus lourd.
-  Durée réellement observée de la queue (plafond 2 s) :
+  Durée réellement observée de la queue (plafond 2 s), **avant et après #173** (la durée est
+  désormais demandée à la chaîne, non devinée en écoutant le silence) :
 
-  | chaîne quittée | queue |
-  |---|---|
-  | `nam` seul (rien qui sonne) | 521 ms (le minimum : 500 ms de silence exigés + 20 ms de fondu) |
-  | `nam › reverb` (défauts) | 1 000 ms |
-  | `nam › delay 400 ms, feedback 70 %` | 2 000 ms (le plafond : les répétitions continuent) |
-  | n'importe laquelle, `--no-trails` | 23 ms (le fondu de sortie seul) |
+  | chaîne quittée | avant (silence mesuré) | après (durée annoncée) |
+  |---|---|---|
+  | `nam` seul (rien qui sonne) | 521 ms (500 de silence exigés + 20 de fondu) | **23 ms** |
+  | `nam › reverb` (défauts) | 1 000 ms (coupée) | **1 120 ms** (ce qu'elle annonce) |
+  | `nam › delay 400 ms, feedback 70 %` | 2 000 ms | 2 001 ms (le plafond) |
+  | n'importe laquelle, `--no-trails` | 23 ms | 23 ms (le fondu de sortie seul) |
 
   Le fondu porte désormais sur l'**entrée** des deux chaînes (c'est ce qui permet à l'ancienne de
   continuer à sonner) : mesuré sur un sinus, le son direct n'en souffre pas plus qu'avant. Le pire
@@ -244,6 +253,30 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   b7k + IR dg212 : 43–44 échantillons (0,9 ms, l'attaque de l'IR). Alignement du grave clair sur la
   calibration de l'utilisateur : -14,7 dB, niveau final inchangé (RMS -24,4 dBFS) ; coût `split`
   vide (4 biquads) 0,67 µs par bloc de 64 (0,05 %).
+- **La queue annoncée couvre toujours la décroissance réelle** (#173). Vérifié par la mesure
+  (`render`, impulsion puis 12 s de silence, dernier échantillon au-dessus de **-60 dBFS**) :
+
+  | réglage | annoncé | réel |
+  |---|---|---|
+  | `reverb` (défauts : decay 1,5 s, mix 15 %) | 1 098 ms | 352 ms |
+  | `reverb:decay=0.5` | 373 | 191 |
+  | `reverb:decay=3,predelay=50` | 2 226 | 554 |
+  | `reverb:mix=100` | 1 510 | 740 |
+  | `reverb:mix=100,decay=5` | 5 010 | 1 832 |
+  | `delay` (défauts : 400 ms, fb 35 %, mix 30 %) | 2 593 | 1 600 |
+  | `delay:feedback=70,mix=100` | 8 168 | 5 601 |
+  | `delay:feedback=90,mix=100` | 26 295 | 11 602 |
+  | `delay:time=125,mix=100` | 968 | 625 |
+  | `delay:feedback=0,mix=100,lowcut=20` | 420 | 410 |
+  | `chorus:depth=10,delay=30` | 40 | 33 |
+
+  Toujours majorant, d'un facteur 1 à 3 : c'est voulu, couper une queue s'entend, la garder trop
+  longtemps ne coûte que du calcul. Deux corrections tirées de ces mesures :
+  **le `mix` compte** (une réverbe à 15 % part 16,5 dB plus bas, donc atteint le plancher bien plus
+  tôt : sans ça elle annonçait 1 510 ms pour 352 réels), et **les filtres étalent une transitoire**
+  — une répétition unique de 400 ms ressort à 410 ms à `lowcut = 20 Hz`, d'où une marge mesurée de
+  20 ms (`FILTER_SPREAD_MS`) sur le delay et le chorus, sans laquelle le delay à réinjection nulle
+  était 4 à 10 ms trop court.
 - **Delay synchronisé au tempo** (#195, ADR 0008) : `division` vaut `libre` par défaut, donc les
   rendus de référence sont **inchangés au bit près**. L'étage lit le tempo **une fois par bloc**
   (`follow_tempo`) et n'appelle `set_time` que si le nombre d'échantillons **change** — sinon le

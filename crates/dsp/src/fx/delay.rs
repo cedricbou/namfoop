@@ -22,6 +22,13 @@ pub const MAX_SECONDS: f32 = 2.0;
 const XFADE_MS: f32 = 50.0;
 /// Niveau sous lequel la queue est considérée éteinte (pour [`Effect::tail_seconds`]).
 const TAIL_DB: f32 = -140.0;
+/// Seuil de la queue **entendue** (`Stage::tail_ms`, #173) : -60 dBFS, le plancher d'audibilité.
+/// Bien plus haut que [`TAIL_DB`], qui sert aux tests génériques (« plus rien ne sort »).
+const AUDIBLE_DB: f32 = -60.0;
+/// Marge pour l'**étalement** d'une répétition par les filtres de boucle : une impulsion ressort
+/// un peu plus longue qu'elle n'est entrée. Mesuré (`render`, `feedback=0`, répétition à 400 ms) :
+/// 10 ms au pire, à `lowcut = 20 Hz` ; 4 ms aux défauts, 1 ms à 1 kHz.
+const FILTER_SPREAD_MS: f32 = 20.0;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -280,6 +287,21 @@ impl Stage for Delay {
             self.w = (self.w + 1) & self.mask;
             *x += self.mix * echo;
         }
+    }
+
+    /// Le temps d'une répétition **au tempo courant**, multiplié par le nombre de répétitions
+    /// qu'il faut pour descendre sous -60 dBFS. C'est la raison d'être de #173 : un delay
+    /// synchronisé n'a pas de temps connu d'avance, et deviner en écoutant le silence coupait la
+    /// répétition suivante dès qu'elles sont espacées de plus d'une demi-seconde.
+    fn tail_ms(&self) -> f32 {
+        let one = self.cur as f32 * 1000.0 / self.sample_rate as f32;
+        // la première répétition sort à `mix` du niveau d'entrée : plus elle est discrète, moins
+        // il reste de décibels à perdre avant le plancher
+        let head_db = 20.0 * self.mix.max(1e-6).log10();
+        let to_lose = (-AUDIBLE_DB + head_db).max(0.0);
+        let per_repeat = -20.0 * self.feedback.log10(); // décibels perdus par répétition
+        let repeats = if self.feedback > 0.0 && per_repeat > 0.0 { to_lose / per_repeat } else { 0.0 };
+        one * (1.0 + repeats) + FILTER_SPREAD_MS
     }
 
     fn reset(&mut self) {

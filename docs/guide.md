@@ -936,9 +936,10 @@ Trois règles tiennent l'ensemble :
   **La queue : la réverbe du preset quitté finit de sonner.** Quand tu changes de preset, la chaîne
   que tu quittes n'est pas coupée : son entrée se ferme (le fondu de 20 ms) mais sa **réverbe** et
   ses **répétitions de delay** continuent leur décroissance pendant que le nouveau son attaque,
-  comme sur un pédalier à « trails ». Elle s'arrête d'elle-même dès qu'elle ne sonne plus — mesuré :
-  **0,5 s** pour une chaîne sans effet à queue, **1 s** pour une réverbe aux réglages par défaut,
-  2 s au maximum pour un delay à longue réinjection.
+  comme sur un pédalier à « trails ». Chaque effet **dit** combien de temps il peut encore sonner,
+  et la queue est gardée exactement ce temps-là — mesuré : **23 ms** pour une chaîne sans effet à
+  queue (le fondu seul : rien ne sonne, rien n'est gardé), **1,1 s** pour une réverbe aux réglages
+  par défaut, 2 s au maximum pour un delay à longue réinjection.
 
   Le prix : pendant ce temps, **deux chaînes tournent** (la queue et la nouvelle), donc jusqu'à deux
   fois la charge DSP — pour b7k, 3,4 % du budget d'un bloc qui passent à 6,8 %. C'est sans
@@ -950,8 +951,9 @@ Trois règles tiennent l'ensemble :
   ```
 
   La réverbe du preset quitté s'arrête alors net au changement, comme avant, et une seule chaîne
-  tourne. À savoir aussi : un delay dont les répétitions sont espacées de plus de 500 ms voit les
-  suivantes coupées (la queue croit qu'elle s'est tue entre deux répétitions).
+  tourne. À savoir : la queue ne coûte plus rien quand rien ne sonne (une chaîne `nam › ir` part en
+  23 ms au lieu d'un demi-tiers de seconde), et un delay lent n'est plus coupé entre deux
+  répétitions — la durée est demandée à la chaîne, non devinée en écoutant le silence.
 
   **`t`** déplie le TOML du preset sous le synoptique (replié par défaut : `▸ preset TOML (t)`) —
   pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.

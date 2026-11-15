@@ -521,3 +521,45 @@ fn cost_of_several_models_in_parallel() {
     }
     let _ = std::fs::remove_file(ir);
 }
+
+/// `Stage::tail_ms` (#173) : la **somme** le long de la série, le **maximum** entre les branches
+/// d'un parallèle, et **zéro** pour ce qui ne sonne pas. C'est ce que la queue de preset demande
+/// à la chaîne au lieu de l'écouter décroître.
+#[test]
+fn tail_ms_is_summed_along_the_series_and_maxed_across_branches() {
+    use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
+    let fx = |s: &str| BlockSpec::Fx(s.parse().expect(s));
+    let tail = |blocks: Vec<BlockSpec>| {
+        ChainSpec { blocks, ..Default::default() }.build(48000, 64).expect("chaîne").tail_ms()
+    };
+
+    // ce qui ne sonne pas n'annonce rien
+    assert_eq!(tail(vec![fx("gain:db=-6"), fx("hpf:freq=80"), fx("gate")]), 0.0);
+
+    // une seule répétition de 400 ms, sans réinjection : 400 + la marge des filtres de boucle
+    let one = tail(vec![fx("delay:time=400,feedback=0,mix=100")]);
+    assert!((400.0..=440.0).contains(&one), "{one} ms");
+
+    // la réverbe par défaut (decay 1,5 s, mix 15 %) : ~1,1 s
+    let rev = tail(vec![fx("reverb")]);
+    assert!((1000.0..1200.0).contains(&rev), "{rev} ms");
+
+    // en série, les queues **s'ajoutent** : la réverbe sonne encore après la dernière répétition
+    let both = tail(vec![fx("delay:time=400,feedback=0,mix=100"), fx("reverb")]);
+    assert!((both - (one + rev)).abs() < 1.0, "{both} ms au lieu de {} ", one + rev);
+
+    // dans un parallèle, c'est le **maximum** : les branches sonnent en même temps
+    let split = |mute_long: bool| {
+        let long = BranchSpec { blocks: vec![fx("reverb")], mute: mute_long, ..Default::default() };
+        let short =
+            BranchSpec { blocks: vec![fx("delay:time=400,feedback=0,mix=100")], ..Default::default() };
+        tail(vec![BlockSpec::Split(SplitSpec {
+            mode: SplitKind::Copy,
+            freqs: Vec::new(),
+            branches: vec![long, short],
+        })])
+    };
+    assert!((split(false) - rev).abs() < 1.0, "{} ms : la plus longue branche décide", split(false));
+    // une branche muette n'est pas traitée, donc elle ne sonne pas
+    assert!((split(true) - one).abs() < 1.0, "{} ms : la branche muette ne compte pas", split(true));
+}

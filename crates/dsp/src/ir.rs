@@ -137,19 +137,34 @@ pub struct IrStage {
     gain: f32,
     name: String,
     pub len: usize,
+    /// Durée de l'IR (ms) : ce qu'elle continue de sonner après la fin du signal (#173).
+    tail_ms: f32,
 }
 
 impl IrStage {
     pub fn load(path: &Path, sample_rate: u32, max_block: usize, s: &IrSettings) -> Result<Self> {
         let ir = prepare_ir(path, sample_rate, s)?;
         let name = crate::blend::display_name(path);
-        Self::from_samples(&ir, max_block, s.output_db, name)
+        Self::from_samples(&ir, max_block, s.output_db, name, sample_rate)
     }
 
-    pub fn from_samples(ir: &[f32], max_block: usize, output_db: f32, name: String) -> Result<Self> {
+    pub fn from_samples(
+        ir: &[f32],
+        max_block: usize,
+        output_db: f32,
+        name: String,
+        sample_rate: u32,
+    ) -> Result<Self> {
         let mut conv = FFTConvolver::default();
         conv.init(max_block.max(16), ir).map_err(|e| Error::Ir(name.clone(), format!("{e:?}")))?;
-        Ok(Self { conv, scratch: vec![0.0; max_block], gain: db_to_gain(output_db), name, len: ir.len() })
+        Ok(Self {
+            conv,
+            scratch: vec![0.0; max_block],
+            gain: db_to_gain(output_db),
+            name,
+            len: ir.len(),
+            tail_ms: ir.len() as f32 * 1000.0 / sample_rate.max(1) as f32,
+        })
     }
 }
 
@@ -169,6 +184,10 @@ impl Stage for IrStage {
     fn reset(&mut self) {
         self.conv.reset();
     }
+    fn tail_ms(&self) -> f32 {
+        self.tail_ms
+    }
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -182,7 +201,7 @@ mod tests {
     fn convolution_matches_direct() {
         let ir: Vec<f32> = (0..300).map(|i| ((i * 7919) % 97) as f32 / 97.0 - 0.5).collect();
         let input: Vec<f32> = (0..1000).map(|i| ((i * 104729) % 89) as f32 / 89.0 - 0.5).collect();
-        let mut st = IrStage::from_samples(&ir, 64, 0.0, "t".into()).unwrap();
+        let mut st = IrStage::from_samples(&ir, 64, 0.0, "t".into(), 48000).unwrap();
         let mut out = input.clone();
         for c in out.chunks_mut(64) {
             st.process(c);
@@ -195,7 +214,7 @@ mod tests {
 
     #[test]
     fn zero_latency() {
-        let mut st = IrStage::from_samples(&[1.0, 0.0, 0.0], 64, 0.0, "t".into()).unwrap();
+        let mut st = IrStage::from_samples(&[1.0, 0.0, 0.0], 64, 0.0, "t".into(), 48000).unwrap();
         let mut buf = [0.0f32; 64];
         buf[0] = 1.0;
         st.process(&mut buf);

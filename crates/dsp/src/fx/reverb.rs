@@ -148,6 +148,9 @@ pub struct Reverb {
     out_gain: f32,
     mix: f32,
     hp: [Biquad; 2],
+    /// Queue entendue (ms) : le RT60 est par définition la chute de 60 dB, plus le predelay
+    /// (#173). Figée ici, les paramètres n'étant pas gardés sous cette forme.
+    tail_ms: f32,
 }
 
 impl ReverbParams {
@@ -172,6 +175,13 @@ impl ReverbParams {
             out_gain: (1.0 - g * g).sqrt(),
             mix: self.mix / 100.0,
             hp: [hp(), hp()],
+            // le RT60 **est** la chute de 60 dB, et la queue commence après le predelay. Une
+            // réverbe mélangée bas part déjà plus bas, donc elle atteint le plancher d'audibilité
+            // (-60 dBFS) d'autant plus tôt : à 15 % de mix, 16,5 dB sont déjà gagnés.
+            tail_ms: self.predelay
+                + self.decay
+                    * 1000.0
+                    * ((60.0 + 20.0 * (self.mix / 100.0).max(1e-6).log10()) / 60.0).max(0.0),
         }
     }
 }
@@ -218,6 +228,10 @@ impl Stage for Reverb {
         for b in self.hp.iter_mut() {
             b.reset();
         }
+    }
+
+    fn tail_ms(&self) -> f32 {
+        self.tail_ms
     }
 
     fn name(&self) -> &str {

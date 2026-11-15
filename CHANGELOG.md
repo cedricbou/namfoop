@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Modifié (#173)
+- **La queue de preset demande sa durée à la chaîne** au lieu de l'écouter décroître. Chaque étage
+  dit ce qu'il peut encore sonner (`Stage::tail_ms`) : une série **somme** les queues de ses étages,
+  un parallèle prend le **maximum** de ses branches, et un gain, un EQ, un gate ou un modèle NAM
+  n'annoncent rien. Conséquences mesurées, bloc 64 à 48 kHz :
+  - une chaîne **qui ne sonne pas** (`nam › ir`) n'est plus gardée en vie : **521 ms → 23 ms**, donc
+    plus de double charge DSP pour rien à chaque bascule de preset ;
+  - une **réverbe** n'est plus coupée à une seconde : elle obtient ses **1,1 s** annoncés ;
+  - un **delay lent** n'est plus coupé entre deux répétitions (la fenêtre de silence de 500 ms se
+    refermait entre elles) — ce qui comptait d'autant plus depuis les divisions rythmiques, où le
+    temps n'est plus connu d'avance.
+
+  Vérifié par la mesure pour chaque effet à queue (`render`, impulsion puis silence, seuil
+  -60 dBFS) : la durée annoncée couvre toujours la décroissance réelle, de la réverbe à 5 s de
+  decay au delay à 90 % de réinjection.
+
 ### Corrigé (#130)
 - Le test d'échange de chaînes de la carte simulée ne décrète plus une régression quand c'est la
   machine qui a lâché une période : il échouait **3 fois sur 12** au repos, et bloquait la CI comme

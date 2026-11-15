@@ -29,19 +29,6 @@ use rtrb::{Consumer, Producer, RingBuffer};
 
 use crate::{Chain, Stage};
 
-/// Crête d'un bloc sous laquelle une queue est considérée **éteinte**. Mesuré (`render`, b7k + IR,
-/// silence en entrée) : un modèle NAM alimenté en silence sort un plancher autour de -62 dBFS
-/// (bruit du réseau, remonté par la normalisation) — un seuil plus bas ne se déclencherait donc
-/// jamais et la queue tournerait pour rien jusqu'à `trails_ms`.
-const QUIET_PEAK: f32 = 0.001; // -60 dBFS
-
-/// Durée pendant laquelle la queue doit rester sous [`QUIET_PEAK`] avant d'être rendue. Il ne
-/// suffit pas de couvrir le predelay d'une réverbe : un **delay** ne sort rien entre deux
-/// répétitions, et une fenêtre trop courte lui couperait la suivante. 500 ms couvrent les delays
-/// musicaux courants (la noire à 120 bpm) ; au-delà, les répétitions suivantes sont coupées comme
-/// avant — ce serait à `Stage` de dire la durée de sa queue pour que ce soit exact (#173).
-const QUIET_MS: f32 = 500.0;
-
 /// Fondu de sortie de la queue : elle ne se coupe jamais net, même à bout de `trails_ms`.
 const TAIL_FADE_MS: f32 = 20.0;
 
@@ -58,14 +45,15 @@ pub struct SwapChain {
     /// Durée maximale d'une queue (échantillons) et longueur de son fondu de sortie.
     trails_len: usize,
     ramp_len: usize,
-    quiet_len: usize,
+    /// Fréquence d'échantillonnage : convertit la durée annoncée par une chaîne (#173).
+    sample_rate: u32,
     /// Gain de sortie de la queue (1 tant qu'elle sonne) et son pas d'extinction par échantillon
     /// (0 : pas encore en extinction).
     tail_gain: f32,
     tail_step: f32,
-    /// Échantillons restants avant extinction forcée, et temps passé sous [`QUIET_PEAK`].
+    /// Échantillons restants avant extinction : la chaîne quittée a **dit** combien de temps elle
+    /// pouvait encore sonner (`Stage::tail_ms`, #173), plafonné par `trails_ms`.
     tail_left: usize,
-    tail_quiet: usize,
     dry: Vec<f32>,
     wet: Vec<f32>,
     tail_buf: Vec<f32>,
@@ -106,11 +94,10 @@ pub fn swap_pair(
             // la queue dure au moins son fondu de sortie : une chaîne n'est jamais coupée net
             trails_len: ms(trails_ms).max(ramp_len),
             ramp_len,
-            quiet_len: ms(QUIET_MS),
+            sample_rate,
             tail_gain: 0.0,
             tail_step: 0.0,
             tail_left: 0,
-            tail_quiet: 0,
             dry: vec![0.0; n],
             wet: vec![0.0; n],
             tail_buf: vec![0.0; n],
@@ -215,34 +202,44 @@ impl SwapChain {
             if let Some(previous) = self.tail.take() {
                 self.retire(previous); // son fondu de sortie vient de finir (gain ~0)
             }
+            // on **demande** à la chaîne quittée ce qu'elle peut encore sonner, au lieu de
+            // l'écouter décroître (#173) : une somme de quelques appels virtuels, une seule fois
+            // par bascule, sans allocation. Le fondu de sortie est compris dans le compte.
+            let want = self.samples(old.tail_ms()) + self.ramp_len;
             self.tail = Some(old);
             self.tail_gain = 1.0;
             self.tail_step = 0.0;
-            self.tail_left = self.trails_len;
-            self.tail_quiet = 0;
+            self.tail_left = want.min(self.trails_len).max(self.ramp_len);
         }
     }
 
+    /// Millisecondes -> échantillons, pour la durée annoncée par la chaîne quittée. Protégée :
+    /// une valeur non finie ou négative donne 0, et le plafond `trails_ms` s'applique ensuite.
+    fn samples(&self, ms: f32) -> usize {
+        if !ms.is_finite() || ms <= 0.0 {
+            return 0;
+        }
+        (ms / 1000.0 * self.sample_rate as f32) as usize
+    }
+
     /// La queue : la chaîne quittée tourne sur du silence et sa sortie s'ajoute à celle de la
-    /// chaîne en écoute, jusqu'à extinction (silence mesuré, ou `trails_ms` écoulé).
+    /// chaîne en écoute, le temps qu'elle a **annoncé** (`Stage::tail_ms`, #173), plafonné par
+    /// `trails_ms`.
     fn mix_tail(&mut self, buf: &mut [f32]) {
         let n = buf.len();
         let t = &mut self.tail_buf[..n];
         t.fill(0.0);
         self.tail.as_mut().expect("appelée avec une queue").process(t);
         let mut g = self.tail_gain;
-        let mut peak = 0.0f32;
         for k in 0..n {
             buf[k] += g * t[k];
-            peak = peak.max(t[k].abs());
             g = (g + self.tail_step).max(0.0);
         }
         self.tail_gain = g;
         self.tail_left = self.tail_left.saturating_sub(n);
-        self.tail_quiet = if peak < QUIET_PEAK { self.tail_quiet + n } else { 0 };
-        // le fondu de sortie est **compris** dans `trails_ms` : `trails_ms = 0` ne garde donc la
-        // chaîne quittée que le temps de ce fondu
-        if self.tail_left <= self.ramp_len || self.tail_quiet >= self.quiet_len {
+        // le fondu de sortie est **compris** dans la durée annoncée : `trails_ms = 0` ne garde donc
+        // la chaîne quittée que le temps de ce fondu
+        if self.tail_left <= self.ramp_len {
             self.fade_tail_out(self.ramp_len);
         }
         if self.tail_step < 0.0 && self.tail_gain <= 0.0 {
