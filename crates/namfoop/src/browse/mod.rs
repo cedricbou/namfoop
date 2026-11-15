@@ -513,7 +513,10 @@ fn trace(line: &str) {
     if let Some(path) = std::env::var_os("NAMFOOP_BROWSE_TRACE") {
         use std::io::Write;
         if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-            let _ = writeln!(f, "{line}");
+            // une seule écriture par ligne : `writeln!` en fait plusieurs (le fichier n'a pas de
+            // tampon), et les lignes de la boucle d'affichage et du thread de construction se
+            // mélangeaient (#191)
+            let _ = f.write_all(format!("{line}\n").as_bytes());
         }
     }
 }

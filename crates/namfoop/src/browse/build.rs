@@ -146,6 +146,24 @@ pub(super) fn spawn(
                 if !bank.idle() {
                     trace("file audio encore pleine : la chaîne précédente n'a pas été prise");
                 }
+                // l'état complet de la banque, en une ligne : la place que la banque croit
+                // entendre, et ce que devient chaque place (#191)
+                if !bank.is_empty() {
+                    let places: Vec<String> = (0..bank.len())
+                        .map(|i| match bank.state(i) {
+                            engine::bank::SlotState::Waiting => "attente".to_string(),
+                            engine::bank::SlotState::Ready => "prête".to_string(),
+                            engine::bank::SlotState::Out => "sortie".to_string(),
+                            engine::bank::SlotState::Failed(_) => "échec".to_string(),
+                        })
+                        .collect();
+                    trace(&format!(
+                        "banque : en jeu={} places=[{}] demande preset={}",
+                        bank.playing().map(|i| i.to_string()).unwrap_or_else(|| "aucune".into()),
+                        places.join(", "),
+                        req.preset.map(|i| i.to_string()).unwrap_or_else(|| "hors banque".into())
+                    ));
+                }
                 // preset déjà préchargé : l'installer ne charge rien
                 if let Some(i) = req.preset {
                     match bank.switch(i) {
