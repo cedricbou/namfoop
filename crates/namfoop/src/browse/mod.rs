@@ -509,14 +509,19 @@ fn scan_presets(library: &Path) -> Vec<(String, String, PathBuf, dsp::preset::Pr
 
 /// Trace des chaînes installées dans le thread audio (`NAMFOOP_BROWSE_TRACE=<fichier>`) : sert aux
 /// tests de bout en bout (pseudo-terminal), l'écran plein ne laissant passer aucun log.
+/// Début de la trace, pour horodater chaque ligne : sans cela, impossible de raisonner sur une
+/// durée de construction ou sur une queue de preset en relisant un relevé (#191).
+static TRACE_START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+
 fn trace(line: &str) {
     if let Some(path) = std::env::var_os("NAMFOOP_BROWSE_TRACE") {
         use std::io::Write;
+        let ms = TRACE_START.get_or_init(Instant::now).elapsed().as_millis();
         if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
             // une seule écriture par ligne : `writeln!` en fait plusieurs (le fichier n'a pas de
             // tampon), et les lignes de la boucle d'affichage et du thread de construction se
             // mélangeaient (#191)
-            let _ = f.write_all(format!("{line}\n").as_bytes());
+            let _ = f.write_all(format!("{ms:>7} {line}\n").as_bytes());
         }
     }
 }

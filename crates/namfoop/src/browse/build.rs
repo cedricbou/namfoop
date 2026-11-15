@@ -67,6 +67,40 @@ fn adopt_bank(
     }
 }
 
+/// Ce qu'un vidage de file a trouvé.
+#[derive(Debug, Default, PartialEq)]
+pub(super) struct Drained {
+    /// Une (ou plusieurs) chaîne a été demandée : `wanted` porte la **dernière**.
+    pub chain: bool,
+    /// Le dialogue est fermé : le thread doit s'arrêter.
+    pub closed: bool,
+}
+
+/// Vide la file des demandes **sans bloquer**. La **dernière** chaîne demandée gagne : les
+/// intermédiaires ne s'entendraient pas, et les installer ferait entendre un preset qu'on a déjà
+/// quitté (#191). Les banques sont rendues dans l'ordre, aucune n'est perdue.
+pub(super) fn drain(
+    rx: &mpsc::Receiver<Job>,
+    wanted: &mut Option<Request>,
+    banks: &mut Vec<Vec<Option<Request>>>,
+) -> Drained {
+    let mut out = Drained::default();
+    loop {
+        match rx.try_recv() {
+            Ok(Job::Chain(req)) => {
+                *wanted = Some(req);
+                out.chain = true;
+            }
+            Ok(Job::Bank(reqs)) => banks.push(reqs),
+            Err(mpsc::TryRecvError::Empty) => return out,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                out.closed = true;
+                return out;
+            }
+        }
+    }
+}
+
 pub(super) fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
     AmpArgs {
         model: req.first_model().map(|p| p.display().to_string()),
@@ -124,22 +158,19 @@ pub(super) fn spawn(
             Ok(spec)
         };
         let mut wanted: Option<Request> = None;
+        let mut banks: Vec<Vec<Option<Request>>> = Vec::new();
         // une seule ligne de trace par attente de la file audio, pas une toutes les 5 ms (#191)
         let mut busy = false;
         loop {
             // vider la file : les banques s'enregistrent, la dernière chaîne demandée gagne
-            let mut got = false;
-            loop {
-                match rx_req.try_recv() {
-                    Ok(Job::Chain(req)) => (wanted, got) = (Some(req), true),
-                    Ok(Job::Bank(reqs)) => {
-                        adopt_bank(&reqs, &mut bank, &mut specs, &to_spec, &lib_dir);
-                        got = true;
-                    }
-                    Err(mpsc::TryRecvError::Empty) => break,
-                    Err(mpsc::TryRecvError::Disconnected) => return,
-                }
+            let drained = drain(&rx_req, &mut wanted, &mut banks);
+            for reqs in banks.drain(..) {
+                adopt_bank(&reqs, &mut bank, &mut specs, &to_spec, &lib_dir);
             }
+            if drained.closed {
+                return;
+            }
+            let got = drained.chain;
             if let Some(req) = wanted.take() {
                 // témoin (#191) : normalement le thread audio a déjà pris la chaîne précédente
                 // (un bloc, ~1,3 ms) ; si la file est encore pleine, c'est lui qui est en retard
@@ -211,26 +242,51 @@ pub(super) fn spawn(
                     Ok(spec.build_with_meters(rate, MAX_BLOCK)?)
                 })();
                 match built {
-                    Ok((mut chain, meters)) => loop {
-                        match bank.install(chain) {
-                            Ok(()) => {
+                    Ok((mut chain, meters)) => {
+                        // le préchauffage (26 à 54 ms) **avant** la vérification ci-dessous : sinon
+                        // une demande arrivée pendant ce temps passerait inaperçue (#191)
+                        bank.prewarm(&mut chain);
+                        loop {
+                            // une demande plus récente est arrivée **pendant** la construction (80 à
+                            // 400 ms pour un NAM) : installer celle-ci ferait entendre le preset d'il y
+                            // a un ou deux appuis, alors que l'écran affiche déjà le suivant (#191).
+                            // On la jette ; la plus récente est déjà dans `wanted`.
+                            let drained = drain(&rx_req, &mut wanted, &mut banks);
+                            for reqs in banks.drain(..) {
+                                adopt_bank(&reqs, &mut bank, &mut specs, &to_spec, &lib_dir);
+                            }
+                            if drained.closed {
+                                return;
+                            }
+                            if drained.chain {
                                 trace(&format!(
-                                    "{trace_line} BÂTIE{} mesures=blocs:{} parallèles:{}{}",
-                                    req.preset.map(|i| format!(" (place {i})")).unwrap_or_default(),
-                                    meters.blocks.len(),
-                                    meters.splits.len(),
-                                    // l'alignement sur le DI, s'il y en a un (#178)
-                                    meters.level_db.map(|d| format!(" niveauDI={d:+.1}")).unwrap_or_default()
+                                    "{trace_line} JETÉE : demande plus récente pendant la construction"
                                 ));
-                                let _ = tx_built.send(Built::Ok(meters));
                                 break;
                             }
-                            Err(c) => {
-                                chain = c;
-                                std::thread::sleep(Duration::from_millis(5));
+                            match bank.install_warm(chain) {
+                                Ok(()) => {
+                                    trace(&format!(
+                                        "{trace_line} BÂTIE{} mesures=blocs:{} parallèles:{}{}",
+                                        req.preset.map(|i| format!(" (place {i})")).unwrap_or_default(),
+                                        meters.blocks.len(),
+                                        meters.splits.len(),
+                                        // l'alignement sur le DI, s'il y en a un (#178)
+                                        meters
+                                            .level_db
+                                            .map(|d| format!(" niveauDI={d:+.1}"))
+                                            .unwrap_or_default()
+                                    ));
+                                    let _ = tx_built.send(Built::Ok(meters));
+                                    break;
+                                }
+                                Err(c) => {
+                                    chain = c;
+                                    std::thread::sleep(Duration::from_millis(5));
+                                }
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         let _ = tx_built.send(Built::Err(format!("{e:#}")));
                     }
@@ -262,4 +318,38 @@ pub(super) fn spawn(
         }
     })?;
     Ok((tx_req, rx_built))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn chain_of(input_db: f32) -> Job {
+        Job::Chain(Request { blocks: Vec::new(), input_db, preset: None })
+    }
+
+    /// La **dernière** chaîne demandée gagne, aucune banque n'est perdue, et la fermeture du
+    /// dialogue se voit (#191).
+    #[test]
+    fn draining_keeps_the_last_chain_and_every_bank() {
+        let (tx, rx) = mpsc::channel::<Job>();
+        let (mut wanted, mut banks) = (None, Vec::new());
+        // file vide : rien à faire
+        assert_eq!(drain(&rx, &mut wanted, &mut banks), Drained::default());
+        assert!(wanted.is_none() && banks.is_empty());
+        // trois chaînes et deux banques : la dernière chaîne gagne, les deux banques restent
+        for v in [1.0, 2.0, 3.0] {
+            tx.send(chain_of(v)).unwrap();
+            tx.send(Job::Bank(vec![None; v as usize])).unwrap();
+        }
+        let d = drain(&rx, &mut wanted, &mut banks);
+        assert_eq!(d, Drained { chain: true, closed: false });
+        assert_eq!(wanted.as_ref().map(|r| r.input_db), Some(3.0), "la plus récente");
+        assert_eq!(banks.len(), 3, "aucune banque perdue");
+        assert_eq!(banks.iter().map(Vec::len).collect::<Vec<_>>(), vec![1, 2, 3], "dans l'ordre");
+        // l'autre bout raccroché : le thread doit s'arrêter
+        banks.clear();
+        drop(tx);
+        assert_eq!(drain(&rx, &mut wanted, &mut banks), Drained { chain: false, closed: true });
+    }
 }

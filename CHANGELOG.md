@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#191)
+- **Le son suit toujours la bascule de preset.** En enchaînant très vite deux presets, on pouvait
+  entendre celui d'il y a un ou deux appuis alors que l'écran affichait déjà le bon : la chaîne
+  était bâtie (80 à 400 ms pour un modèle), et pendant ce temps les appuis suivants arrivaient — la
+  chaîne périmée était installée quand même. Elle est maintenant **jetée** si une demande plus
+  récente est arrivée entre-temps. Mesuré en pseudo-terminal, 30 bascules à 120 ms d'intervalle :
+  2 désaccords écran / son avant, **0** après (trois essais).
+- Le relevé de `NAMFOOP_BROWSE_TRACE` est **horodaté** et dit désormais ce qu'il taisait : la touche
+  reçue et le preset que l'écran croit jouer, une demande ignorée parce qu'identique, l'état de
+  chaque place de la banque, et les réponses « déjà en jeu » / « pas prête » / « occupée ».
+
 ### Corrigé (#187)
 - Le **volume du preset** (`,` / `.` dans `browse`) s'entend **tout de suite**. Il rebâtissait toute
   la chaîne à chaque appui — rechargement des modèles, des IR, et du son de calibration pour

@@ -182,9 +182,24 @@ impl Bank {
 
     /// Installe une chaîne bâtie ailleurs (l'éditeur de `browse`) : elle est préchauffée ici, et
     /// la banque n'a plus de place en écoute. `Err` si le thread audio n'a pas pris la précédente.
-    pub fn install(&mut self, chain: dsp::Chain) -> Result<(), dsp::Chain> {
+    pub fn install(&mut self, mut chain: dsp::Chain) -> Result<(), dsp::Chain> {
+        self.prewarm(&mut chain);
+        self.install_warm(chain)
+    }
+
+    /// Préchauffe une chaîne bâtie ailleurs (0,25 s de bruit puis du silence, #3 : 26 à 54 ms).
+    ///
+    /// C'est le gros du coût d'une installation. Le faire **à part** laisse l'appelant vérifier,
+    /// juste avant d'installer, qu'une demande plus récente n'est pas arrivée entre-temps — sinon
+    /// on fait entendre une chaîne qu'on ne veut plus (#191).
+    pub fn prewarm(&self, chain: &mut dsp::Chain) {
+        rt::prewarm(chain, self.sender.block(), self.sender.rate());
+    }
+
+    /// Comme [`Bank::install`], pour une chaîne **déjà préchauffée** par [`Bank::prewarm`].
+    pub fn install_warm(&mut self, chain: dsp::Chain) -> Result<(), dsp::Chain> {
         self.collect();
-        self.sender.send(chain)?;
+        self.sender.send_warm(chain)?;
         self.returning.push_back(self.playing);
         self.playing = None;
         Ok(())
