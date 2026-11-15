@@ -29,13 +29,14 @@
 use std::path::{Path, PathBuf};
 
 use crate::chain::{synthetic_bass, Chain, Level, LimiterSpec, Volume};
-use crate::fx::FxSpec;
+use crate::fx::{BuildCtx, FxSpec};
 use crate::gain::Gain;
 use crate::ir::{IrSettings, IrStage};
 use crate::limiter::Limiter;
 use crate::meter::{BlockMeters, BranchMeters, ChainMeters, Meter, Probe, SplitMeters};
 use crate::nam::{NamSettings, NamStage};
 use crate::split::{Split, SplitBranch, SplitMode};
+use crate::tempo::Tempo;
 use crate::{Error, Result, Stage};
 
 /// Un bloc de la chaîne.
@@ -99,6 +100,12 @@ pub struct ChainSpec {
     /// `Level::Match` : l'alignement se mesure sur les blocs, pas sur lui. Il sert à équilibrer
     /// les presets entre eux ; le master, lui, reste le volume de la scène.
     pub volume: Volume,
+    /// **Le tempo de la chaîne** (ADR 0008) : ce dont les paramètres `division` des effets de
+    /// temps tirent leur durée. Figé (`run`, `render`, `bench`, rendus de référence) ou **vivant**
+    /// (`browse`, pour qu'un tap s'entende sans rebâtir la chaîne). Comme le volume, il ne fait
+    /// **pas** partie de l'identité d'une demande de chaîne : deux presets qui ne diffèrent que par
+    /// leur tempo sont la même demande (ADR 0007).
+    pub tempo: Tempo,
     pub master_db: f32,
     pub limiter: Option<LimiterSpec>,
 }
@@ -201,12 +208,19 @@ struct Build<'a> {
     /// Trim à ajouter à l'entrée du **premier** NAM rencontré (sinon il est déjà en tête de chaîne).
     trim_in_nam: f32,
     level: &'a Level,
+    /// Le tempo, repassé à chaque effet par [`Build::ctx`].
+    tempo: &'a Tempo,
     /// Table des vumètres, préallouée au fur et à mesure (`None` : chaîne sans sonde, donc sans
     /// coût ajouté — c'est ce que font `run`, `render` et `bench`).
     meters: Option<ChainMeters>,
 }
 
 impl Build<'_> {
+    /// Ce que chaque effet a besoin de savoir pour se construire (`fx::BuildCtx`).
+    fn ctx(&self) -> BuildCtx {
+        BuildCtx::with_tempo(self.sample_rate, self.max_block, self.tempo.clone())
+    }
+
     /// Construit les blocs de la **série principale** : chaque bloc est suivi de sa sonde quand les
     /// mesures sont demandées.
     fn blocks(&mut self, blocks: &[BlockSpec], chain: &mut Chain) -> Result<()> {
@@ -253,7 +267,7 @@ impl Build<'_> {
         match b {
             BlockSpec::Fx(f) => {
                 let action = metered.and_then(|m| m.action.as_ref());
-                chain.push_boxed(f.build_metered(self.sample_rate, self.max_block, action)?)
+                chain.push_boxed(f.build_metered(&self.ctx(), action)?)
             }
             BlockSpec::Nam { path, settings } => chain.push_boxed(self.nam(path, settings)?),
             BlockSpec::Ir { path, settings } => chain.push_boxed(self.ir(path, settings)?),
@@ -520,6 +534,7 @@ impl ChainSpec {
             },
             trim_in_nam: if in_nam { self.trim_db } else { 0.0 },
             level: &self.level,
+            tempo: &self.tempo,
             meters: with_meters.then(ChainMeters::default),
         };
         build.blocks(&self.blocks, &mut chain)?;

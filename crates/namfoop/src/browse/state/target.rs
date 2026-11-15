@@ -56,8 +56,10 @@ impl State {
         if ir != IrChoice::None {
             blocks.push(chain::Block::Leaf(chain::Leaf::Ir { ir, on: true }));
         }
-        // le banc d'essai n'est pas un preset : pas de volume propre (#179)
-        chain::Chain { blocks, volume_db: 0.0 }
+        // le banc d'essai n'est pas un preset : pas de volume propre (#179). Le tempo, lui, est
+        // une **seule** case partagée par toutes les chaînes audibles (ADR 0007) : celui de la
+        // chaîne éditée vaut aussi ici, et il n'y a rien à choisir.
+        chain::Chain { blocks, volume_db: 0.0, tempo_bpm: self.fx.chain.tempo_bpm }
     }
 }
 
@@ -76,5 +78,5 @@ fn isolate(c: &chain::Chain, p: &super::picker::Picker) -> chain::Chain {
     let blocks =
         if p.nam { me.into_iter().chain(other).collect() } else { other.into_iter().chain(me).collect() };
     // l'écoute isolée garde le volume du preset : c'est bien lui qu'on règle à l'oreille
-    chain::Chain { blocks, volume_db: c.volume_db }
+    chain::Chain { blocks, volume_db: c.volume_db, tempo_bpm: c.tempo_bpm }
 }

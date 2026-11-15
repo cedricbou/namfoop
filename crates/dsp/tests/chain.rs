@@ -1,6 +1,7 @@
 //! Propriétés de la chaîne, indépendantes de la carte son.
 
 use dsp::chain::AmpSpec;
+use dsp::fx::BuildCtx;
 use std::path::PathBuf;
 
 fn example(name: &str) -> PathBuf {
@@ -123,7 +124,7 @@ fn fx_catalog_is_independent_of_block_size() {
     let input = signal(24000);
     for fx in dsp::fx::catalog().iter().flat_map(|f| f.extremes()) {
         let run = |block: usize| {
-            let mut st = fx.build(48000, 64).unwrap();
+            let mut st = fx.build(&BuildCtx::new(48000, 64)).unwrap();
             let mut buf = input.clone();
             for c in buf.chunks_mut(block) {
                 st.process(c);

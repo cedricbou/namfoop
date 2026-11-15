@@ -238,6 +238,10 @@ pub fn run(
     // fois par bloc, donc `,` / `.` s'entendent sans rien rebâtir. Un seul écrivain : la boucle
     // ci-dessous, d'après l'état — jamais `browse::state`, qui ne tient aucune poignée `dsp`.
     let volume = dsp::param::Control::new(0.0);
+    // le tempo du preset, vivant pour la même raison (ADR 0008) : les effets réglés en divisions
+    // rythmiques le lisent une fois par bloc, donc en changer ne rebâtit aucune chaîne.
+    let tempo = dsp::param::Control::new(dsp::tempo::DEFAULT_BPM);
+    let live = build::Live { volume: volume.clone(), tempo: tempo.clone() };
     let mut engine = Engine::start(
         EngineConfig {
             audio: cfg.clone(),
@@ -256,7 +260,7 @@ pub fn run(
     }
     let handle = engine.take_chain_sender().expect("pris une seule fois");
     // construction des chaînes hors temps réel, et préchargement de la banque de presets (#6)
-    let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size, volume.clone())?;
+    let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size, live.clone())?;
 
     // grain de l'éditeur : mesuré hors temps réel avec la basse de l'utilisateur, la plus récente gagne
     let (tx_grain, rx_grain) = mpsc::channel::<(usize, f32, PathBuf)>();
@@ -424,10 +428,16 @@ pub fn run(
             // le volume écouté : posé **juste après** le `match`, pour qu'une chaîne installée par
             // ce tour-ci le lise dès son premier bloc (ADR 0007). `plan()` plutôt qu'une règle
             // réécrite : c'est lui qui sait déjà ce qu'on écoute (banc d'essai à nu, écoute isolée).
-            let heard_volume = st.plan().volume_db;
+            let heard = st.plan();
+            let heard_volume = heard.volume_db;
             if heard_volume != volume.get() {
                 volume.set(heard_volume);
                 trace(&format!("volume={heard_volume:+.1}"));
+            }
+            // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008)
+            if heard.tempo_bpm != tempo.get() {
+                tempo.set(heard.tempo_bpm);
+                trace(&format!("tempo={:.1}", heard.tempo_bpm));
             }
             while let Ok((m, input_db, text)) = rx_grain_done.try_recv() {
                 if st.editor.as_ref().is_some_and(|e| e.model == m && e.draft.input_db == input_db) {

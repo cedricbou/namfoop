@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effect, ParamInfo, Unit};
+use super::{BuildCtx, Effect, ParamInfo, Unit};
 use crate::biquad::{Biquad, Shape};
 use crate::{Result, Stage};
 
@@ -106,8 +106,8 @@ impl Effect for ReverbParams {
         }
     }
 
-    fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
-        Ok(Box::new(self.stage(sample_rate)))
+    fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
+        Ok(Box::new(self.stage(ctx.sample_rate)))
     }
 
     fn tail_seconds(&self) -> f32 {

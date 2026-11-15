@@ -130,7 +130,7 @@ pub fn bench_fx(rate: u32, block: usize, seconds: f64) -> Result<()> {
         .collect();
     let blocks = ((seconds * rate as f64) / block as f64).ceil() as usize;
     for fx in dsp::fx::catalog() {
-        let mut st = fx.build(rate, block)?;
+        let mut st = fx.build(&dsp::fx::BuildCtx::new(rate, block))?;
         let mut buf = vec![0.0f32; block];
         let (mut total, mut worst) = (0.0f64, 0.0f64);
         for b in 0..blocks {

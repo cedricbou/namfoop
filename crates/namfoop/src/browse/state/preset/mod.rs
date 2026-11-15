@@ -190,6 +190,7 @@ impl State {
         PresetSpec {
             name: name.to_string(),
             volume_db: self.fx.chain.volume_db,
+            tempo_bpm: self.fx.chain.tempo_bpm,
             blocks: self.fx.chain.blocks.iter().filter_map(|b| self.preset_block(b)).collect(),
             base: PathBuf::new(),
         }
@@ -274,7 +275,11 @@ impl State {
                 l => Block::Leaf(self.leaf_of(l)?),
             });
         }
-        Ok(chain::Chain { blocks, volume_db: spec.volume_db.clamp(VOLUME_MIN_DB, VOLUME_MAX_DB) })
+        Ok(chain::Chain {
+            blocks,
+            volume_db: spec.volume_db.clamp(VOLUME_MIN_DB, VOLUME_MAX_DB),
+            tempo_bpm: dsp::tempo::clamp_bpm(spec.tempo_bpm),
+        })
     }
 
     fn leaf_of(&self, b: &PresetBlock) -> Result<Leaf, String> {

@@ -5,6 +5,7 @@
 
 use assert_no_alloc::{assert_no_alloc, AllocDisabler};
 use dsp::chain::AmpSpec;
+use dsp::fx::BuildCtx;
 use std::path::PathBuf;
 
 #[global_allocator]
@@ -74,7 +75,7 @@ fn hot_swap_does_not_allocate_in_process() {
 #[test]
 fn fx_catalog_does_not_allocate_in_process() {
     for fx in dsp::fx::catalog().iter().flat_map(|f| f.extremes()) {
-        let mut st = fx.build(48000, 64).unwrap();
+        let mut st = fx.build(&BuildCtx::new(48000, 64)).unwrap();
         let mut buf = vec![0.0f32; 64];
         let mut big = vec![0.1f32; 200];
         for i in 0..200 {
@@ -83,6 +84,30 @@ fn fx_catalog_does_not_allocate_in_process() {
         }
         assert_no_alloc(|| st.process(&mut big));
         assert!(buf.iter().chain(&big).all(|x| x.is_finite()), "{fx}");
+    }
+}
+
+/// Un **tempo vivant qui bouge** pendant que le son joue : le delay synchronisé déplace sa tête de
+/// lecture dans `process`, et ce chemin-là (le seul que `extremes` ne prend pas, puisqu'il demande
+/// une case qui change) ne doit rien allouer non plus — ADR 0008.
+#[test]
+fn a_live_tempo_change_does_not_allocate() {
+    let tempo = dsp::param::Control::new(120.0);
+    let fx: dsp::fx::FxSpec = "delay:division=1/8.,feedback=60".parse().unwrap();
+    let mut st = fx.build(&BuildCtx::with_tempo(48000, 64, dsp::tempo::Tempo::from(tempo.clone()))).unwrap();
+    let mut buf = vec![0.0f32; 64];
+    for i in 0..400 {
+        // un tempo qui change à chaque bloc : le pire cas, loin de l'usage réel
+        tempo.set(60.0 + (i % 180) as f32);
+        buf.iter_mut().enumerate().for_each(|(k, x)| *x = ((i * 64 + k) as f32 * 0.013).sin() * 0.5);
+        assert_no_alloc(|| st.process(&mut buf));
+        assert!(buf.iter().all(|x| x.is_finite()), "bloc {i}");
+    }
+    // et une case qui dérape ne change rien de tout cela
+    for bad in [f32::NAN, f32::INFINITY, -1.0, 1e9] {
+        tempo.set(bad);
+        assert_no_alloc(|| st.process(&mut buf));
+        assert!(buf.iter().all(|x| x.is_finite()), "tempo {bad}");
     }
 }
 

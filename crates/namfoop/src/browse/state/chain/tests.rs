@@ -67,20 +67,30 @@ fn only_a_simple_chain_fits_the_command_line() {
     let nam = || Block::Leaf(Leaf::Nam { model: Some(0), on: true });
     let ir = || Block::Leaf(Leaf::Ir { ir: IrChoice::Item(0), on: true });
     assert!(Chain::default().fits_command_line());
-    assert!(Chain { blocks: vec![fx(), nam(), ir(), fx()], volume_db: 0.0 }.fits_command_line());
-    assert!(Chain { blocks: vec![nam()], volume_db: 0.0 }.fits_command_line());
+    assert!(Chain { blocks: vec![fx(), nam(), ir(), fx()], volume_db: 0.0, ..Default::default() }
+        .fits_command_line());
+    assert!(Chain { blocks: vec![nam()], volume_db: 0.0, ..Default::default() }.fits_command_line());
     assert!(
-        !Chain { blocks: vec![nam(), fx(), ir()], volume_db: 0.0 }.fits_command_line(),
+        !Chain { blocks: vec![nam(), fx(), ir()], volume_db: 0.0, ..Default::default() }.fits_command_line(),
         "ir séparée du nam"
     );
-    assert!(!Chain { blocks: vec![ir(), nam()], volume_db: 0.0 }.fits_command_line(), "ir avant le nam");
-    assert!(!Chain { blocks: vec![nam(), nam()], volume_db: 0.0 }.fits_command_line(), "deux modèles");
+    assert!(
+        !Chain { blocks: vec![ir(), nam()], volume_db: 0.0, ..Default::default() }.fits_command_line(),
+        "ir avant le nam"
+    );
+    assert!(
+        !Chain { blocks: vec![nam(), nam()], volume_db: 0.0, ..Default::default() }.fits_command_line(),
+        "deux modèles"
+    );
     let split = Block::Split(Split {
         mode: Mode::Copy,
         freqs: vec![],
         branches: vec![Branch::default(), Branch::default()],
     });
-    assert!(!Chain { blocks: vec![split], volume_db: 0.0 }.fits_command_line(), "un parallèle");
+    assert!(
+        !Chain { blocks: vec![split], volume_db: 0.0, ..Default::default() }.fits_command_line(),
+        "un parallèle"
+    );
 }
 
 /// Les modèles actifs : coupés et branches inaudibles exclus (c'est ce que le titre compte).
@@ -88,6 +98,7 @@ fn only_a_simple_chain_fits_the_command_line() {
 fn active_models_skip_bypassed_blocks_and_silent_branches() {
     let nam = |on| Leaf::Nam { model: Some(0), on };
     let chain = Chain {
+        tempo_bpm: dsp::tempo::DEFAULT_BPM,
         volume_db: 0.0,
         blocks: vec![
             Block::Leaf(nam(true)),

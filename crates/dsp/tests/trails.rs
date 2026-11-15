@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use dsp::chain::AmpSpec;
+use dsp::fx::BuildCtx;
 use dsp::{Chain, Stage};
 
 fn example(name: &str) -> PathBuf {
@@ -26,7 +27,7 @@ fn chain(fx: &[&str]) -> Chain {
         .expect("chaîne bâtie");
     for spec in fx {
         let spec: dsp::fx::FxSpec = spec.parse().expect("effet connu");
-        c.push_boxed(spec.build(RATE, BLOCK).expect("effet bâti"));
+        c.push_boxed(spec.build(&BuildCtx::new(RATE, BLOCK)).expect("effet bâti"));
     }
     c
 }

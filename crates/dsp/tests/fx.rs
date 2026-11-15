@@ -1,7 +1,7 @@
 //! Propriétés communes à tous les effets du catalogue (`dsp::fx::catalog`), chacun aux défauts et
 //! aux bornes de chaque paramètre. Un nouvel effet y passe automatiquement.
 
-use dsp::fx::{catalog, FxSpec};
+use dsp::fx::{catalog, BuildCtx, FxSpec};
 
 const SR: u32 = 48000;
 
@@ -24,7 +24,7 @@ fn sine_full_scale(n: usize) -> Vec<f32> {
 }
 
 fn run(fx: &FxSpec, input: &[f32]) -> Vec<f32> {
-    let mut st = fx.build(SR, 64).unwrap();
+    let mut st = fx.build(&BuildCtx::new(SR, 64)).unwrap();
     let mut buf = input.to_vec();
     for c in buf.chunks_mut(64) {
         st.process(c);
@@ -68,7 +68,7 @@ fn silence_after_the_tail() {
 fn reset_restores_the_initial_state() {
     let input = noise(SR as usize / 2);
     for fx in variants() {
-        let mut st = fx.build(SR, 64).unwrap();
+        let mut st = fx.build(&BuildCtx::new(SR, 64)).unwrap();
         let pass = |st: &mut Box<dyn dsp::Stage>| {
             let mut buf = input.clone();
             for c in buf.chunks_mut(64) {
