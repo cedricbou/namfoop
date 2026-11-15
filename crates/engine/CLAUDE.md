@@ -50,8 +50,20 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
   on n'y revient que sur un événement net. Une horloge qui meurt **garde le dernier tempo** et
   passe en `ClockLost` : jamais de saut de son causé par une panne. C'est elle que MIDI (#7)
   alimentera ; `browse` écrit ensuite la case (#200), l'ADR 0007 n'autorisant **qu'un** écrivain.
-- `router` (`Routing`, `OutputRoute`, `Source` avec `FromStr`, `Router`), `meters` (`Meters`,
-  `fetch_max`, `take`).
+- `metronome` (**LE CLIC**, ADR 0008, #197) : `Metronome` + `MetronomeConfig { gain, tempo,
+  downbeat, beats_per_bar }`. Salve de 25 ms, 1 kHz (2 kHz sur le premier temps), enveloppe en
+  cosinus surélevé — qui **commence à zéro**, donc le premier échantillon non nul arrive un cran
+  après le temps (piège de test). Les trois cases sont **vivantes** : `gain` linéaire (0 : éteint,
+  et c'est l'appelant qui convertit les dB de la config), `tempo` est **la même case** que les
+  effets de temps, `downbeat` est un **compteur** dont tout changement recale le temps 1 — c'est ce
+  que fournit `tempo::Arbiter::beat_epoch`. Éteint, la **grille des temps continue d'avancer** :
+  rallumer tombe juste. Un changement de tempo ne remet **pas** la phase à zéro (seul l'écart entre
+  deux temps change).
+- `router` (`Routing`, `OutputRoute`, `Source` avec `FromStr`, `Router`) : `with_metronome` **ajoute**
+  le clic aux seules sorties qui portent `click = true` — jamais substitué à leur source (les
+  in-ears veulent la basse **et** le clic), et si **aucune** sortie ne le demande le générateur
+  n'est même pas créé. C'est la garantie qui compte : un clic parti dans le sondier en concert est
+  une catastrophe, et un test le vérifie. `meters` (`Meters`, `fetch_max`, `take`).
 
 `limiter_meter` : le même `Arc<AtomicU32>` doit être donné à la chaîne (`LimiterSpec::meter`).
 

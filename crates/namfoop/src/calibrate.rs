@@ -79,6 +79,7 @@ pub fn run(
             quiet: false,
             limiter_meter: Default::default(),
             input_tap: Some(cfg.rate as usize * 2),
+            metronome: None, // calibrate enregistre le DI : pas de clic
         },
         dsp::Chain::new(),
     )?;

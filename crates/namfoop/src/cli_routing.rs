@@ -9,7 +9,8 @@ pub fn parse_out(s: &str) -> std::result::Result<OutputRoute, String> {
         .trim()
         .parse::<Source>()
         .map_err(|_| format!("source inconnue « {src} » (processed, di, mic, mute)"))?;
-    Ok(OutputRoute { channel, source })
+    // `--route` ne dit rien du clic de métronome : il se règle dans la config (#201)
+    Ok(OutputRoute { channel, source, click: false })
 }
 
 /// Options de routage de `run` (priment sur la config).
@@ -60,8 +61,8 @@ mod tests {
             bass_in: 1,
             mic_in: None,
             outputs: vec![
-                OutputRoute { channel: 1, source: Source::Processed },
-                OutputRoute { channel: 2, source: Source::Processed },
+                OutputRoute { channel: 1, source: Source::Processed, click: false },
+                OutputRoute { channel: 2, source: Source::Processed, click: false },
             ],
         };
         let args = RoutingArgs { bass_in: Some(2), mic_in: None, outputs: vec![parse_out("2=di").unwrap()] };
@@ -70,8 +71,8 @@ mod tests {
         assert_eq!(
             r.outputs,
             vec![
-                OutputRoute { channel: 1, source: Source::Processed },
-                OutputRoute { channel: 2, source: Source::Di }
+                OutputRoute { channel: 1, source: Source::Processed, click: false },
+                OutputRoute { channel: 2, source: Source::Di, click: false }
             ]
         );
         assert!(parse_out("2-di").is_err() && parse_out("x=di").is_err() && parse_out("1=foo").is_err());

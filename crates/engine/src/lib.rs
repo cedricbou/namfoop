@@ -5,6 +5,7 @@
 pub mod bank;
 mod error;
 pub mod meters;
+pub mod metronome;
 pub mod raw;
 pub mod router;
 pub mod rt;
@@ -49,6 +50,10 @@ pub struct EngineConfig {
     /// Tap d'entrée : capacité (échantillons) d'une file où le callback copie l'entrée basse
     /// brute, à vider hors temps réel ([`Engine::take_input_tap`]). `None` : pas de tap.
     pub input_tap: Option<usize>,
+    /// **Clic du métronome** (ADR 0008) : ajouté aux sorties qui portent `click = true`. `None` :
+    /// pas de métronome du tout. Même sans `None`, aucune sortie ne le reçoit sans l'avoir
+    /// demandé, et il reste muet tant que son gain est à zéro.
+    pub metronome: Option<metronome::MetronomeConfig>,
 }
 
 /// Tap d'entrée côté audio : bloc entier écrit ou bloc compté perdu (jamais d'attente).
@@ -125,7 +130,7 @@ fn callback(
     initial: dsp::Chain,
     meters: Arc<Meters>,
 ) -> Result<(Callback, SwapHandle, Option<TapRx>)> {
-    let router = Router::new(&cfg.routing, cfg.max_block)?;
+    let router = Router::with_metronome(&cfg.routing, cfg.max_block, cfg.metronome.clone(), cfg.audio.rate)?;
     let (swap, handle) =
         dsp::swap::swap_pair(initial, cfg.audio.rate, cfg.max_block, cfg.fade_ms, cfg.trails_ms);
     let (tap, tap_rx) = match cfg.input_tap {
@@ -313,6 +318,7 @@ mod tests {
             quiet: true,
             limiter_meter: Arc::default(),
             input_tap: None,
+            metronome: None,
         }
     }
 

@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#197)
+- **Le socle du métronome.** Une sortie peut recevoir le **clic** en plus de sa source
+  (`click = true` dans `[[routing.outputs]]`) : les in-ears veulent la basse **et** le clic, donc ce
+  n'est pas une source de plus. Section `[metronome]` dans la config (`level_db`, défaut -18 ;
+  `beats_per_bar`, défaut 4, avec accent sur le premier temps). Salve de 25 ms, 1 kHz et 2 kHz sur
+  l'accent, enveloppe douce — aucun clic parasite.
+- **Aucune sortie ne reçoit le clic sans l'avoir demandé**, et si aucune ne le demande il n'est même
+  pas calculé : un clic parti dans le sondier en concert est une catastrophe, et c'est vérifié par
+  un test. Éteint, la sortie est identique **au bit près**.
+- Le clic suit **la même case de tempo** que les effets de temps : il suivra donc le tap et
+  l'horloge MIDI. Éteint, la grille des temps continue d'avancer, si bien que rallumer tombe juste.
+  Rien n'est encore réglable depuis l'application : c'est #201.
+- Une config écrite par une version précédente se relit et se réécrit **à l'octet près** (le
+  drapeau et la section ne s'écrivent que s'ils servent), et `setup` ne l'efface pas.
+
 ### Corrigé (#225)
 - **La queue d'un preset garde son propre tempo.** Un `delay` en `1/8` avec beaucoup de réinjection
   à 60 BPM voyait ses répétitions **s'accélérer** en pleine décroissance — passant de 500 à 250 ms —

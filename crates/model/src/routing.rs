@@ -53,6 +53,18 @@ impl Source {
 pub struct OutputRoute {
     pub channel: usize,
     pub source: Source,
+    /// Cette sortie reçoit **aussi** le clic du métronome (ADR 0008), **ajouté** à sa source : les
+    /// in-ears veulent la basse **et** le clic, donc ce n'est pas une [`Source`] de plus.
+    ///
+    /// Faux par défaut, et **jamais écrit** quand il est faux : une config d'une version précédente
+    /// se relit et se réécrit à l'octet près. Un clic parti dans le sondier en concert est une
+    /// catastrophe, donc aucune sortie ne le reçoit sans l'avoir demandé explicitement.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub click: bool,
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
