@@ -238,7 +238,19 @@ pub enum Block {
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Chain {
     pub blocks: Vec<Block>,
+    /// **Volume du preset** (dB), `,` et `.` (#179). Il vit ici, avec les blocs, pour deux raisons :
+    /// il s'enregistre dans le preset, et « non enregistré » (`unsaved`, qui compare deux `Chain`)
+    /// le voit alors sans une ligne de plus. Appliqué **après** l'alignement de niveau sur le DI,
+    /// il est le seul gain du preset que cet alignement n'annule pas (#178).
+    pub volume_db: f32,
 }
+
+/// Bornes du volume d'un preset (dB) : de quoi équilibrer des presets entre eux, pas de quoi
+/// remplacer le master de la scène.
+pub const VOLUME_MIN_DB: f32 = -24.0;
+pub const VOLUME_MAX_DB: f32 = 12.0;
+/// Ce qu'un appui sur `,` ou `.` change (dB) : comme le gain d'une branche de mélange.
+pub const VOLUME_STEP_DB: f32 = 1.0;
 
 /// Où est le curseur dans le synoptique (§ 4 de la spécification).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]

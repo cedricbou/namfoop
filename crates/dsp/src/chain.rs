@@ -173,6 +173,9 @@ impl AmpSpec {
             trim_db: self.trim_db,
             blocks,
             level: self.level.clone(),
+            // le volume est propre au preset (#179) : les options de ligne de commande n'en ont pas,
+            // `--master-db` joue ce rôle pour `run`
+            volume_db: 0.0,
             master_db: self.master_db,
             limiter: self.limiter.clone(),
         }

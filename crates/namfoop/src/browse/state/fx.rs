@@ -503,6 +503,9 @@ impl State {
             // Bibliothèque, ces touches défilent les listes : le preset, c'est la chaîne.
             Key::PageDown => return Some(self.step_preset(true)),
             Key::PageUp => return Some(self.step_preset(false)),
+            // `,` / `.` : le volume du preset, après l'alignement sur le DI (#179)
+            Key::Char(',') => return Some(self.adjust_volume(-chain::VOLUME_STEP_DB)),
+            Key::Char('.') => return Some(self.adjust_volume(chain::VOLUME_STEP_DB)),
             // `t` : le TOML du preset, replié par défaut (#110)
             Key::Char('t') => {
                 self.show_toml = !self.show_toml;

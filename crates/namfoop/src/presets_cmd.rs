@@ -26,10 +26,15 @@ pub fn list(library: &Path, _conf: &LoadedConfig) -> Result<()> {
             Ok(spec) => match spec.to_blocks(1.0, &|_| 0.0, &|id| lib.path_of_id(id)) {
                 Ok(blocks) => {
                     let parts: Vec<String> = blocks.iter().map(dsp::block::BlockSpec::describe).collect();
+                    // le volume du preset fait partie de ce qu'on entendra (#179)
+                    let volume = match spec.volume_db {
+                        0.0 => String::new(),
+                        v => format!(" › volume {v:+.1} dB"),
+                    };
                     if parts.is_empty() {
-                        "(chaîne vide)".to_string()
+                        format!("(chaîne vide){volume}")
                     } else {
-                        parts.join(" › ")
+                        format!("{}{volume}", parts.join(" › "))
                     }
                 }
                 Err(err) => format!("⚠ {err}"),

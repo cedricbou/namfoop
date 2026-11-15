@@ -133,11 +133,21 @@ pub struct PresetBranch {
 pub struct PresetSpec {
     #[serde(default)]
     pub name: String,
+    /// **Volume du preset** (dB), appliqué après l'alignement de niveau sur le DI et avant le
+    /// master (#179) : c'est ce qui permet d'équilibrer les presets entre eux, là où un bloc `gain`
+    /// serait annulé par l'alignement (#178). Déclaré **avant** `blocks` : en TOML, une valeur ne
+    /// peut pas s'écrire après un tableau de tables.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub volume_db: f32,
     #[serde(default, rename = "block", skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<PresetBlock>,
     /// Dossier qui sert à résoudre les chemins relatifs (la bibliothèque) ; non sérialisé.
     #[serde(skip)]
     pub base: PathBuf,
+}
+
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
 }
 
 /// Le fichier est-il un preset (`*.preset.toml`) ?

@@ -44,6 +44,7 @@ pub(super) fn bank_requests(st: &State, audition: &Path) -> Vec<Option<Request>>
             p.chain.as_ref().map(|c| Request {
                 blocks: plan_blocks(&c.blocks, st, audition),
                 input_db: 0.0,
+                volume_db: c.volume_db,
                 preset: None,
             })
         })
@@ -115,6 +116,8 @@ pub(super) fn spawn(
         let to_spec = |req: &Request, lib: &Library| -> Result<dsp::block::ChainSpec> {
             let mut spec = amp_args(&lib_dir, size, req).spec(&conf2, Some(limiter.clone()))?.to_chain_spec();
             spec.blocks = block_specs(&req.blocks, lib, req, size);
+            // le volume du preset, après l'alignement de niveau (#179)
+            spec.volume_db = req.volume_db;
             Ok(spec)
         };
         let mut wanted: Option<Request> = None;

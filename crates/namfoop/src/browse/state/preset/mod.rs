@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 use dsp::preset::{PresetBlock, PresetBranch, PresetFile, PresetMode, PresetSpec};
 
+use super::chain::{VOLUME_MAX_DB, VOLUME_MIN_DB};
+
 use super::chain::{self, Block, Leaf};
 use super::*;
 
@@ -123,6 +125,12 @@ impl State {
     /// Ce que l'en-tête affiche à droite : le preset courant et s'il est à jour (§ 110).
     pub fn preset_label(&self) -> (String, bool) {
         let saved = self.unsaved().is_empty();
+        // le volume du preset, quand il n'est pas au neutre : c'est un réglage qu'on ne voit nulle
+        // part ailleurs dans la liste des blocs (#179)
+        let volume = match self.fx.chain.volume_db {
+            0.0 => String::new(),
+            v => format!(" · volume {v:+.0} dB"),
+        };
         match &self.preset {
             // la place dans la banque : le repère du pédalier (#158)
             Some(p) => {
@@ -130,10 +138,11 @@ impl State {
                     (Some(i), n) if n > 1 => format!(" {}/{n}", i + 1),
                     _ => String::new(),
                 };
-                (format!("preset{place} : {}", p.name), saved)
+                (format!("preset{place} : {}{volume}", p.name), saved)
             }
-            None if saved => (String::new(), true),
-            None => ("chaîne non enregistrée".into(), false),
+            None if saved && volume.is_empty() => (String::new(), true),
+            None if saved => (format!("chaîne{volume}"), true),
+            None => (format!("chaîne non enregistrée{volume}"), false),
         }
     }
 
@@ -154,10 +163,31 @@ impl State {
         }
     }
 
+    /// `,` / `.` : le **volume du preset**, appliqué après l'alignement de niveau sur le DI — donc
+    /// le seul gain du preset que cet alignement n'annule pas (#178, #179). Il s'enregistre avec la
+    /// chaîne, et sert à équilibrer les presets entre eux ; le master de la config, lui, reste le
+    /// volume de la scène.
+    pub(super) fn adjust_volume(&mut self, step: f32) -> Action {
+        let now = self.fx.chain.volume_db;
+        let next = (now + step).clamp(VOLUME_MIN_DB, VOLUME_MAX_DB);
+        if next == now {
+            self.message = Some(format!("volume du preset : {now:+.0} dB, c'est la borne"));
+            return Action::None;
+        }
+        self.fx.chain.volume_db = next;
+        self.message = Some(if next == 0.0 {
+            "volume du preset : 0 dB (le niveau aligné sur le DI)".to_string()
+        } else {
+            format!("volume du preset {next:+.0} dB — après l'alignement sur le DI, S pour l'enregistrer")
+        });
+        self.play()
+    }
+
     /// La chaîne éditée, en preset : chemins relatifs et identifiants de la bibliothèque.
     pub fn to_preset(&self, name: &str) -> PresetSpec {
         PresetSpec {
             name: name.to_string(),
+            volume_db: self.fx.chain.volume_db,
             blocks: self.fx.chain.blocks.iter().filter_map(|b| self.preset_block(b)).collect(),
             base: PathBuf::new(),
         }
@@ -242,7 +272,7 @@ impl State {
                 l => Block::Leaf(self.leaf_of(l)?),
             });
         }
-        Ok(chain::Chain { blocks })
+        Ok(chain::Chain { blocks, volume_db: spec.volume_db.clamp(VOLUME_MIN_DB, VOLUME_MAX_DB) })
     }
 
     fn leaf_of(&self, b: &PresetBlock) -> Result<Leaf, String> {

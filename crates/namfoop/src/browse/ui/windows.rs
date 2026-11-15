@@ -247,6 +247,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("m / o / p", "muet · solo · polarité de la branche"));
         v.push(key_line("◇", "la sortie du parallèle : a y ajoute après lui (↑ : le ◆)"));
         v.push(key_line("v / r", "vumètres · avec ou sans effets"));
+        v.push(key_line(", / .", "volume du preset (1 dB) : après l'alignement, donc il compte"));
         if s.level_match {
             // ce n'est pas une touche, mais c'est la question qu'on se pose devant un gain qui ne
             // fait rien : l'étage grisé en bout de synoptique (#178)
