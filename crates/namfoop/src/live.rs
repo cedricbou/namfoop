@@ -51,6 +51,7 @@ pub fn run(
             quiet: false,
             limiter_meter: limiter,
             input_tap: None,
+            metronome: None, // `run` : le clic viendra avec son option (#201)
         },
         chain,
     )?;

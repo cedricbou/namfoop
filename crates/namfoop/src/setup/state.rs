@@ -455,7 +455,13 @@ impl State {
                 .iter()
                 .enumerate()
                 .filter(|(_, r)| **r != OutRole::Nothing)
-                .map(|(c, r)| OutputRoute { channel: c + 1, source: r.source() })
+                .map(|(c, r)| {
+                    let channel = c + 1;
+                    // cet écran ne règle pas encore « reçoit le clic » (#201) : on garde celui de
+                    // la config, sinon `setup` l'effacerait silencieusement
+                    let click = base.routing.outputs.iter().any(|o| o.channel == channel && o.click);
+                    OutputRoute { channel, source: r.source(), click }
+                })
                 .collect(),
         };
         c
@@ -527,8 +533,8 @@ mod tests {
         assert_eq!(
             c.routing.outputs,
             vec![
-                OutputRoute { channel: 1, source: Source::Processed },
-                OutputRoute { channel: 2, source: Source::Di }
+                OutputRoute { channel: 1, source: Source::Processed, click: false },
+                OutputRoute { channel: 2, source: Source::Di, click: false }
             ]
         );
     }

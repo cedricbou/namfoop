@@ -252,6 +252,8 @@ pub fn run(
             quiet: true,
             limiter_meter: limiter.clone(),
             input_tap: None,
+            // le clic de métronome se branche avec son réglage (#201)
+            metronome: None,
         },
         dsp::Chain::new(),
     )?;

@@ -124,6 +124,7 @@ fn cost_of_switching_between_preloaded_chains() {
         quiet: true,
         limiter_meter: std::sync::Arc::default(),
         input_tap: None,
+        metronome: None,
     };
     let max_block = cfg.max_block;
     let mut session = engine::Engine::start(cfg, dsp::Chain::new()).expect("carte simulée");

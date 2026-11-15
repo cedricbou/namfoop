@@ -3,13 +3,16 @@
 //! Canaux numérotés à partir de 1 dans la config et la CLI, à partir de 0 en interne.
 
 use crate::error::{bail, Result};
+use crate::metronome::{Metronome, MetronomeConfig};
 use audio_io::Io;
 
 pub use model::routing::{OutputRoute, Routing, Source};
 
 /// Sorties par défaut : 1 et 2 = basse traitée.
 pub fn default_outputs(n_out: usize) -> Vec<OutputRoute> {
-    (1..=n_out.min(2)).map(|channel| OutputRoute { channel, source: Source::Processed }).collect()
+    (1..=n_out.min(2))
+        .map(|channel| OutputRoute { channel, source: Source::Processed, click: false })
+        .collect()
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -29,6 +32,11 @@ pub struct Router {
     bass: usize,
     mic: Option<usize>,
     routes: Vec<(usize, Source)>,
+    /// Sorties qui reçoivent **aussi** le clic du métronome, **ajouté** à leur source (ADR 0008).
+    click_outs: Vec<usize>,
+    /// Le générateur de clic et son tampon. `None` : aucune sortie ne l'a demandé, donc rien n'est
+    /// même calculé.
+    metronome: Option<(Metronome, Vec<f32>)>,
     scratch: Vec<f32>,
 }
 
@@ -36,6 +44,18 @@ impl Router {
     /// Prépare le routage (hors temps réel). Les numéros de canaux sont vérifiés par
     /// [`Router::validate`] une fois la carte ouverte.
     pub fn new(r: &Routing, max_block: usize) -> Result<Self> {
+        Self::with_metronome(r, max_block, None, 48000)
+    }
+
+    /// Le même, plus le **clic du métronome** : il est ajouté aux sorties qui portent
+    /// `click = true` (ADR 0008). Sans sortie qui le demande, le générateur n'est même pas créé —
+    /// un clic ne peut donc pas fuir par accident.
+    pub fn with_metronome(
+        r: &Routing,
+        max_block: usize,
+        metronome: Option<MetronomeConfig>,
+        sample_rate: u32,
+    ) -> Result<Self> {
         if r.bass_in == 0 || r.mic_in == Some(0) || r.outputs.iter().any(|o| o.channel == 0) {
             bail!("les canaux sont numérotés à partir de 1");
         }
@@ -43,11 +63,18 @@ impl Router {
         if let Some(o) = outs.iter().find(|o| o.source == Source::Mic && r.mic_in.is_none()) {
             bail!("sortie {} = micro, mais aucune entrée micro n'est définie (--mic-in)", o.channel);
         }
+        let n = max_block.max(64);
+        let click_outs: Vec<usize> = outs.iter().filter(|o| o.click).map(|o| o.channel - 1).collect();
+        let metronome = metronome
+            .filter(|_| !click_outs.is_empty())
+            .map(|cfg| (Metronome::new(cfg, sample_rate), vec![0.0; n]));
         Ok(Self {
             bass: r.bass_in - 1,
             mic: r.mic_in.map(|m| m - 1),
             routes: outs.iter().map(|o| (o.channel - 1, o.source)).collect(),
-            scratch: vec![0.0; max_block.max(64)],
+            click_outs,
+            metronome,
+            scratch: vec![0.0; n],
         })
     }
 
@@ -138,6 +165,22 @@ impl Router {
                     Source::Mute => io.output(c)[range.clone()].fill(0.0),
                 }
             }
+            // le clic, **ajouté** aux seules sorties qui l'ont demandé : jamais substitué à leur
+            // source (les in-ears veulent la basse *et* le clic), jamais ailleurs
+            if let Some((m, buf)) = self.metronome.as_mut() {
+                let click = &mut buf[..len];
+                if m.render(click) {
+                    for &c in &self.click_outs {
+                        if c >= n_out {
+                            continue;
+                        }
+                        let out = &mut io.output(c)[range.clone()];
+                        for (o, k) in out.iter_mut().zip(click.iter()) {
+                            *o += *k;
+                        }
+                    }
+                }
+            }
             start += len;
         }
         st
@@ -161,10 +204,10 @@ mod tests {
             bass_in: 2,
             mic_in: Some(3),
             outputs: vec![
-                OutputRoute { channel: 1, source: Source::Processed },
-                OutputRoute { channel: 2, source: Source::Di },
-                OutputRoute { channel: 3, source: Source::Mic },
-                OutputRoute { channel: 4, source: Source::Mute },
+                OutputRoute { channel: 1, source: Source::Processed, click: false },
+                OutputRoute { channel: 2, source: Source::Di, click: false },
+                OutputRoute { channel: 3, source: Source::Mic, click: false },
+                OutputRoute { channel: 4, source: Source::Mute, click: false },
             ],
         };
         let (ins, mut outs) = io_buffers(3, 5, 100);
@@ -196,12 +239,12 @@ mod tests {
         assert!(v(Routing { bass_in: 3, ..Default::default() }).is_err());
         assert!(v(Routing { bass_in: 0, ..Default::default() }).is_err());
         assert!(v(Routing {
-            outputs: vec![OutputRoute { channel: 5, source: Source::Di }],
+            outputs: vec![OutputRoute { channel: 5, source: Source::Di, click: false }],
             ..Default::default()
         })
         .is_err());
         assert!(v(Routing {
-            outputs: vec![OutputRoute { channel: 1, source: Source::Mic }],
+            outputs: vec![OutputRoute { channel: 1, source: Source::Mic, click: false }],
             ..Default::default()
         })
         .is_err());
@@ -212,7 +255,7 @@ mod tests {
     fn invalid_channels_never_panic_in_process() {
         let r = Routing {
             bass_in: 9,
-            outputs: vec![OutputRoute { channel: 7, source: Source::Di }],
+            outputs: vec![OutputRoute { channel: 7, source: Source::Di, click: false }],
             ..Default::default()
         };
         let (ins, mut outs) = io_buffers(2, 2, 32);
@@ -224,12 +267,125 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     fn process_does_not_allocate() {
-        let r =
-            Routing { outputs: vec![OutputRoute { channel: 2, source: Source::Di }], ..Default::default() };
+        let r = Routing {
+            outputs: vec![OutputRoute { channel: 2, source: Source::Di, click: false }],
+            ..Default::default()
+        };
         let (ins, mut outs) = io_buffers(2, 2, 256);
         let mut router = Router::new(&r, 64).unwrap();
         assert_no_alloc::assert_no_alloc(|| {
             router.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 256 }, |b| b.fill(0.5));
         });
+    }
+}
+
+#[cfg(test)]
+mod click_tests {
+    use super::*;
+    use audio_io::VecIo;
+    use dsp::param::Control;
+
+    const SR: u32 = 48000;
+
+    fn routing(click_on: &[usize]) -> Routing {
+        Routing {
+            bass_in: 1,
+            mic_in: None,
+            outputs: (1..=4)
+                .map(|channel| OutputRoute {
+                    channel,
+                    source: Source::Processed,
+                    click: click_on.contains(&channel),
+                })
+                .collect(),
+        }
+    }
+
+    fn cfg(gain: f32) -> MetronomeConfig {
+        MetronomeConfig {
+            gain: Control::new(gain),
+            tempo: Control::new(120.0),
+            downbeat: Control::new(0.0),
+            beats_per_bar: 4,
+        }
+    }
+
+    /// Rend les quatre sorties après `frames` échantillons de silence en entrée.
+    fn run(r: &Routing, m: Option<MetronomeConfig>, frames: usize) -> Vec<Vec<f32>> {
+        let mut router = Router::with_metronome(r, 64, m, SR).expect("routage");
+        let ins = vec![vec![0.0f32; frames]];
+        let mut outs = vec![vec![0.0f32; frames]; 4];
+        router.process(&mut VecIo { ins: &ins, outs: &mut outs, frames }, |_| {});
+        outs
+    }
+
+    /// **La garantie qui compte** : une sortie qui n'a pas demandé le clic n'en reçoit **rien**,
+    /// métronome allumé ou non. Un clic parti dans le sondier en concert est une catastrophe.
+    #[test]
+    fn only_the_outputs_that_asked_for_it_get_the_click() {
+        // sorties 3 et 4 : le clic ; 1 et 2 (le sondier) : rien
+        let outs = run(&routing(&[3, 4]), Some(cfg(0.5)), SR as usize);
+        assert!(outs[0].iter().all(|x| *x == 0.0), "sortie 1 : le clic a fui");
+        assert!(outs[1].iter().all(|x| *x == 0.0), "sortie 2 : le clic a fui");
+        for c in [2, 3] {
+            let peak = outs[c].iter().fold(0.0f32, |a, x| a.max(x.abs()));
+            assert!((0.4..=0.5).contains(&peak), "sortie {} : crête {peak}", c + 1);
+        }
+    }
+
+    /// Aucune sortie ne le demande : le générateur n'est même pas créé, et la sortie est identique
+    /// au bit près à ce qu'elle serait sans métronome.
+    #[test]
+    fn no_output_asking_means_no_click_at_all() {
+        let with = run(&routing(&[]), Some(cfg(1.0)), 4096);
+        let without = run(&routing(&[]), None, 4096);
+        assert_eq!(with, without, "sans sortie demandeuse, rien ne change");
+        assert!(with.iter().flatten().all(|x| *x == 0.0));
+    }
+
+    /// Gain à zéro : éteint, et la sortie est identique au bit près.
+    #[test]
+    fn a_zero_gain_is_bit_identical() {
+        let off = run(&routing(&[3]), Some(cfg(0.0)), 4096);
+        let none = run(&routing(&[3]), None, 4096);
+        assert_eq!(off, none, "éteint, rien n'est ajouté");
+    }
+
+    /// Le clic s'**ajoute** à la source, il ne la remplace pas : les in-ears veulent la basse
+    /// **et** le clic.
+    #[test]
+    fn the_click_is_added_to_the_source_not_substituted() {
+        let r = routing(&[1]);
+        let mut router = Router::with_metronome(&r, 64, Some(cfg(0.25)), SR).expect("routage");
+        let frames = SR as usize / 2;
+        let ins = vec![vec![0.0f32; frames]];
+        let mut outs = vec![vec![0.0f32; frames]; 4];
+        // la « chaîne » rend un continu à 0,5 : on doit retrouver 0,5 plus le clic
+        router.process(&mut VecIo { ins: &ins, outs: &mut outs, frames }, |b| b.fill(0.5));
+        // le clic oscille autour de zéro : la sortie s'écarte de 0,5 dans les deux sens, mais
+        // jamais au point de perdre la source (gain 0,25)
+        let lo = outs[0].iter().fold(f32::MAX, |a, x| a.min(*x));
+        let hi = outs[0].iter().fold(f32::MIN, |a, x| a.max(*x));
+        assert!(lo > 0.5 - 0.26, "la source a été remplacée : minimum {lo}");
+        assert!(hi > 0.6, "le clic ne s'est pas ajouté : maximum {hi}");
+        // loin d'une salve, la sortie est **exactement** la source
+        assert_eq!(outs[0][SR as usize / 4], 0.5, "entre deux clics, rien n'est ajouté");
+        // les autres sorties n'ont que la source
+        assert!(outs[1].iter().all(|x| (*x - 0.5).abs() < 1e-6));
+    }
+
+    /// Dans le callback : aucune allocation, clic compris.
+    #[test]
+    fn the_click_does_not_allocate() {
+        let r = routing(&[2, 3]);
+        let mut router = Router::with_metronome(&r, 64, Some(cfg(0.5)), SR).expect("routage");
+        let ins = vec![vec![0.1f32; 256]];
+        let mut outs = vec![vec![0.0f32; 256]; 4];
+        assert_no_alloc::assert_no_alloc(|| {
+            for _ in 0..40 {
+                router.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 256 }, |b| b.fill(0.2));
+            }
+        });
+        assert!(outs.iter().flatten().all(|x| x.is_finite()));
     }
 }

@@ -263,6 +263,7 @@ mod tests {
             quiet: true,
             limiter_meter: Arc::default(),
             input_tap: None,
+            metronome: None,
         };
         let max_block = cfg.max_block;
         let mut engine = Engine::start(cfg, dsp::Chain::new()).expect("carte simulée");

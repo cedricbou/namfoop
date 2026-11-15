@@ -79,6 +79,29 @@ pub struct Config {
     pub audio: AudioConfig,
     /// Affectation des entrées / sorties (écrit par `setup`).
     pub routing: Routing,
+    /// Réglages du **métronome** (ADR 0008). Absent : les valeurs par défaut, et rien n'est écrit —
+    /// une config d'une version précédente se réécrit à l'octet près. Déclaré **après** `routing` :
+    /// en TOML, une table ne peut pas précéder les valeurs qui la suivent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metronome: Option<Metronome>,
+}
+
+/// Le **clic** du métronome : son niveau et sa mesure. Le routage, lui, est par sortie
+/// ([`crate::routing::OutputRoute::click`]), et le clic est **éteint** tant qu'on ne l'allume pas :
+/// c'est une aide d'écoute, pas un son, donc il ne vit pas dans un preset.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Metronome {
+    /// Niveau du clic (dBFS) dans les sorties qui le reçoivent.
+    pub level_db: f32,
+    /// Temps par mesure : le **premier** est accentué (plus aigu). 1 : aucun accent.
+    pub beats_per_bar: u32,
+}
+
+impl Default for Metronome {
+    fn default() -> Self {
+        Self { level_db: -18.0, beats_per_bar: 4 }
+    }
 }
 
 impl Default for Config {
@@ -93,6 +116,7 @@ impl Default for Config {
             default_ir: None,
             audio: AudioConfig::default(),
             routing: Routing::default(),
+            metronome: None,
         }
     }
 }
@@ -197,8 +221,8 @@ mod tests {
         c.routing.bass_in = 1;
         c.routing.mic_in = Some(2);
         c.routing.outputs = vec![
-            OutputRoute { channel: 1, source: Source::Processed },
-            OutputRoute { channel: 2, source: Source::Di },
+            OutputRoute { channel: 1, source: Source::Processed, click: false },
+            OutputRoute { channel: 2, source: Source::Di, click: false },
         ];
         c.save(&p).unwrap();
         let text = std::fs::read_to_string(&p).unwrap();
