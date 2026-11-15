@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#207)
+- **Le tap (`*`) n'agit plus dans le banc d'essai**, seulement dans l'espace Chaîne : la
+  Bibliothèque n'est pas un preset, elle n'a ni volume ni tempo propres, et y taper faisait
+  apparaître « non enregistré » alors qu'on écoutait seulement des modèles. La touche dit où elle
+  agit.
+- **Le panneau de réglages dit ce que vaut une division.** Une fraction nue se lit mal : `1/4` est
+  une **noire**, donc **un temps**, et non « un quart de temps » (les fractions sont relatives à la
+  ronde). La ligne d'aide, sous le curseur, l'écrit désormais en clair —
+  `1/4 = une noire, soit un temps (500 ms à 120 BPM)` — et le guide ajoute la colonne des noms de
+  notes. Aucun calcul ne change : à 120 BPM, `1/4` valait et vaut 500 ms, comme sur tout le marché.
+- La durée dérivée affichée tient dans la colonne de 9 caractères (`(2000 ms)`) ; c'est la ligne
+  d'aide, qui a la place, qui explique l'écrêtage au tampon de 2 s.
+
 ### Ajouté (#200)
 - **Le tap tempo : `*` dans `browse`.** Deux frappes suffisent, puis c'est la moyenne des quatre
   derniers intervalles ; une frappe trop écartée repart une séquence, trois secondes la terminent.

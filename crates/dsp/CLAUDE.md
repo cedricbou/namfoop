@@ -9,7 +9,10 @@ une case `param::Control` : lecture **une fois par bloc**, rampe de `RAMP_MS` = 
 ferait dépendre le son de la taille de bloc ; case lue à la construction ET à `reset()`, sinon une
 chaîne préchargée sauterait de 36 dB à l'installation), `tempo.rs` (**LE TEMPO ET LES DIVISIONS**, ADR 0008 : `DIVISIONS`, la table des **neuf**
 divisions — indice **0 = `libre`**, qui rend la main au temps en millisecondes —, dans l'ordre des
-noms de notes, qui est aussi croissant en durée (`←` / `→` prévisibles) ; `MAX_INDEX` est une
+noms de notes, qui est aussi croissant en durée (`←` / `→` prévisibles) ; chaque entrée porte son
+`name` (`noire`) et son `beats_label` (`un temps`) parce qu'une fraction nue se lit mal — `1/4` est
+une noire, donc UN temps, et non un quart de temps, ce qui a vraiment trompé l'utilisateur (#207) ;
+`MAX_INDEX` est une
 **const** parce que les tables `PARAMS` en sont une, et un test vérifie qu'elle suit la table ;
 `at` / `label_at` / `index_of` (l'étiquette en mini-syntaxe : `delay:division=1/8.`),
 `Division::ms_at`, `clamp_bpm` (30 à 300, non fini -> 120) ; et `Tempo::{Bpm, Live}`, calqué sur

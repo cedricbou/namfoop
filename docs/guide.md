@@ -1467,22 +1467,44 @@ morceau**. Les effets de temps acceptent donc leur temps de deux façons :
 
 Les neuf valeurs, du plus court au plus long, dans l'ordre où `←` / `→` les parcourent :
 
-| valeur | `libre` | `1/16` | `1/8T` | `1/8` | `1/8.` | `1/4` | `1/4.` | `1/2` | `1/1` |
-|---|---|---|---|---|---|---|---|---|---|
-| en noires | — | ¼ | ⅓ | ½ | ¾ | **1** | 1½ | 2 | 4 |
-| à 120 BPM | `time` | 125 ms | 167 ms | 250 ms | 375 ms | **500 ms** | 750 ms | 1 s | 2 s |
+| valeur | la note | en temps | à 120 BPM |
+|---|---|---|---|
+| `libre` | — | c'est `time` qui agit | `time` |
+| `1/16` | double-croche | un quart de temps | 125 ms |
+| `1/8T` | triolet de croche | un tiers de temps | 167 ms |
+| `1/8` | croche | un demi-temps | 250 ms |
+| `1/8.` | croche pointée | trois quarts de temps | 375 ms |
+| **`1/4`** | **noire** | **un temps** | **500 ms** |
+| `1/4.` | noire pointée | un temps et demi | 750 ms |
+| `1/2` | blanche | deux temps | 1 s |
+| `1/1` | ronde | quatre temps | 2 s |
+
+**Attention au piège de la fraction.** `1/4` ne veut **pas** dire « un quart de temps » : c'est une
+**noire**, donc **un temps** — les fractions sont relatives à la *ronde*, pas au temps. C'est la
+convention de tous les pédaliers et de tous les séquenceurs, sans exception : à 120 BPM, `1/4` vaut
+500 ms partout. Et un quart de temps à 120 BPM, c'est 125 ms, que tout le monde appelle une
+**double-croche**, `1/16` — exactement ce que fait namfoop. La colonne « la note » ci-dessus est là
+pour que la question ne se pose pas, et le panneau de réglages de `browse` la rappelle sous le
+curseur : `1/4 = une noire, soit un temps (500 ms à 120 BPM)`.
 
 `libre` est la valeur par défaut : sans rien changer, un delay se règle en millisecondes comme il
 l'a toujours fait. `1/8.` (la croche pointée) est le réglage de delay le plus répandu ; `1/4` suit
 simplement la pulsation.
+
+**Les divisions courtes ne s'entendent pas comme un rythme**, et ce n'est pas un défaut : à 120 BPM,
+`1/16` place sa répétition 125 ms après la note, au même niveau que n'importe quelle autre division
+(mesuré : -15,8 dB sur un pincement de basse, identique de `1/16` à `1/4`). Mais 125 ms sous une
+note qui sonne encore, l'oreille ne les sépare pas : ça **épaissit** au lieu de répéter. Pour
+entendre des double-croches, il faut monter `mix` et `feedback`.
 
 **D'où vient le tempo.** Le tempo appartient au **preset** : changer de preset change le tempo. Il
 s'écrit `tempo_bpm` dans le `.preset.toml`, entre 30 et 300 BPM, et vaut 120 quand le preset n'en
 porte pas. En ligne de commande, `--tempo` le donne directement — indispensable pour comparer deux
 réglages avec `render`, où rien n'est laissé au hasard.
 
-**Taper le tempo : `*`.** Dans `browse`, la touche `*` (à droite de `ù` sur un clavier AZERTY, sans
-Maj) tape le tempo. **Deux frappes suffisent** ; au-delà, c'est la moyenne des quatre derniers
+**Taper le tempo : `*`.** Dans `browse`, espace **Chaîne** (`2`), la touche `*` (à droite de `ù` sur
+un clavier AZERTY, sans Maj) tape le tempo. Elle n'agit pas dans la Bibliothèque : le banc d'essai
+n'est pas un preset, il n'a ni volume ni tempo propres. **Deux frappes suffisent** ; au-delà, c'est la moyenne des quatre derniers
 intervalles, donc taper quatre à cinq fois donne une valeur plus sûre. Une frappe trop écartée des
 précédentes (une hésitation, ou un autre tempo) **repart** une séquence au lieu de polluer la
 moyenne, et trois secondes sans frappe la terminent.
