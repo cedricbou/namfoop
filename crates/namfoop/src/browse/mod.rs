@@ -318,11 +318,8 @@ pub fn run(
             if action == Action::None {
                 action = st.tick(start.elapsed().as_millis() as u64);
             }
-            // la touche est gardée pour la trace de diagnostic (#191)
-            let mut pressed = None;
             if action == Action::None {
                 if let Some(k) = tui::poll_key(Duration::from_millis(30))? {
-                    pressed = Some(k);
                     action = st.on_key(k);
                 }
             }
@@ -353,10 +350,6 @@ pub fn run(
                         last_req = Some(req.clone());
                         let _ = tx_req.send(Job::Chain(req));
                         status.loading = true;
-                    } else {
-                        // rien n'est envoyé : c'est déjà cette chaîne qui joue. Le dire, sinon la
-                        // trace est muette là où le son peut rester en retard (#191)
-                        trace(&format!("demande IGNORÉE (identique à celle qui joue) {}", req.trace()));
                     }
                 }
                 Action::MeasureGrain { model, input_db } => {
@@ -431,21 +424,6 @@ pub fn run(
             // le volume écouté : posé **juste après** le `match`, pour qu'une chaîne installée par
             // ce tour-ci le lise dès son premier bloc (ADR 0007). `plan()` plutôt qu'une règle
             // réécrite : c'est lui qui sait déjà ce qu'on écoute (banc d'essai à nu, écoute isolée).
-            // diagnostic (#191) : ce que l'état a fait de la touche — quel preset il croit jouer,
-            // et s'il attend une confirmation (dans ce cas la touche n'a RIEN chargé)
-            if let Some(k) = pressed {
-                let (label, saved) = st.preset_label();
-                trace(&format!(
-                    "touche {k:?} → {}{}{}",
-                    if label.is_empty() { "(pas de preset)".to_string() } else { label },
-                    if saved { "" } else { " ●non-enregistré" },
-                    match (&st.pending_switch, st.confirm_switch) {
-                        (Some(_), true) => " FENÊTRE non-enregistré : RIEN n'est chargé",
-                        (Some(_), false) => " bascule en attente de l'écriture du preset",
-                        (None, _) => "",
-                    }
-                ));
-            }
             let heard_volume = st.plan().volume_db;
             if heard_volume != volume.get() {
                 volume.set(heard_volume);
@@ -461,12 +439,9 @@ pub fn run(
                 match b {
                     // les vumètres de la chaîne qui vient d'être installée (#107)
                     Built::Ok(meters) => st.set_chain_meters(meters),
-                    Built::Unchanged => trace("reçu : INCHANGÉ (le thread audio garde sa chaîne)"),
+                    Built::Unchanged => {}
                     Built::Preloading(done, total) => status.bank = Some((done, total)),
-                    Built::Err(e) => {
-                        trace(&format!("reçu : ÉCHEC {e}"));
-                        st.message = Some(format!("chargement impossible : {e}"));
-                    }
+                    Built::Err(e) => st.message = Some(format!("chargement impossible : {e}")),
                 }
             }
             // la largeur décide des panneaux réservés aux écrans larges (Bandes, #183)
@@ -514,7 +489,10 @@ fn scan_presets(library: &Path) -> Vec<(String, String, PathBuf, dsp::preset::Pr
 static TRACE_START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
 fn trace(line: &str) {
-    if let Some(path) = std::env::var_os("NAMFOOP_BROWSE_TRACE") {
+    // le fichier est lu dans l'environnement **une seule fois** : éteinte, la trace n'est plus
+    // qu'une lecture atomique et un retour (#193)
+    static FILE: std::sync::OnceLock<Option<std::ffi::OsString>> = std::sync::OnceLock::new();
+    if let Some(path) = FILE.get_or_init(|| std::env::var_os("NAMFOOP_BROWSE_TRACE")) {
         use std::io::Write;
         let ms = TRACE_START.get_or_init(Instant::now).elapsed().as_millis();
         if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {

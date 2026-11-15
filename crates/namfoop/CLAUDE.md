@@ -154,11 +154,12 @@ concernée). Erreurs : `anyhow`.
   installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
   vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. Chaque
   ligne est **horodatée** (ms depuis la première) et écrite en **un seul** appel, sinon les lignes
-  des deux threads se coupent (#191). Elle dit aussi la touche reçue et le preset que l'écran croit
-  jouer, une demande ignorée parce qu'identique à celle qui joue, l'état de chaque place de la
-  banque et ses réponses (déjà en jeu, pas prête, occupée, échec), et une chaîne **jetée** parce
-  qu'une demande plus récente est arrivée : c'est là qu'on voit un écran et un son désaccordés.
-  La logique se teste dans `setup::state` / `browse::state`.
+  des deux threads se coupent (#191) ; le fichier n'est lu dans l'environnement qu'**une fois**
+  (#193). Une chaîne bâtie puis **jetée** parce qu'une demande plus récente est arrivée le dit aussi
+  (`JETÉE`) : la trace répond toujours à « quelle chaîne joue vraiment ». Les lignes de diagnostic
+  de #191 (une par touche, état de la banque, réponses de la banque) ont été retirées (#193) : les
+  remettre au besoin est l'affaire de quelques lignes. La logique se teste dans `setup::state` /
+  `browse::state`.
 - Test de fumée : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`.
 
 ## Faits mesurés
@@ -251,11 +252,12 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
   installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
   vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. Chaque
   ligne est **horodatée** (ms depuis la première) et écrite en **un seul** appel, sinon les lignes
-  des deux threads se coupent (#191). Elle dit aussi la touche reçue et le preset que l'écran croit
-  jouer, une demande ignorée parce qu'identique à celle qui joue, l'état de chaque place de la
-  banque et ses réponses (déjà en jeu, pas prête, occupée, échec), et une chaîne **jetée** parce
-  qu'une demande plus récente est arrivée : c'est là qu'on voit un écran et un son désaccordés.
-  La logique se teste dans `setup::state` / `browse::state`.
+  des deux threads se coupent (#191) ; le fichier n'est lu dans l'environnement qu'**une fois**
+  (#193). Une chaîne bâtie puis **jetée** parce qu'une demande plus récente est arrivée le dit aussi
+  (`JETÉE`) : la trace répond toujours à « quelle chaîne joue vraiment ». Les lignes de diagnostic
+  de #191 (une par touche, état de la banque, réponses de la banque) ont été retirées (#193) : les
+  remettre au besoin est l'affaire de quelques lignes. La logique se teste dans `setup::state` /
+  `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.
