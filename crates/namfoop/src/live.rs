@@ -78,6 +78,7 @@ pub fn run(
                 tempo: dsp::param::Control::new(spec.tempo.bpm()),
                 downbeat: dsp::param::Control::new(0.0),
                 beats_per_bar: metronome.beats_per_bar,
+                sound: metronome.sound,
             }),
         },
         chain,

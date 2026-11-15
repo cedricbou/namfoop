@@ -1557,6 +1557,23 @@ namfoop run --preset "chill verse" --click      # le clic dans les in-ears, au t
 |---|---|
 | `level_db` | niveau du clic (défaut **-18**) |
 | `beats_per_bar` | temps par mesure (défaut **4**) ; le premier est plus aigu — c'est l'accent. `1` : aucun accent |
+| `sound` | le son du clic : `bois` (défaut), `tic` ou `bip` |
+
+**Choisir son son.** Ce qui passe dans un retour de basse ne se choisit qu'à l'oreille, donc il y en
+a trois — mesurés par leur attaque, ce qui fait justement qu'un clic *perce* ou se noie :
+
+| | attaque | extinction | |
+|---|---|---|---|
+| `bois` | 0,6 ms | 25 ms | bloc de bois : percussif et **tenant sa hauteur**, donc l'accent s'entend bien. Le défaut |
+| `tic` | 0,3 ms | 7 ms | le plus sec et le plus percussif ; pas de hauteur du tout (c'est du bruit filtré), seule la brillance distingue l'accent |
+| `bip` | **12,6 ms** | 24 ms | sinus à enveloppe douce : le plus musical, mais son attaque lente le fait disparaître sous une basse |
+
+```toml
+[metronome]
+level_db = -18.0
+beats_per_bar = 4
+sound = "bois"
+```
 
 Le clic suit le **même tempo** que les effets de temps : il suit donc le tap (`*`), le tempo du
 preset, et l'horloge MIDI quand elle arrivera. Taper recale le **temps 1** : on tape sur le premier

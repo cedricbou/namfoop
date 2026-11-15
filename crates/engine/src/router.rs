@@ -307,6 +307,7 @@ mod click_tests {
             tempo: Control::new(120.0),
             downbeat: Control::new(0.0),
             beats_per_bar: 4,
+            sound: crate::metronome::ClickSound::default(),
         }
     }
 
