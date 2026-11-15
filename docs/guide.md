@@ -1243,7 +1243,7 @@ Les captures sortent à des niveaux très différents (de -14 à -40 dB). Trois 
 
 | Mode | Effet |
 |---|---|
-| `match` | (après `calibrate`) le son traité a **le même volume que ta basse en direct**. Au chargement, ton enregistrement de calibration passe dans la chaîne et un gain compense l'écart. Pas de saut de volume d'un modèle à l'autre ni entre clair et traité |
+| `match` | (après `calibrate`) le son traité a **le même volume que ta basse en direct**. Au chargement, ton enregistrement de calibration passe dans la chaîne et un gain compense l'écart de **loudness** (pondération K d'ITU-R BS.1770, la norme de la diffusion : l'oreille n'entend pas le fondamental d'une basse comme ses harmoniques). Pas de saut de volume d'un modèle à l'autre ni entre clair et traité |
 | `normalize` | (défaut sans calibration) la loudness annoncée par le modèle est ramenée à `--target-db` (-18 dB, la convention NAM) |
 | `raw` | sortie brute du modèle, sans correction |
 
@@ -1263,6 +1263,14 @@ Ce qui marche quand même :
 | plus ou moins de **saturation** | un `gain` (ou `--input-db`) **avant** le modèle : l'alignement rattrape le niveau derrière, il reste le grain |
 | **baisser ou monter la sortie** | `--master-db` (après l'alignement), ou `--level normalize` si tu renonces à l'alignement |
 | **équilibrer deux presets** entre eux | le **volume du preset** : `,` et `.` dans l'espace Chaîne de `browse` (voir ci-dessous). Il s'applique **après** l'alignement, c'est le seul gain du preset qu'il n'annule pas |
+
+**Pondération, et ses limites.** Jusqu'en novembre 2026 l'alignement comparait des RMS larges ; il
+compare maintenant des loudness pondérées K. L'effet est réel mais modeste : sur la bibliothèque,
+une pédale de fuzz est désormais alignée **1,2 dB plus bas** qu'avant, un ampli à 0,1 dB près comme
+avant — soit **1,3 dB** de correction relative entre les deux. Ça ne suffit pas à faire tenir un
+fuzz à côté d'un clair : pour ça, c'est le [volume du preset](#volume-du-preset---et-) qui tranche.
+Une pondération **A** a été mesurée et écartée : elle ignore tellement le grave qu'elle aligne le
+fuzz **plus haut** encore que le RMS large (l'ampli, riche en grave, se retrouve baissé à sa place).
 
 `browse` montre cet étage en bout de synoptique (« niveau DI -11.1 dB ») et prévient quand tu poses
 un `gain`. Le grain d'un modèle se règle par l'entrée (`--input-db`, ou l'entrée propre au modèle :

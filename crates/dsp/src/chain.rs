@@ -70,7 +70,9 @@ pub enum Level {
     /// Ramène la loudness annoncée par le modèle à `target_db` (convention NAM : -18).
     Normalize { target_db: f64 },
     /// Aligne le volume traité sur le volume du DI : la référence (enregistrement de calibration
-    /// du bassiste) passe dans la chaîne au chargement et un gain compense l'écart de RMS.
+    /// du bassiste) passe dans la chaîne au chargement et un gain compense l'écart de **loudness
+    /// pondérée K** (ITU-R BS.1770, `profile::loudness_db`, #181) — et non de RMS large, qui
+    /// ignorait que l'oreille n'entend pas le fondamental d'une basse comme ses harmoniques.
     Match { reference: Arc<Vec<f32>>, sample_rate: u32 },
 }
 

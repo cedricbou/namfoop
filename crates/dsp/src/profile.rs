@@ -9,12 +9,47 @@ use std::path::Path;
 use rustfft::num_complex::Complex32;
 use serde::{Deserialize, Serialize};
 
+use crate::biquad::{Biquad, Shape};
 use crate::ir::{prepare_ir, IrSettings};
 use crate::Result;
 
 /// Fréquence d'analyse commune.
 pub const RATE: u32 = 48000;
 const FFT_LEN: usize = 16384;
+
+/// Pondération **K** (ITU-R BS.1770) : un plateau aigu de +4 dB (« effet de tête ») puis un
+/// passe-haut, les deux biquads de la norme. BS.1770 ne donne ses coefficients qu'à 48 kHz ; on les
+/// reconstruit ici par les formules RBJ aux fréquences et Q des pôles de la norme, ce qui rend la
+/// mesure **indépendante de la fréquence d'échantillonnage** (vérifié dans les tests : plateau à
+/// +4,0 dB dans l'aigu, -13 dB environ à 20 Hz).
+fn k_weighting(sample_rate: u32) -> [Biquad; 2] {
+    let sr = sample_rate as f64;
+    [
+        Biquad::new(Shape::HighShelf { gain_db: 3.99984 }, 1681.97445, 0.707175, sr),
+        Biquad::new(Shape::HighPass, 38.13547, 0.500327, sr),
+    ]
+}
+
+/// **Loudness pondérée K** d'un signal mono (dB), au sens d'ITU-R BS.1770 : moyenne du carré du
+/// signal pondéré, sans porte relative.
+///
+/// Elle sert à **comparer** deux signaux (l'alignement sur le DI, #181), jamais à afficher une
+/// valeur absolue : la constante -0,691 LUFS de la norme s'annule dans un écart, elle n'est donc
+/// pas appliquée. À RMS égal, un son qui a mis son énergie vers 1–5 kHz — un fuzz — rend ici une
+/// valeur **plus grande** qu'un son dominé par son fondamental, ce qui est bien ce que l'oreille
+/// entend.
+pub fn loudness_db(x: &[f32], sample_rate: u32) -> f32 {
+    if x.is_empty() {
+        return f32::NEG_INFINITY;
+    }
+    let mut k = k_weighting(sample_rate);
+    let mut sum = 0.0f64;
+    for &v in x {
+        let y = k.iter_mut().fold(v, |acc, b| b.tick(acc)) as f64;
+        sum += y * y;
+    }
+    (10.0 * (sum / x.len() as f64).max(1e-30).log10()) as f32
+}
 
 /// Centres des tiers d'octave : 1000 · 2^(k/3), k = -15..=12 (31,25 Hz – 16 kHz, 28 bandes).
 pub fn band_centers() -> Vec<f32> {
@@ -187,6 +222,33 @@ fn cuts(centers: &[f32], db: &[f32]) -> (f32, f32) {
 
 #[cfg(test)]
 mod tests {
+    /// La pondération K : plateau de +4 dB dans l'aigu, passe-haut dans le grave, et **la même
+    /// mesure à 48 et 96 kHz** (les coefficients sont reconstruits, pas copiés de la norme à
+    /// 48 kHz) — #181.
+    #[test]
+    fn the_k_weighting_follows_the_standard_at_any_sample_rate() {
+        for sr in [44100u32, 48000, 96000] {
+            let f = k_weighting(sr);
+            let at = |hz: f64| f.iter().map(|b| b.response_db(hz, sr as f64)).sum::<f64>();
+            assert!((at(10_000.0) - 4.0).abs() < 0.2, "{sr} Hz : plateau {:.2} dB", at(10_000.0));
+            assert!((at(1000.0) - 0.0).abs() < 0.6, "{sr} Hz : médium {:.2} dB", at(1000.0));
+            assert!(at(20.0) < -11.0 && at(20.0) > -15.0, "{sr} Hz : 20 Hz à {:.2} dB", at(20.0));
+        }
+        // un sinus à 1 kHz et un à 40 Hz de même amplitude : le grave pèse moins
+        let tone = |hz: f32, sr: u32| -> Vec<f32> {
+            (0..sr).map(|n| (2.0 * std::f32::consts::PI * hz * n as f32 / sr as f32).sin()).collect()
+        };
+        let (mid, low) = (loudness_db(&tone(1000.0, RATE), RATE), loudness_db(&tone(40.0, RATE), RATE));
+        assert!(mid - low > 5.0, "1 kHz {mid:.1} dB contre 40 Hz {low:.1} dB");
+        // et l'écart grimpe encore dans la zone sensible (le plateau de +4 dB)
+        let high = loudness_db(&tone(4000.0, RATE), RATE);
+        assert!(high - low > 9.0, "4 kHz {high:.1} dB contre 40 Hz {low:.1} dB");
+        // la mesure ne dépend pas de la fréquence d'échantillonnage
+        let a = loudness_db(&tone(1000.0, 48000), 48000);
+        let b = loudness_db(&tone(1000.0, 96000), 96000);
+        assert!((a - b).abs() < 0.1, "48 kHz {a:.2} dB, 96 kHz {b:.2} dB");
+    }
+
     use super::*;
 
     /// Biquad RBJ (Butterworth, Q = 0,707) appliqué deux fois : -6 dB à `fc` (Linkwitz-Riley).
