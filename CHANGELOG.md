@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#196)
+- **L'arbitre de tempo** (`engine::tempo`), socle du tap et de l'horloge MIDI : trois sources
+  veulent donner le tempo — le preset, le tap, l'horloge — et une seule peut écrire. La priorité est
+  **tap > horloge > preset** ; un tap détrône l'horloge et on n'y revient que sur un événement net
+  (bascule de preset, `Start` / `Stop`). Une horloge qui **meurt** garde le dernier tempo et le
+  signale : jamais de saut de son causé par une panne. Rien n'est encore visible — le tap (`*`) et
+  l'affichage viennent avec #200.
+
 ### Ajouté (#195)
 - **Les effets de temps se règlent au tempo.** Un `delay` accepte désormais sa durée en **division
   rythmique** — `--post delay:division=1/8.` — au lieu de millisecondes : neuf valeurs, de `1/16` à
