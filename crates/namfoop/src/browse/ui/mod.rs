@@ -193,6 +193,23 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         Span::raw(" "),
         space_span(!lib, format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }), Color::Cyan),
     ];
+    // le tempo et **d'où il vient** (ADR 0008) : sans la source, on ne saurait pas pourquoi le
+    // delay ne suit pas ce qu'on croit avoir réglé
+    {
+        use engine::tempo::TempoSource;
+        let src = s.tempo_source();
+        head.push(Span::raw("  "));
+        head.push(Span::styled(
+            format!("♩ {:.0} ({})", s.heard_tempo_bpm(), src.label()),
+            match src {
+                // une horloge perdue doit sauter aux yeux : le son ne suit plus le groupe
+                TempoSource::ClockLost => Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                TempoSource::MidiClock => Style::new().fg(Color::Green),
+                TempoSource::Tap => Style::new().fg(Color::Cyan),
+                TempoSource::Preset => Style::new().fg(Color::DarkGray),
+            },
+        ));
+    }
     if !what.is_empty() {
         let used: usize = head.iter().map(|sp| sp.content.chars().count()).sum();
         let right =

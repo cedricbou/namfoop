@@ -61,8 +61,14 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 chemin : chain::Chain::tempo_bpm (avec les blocs, pour qu'unsaved() le voie sans
                 code en plus), une seconde case posée par browse/mod.rs juste après le `match`
                 (trace `tempo=xxx.x`), ChainSpec::tempo = Tempo::Live dans build.rs. C'est de lui
-                que les paramètres `division` des effets de temps tirent leur durée ; le tap (`*`)
-                et l'arbitrage avec l'horloge MIDI viennent ensuite (#196, #200) ;
+                que les paramètres `division` des effets de temps tirent leur durée. ATTENTION : deux
+                valeurs distinctes depuis #200 — `fx.chain.tempo_bpm` est le tempo **enregistré**
+                (ce que `S` écrit, ce que `unsaved()` compare ; seuls un tap et un chargement de
+                preset le changent), et `State::heard_tempo_bpm()` est le tempo **entendu**, celui
+                de l'arbitre `engine::tempo::Arbiter` que `State` possède. Les deux diffèreront dès
+                qu'une horloge MIDI tournera (#7), et c'est l'entendu qui va dans la case et dans
+                l'affichage. `*` = tap (`State::tap_tempo`, keys.rs), `tick()` appelle
+                `Arbiter::poll` pour voir une horloge qui se tait ;
                 send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la
@@ -183,6 +189,17 @@ concernée). Erreurs : `anyhow`.
   le nombre d'effets. Le son ne se coupe dans aucun des deux cas : la chaîne précédente joue jusqu'au
   fondu. Un preset pas encore préchargé retombe sur l'ancien chemin. **Pi 5 non mesuré**
   (#44 / #45) ; coût mémoire et détail du préchargement : `crates/engine/CLAUDE.md`.
+
+- **Le tap (`*`) marche de bout en bout** (#200). Mesuré en pseudo-terminal (`--no-config
+  --backend sim --device 4x6`, bibliothèque jetable, `NAMFOOP_BROWSE_TRACE`) : charger un preset à
+  `tempo_bpm = 92` écrit `tempo=92.0 (preset)`, deux frappes à 522 ms donnent `tempo=114.9 (tap)`,
+  une 3ᵉ frappe une seconde plus tard **repart** une séquence (`59.3`, exactement la règle des
+  ±40 %), puis des frappes à 750 ms convergent (`67.6`, `70.8`) vers 80. L'étoile « non
+  enregistré » apparaît bien à la première frappe mesurée.
+  **Piège pour écrire ces tests** : il faut poser la taille du pseudo-terminal (`TIOCSWINSZ`),
+  sinon ratatui ne dessine rien du tout ; et **ne pas scruter l'écran pour une valeur qui change** —
+  ratatui n'écrit que les cellules modifiées, si bien qu'un `♩ 92 (preset)` arrive en morceaux
+  épars et qu'une recherche de texte retrouve l'ancienne valeur. La trace est la source de vérité.
 
 - **Le tempo du preset arrive bien jusqu'au son** (#195, ADR 0008). Mesuré (`render --preset` sur
   une impulsion, `--no-limiter`, preset `tempo_bpm = 92` + `delay:division=1/8.`) : échos à

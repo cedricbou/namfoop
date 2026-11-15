@@ -205,7 +205,7 @@ impl State {
     /// rythmique au tempo de la chaîne ; `None` quand il agit normalement. Au-delà du plafond du
     /// tampon du delay, la valeur le dit.
     fn derived_ms(&self, spec: Option<&FxSpec>, name: &str) -> Option<String> {
-        let (target, ms) = spec?.division_ms(self.fx.chain.tempo_bpm)?;
+        let (target, ms) = spec?.division_ms(self.heard_tempo_bpm())?;
         if target != name {
             return None;
         }

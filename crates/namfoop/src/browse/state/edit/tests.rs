@@ -552,13 +552,48 @@ fn the_output_of_a_parallel_is_where_you_add_after_it() {
     assert_eq!(s.fields_title(), "sortie du parallèle · 2 branches sommées");
 }
 
+/// Tape `bpm` à la touche `*`, comme l'utilisateur : deux frappes suffisent (ADR 0008).
+fn tap_tempo(s: &mut State, bpm: f32, from_ms: u64) -> u64 {
+    let step = (60_000.0 / bpm).round() as u64;
+    s.tick(from_ms);
+    s.on_key(Key::Char('*'));
+    s.tick(from_ms + step);
+    s.on_key(Key::Char('*'));
+    from_ms + step
+}
+
+/// `*` donne le tempo **et** modifie le preset, comme tout autre réglage (ADR 0008, décision de
+/// l'utilisateur) : l'étoile « non enregistré » apparaît.
+#[test]
+fn a_tap_gives_the_tempo_and_marks_the_preset_modified() {
+    let mut s = with_chain(vec![fx_block("delay:time=400")]);
+    s.mark_start();
+    assert!(s.unsaved().is_empty(), "rien de modifié au départ : {:?}", s.unsaved());
+    assert_eq!(s.heard_tempo_bpm(), dsp::tempo::DEFAULT_BPM);
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Preset);
+
+    // une seule frappe ne mesure rien, et le dit
+    s.tick(0);
+    s.on_key(Key::Char('*'));
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Preset);
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("tape encore")), "{:?}", s.message);
+    assert!(s.unsaved().is_empty(), "une frappe seule ne modifie pas le preset");
+
+    // la deuxième donne le tempo : 652 ms -> 92 BPM
+    s.tick(652);
+    s.on_key(Key::Char('*'));
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Tap);
+    assert!((s.heard_tempo_bpm() - 92.0).abs() < 0.2, "{} BPM", s.heard_tempo_bpm());
+    assert_eq!(s.fx.chain.tempo_bpm, s.heard_tempo_bpm(), "le tempo tapé devient celui du preset");
+    assert!(!s.unsaved().is_empty(), "le preset doit être marqué modifié");
+}
+
 /// Une division rythmique **remplace** `time` (ADR 0008) : la ligne `time` montre alors la durée
 /// que le tempo lui impose, **entre parenthèses**, et la régler ne fait rien — mais le dit, plutôt
 /// que de laisser croire que le réglage est cassé (#177).
 #[test]
 fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
     let mut s = with_chain(vec![fx_block("delay:time=400")]);
-    s.fx.chain.tempo_bpm = 120.0;
     s.on_key(Key::Enter); // réglages du delay
     let field = |s: &State, name: &str| {
         *s.fields()
@@ -576,8 +611,8 @@ fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
     assert_eq!(s.field_value(field(&s, "division")).0, "1/8.");
     assert_eq!(s.field_value(field(&s, "time")).0, "(375 ms)");
 
-    // le tempo change, la durée dérivée suit sans rien rebâtir
-    s.fx.chain.tempo_bpm = 92.0;
+    // on tape 92 BPM : la durée dérivée suit, sans rien rebâtir
+    let t = tap_tempo(&mut s, 92.0, 1000);
     assert_eq!(s.field_value(field(&s, "time")).0, "(489 ms)");
 
     // régler `time` est refusé, avec la marche à suivre
@@ -587,9 +622,9 @@ fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
     assert!(msg.contains("division"), "{msg}");
     assert_eq!(s.field_value(field(&s, "time")).0, "(489 ms)", "la valeur n'a pas bougé");
 
-    // au-delà du tampon de 2 s, la valeur le dit
+    // au-delà du tampon de 2 s, la valeur le dit (une ronde à 60 BPM demanderait 4 s)
     let Some(Leaf::Fx(slot)) = s.fx.chain.leaf_mut(s.fx.cursor) else { panic!("un delay") };
     slot.spec.set("division", dsp::tempo::index_of("1/1").unwrap()).expect("ronde");
-    s.fx.chain.tempo_bpm = 60.0;
+    tap_tempo(&mut s, 60.0, t + 5000);
     assert_eq!(s.field_value(field(&s, "time")).0, "(2000 ms, plafond)");
 }
