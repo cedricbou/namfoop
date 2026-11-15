@@ -10,6 +10,7 @@ pub mod model_profile;
 pub mod overrides;
 pub mod profile;
 pub mod recommend;
+pub mod set;
 
 pub use error::{Error, Result};
 
@@ -66,6 +67,8 @@ pub enum Kind {
     Cab,
     /// Preset : une chaîne enregistrée (`library/presets/*.preset.toml`, #157).
     Preset,
+    /// Set de concert : des morceaux, chacun avec ses sons (`library/sets/*.set.toml`, #217).
+    Set,
 }
 
 impl Kind {
@@ -75,13 +78,14 @@ impl Kind {
             Kind::Ir => 'i',
             Kind::Cab => 'c',
             Kind::Preset => 'p',
+            Kind::Set => 's',
         }
     }
     fn ext(self) -> &'static str {
         match self {
             Kind::Model => "nam",
             Kind::Ir => "wav",
-            Kind::Cab | Kind::Preset => "toml",
+            Kind::Cab | Kind::Preset | Kind::Set => "toml",
         }
     }
     fn label(self) -> &'static str {
@@ -90,6 +94,7 @@ impl Kind {
             Kind::Ir => "IR",
             Kind::Cab => "mélange",
             Kind::Preset => "preset",
+            Kind::Set => "set",
         }
     }
 }
@@ -158,13 +163,14 @@ fn pack_of(rel: &str) -> String {
 impl Library {
     pub fn scan(root: &Path) -> Self {
         let mut entries = Vec::new();
-        for kind in [Kind::Model, Kind::Ir, Kind::Cab, Kind::Preset] {
+        for kind in [Kind::Model, Kind::Ir, Kind::Cab, Kind::Preset, Kind::Set] {
             let mut files = Vec::new();
             walk(root, kind.ext(), &mut files);
-            // deux sortes de TOML dans la bibliothèque : les mélanges et les presets
+            // trois sortes de TOML dans la bibliothèque : les mélanges, les presets et les sets
             match kind {
                 Kind::Cab => files.retain(|p| dsp::blend::is_cab_file(p)),
                 Kind::Preset => files.retain(|p| dsp::preset::is_preset_file(p)),
+                Kind::Set => files.retain(|p| crate::set::is_set_file(p)),
                 _ => {}
             }
             let mut batch: Vec<Entry> = files
@@ -172,10 +178,10 @@ impl Library {
                 .map(|path| {
                     let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
                     let pack = pack_of(&rel);
-                    let stem = if kind == Kind::Preset {
-                        dsp::preset::display_name(&path)
-                    } else {
-                        dsp::blend::display_name(&path)
+                    let stem = match kind {
+                        Kind::Preset => dsp::preset::display_name(&path),
+                        Kind::Set => crate::set::display_name(&path),
+                        _ => dsp::blend::display_name(&path),
                     };
                     Entry { kind, id: String::new(), path, rel, pack, stem }
                 })
@@ -259,6 +265,27 @@ impl Library {
         self.root.join("presets").join(format!("{}.preset.toml", name.replace(['/', '\\'], "-")))
     }
 
+    /// Un set par son identifiant court ou ses mots-clés (`run --set`, #217).
+    pub fn resolve_set(&self, query: &str) -> Result<PathBuf> {
+        self.resolve_in(query, &[Kind::Set])
+    }
+
+    /// Le set chargé, contrôles bloquants appliqués (§ 3 de `docs/design/set.md`).
+    pub fn set(&self, path: &Path) -> Result<crate::set::SetSpec> {
+        crate::set::SetSpec::load(path)
+    }
+
+    /// Les avertissements d'un set, résolus contre **cette** bibliothèque : un preset introuvable
+    /// ou un prompteur absent n'empêche pas le set de jouer, il marque le son (§ 3).
+    pub fn set_warnings(&self, spec: &crate::set::SetSpec) -> Vec<crate::set::Warning> {
+        spec.warnings(&|id| self.resolve_preset(id).is_ok(), &|p| p.is_file())
+    }
+
+    /// Où enregistrer un set : `library/sets/<nom>.set.toml`.
+    pub fn set_path(&self, name: &str) -> PathBuf {
+        self.root.join("sets").join(format!("{}.set.toml", name.replace(['/', '\\'], "-")))
+    }
+
     fn resolve_in(&self, query: &str, kinds: &[Kind]) -> Result<PathBuf> {
         let kind = kinds[kinds.len() - 1];
         let pool = || self.entries.iter().filter(|e| kinds.contains(&e.kind));
@@ -314,7 +341,11 @@ impl Library {
                 kind.label(),
                 self.root.display(),
                 // les presets ont leur propre inventaire
-                if kind == Kind::Preset { "presets" } else { "models" }
+                match kind {
+                    Kind::Preset => "presets",
+                    Kind::Set => "sets",
+                    _ => "models",
+                }
             ),
             many => {
                 let list: Vec<String> =

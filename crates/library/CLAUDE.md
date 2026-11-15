@@ -2,7 +2,8 @@
 
 **Responsabilité.** Tout ce qui concerne les fichiers de sons, sans jamais toucher la carte son :
 index de `library/` (identifiants courts `m…` modèles, `i…` IR, `c…` mélanges, `p…` **presets**
-(`presets/*.preset.toml`, #157), recherche, métadonnées .nam), import des packs
+(`presets/*.preset.toml`, #157), `s…` **sets** (`sets/*.set.toml`, #217), recherche, métadonnées
+.nam), les **sets de concert** (`set.rs`), import des packs
 (`import/`), corrections de l'utilisateur (`overrides.rs`, `library/overrides.toml`, par
 empreinte du contenu), besoin d'IR et IR conseillées (`recommend.rs`), profils des IR
 (`profile.rs`) et des modèles avec la basse de l'utilisateur (`model_profile.rs`).
@@ -24,6 +25,24 @@ jamais `library/` de l'utilisateur. Les modèles de démo de NeuralAmpModelerCor
 vrai .nam est nécessaire.
 
 **Taille** : aucun fichier au-delà de 600 lignes (`import/` découpé par responsabilité).
+
+## `set.rs` — les sets de concert (#217)
+
+Le format du § 3 de `docs/design/set.md` : `SetSpec` › `Song` › `Sound`, serde, aller-retour sans
+perte (l'édition de l'US 4 en dépend : un défaut ne s'écrit pas, donc le fichier reste lisible à la
+main). Un set **référence** des presets par leur identifiant, il ne les copie pas.
+
+Deux sortes de contrôles, et **la différence est une décision de scène** :
+- **erreur** (`SetSpec::load` refuse) : `pc` en double — le message **nomme les deux morceaux** —,
+  `pc` hors 1-128, `tempo_bpm` hors `dsp::tempo::MIN_BPM`..`MAX_BPM`, mesure illisible. Ce sont des
+  fautes qui rendraient la navigation ou la battue imprévisibles ;
+- **avertissement** (`SetSpec::warnings`, résolu contre la bibliothèque par `Library::set_warnings`) :
+  preset introuvable, prompteur absent. **Le set s'ouvre et le reste joue** : un concert ne s'arrête
+  pas parce qu'un son a été renommé.
+
+Permis : un morceau sans son (on écrit un set par étapes) et un morceau sans `pc` (il ne se joue
+qu'au pied). `time` est gardé **tel qu'écrit** (`Option<String>`) pour que l'aller-retour ne touche
+pas au fichier ; `Song::time_sig()` le lit (`TimeSig`, déjà vérifié au chargement).
 
 ## Faits mesurés
 
@@ -54,8 +73,10 @@ vrai .nam est nécessaire.
 
 ```
 crates/library/   bibliothèque de sons, sans carte son (voir crates/library/CLAUDE.md) :
-                  lib.rs (index de library/, identifiants m…/i…/c…/p… (presets), recherche,
-                  métadonnées .nam ; resolve_preset / preset / path_of_id / preset_path),
+                  lib.rs (index de library/, identifiants m…/i…/c…/p… (presets)/s… (sets), recherche,
+                  métadonnées .nam ; resolve_preset / preset / path_of_id / preset_path,
+                  resolve_set / set / set_warnings / set_path),
+                  set.rs (sets de concert : SetSpec/Song/Sound, TimeSig, erreurs vs avertissements),
                   import/ (mod.rs : run -> Outcome ; scan.rs, classify.rs, validate.rs),
                   overrides.rs, recommend.rs, profile.rs, model_profile.rs, error.rs
 ```

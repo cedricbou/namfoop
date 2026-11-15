@@ -34,8 +34,10 @@ Règles :
 
 ## 2. Vocabulaire et état de l'art
 
-**Set** › **morceaux** (dans l'ordre) › **sons** (1 à n par morceau). Un son = un preset + un n° de
-Program Change + un volume propre au morceau.
+**Set** › **morceaux** (dans l'ordre) › **sons** (1 à n par morceau). Un **morceau** porte un n° de
+Program Change, son tempo, sa mesure et son prompteur ; un **son** est un preset plus le volume que
+ce morceau lui donne. Un son n'a **pas** de n° de PC : il est désigné par sa place (§ 3, § 5).
+(Corrigé en réalisant l'US 1 : cette phrase disait l'inverse du § 3.)
 
 C'est la hiérarchie des multi-effets du marché : la *Performance* Kemper (5 slots de rigs par morceau),
 le *preset par morceau + snapshots par partie* des utilisateurs de Helix, les *setlists* du Quad
