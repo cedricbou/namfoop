@@ -72,6 +72,7 @@ impl DelayParams {
             division: self.division,
             tempo,
             time_ms: self.time,
+            frozen: false,
             target: 1,
             feedback: self.feedback / 100.0,
             mix: self.mix / 100.0,
@@ -208,6 +209,14 @@ pub struct Delay {
     /// `time` tel qu'il est réglé : ce qui agit quand la division est `libre`, et ce qu'on retrouve
     /// si on y revient.
     time_ms: f32,
+    /// La chaîne est passée dans la **queue de preset** : l'étage ne suit plus le tempo et garde
+    /// sa tête de lecture là où elle est (#225). Levé par `reset()`.
+    ///
+    /// On gèle la **tête**, et non le BPM relu dans la case : au moment où la chaîne entre dans la
+    /// queue, la case contient **déjà** le tempo du preset suivant (l'écran l'écrit avant que la
+    /// chaîne ne soit installée), donc le relire reviendrait à adopter justement le tempo dont on
+    /// veut se protéger.
+    frozen: bool,
     /// Retard visé par le dernier calcul : c'est ce qui évite de relancer le fondu à chaque bloc
     /// quand le tempo ne bouge pas.
     target: usize,
@@ -260,6 +269,9 @@ impl Delay {
     /// C'est aussi ce qui fait que **revenir à `libre` retrouve** le temps en millisecondes.
     #[inline]
     fn follow_tempo(&mut self) {
+        if self.frozen {
+            return; // queue de preset : le rythme est celui du preset quitté (#225)
+        }
         let want = self.samples(self.wanted_ms());
         if want != self.target {
             self.set_samples(want);
@@ -304,7 +316,14 @@ impl Stage for Delay {
         one * (1.0 + repeats) + FILTER_SPREAD_MS
     }
 
+    /// La chaîne passe dans la queue : la tête de lecture ne bouge plus (#225).
+    fn enter_trail(&mut self) {
+        self.frozen = true;
+    }
+
     fn reset(&mut self) {
+        // une chaîne reprise par `engine::bank` resuit le tempo vivant : le gel de la queue est levé
+        self.frozen = false;
         self.buf.iter_mut().for_each(|s| *s = 0.0);
         self.w = 0;
         // le tempo est relu **ici aussi**, et sans fondu : une chaîne préchargée depuis dix minutes

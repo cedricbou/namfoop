@@ -43,6 +43,13 @@ impl Chain {
         self.stages.iter().map(|s| s.as_ref())
     }
 
+    /// Passe la chaîne en **queue de preset** : chaque étage fige ses réglages de rythme (#225).
+    pub fn enter_trail(&mut self) {
+        for s in &mut self.stages {
+            s.enter_trail();
+        }
+    }
+
     /// Ce que la chaîne peut encore sonner (ms) une fois son entrée silencieuse : la **somme** de
     /// ses étages (#173). Une réverbe derrière un delay continue de sonner après la dernière
     /// répétition, donc les queues s'ajoutent le long de la série.

@@ -180,3 +180,75 @@ fn the_input_fade_does_not_dip_more_than_the_old_output_fade() {
     }
     assert!(worst < 1.5, "le fondu sur l'entrée gonfle {worst:.2} dB de plus que celui sur la sortie");
 }
+
+/// **#225 : la queue garde le rythme de son propre preset.** Un `delay` synchronisé à 60 BPM passe
+/// dans la queue, puis le preset suivant impose 120 BPM : les répétitions en cours ne doivent pas
+/// s'accélérer. La case de tempo est unique et partagée (ADR 0007) — ce qui est juste pour un
+/// **niveau** et faux pour un **rythme**, d'où `Stage::enter_trail`.
+#[test]
+fn a_trail_keeps_the_tempo_of_its_own_preset() {
+    let tempo = dsp::param::Control::new(60.0);
+    // `1/8` à 60 BPM : une répétition toutes les 500 ms. Beaucoup de réinjection pour en avoir
+    // plusieurs, et des filtres de boucle transparents pour mesurer des crêtes nettes.
+    let synced = |t: &dsp::param::Control| {
+        let spec: dsp::fx::FxSpec =
+            "delay:division=1/8,feedback=80,mix=100,lowcut=20,highcut=20000".parse().expect("delay");
+        let mut c = Chain::new();
+        let ctx = BuildCtx::with_tempo(RATE, BLOCK, dsp::tempo::Tempo::from(t.clone()));
+        c.push_boxed(spec.build(&ctx).expect("delay bâti"));
+        c
+    };
+    let (mut rt, mut ctl) = dsp::swap::swap_pair(synced(&tempo), RATE, BLOCK, 20.0, 2000.0);
+
+    // une impulsion, puis 300 ms : le delay est chargé, rien n'est encore ressorti
+    let mut buf = vec![0.0f32; BLOCK];
+    buf[0] = 1.0;
+    rt.process(&mut buf);
+    let mut out: Vec<f32> = buf.clone();
+    for _ in 0..(RATE as usize * 300 / 1000 / BLOCK) {
+        let mut b = vec![0.0f32; BLOCK];
+        rt.process(&mut b);
+        out.extend_from_slice(&b);
+    }
+
+    // bascule vers une chaîne vide, et le preset suivant impose 120 BPM
+    assert!(ctl.send(Chain::new()).is_ok(), "la nouvelle chaîne part");
+    tempo.set(120.0);
+    for _ in 0..(RATE as usize * 2500 / 1000 / BLOCK) {
+        let mut b = vec![0.0f32; BLOCK];
+        rt.process(&mut b);
+        out.extend_from_slice(&b);
+    }
+
+    // les crêtes : la première à 500 ms, puis toutes les 500 ms. Sans le gel, les suivantes
+    // tomberaient à 250 ms d'intervalle.
+    let step = RATE as usize / 2; // 500 ms
+    let mut peaks = Vec::new();
+    let mut i = 1;
+    while i < out.len() && peaks.len() < 4 {
+        if out[i].abs() > 0.02 {
+            let hi = (i + step / 2).min(out.len());
+            let j = (i..hi).max_by(|a, b| out[*a].abs().total_cmp(&out[*b].abs())).expect("fenêtre");
+            peaks.push(j);
+            i = j + step / 2;
+        } else {
+            i += 1;
+        }
+    }
+    let ms = |s: usize| s as f32 * 1000.0 / RATE as f32;
+    println!(
+        "\n#225 queue d'un delay 1/8 à 60 BPM, preset suivant à 120 BPM :\n  répétitions à {:?} ms",
+        peaks.iter().map(|p| ms(*p).round()).collect::<Vec<_>>()
+    );
+    assert!(peaks.len() >= 3, "au moins trois répétitions attendues : {peaks:?}");
+    for (k, p) in peaks.iter().enumerate() {
+        let want = 500.0 * (k + 1) as f32;
+        assert!(
+            (ms(*p) - want).abs() < 20.0,
+            "répétition {} à {:.0} ms au lieu de {want:.0} : la queue a suivi le tempo du preset \
+             suivant (#225)",
+            k + 1,
+            ms(*p)
+        );
+    }
+}

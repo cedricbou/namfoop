@@ -165,6 +165,10 @@ impl SwapChain {
                 // une seule queue à la fois : celle qui sonne encore s'éteint pendant le fondu,
                 // pour que le thread audio ne traite jamais plus de trois chaînes
                 self.fade_tail_out(self.ramp_len.min(self.fade_len));
+                // la chaîne qui s'en va **fige son rythme** maintenant (#225), au début du fondu :
+                // c'est le plus tôt qu'elle puisse l'apprendre, et la case de tempo contient déjà
+                // celui du preset suivant. Attendre la fin du fondu lui ferait adopter ce dernier.
+                self.current.enter_trail();
                 self.incoming = Some(c);
                 self.fade_pos = 0;
             }
@@ -202,6 +206,8 @@ impl SwapChain {
             if let Some(previous) = self.tail.take() {
                 self.retire(previous); // son fondu de sortie vient de finir (gain ~0)
             }
+            // son rythme est déjà figé (au début du fondu, voir plus haut) : `tail_ms` est donc
+            // cohérent avec ce qu'elle va vraiment jouer.
             // on **demande** à la chaîne quittée ce qu'elle peut encore sonner, au lieu de
             // l'écouter décroître (#173) : une somme de quelques appels virtuels, une seule fois
             // par bascule, sans allocation. Le fondu de sortie est compris dans le compte.
