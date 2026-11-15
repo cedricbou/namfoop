@@ -8,6 +8,7 @@ pub mod meters;
 pub mod raw;
 pub mod router;
 pub mod rt;
+pub mod tempo;
 
 #[cfg(all(test, debug_assertions))]
 #[global_allocator]

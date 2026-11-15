@@ -40,6 +40,16 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
   Une place en échec ne bloque pas la banque. Avec une **queue de preset** (`trails_ms`, #172), la
   chaîne sortante ne revient qu'une fois éteinte : sa place reste `Out`, et y revenir pendant ce
   temps donne `NotReady` (l'appelant la rebâtit, ~80 ms : un retard, pas une panne) ;
+- `tempo` (**L'ARBITRE DE TEMPO**, ADR 0008, #196) : `Arbiter`, machine à états **pure** — aucun
+  audio, aucun thread, aucune poignée `dsp`, horloge **fournie** par l'appelant (même patron que
+  `namfoop::latency::Detector` et `browse::state`). Entrées `preset(bpm)`, `tap(now)`,
+  `clock_tick(now)`, `clock_start()`, `clock_stop()`, `poll(now)` ; sorties `bpm()`,
+  `source() -> TempoSource::{Preset, Tap, MidiClock, ClockLost}` (avec `label()` pour l'en-tête) et
+  `beat_epoch()` (compteur de recalage du **temps 1**, qu'un tap et un `Start` incrémentent : le
+  métronome n'a qu'à le suivre). Priorité **tap > horloge > preset** ; un tap détrône l'horloge et
+  on n'y revient que sur un événement net. Une horloge qui meurt **garde le dernier tempo** et
+  passe en `ClockLost` : jamais de saut de son causé par une panne. C'est elle que MIDI (#7)
+  alimentera ; `browse` écrit ensuite la case (#200), l'ADR 0007 n'autorisant **qu'un** écrivain.
 - `router` (`Routing`, `OutputRoute`, `Source` avec `FromStr`, `Router`), `meters` (`Meters`,
   `fetch_max`, `take`).
 
@@ -90,6 +100,11 @@ avec deux chaînes successives, routage refusé), puis
 
 ## Faits mesurés sur les tests
 
+- **`sim_session_swaps_chains` échoue 3 fois sur 12 en isolation** (mesuré le 15/11/2026, x86 16
+  cœurs au repos, `cargo test -p engine --lib sim_session_swaps_chains`) : 0 xrun de référence puis
+  1 pendant les échanges, donc la garde de #114 ne se déclenche pas. Détail et piste de correction
+  dans #130 — **un échec de ce test dans une PR qui ne touche pas au chemin audio ne veut rien
+  dire** : relancer le job.
 - `sim_session_swaps_chains` n'exige pas 0 xrun dans l'absolu : la carte simulée en compte un dès
   que son thread a une période de retard, ce qui mesure la machine, pas le code (#114, une PR cassée
   par un runner partagé). Le test prend une **référence** sans échange : si le flux décroche déjà
