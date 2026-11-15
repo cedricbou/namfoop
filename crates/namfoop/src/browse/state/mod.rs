@@ -242,6 +242,12 @@ pub struct State {
     saved_blend: (Vec<BlendPart>, bool),
     pending: Option<u64>,
     now: u64,
+    /// Le **clic du métronome** est-il allumé ? Éteint au démarrage, toujours : c'est une aide
+    /// d'écoute, pas un son, et il ne vit donc pas dans un preset (ADR 0008). `k` le bascule.
+    pub metronome: bool,
+    /// Une sortie reçoit-elle le clic (`click = true` dans le routage) ? Sinon l'allumer ne
+    /// s'entendrait nulle part, et il faut le **dire** plutôt que de laisser croire à une panne.
+    pub metronome_routed: bool,
     /// **L'arbitre de tempo** (ADR 0008) : il tranche entre le preset, le tap et — plus tard —
     /// l'horloge MIDI (#7). Le tempo **entendu** est le sien ([`State::heard_tempo_bpm`]) ; celui
     /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
@@ -299,6 +305,8 @@ impl State {
             saved_blend: (Vec::new(), true),
             now: 0,
             tempo: engine::tempo::Arbiter::new(),
+            metronome: false,
+            metronome_routed: false,
             pending: None,
         }
     }
@@ -399,6 +407,26 @@ impl State {
 
     pub fn tempo_source(&self) -> engine::tempo::TempoSource {
         self.tempo.source()
+    }
+
+    /// Le compteur de recalage du **temps 1** : le métronome n'a qu'à le suivre.
+    pub fn beat_epoch(&self) -> u64 {
+        self.tempo.beat_epoch()
+    }
+
+    /// `k` : allume ou éteint le clic. S'il n'a nulle part où aller, on le dit au lieu de laisser
+    /// croire à une panne.
+    fn toggle_metronome(&mut self) -> Action {
+        if !self.metronome_routed {
+            self.message = Some(
+                "aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup".into(),
+            );
+            return Action::None;
+        }
+        self.metronome = !self.metronome;
+        self.message =
+            Some(if self.metronome { "clic allumé (dans les in-ears)" } else { "clic éteint" }.into());
+        Action::None
     }
 
     /// L'aide du réglage sous le curseur. Dynamique pour une **division** : la fraction nue se lit

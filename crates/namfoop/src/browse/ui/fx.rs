@@ -267,7 +267,7 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
 pub fn fx_keys(s: &State) -> String {
     // la queue commune : ce qu'on oublie et qu'il faut toujours pouvoir lire
     const SORTIE: &str =
-        "   v vumètres   r sans effets   , . volume   * tap   PgDn/PgUp preset   S enregistrer   P banque   n vierge   t TOML   h aide   1 Bibliothèque   q quitter";
+        "   v vumètres   r sans effets   , . volume   * tap   k clic   PgDn/PgUp preset   S enregistrer   P banque   n vierge   t TOML   h aide   1 Bibliothèque   q quitter";
     if let Some(p) = s.picker.as_ref() {
         if p.filtering {
             return "tape le filtre   Entrée valider   Échap effacer".into();

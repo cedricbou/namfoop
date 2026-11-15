@@ -249,6 +249,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         v.push(key_line("v / r", "vumètres · avec ou sans effets"));
         v.push(key_line(", / .", "volume du preset (1 dB) : après l'alignement, donc il compte"));
         v.push(key_line("*", "tap tempo : deux frappes suffisent · modifie le preset, comme tout réglage"));
+        v.push(key_line("k", "clic du métronome, dans les sorties in-ear seulement · éteint au démarrage"));
         v.push(key_line(
             "division",
             "un effet de temps au tempo (1/8., 1/4…) : « time » passe alors entre parenthèses",

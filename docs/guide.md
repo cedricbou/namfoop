@@ -1532,6 +1532,45 @@ réglages : `division` se parcourt à `←` / `→`. Dès qu'une note est choisi
 **entre parenthèses** avec sa valeur calculée — c'est le signe qu'elle ne se règle plus. `S`
 enregistre le preset, tempo compris.
 
+### Le clic du métronome : `k`, `run --click`
+
+Un clic au tempo, **dans les in-ears seulement**. Utile quand tu joues seul, ou quand le clic envoyé
+dans le mix global ne te convient pas.
+
+**Où il va.** Dans les sorties que `namfoop setup` déclare **« in-ear »**, et nulle part ailleurs —
+jamais dans le sondier. C'est la même information que tu donnes déjà à l'assistant, donc il n'y a
+rien de plus à régler : une sortie in-ear reçoit le clic *si* tu l'allumes. Pour l'envoyer ailleurs,
+`click = true` sur une sortie de `[routing]` dans la config (mais `setup` reprendra la règle des
+in-ears à la prochaine exécution).
+
+**Comment on l'allume.** `k` dans `browse`, `--click` pour `run`. Il est **éteint au démarrage**,
+toujours : c'est une aide d'écoute, pas un son, et il ne s'enregistre donc pas dans un preset.
+Allumé, l'en-tête l'affiche à côté du tempo : `♩ 104 (tap) ·clic`.
+
+```sh
+namfoop run --preset "chill verse" --click      # le clic dans les in-ears, au tempo du preset
+```
+
+**Son réglage** vit dans `[metronome]` de la config :
+
+| | |
+|---|---|
+| `level_db` | niveau du clic (défaut **-18**) |
+| `beats_per_bar` | temps par mesure (défaut **4**) ; le premier est plus aigu — c'est l'accent. `1` : aucun accent |
+
+Le clic suit le **même tempo** que les effets de temps : il suit donc le tap (`*`), le tempo du
+preset, et l'horloge MIDI quand elle arrivera. Taper recale le **temps 1** : on tape sur le premier
+temps. Changer de tempo ne redémarre pas la mesure — seul l'écart entre deux temps change.
+
+**Si `k` ne fait rien**, c'est qu'aucune sortie ne reçoit le clic : le message le dit, et la réponse
+est `namfoop setup` (déclarer une sortie « in-ear »). `run --click` refuse de démarrer dans ce cas
+plutôt que de jouer sans clic en silence.
+
+**Un piège à connaître** : le clic est ajouté **après** le limiteur, puisqu'il n'a rien à voir avec
+le son de la basse. Sur une sortie déjà au plafond, la somme peut donc écrêter. Si tu entends un
+grésillement quand le clic tombe sur une note forte, baisse `level_db` (ou `--master-db`) : le
+limiteur ne protège que la basse.
+
 **À savoir.**
 
 - Le tampon du delay fait **2 secondes**. Une division plus longue est **écrêtée** et le dit

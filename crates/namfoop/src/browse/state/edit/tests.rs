@@ -700,3 +700,31 @@ fn the_tap_does_nothing_in_the_library_space() {
     assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Tap);
     assert_eq!(s.heard_tempo_bpm(), 120.0);
 }
+
+/// `k` allume le clic du métronome — et **le dit** quand aucune sortie ne le reçoit, au lieu
+/// d'allumer un clic inaudible (#201). Il est éteint au démarrage, toujours : c'est une aide
+/// d'écoute, pas un son, et il ne vit pas dans un preset (ADR 0008).
+#[test]
+fn the_click_is_off_at_start_and_says_when_it_has_nowhere_to_go() {
+    let mut s = with_chain(vec![fx_block("delay:division=1/8.")]);
+    s.mark_start();
+    assert!(!s.metronome, "éteint au démarrage");
+
+    // aucune sortie ne le reçoit : la touche l'explique et n'allume rien
+    s.on_key(Key::Char('k'));
+    assert!(!s.metronome, "rien à allumer sans sortie qui le reçoive");
+    let msg = s.message.clone().expect("un message");
+    assert!(msg.contains("in-ear") && msg.contains("setup"), "{msg}");
+
+    // une sortie le reçoit : la bascule marche, et dit où va le clic
+    s.metronome_routed = true;
+    s.on_key(Key::Char('k'));
+    assert!(s.metronome);
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("in-ears")), "{:?}", s.message);
+    s.on_key(Key::Char('k'));
+    assert!(!s.metronome, "la touche éteint aussi");
+
+    // le clic n'appartient pas au preset : l'allumer ne le marque pas modifié
+    s.metronome = true;
+    assert!(s.unsaved().is_empty(), "le clic n'est pas un réglage du preset : {:?}", s.unsaved());
+}

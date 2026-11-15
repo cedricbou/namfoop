@@ -68,7 +68,7 @@ impl OutRole {
     pub fn label(self) -> &'static str {
         match self {
             OutRole::Sondier => "sondier (basse traitée)",
-            OutRole::InEar => "in-ear (basse traitée)",
+            OutRole::InEar => "in-ear (basse traitée, reçoit le clic)",
             OutRole::Di => "DI (basse directe)",
             OutRole::Mic => "micro",
             OutRole::Nothing => "rien",
@@ -456,11 +456,11 @@ impl State {
                 .enumerate()
                 .filter(|(_, r)| **r != OutRole::Nothing)
                 .map(|(c, r)| {
-                    let channel = c + 1;
-                    // cet écran ne règle pas encore « reçoit le clic » (#201) : on garde celui de
-                    // la config, sinon `setup` l'effacerait silencieusement
-                    let click = base.routing.outputs.iter().any(|o| o.channel == channel && o.click);
-                    OutputRoute { channel, source: r.source(), click }
+                    // le **clic du métronome** va dans les sorties déclarées **in-ear** (#201) :
+                    // c'est exactement l'information que cet écran demande déjà, et c'est ce qui
+                    // garantit qu'il n'atterrit jamais dans le sondier. Il reste éteint tant qu'on
+                    // ne l'allume pas (`k` dans `browse`, `--click` pour `run`).
+                    OutputRoute { channel: c + 1, source: r.source(), click: *r == OutRole::InEar }
                 })
                 .collect(),
         };

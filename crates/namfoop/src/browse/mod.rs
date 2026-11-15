@@ -242,6 +242,19 @@ pub fn run(
     // rythmiques le lisent une fois par bloc, donc en changer ne rebâtit aucune chaîne.
     let tempo = dsp::param::Control::new(dsp::tempo::DEFAULT_BPM);
     let live = build::Live { volume: volume.clone(), tempo: tempo.clone() };
+    // le clic du métronome (ADR 0008) : son gain est une case vivante, à zéro tant qu'on ne
+    // l'allume pas (`k`). Il partage la case de tempo des effets de temps, et suit le compteur de
+    // recalage du temps 1 de l'arbitre.
+    let click_gain = dsp::param::Control::new(0.0);
+    let downbeat = dsp::param::Control::new(0.0);
+    let click_level_db = conf.config.metronome.unwrap_or_default().level_db;
+    let metronome = engine::metronome::MetronomeConfig {
+        gain: click_gain.clone(),
+        tempo: tempo.clone(),
+        downbeat: downbeat.clone(),
+        beats_per_bar: conf.config.metronome.unwrap_or_default().beats_per_bar,
+    };
+    let click_routed = routing.outputs.iter().any(|o| o.click);
     let mut engine = Engine::start(
         EngineConfig {
             audio: cfg.clone(),
@@ -252,8 +265,7 @@ pub fn run(
             quiet: true,
             limiter_meter: limiter.clone(),
             input_tap: None,
-            // le clic de métronome se branche avec son réglage (#201)
-            metronome: None,
+            metronome: Some(metronome),
         },
         dsp::Chain::new(),
     )?;
@@ -289,6 +301,8 @@ pub fn run(
     let mut st = State::new(models, irs);
     // volume aligné sur le DI : l'alignement annule les blocs `gain`, l'écran doit le dire (#178)
     st.level_match = conf.level == LevelMode::Match;
+    // sans sortie qui le reçoit, `k` doit le dire au lieu d'allumer un clic inaudible
+    st.metronome_routed = click_routed;
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
     }
@@ -435,6 +449,16 @@ pub fn run(
             if heard_volume != volume.get() {
                 volume.set(heard_volume);
                 trace(&format!("volume={heard_volume:+.1}"));
+            }
+            // le clic : son gain et le recalage du temps 1, posés au même endroit que le reste
+            let want = if st.metronome { dsp::db_to_gain(click_level_db) } else { 0.0 };
+            if want != click_gain.get() {
+                click_gain.set(want);
+                trace(&format!("clic={}", if st.metronome { "allumé" } else { "éteint" }));
+            }
+            let epoch = st.beat_epoch() as f32;
+            if epoch != downbeat.get() {
+                downbeat.set(epoch);
             }
             // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008). C'est
             // celui de l'**arbitre** et non celui du preset : dès qu'une horloge MIDI tournera

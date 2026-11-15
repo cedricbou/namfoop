@@ -200,7 +200,12 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         let src = s.tempo_source();
         head.push(Span::raw("  "));
         head.push(Span::styled(
-            format!("♩ {:.0} ({})", s.heard_tempo_bpm(), src.label()),
+            format!(
+                "♩ {:.0} ({}){}",
+                s.heard_tempo_bpm(),
+                src.label(),
+                if s.metronome { " ·clic" } else { "" }
+            ),
             match src {
                 // une horloge perdue doit sauter aux yeux : le son ne suit plus le groupe
                 TempoSource::ClockLost => Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),

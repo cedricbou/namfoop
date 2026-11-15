@@ -111,6 +111,8 @@ impl State {
             // `*` : le tap tempo (ADR 0008). À droite de `ù` sur AZERTY FR, sans Maj, et depuis
             // les deux espaces — comme toute touche commune, après les couches de saisie (#175).
             Key::Char('*') => return self.tap_tempo(),
+            // `k` : le clic du métronome (ADR 0008), depuis les deux espaces
+            Key::Char('k') => return self.toggle_metronome(),
             // `n` : repartir d'une chaîne vierge, depuis les deux espaces (#170)
             Key::Char('n') => return self.new_chain_or_confirm(),
             Key::Char('P') => {

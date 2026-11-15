@@ -137,6 +137,7 @@ presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne vi
 fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::catalog ; le parallèle
                 n'est pas un effet) ; `--pre` / `--post` dans amp.rs,
                 `bench --fx` dans offline.rs
+live.rs (suite) `run --click` allume le clic ; il refuse de démarrer si aucune sortie ne le reçoit
 amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut) ;
                 `--tempo BPM` (ADR 0008) y pose AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run`
                 et `render` n'ont pas de tap, et c'est ce qui rend une mesure reproductible,
@@ -196,6 +197,14 @@ concernée). Erreurs : `anyhow`.
   une 3ᵉ frappe une seconde plus tard **repart** une séquence (`59.3`, exactement la règle des
   ±40 %), puis des frappes à 750 ms convergent (`67.6`, `70.8`) vers 80. L'étoile « non
   enregistré » apparaît bien à la première frappe mesurée.
+  LE CLIC DU MÉTRONOME (#201) : `k` le bascule (`State::metronome`, éteint au démarrage, jamais
+  dans un preset — `unsaved()` ne le voit pas). Il va dans les sorties déclarées **in-ear** par
+  `setup` (`OutputRoute::click`, posé par `setup/state.rs` d'après `OutRole::InEar`) : c'est la même
+  information que l'assistant demande déjà, et c'est ce qui garantit qu'il n'atteint jamais le
+  sondier. `State::metronome_routed` dit si une sortie le reçoit ; sinon `k` renvoie à `setup` au
+  lieu d'allumer un clic inaudible, et `run --click` refuse de démarrer. browse/mod.rs tient les
+  deux cases (`gain`, à zéro quand c'est éteint, et `downbeat` = `Arbiter::beat_epoch`), posées au
+  même endroit que le volume et le tempo ; `run` (live.rs), lui, les fige.
   `*` n'agit que dans l'espace **Chaîne** (#207) : le banc d'essai n'est pas un preset, et y taper
   faisait apparaître « non enregistré » alors qu'on écoutait des modèles. `State::field_help` rend
   l'aide du réglage sous le curseur, **dynamique** pour une division (`1/4 = une noire, soit un
