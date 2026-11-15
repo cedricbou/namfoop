@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#130)
+- Le test d'échange de chaînes de la carte simulée ne décrète plus une régression quand c'est la
+  machine qui a lâché une période : il échouait **3 fois sur 12** au repos, et bloquait la CI comme
+  le hook de pre-commit au hasard. La fenêtre de référence dure désormais aussi longtemps que la
+  phase d'échange (elle faisait la moitié), et un décrochage isolé est toléré quand la référence est
+  propre — un vrai défaut décrocherait à chaque échange. **15 / 15** après correction, et deux
+  décrochages simulés le font bien échouer.
+
 ### Corrigé (#207)
 - **Le tap (`*`) n'agit plus dans le banc d'essai**, seulement dans l'espace Chaîne : la
   Bibliothèque n'est pas un preset, elle n'a ni volume ni tempo propres, et y taper faisait

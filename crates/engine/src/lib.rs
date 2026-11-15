@@ -378,19 +378,39 @@ mod tests {
     ///
     /// Les xruns ne sont **pas** exigés nuls dans l'absolu : la carte simulée en compte un dès que
     /// son thread a une période de retard, ce qui mesure la machine (un runner partagé décroche)
-    /// plutôt que le code (#114). On prend donc une **référence** sans rien échanger : si le flux
-    /// décroche déjà là, on ne conclut pas ; s'il est propre, échanger une chaîne ne doit ajouter
-    /// aucun décrochage. Le 0 xrun strict reste vérifié sur le matériel
-    /// (`scripts/test-backends.sh`), où il a un sens.
+    /// plutôt que le code (#114). On prend donc une **référence** sans rien échanger, et on refuse
+    /// une **dégradation** plutôt qu'un décrochage isolé. Le 0 xrun strict reste vérifié sur le
+    /// matériel (`scripts/test-backends.sh`), où il a un sens.
+    ///
+    /// Deux précautions, mesurées par #130 (le test échouait **3 fois sur 12** en isolation sur une
+    /// machine au repos) :
+    /// 1. la référence dure **exactement aussi longtemps** que la phase d'échange. Elle ne durait
+    ///    que 400 ms contre 800, si bien qu'une machine qui lâche une période par seconde montrait
+    ///    0 au repos et 1 pendant les échanges — et le test l'imputait au code ;
+    /// 2. référence propre, on tolère quand même **un** décrochage. `send_chain` préchauffe la
+    ///    chaîne (0,25 s de bruit puis 0,5 s de silence, `rt::prewarm`), donc la phase d'échange
+    ///    charge vraiment le processeur : c'est ce qui pousse un flux limite au-delà du bord. Un
+    ///    vrai défaut, lui, décrocherait à **chaque** échange, donc au moins deux fois ici.
+    ///
+    /// Ce qu'on ne fait **pas** : comparer les deux comptes quand la référence décroche déjà. La
+    /// phase d'échange travaille strictement plus, donc sous charge elle décroche proportionnellement
+    /// plus, et aucun seuil ne distingue alors « échanger coûte du processeur » de « échanger a un
+    /// défaut ». Mesuré : 48 boucles de charge sur 16 cœurs font dépasser n'importe quelle marge.
+    /// Dans ce cas on le dit et on ne conclut pas — c'est la règle de #114.
     #[test]
     fn sim_session_swaps_chains() {
+        /// Ce qu'une étape d'échange laisse passer de temps (ms) : la même attente sert à la
+        /// référence, pour que les deux fenêtres soient comparables.
+        const STEP_MS: u64 = 400;
+        let chains: [f32; 2] = [-6.0, -12.0];
+
         let mut engine = Engine::start(config(), dsp::Chain::new()).unwrap();
         assert_eq!((engine.n_in(), engine.n_out(), engine.sample_rate()), (2, 2, 48000));
         engine.meters();
-        // référence : le flux tourne aussi longtemps qu'une étape d'échange, sans rien échanger
-        std::thread::sleep(std::time::Duration::from_millis(400));
+        // référence : le flux tourne aussi longtemps que **toute** la phase d'échange
+        std::thread::sleep(std::time::Duration::from_millis(STEP_MS * chains.len() as u64));
         let idle_xruns = engine.xruns();
-        for db in [-6.0, -12.0] {
+        for db in chains {
             let mut c = dsp::Chain::new();
             c.push(dsp::gain::Gain::db(db, "test"));
             let mut c = Some(c);
@@ -410,13 +430,23 @@ mod tests {
             assert!((ratio - dsp::db_to_gain(db)).abs() < 1e-3, "gain {db} dB appliqué : {m:?}");
         }
         let swapping = engine.xruns() - idle_xruns;
-        if idle_xruns == 0 {
-            assert_eq!(swapping, 0, "échanger une chaîne ne doit pas faire décrocher le flux");
-        } else {
+        if idle_xruns > 0 {
+            // la machine décroche déjà sans qu'on échange : rien à conclure (#114)
             eprintln!(
-                "machine chargée : {idle_xruns} xrun(s) sans rien échanger, {swapping} pendant les \
-                 échanges — le test ne conclut pas là-dessus (#114)"
+                "machine chargée : {idle_xruns} xrun(s) sur une fenêtre de repos de même durée, \
+                 {swapping} pendant les échanges — le test ne conclut pas là-dessus (#114)"
             );
+        } else {
+            // un décrochage isolé mesure la machine ; deux, sur deux échanges, mesurent le code
+            assert!(
+                swapping <= 1,
+                "échanger une chaîne fait décrocher le flux : {swapping} xrun(s) pendant {} \
+                 échanges, contre 0 sur une fenêtre de repos de même durée",
+                chains.len()
+            );
+            if swapping > 0 {
+                eprintln!("1 xrun pendant les échanges, 0 au repos : toléré (#130)");
+            }
         }
         drop(engine);
     }
