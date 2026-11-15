@@ -46,7 +46,10 @@ dans `Settings`. Effets et chaînes : [ADR 0005](adr/0005-effets-et-chaines.md) 
 (NAM et IR en blocs, parallèle jusqu'à 4 branches ; éditeur de `browse` : [`docs/design/`](design/browse-chaine.md)) ;
 les **paramètres vivants** (réglables pendant que le son joue) : [ADR 0007](adr/0007-parametres-vivants.md)
 — une case partagée écrite par le contrôle, lue une fois par bloc, hors de l'identité d'une demande de
-chaîne ; les presets (#6) seront
+chaîne —, et le **tempo** : [ADR 0008](adr/0008-tempo-et-divisions.md) (épique #188) — trois sources
+(preset, tap, horloge MIDI), un arbitre dans `engine` qui les hiérarchise, une case, et des
+**divisions rythmiques** (`Unit::Division`) dont la première valeur « libre » rend la main aux
+millisecondes ; les presets (#6) seront
 des fichiers de la bibliothèque lus par `library`, pas des types de `model`. À venir : effets (#5),
 presets (#6), MIDI (#7), service de scène (#46).
 
