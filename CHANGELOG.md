@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#187)
+- Le **volume du preset** (`,` / `.` dans `browse`) s'entend **tout de suite**. Il rebâtissait toute
+  la chaîne à chaque appui — rechargement des modèles, des IR, et du son de calibration pour
+  remesurer un alignement qui ne pouvait pas changer : **143 ms** pour un modèle, **jusqu'à 390 ms**
+  pour un parallèle à deux modèles. De quoi croire que le réglage ne faisait rien. Mesuré après :
+  **21 ms**, le plancher de l'écran, et plus aucune chaîne reconstruite.
+- Un saut d'1 dB est lissé sur 20 ms, la même durée qu'un changement de preset : pas de clic.
+- Au passage, basculer entre deux presets qui ne diffèrent que par leur volume ne recharge plus
+  rien non plus.
+
 ### Modifié (#181)
 - Le **niveau « match »** (volume aligné sur ta basse en direct) compare maintenant des **loudness
   pondérées K** (ITU-R BS.1770, la norme de la diffusion) au lieu de RMS larges : l'oreille n'entend

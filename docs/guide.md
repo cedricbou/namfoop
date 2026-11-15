@@ -1283,6 +1283,10 @@ l'alignement de niveau, juste avant le master. C'est ce qui permet qu'un preset 
 à l'oreille à côté d'un clair, là où un bloc `gain` ne servirait à rien ([ci-dessus](#volume-de-sortie--level)).
 
 - dans `browse`, espace Chaîne : **`.`** monte d'1 dB, **`,`** baisse d'1 dB, de -24 à +12 dB ;
+- le réglage **s'entend tout de suite** : c'est le seul gain de la chaîne qui se change sans la
+  rebâtir (#187). Avant, chaque appui rechargeait les modèles et remesurait l'alignement — 143 ms
+  pour un modèle, près de 400 ms pour un parallèle à deux modèles, de quoi croire que le réglage ne
+  faisait rien. Un saut d'1 dB est lissé sur 20 ms, comme un changement de preset ;
 - la valeur se lit dans l'en-tête (« preset 2/5 : Couplet · volume +3 dB ») et en bout de
   synoptique, en gris, **après** l'étage « niveau DI » — l'ordre du signal ;
 - elle compte comme une modification : l'en-tête passe à « ● non enregistré », `S` l'enregistre ;

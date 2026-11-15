@@ -2,6 +2,8 @@
 
 **Statut : adopté** (#5, socle en #79). **Amendé par l'[ADR 0006](0006-chaine-en-blocs-et-parallele.md)** :
 NAM et IR deviennent des blocs, le parallèle sort du catalogue d'effets (jusqu'à 4 branches, un niveau).
+**Précisé par l'[ADR 0007](0007-parametres-vivants.md)** sur le « en deux temps » des paramètres : le
+premier réglage vivant existe (le volume du preset), `set_param` reste à faire.
 
 **Contexte.** Les effets (gate, compresseur, EQ, crossover, delay, chorus, réverbe) doivent se régler
 depuis la CLI, `browse`, les presets (#6) et les CC MIDI (#7) sans quatre descriptions différentes.
