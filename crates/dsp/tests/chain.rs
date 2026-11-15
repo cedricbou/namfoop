@@ -192,7 +192,7 @@ fn the_preset_volume_survives_the_di_alignment() {
     use dsp::chain::Level;
     use std::sync::Arc;
     let reference = signal(48000);
-    let spec = |volume: dsp::block::Volume| ChainSpec {
+    let spec = |volume: dsp::chain::Volume| ChainSpec {
         // un bloc `gain` dans la chaîne : l'alignement l'annule, lui
         blocks: vec![BlockSpec::Fx("gain:db=-12".parse().unwrap())],
         level: Level::Match { reference: Arc::new(reference.clone()), sample_rate: 48000 },

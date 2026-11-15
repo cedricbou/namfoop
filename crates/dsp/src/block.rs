@@ -28,7 +28,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::chain::{synthetic_bass, Chain, Level, LimiterSpec};
+use crate::chain::{synthetic_bass, Chain, Level, LimiterSpec, Volume};
 use crate::fx::FxSpec;
 use crate::gain::Gain;
 use crate::ir::{IrSettings, IrStage};
@@ -84,46 +84,6 @@ pub struct BranchSpec {
     pub invert: bool,
     pub mute: bool,
     pub blocks: Vec<BlockSpec>,
-}
-
-/// Le volume d'une chaîne : figé à la construction, ou **vivant** (ADR 0007).
-#[derive(Clone, Debug)]
-pub enum Volume {
-    /// Figé à la construction (dB) : `run`, `render`, `bench` et les rendus de référence. Au
-    /// neutre, aucun étage n'est posé.
-    Db(f32),
-    /// **Vivant** : la case est lue une fois par bloc, et l'étage rampe vers chaque nouvelle valeur
-    /// (`gain::LiveGain`). C'est ce que pose `browse`, pour que `,` / `.` s'entendent sans rebâtir
-    /// la chaîne (#187). L'étage est alors posé **même au neutre** : la case bougera.
-    Live(crate::param::Control),
-}
-
-impl Default for Volume {
-    fn default() -> Self {
-        Volume::Db(0.0)
-    }
-}
-
-impl Volume {
-    /// La valeur en dB, quelle que soit sa forme (pour les logs et `describe`).
-    pub fn db(&self) -> f32 {
-        match self {
-            Volume::Db(v) => *v,
-            Volume::Live(c) => c.get(),
-        }
-    }
-}
-
-impl From<f32> for Volume {
-    fn from(db: f32) -> Self {
-        Volume::Db(db)
-    }
-}
-
-impl From<crate::param::Control> for Volume {
-    fn from(c: crate::param::Control) -> Self {
-        Volume::Live(c)
-    }
 }
 
 /// Une chaîne complète : trim, blocs, puis niveau, volume, master et limiteur (qui restent en fin
