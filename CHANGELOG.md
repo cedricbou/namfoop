@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#225)
+- **La queue d'un preset garde son propre tempo.** Un `delay` en `1/8` avec beaucoup de réinjection
+  à 60 BPM voyait ses répétitions **s'accélérer** en pleine décroissance — passant de 500 à 250 ms —
+  quand on basculait vers un preset à 120 BPM : la case de tempo est unique et partagée par toutes
+  les chaînes audibles, queue comprise. C'est ce qu'on veut pour un **niveau** (le volume suit, aucun
+  saut pendant le fondu) et faux pour un **rythme** : la queue appartient au preset qu'on vient de
+  quitter. Elle cesse donc de suivre le tempo dès le début du fondu et garde sa tête de lecture,
+  comme sur une pédale à trails.
+
 ### Modifié (#173)
 - **La queue de preset demande sa durée à la chaîne** au lieu de l'écouter décroître. Chaque étage
   dit ce qu'il peut encore sonner (`Stage::tail_ms`) : une série **somme** les queues de ses étages,

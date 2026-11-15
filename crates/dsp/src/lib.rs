@@ -44,9 +44,23 @@ pub trait Stage: Send {
     fn tail_ms(&self) -> f32 {
         0.0
     }
-    /// Remet l'état interne à zéro (queues de réverbe, historique du modèle...).
+    /// Remet l'état interne à zéro (queues de réverbe, historique du modèle...), et **lève** le
+    /// gel posé par [`Stage::enter_trail`].
     /// **Hors temps réel** : peut allouer (NAM refait son prewarm).
     fn reset(&mut self) {}
+    /// Appelé **une fois**, en temps réel, quand cette chaîne passe dans la **queue de preset**
+    /// (#172) : l'étage doit cesser de suivre les réglages vivants de **rythme** et figer ce
+    /// qu'il a (#225).
+    ///
+    /// La case de tempo est unique et partagée par toutes les chaînes audibles (ADR 0007). Pour un
+    /// **niveau** c'est ce qu'on veut : le volume suit, aucun saut pendant le fondu. Pour un
+    /// **rythme**, non : la queue appartient au preset qu'on vient de quitter et ses répétitions
+    /// ont été posées à *son* tempo — sans ce gel, un delay à 60 BPM voit ses répétitions
+    /// s'accélérer à 120 en pleine décroissance. C'est aussi ce que fait le marché : sur une pédale
+    /// à trails, les répétitions en cours gardent leur temps.
+    ///
+    /// Par défaut : rien à faire. Aucune allocation, aucune libération, aucun verrou.
+    fn enter_trail(&mut self) {}
     /// Nom court pour les logs / le bench.
     fn name(&self) -> &str;
 }

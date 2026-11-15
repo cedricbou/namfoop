@@ -3,7 +3,14 @@
 **Responsabilité.** Les traitements, sans carte son ni config : étages mono (trait `Stage`),
 chaîne, changement de chaîne à chaud, analyses hors ligne.
 
-**Fichiers / API.** Le trait `Stage` (dans `lib.rs`) a **`tail_ms()`** (défaut 0, #173) : combien
+**Fichiers / API.** Le trait `Stage` (dans `lib.rs`) a **`enter_trail()`** (défaut : rien, #225) :
+appelé une fois, en RT, quand la chaîne passe dans la **queue de preset**, au **début** du fondu.
+L'étage cesse alors de suivre les réglages de **rythme** et garde sa tête de lecture. La case de
+tempo étant unique et partagée (ADR 0007), sans ça un delay en `1/8` à 60 BPM voit ses répétitions
+s'accélérer à 250 ms quand le preset suivant impose 120. On gèle la **tête**, pas le BPM relu : à cet
+instant la case contient déjà le tempo du suivant. Un **niveau**, lui, suit (le volume ne gèle pas).
+`reset()` lève le gel, puisque c'est la remise à zéro d'une chaîne reprise par `engine::bank`.
+Le trait a aussi **`tail_ms()`** (défaut 0, #173) : combien
 de temps l'étage peut encore sonner une fois son entrée silencieuse, à -60 dBFS près. `Chain` les
 **somme** (une réverbe derrière un delay sonne après la dernière répétition), `Split` prend le
 **maximum** de ses branches audibles, et c'est ce que la queue de preset garde en vie. Chaque étage

@@ -55,6 +55,33 @@ Le mode « tempo libre / global » (le tempo tapé survit aux bascules de preset
 Helix et du Quad Cortex) est **écarté pour l'instant** : un réglage de plus à comprendre et à
 montrer, pour un besoin que l'usage n'a pas encore confirmé. À rouvrir si les jams le réclament.
 
+### La queue de preset garde le tempo de **son** preset
+
+**Précision apportée à l'[ADR 0007](0007-parametres-vivants.md)** (#225, entendu à l'essai). Celui-ci
+dit qu'une case est partagée par toutes les chaînes audibles, **queue de preset comprise**, et qu'une
+réverbe qui finit de sonner « suit le réglage ». C'est juste pour un **niveau** : le volume suit, et
+il n'y a pas de saut pendant le fondu. C'est **faux pour un rythme** : la queue appartient au preset
+qu'on vient de quitter et ses répétitions ont été posées à *son* tempo. Sans correctif, un `delay`
+en `1/8` à 60 BPM voit ses répétitions passer de 500 à 250 ms en pleine décroissance quand le preset
+suivant impose 120.
+
+Une chaîne qui entre dans la queue **cesse donc de suivre le tempo** (`Stage::enter_trail`) et garde
+sa tête de lecture où elle est. C'est aussi ce que fait le marché : sur une pédale à trails, les
+répétitions en cours gardent leur temps.
+
+Deux détails qui comptent :
+- on gèle la **tête de lecture**, et non le BPM relu dans la case. Au moment où la chaîne sort, la
+  case contient **déjà** le tempo du preset suivant (l'écran l'écrit avant que la nouvelle chaîne
+  ne soit installée), donc le relire reviendrait à adopter justement ce dont on veut se protéger ;
+- le gel a lieu au **début du fondu**, pas à sa fin : c'est le plus tôt que la chaîne sortante
+  puisse l'apprendre. Il reste donc une fenêtre de quelques millisecondes — entre l'écriture de la
+  case et l'installation de la nouvelle chaîne — pendant laquelle la chaîne sortante a pu commencer
+  à déplacer sa tête. Le fondu de 50 ms de `Delay::set_time` la rend inaudible, et la supprimer
+  demanderait de lier l'écriture de la case à l'installation de la chaîne, donc de retarder le
+  tempo de la chaîne **entrante** : pas un bon échange.
+
+Le **volume**, lui, ne gèle pas : le raisonnement de l'ADR 0007 tient pour lui.
+
 ### Gelé ou vivant : le patron de `Volume`
 
 `dsp::block::ChainSpec` reçoit un `tempo: Tempo`, calqué sur `Volume` (#179, #187) :

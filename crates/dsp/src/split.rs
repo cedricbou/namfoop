@@ -314,6 +314,12 @@ impl Stage for Split {
         }
     }
 
+    fn enter_trail(&mut self) {
+        for b in &mut self.branches {
+            b.chain.enter_trail();
+        }
+    }
+
     fn reset(&mut self) {
         for b in &mut self.branches {
             b.chain.reset();
