@@ -253,6 +253,7 @@ pub fn run(
         tempo: tempo.clone(),
         downbeat: downbeat.clone(),
         beats_per_bar: conf.config.metronome.unwrap_or_default().beats_per_bar,
+        sound: conf.config.metronome.unwrap_or_default().sound,
     };
     let click_routed = routing.outputs.iter().any(|o| o.click);
     let mut engine = Engine::start(

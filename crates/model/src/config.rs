@@ -96,11 +96,41 @@ pub struct Metronome {
     pub level_db: f32,
     /// Temps par mesure : le **premier** est accentué (plus aigu). 1 : aucun accent.
     pub beats_per_bar: u32,
+    /// Le **son** du clic. Le Quad Cortex a le même réglage, pour la même raison : ce qui passe
+    /// dans un retour de basse ne se choisit qu'à l'oreille.
+    pub sound: ClickSound,
+}
+
+/// Les sons de clic. `bois` par défaut : attaque instantanée et décroissance courte, ce qui
+/// **perce** un mix de basse là où un bip tonal se noie (#230).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClickSound {
+    /// **Bloc de bois** : deux partiels inharmoniques, attaque instantanée, extinction en ~25 ms.
+    /// Percussif et tenant sa hauteur, donc l'accent s'entend.
+    #[default]
+    Bois,
+    /// **Tic sec** : une salve de bruit filtrée de quelques millisecondes. Le plus percussif, le
+    /// moins musical — il ne porte pas de hauteur, seul le filtre change à l'accent.
+    Tic,
+    /// **Bip** : sinus de 25 ms à enveloppe douce. Le plus doux, et le moins percussif ; c'était le
+    /// seul son jusqu'à #230.
+    Bip,
+}
+
+impl ClickSound {
+    pub fn name(self) -> &'static str {
+        match self {
+            ClickSound::Bois => "bois",
+            ClickSound::Tic => "tic",
+            ClickSound::Bip => "bip",
+        }
+    }
 }
 
 impl Default for Metronome {
     fn default() -> Self {
-        Self { level_db: -18.0, beats_per_bar: 4 }
+        Self { level_db: -18.0, beats_per_bar: 4, sound: ClickSound::default() }
     }
 }
 

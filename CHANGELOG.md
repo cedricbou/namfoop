@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#230)
+- **Le clic de métronome est percussif.** Son enveloppe montait en **12,6 ms** (mesuré), ce qui en
+  faisait un bip tonal, noyé sous une basse au lieu de la percer. Trois sons sont désormais
+  proposés, `sound` dans `[metronome]` : **`bois`** (défaut — bloc de bois, attaque en 0,6 ms,
+  éteint en 25 ms, et il tient sa hauteur donc l'accent s'entend), **`tic`** (bruit filtré, attaque
+  en 0,3 ms, le plus sec) et **`bip`** (l'ancien son, gardé pour qui le préfère). L'accent reste
+  plus brillant quel que soit le son.
+
 ### Ajouté (#201)
 - **Le clic du métronome s'allume** : `k` dans `browse`, `--click` pour `run`. Éteint au démarrage,
   toujours, et il ne s'enregistre pas dans un preset — c'est une aide d'écoute, pas un son. Allumé,

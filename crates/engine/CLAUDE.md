@@ -51,9 +51,15 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
   passe en `ClockLost` : jamais de saut de son causé par une panne. C'est elle que MIDI (#7)
   alimentera ; `browse` écrit ensuite la case (#200), l'ADR 0007 n'autorisant **qu'un** écrivain.
 - `metronome` (**LE CLIC**, ADR 0008, #197) : `Metronome` + `MetronomeConfig { gain, tempo,
-  downbeat, beats_per_bar }`. Salve de 25 ms, 1 kHz (2 kHz sur le premier temps), enveloppe en
-  cosinus surélevé — qui **commence à zéro**, donc le premier échantillon non nul arrive un cran
-  après le temps (piège de test). Les trois cases sont **vivantes** : `gain` linéaire (0 : éteint,
+  downbeat, beats_per_bar, sound }`. **Trois sons** (#230), parce que ce qui perce un retour de
+  basse ne se choisit qu'à l'oreille — et ce qui les distingue est **l'attaque**, mesurée par
+  `the_percussive_sounds_attack_fast_and_die_quickly` : `bois` 0,62 ms / 25 ms (deux partiels
+  inharmoniques ×2,6, attaque linéaire de 0,3 ms puis décroissance exponentielle de 7 ms ; le
+  défaut, il tient sa hauteur donc l'accent s'entend), `tic` 0,29 ms / 7,3 ms (bruit déterministe
+  passé dans un passe-haut à 2 kHz, 3,5 à l'accent : pas de hauteur, seul le filtre change),
+  `bip` **12,62 ms** / 24 ms (l'ancien : sinus à enveloppe en cosinus surélevé — c'est son attaque
+  lente qui le noyait). Toutes les enveloppes **commencent à zéro**, donc le premier échantillon
+  non nul arrive un cran après le temps (piège de test). Les trois cases sont **vivantes** : `gain` linéaire (0 : éteint,
   et c'est l'appelant qui convertit les dB de la config), `tempo` est **la même case** que les
   effets de temps, `downbeat` est un **compteur** dont tout changement recale le temps 1 — c'est ce
   que fournit `tempo::Arbiter::beat_epoch`. Éteint, la **grille des temps continue d'avancer** :
