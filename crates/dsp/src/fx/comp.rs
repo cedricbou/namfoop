@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effect, ParamInfo, Unit};
+use super::{BuildCtx, Effect, ParamInfo, Unit};
 use crate::meter::Meter;
 use crate::{db_to_gain, Result, Stage};
 
@@ -147,8 +147,8 @@ impl Effect for CompParams {
         }
     }
 
-    fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
-        Ok(Box::new(self.stage(sample_rate)))
+    fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
+        Ok(Box::new(self.stage(ctx.sample_rate)))
     }
 }
 
@@ -251,7 +251,7 @@ mod tests {
     fn static_curve() {
         for (level, ratio) in [(-6.0f32, 4.0f32), (-10.0, 2.0), (0.0, 10.0)] {
             let p = CompParams { ratio, knee: 0.0, ..Default::default() };
-            let mut c = p.build(48000, 64).unwrap();
+            let mut c = p.build(&BuildCtx::new(48000, 64)).unwrap();
             let mut s = sine(level, 96000);
             c.process(&mut s);
             let got = level - peak_db(&s[72000..]);
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn mix_is_parallel() {
         let p = CompParams { knee: 0.0, mix: 50.0, ..Default::default() };
-        let mut c = p.build(48000, 64).unwrap();
+        let mut c = p.build(&BuildCtx::new(48000, 64)).unwrap();
         let mut s = sine(0.0, 96000);
         c.process(&mut s);
         let g = db_to_gain(-(20.0 * 0.75));

@@ -155,6 +155,9 @@ pub struct AmpSpec {
     /// branche claire garde le grave du DI.
     pub crossover: Option<CrossoverSpec>,
     pub level: Level,
+    /// Tempo (BPM) dont les paramètres `division` tirent leur durée (`--tempo`) ; `None` :
+    /// [`crate::tempo::DEFAULT_BPM`]. Toujours **figé** ici — `run` et `render` n'ont pas de tap.
+    pub tempo_bpm: Option<f32>,
     /// Volume final (dB).
     pub master_db: f32,
     pub limiter: Option<LimiterSpec>,
@@ -212,6 +215,7 @@ impl AmpSpec {
         }
         blocks.extend(self.post.iter().cloned().map(BlockSpec::Fx));
         ChainSpec {
+            tempo: crate::tempo::Tempo::Bpm(self.tempo_bpm.unwrap_or(crate::tempo::DEFAULT_BPM)),
             trim_db: self.trim_db,
             blocks,
             level: self.level.clone(),

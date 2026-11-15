@@ -57,7 +57,12 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 ce tour-ci la lise dès son premier bloc — et la trace (`volume=±x.x`) quand elle
                 change ; le thread de construction la pose en ChainSpec::volume = Volume::Live dans
                 toutes les chaînes, banque comprise. `run --preset` (amp.rs), lui, garde un gain
-                figé (Volume::Db) ;
+                figé (Volume::Db). LE TEMPO DU PRESET (#195, ADR 0008) suit EXACTEMENT le même
+                chemin : chain::Chain::tempo_bpm (avec les blocs, pour qu'unsaved() le voie sans
+                code en plus), une seconde case posée par browse/mod.rs juste après le `match`
+                (trace `tempo=xxx.x`), ChainSpec::tempo = Tempo::Live dans build.rs. C'est de lui
+                que les paramètres `division` des effets de temps tirent leur durée ; le tap (`*`)
+                et l'arbitrage avec l'horloge MIDI viennent ensuite (#196, #200) ;
                 send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la
@@ -77,7 +82,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 du bas, sinon elle disparaît sur un bloc nam / ir (#148) —, réglages de l'élément sous le curseur — effet,
                 parallèle ou branche —, écoute différée, v vumètres) ; navigation :
                 Tab / Maj+Tab en boucle sur les TROIS onglets, → / ← de proche en proche
-                (space.rs : switch_tab, testée dans les deux sens),
+                (space.rs : switch_tab, testée dans les deux sens) ; l'affichage d'une valeur de
+                réglage passe par dsp::fx::Unit::format (et non chain::num + symbol()) : une
+                division se montre par son nom de note (`1/8.`, #195),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
                 panneau ≥ 128 col. (#138 : police 10×20 du Pi), paramétré par courbes + référence (Bibliothèque : la référence
                 épinglée ◆ ; sélecteur : l'actuel ●), editor.rs, fx.rs espace Chaîne, picker.rs (contenu entier du
@@ -124,7 +131,9 @@ presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne vi
 fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::catalog ; le parallèle
                 n'est pas un effet) ; `--pre` / `--post` dans amp.rs,
                 `bench --fx` dans offline.rs
-amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut),
+amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut) ;
+                `--tempo BPM` (ADR 0008) y pose AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run`
+                et `render` n'ont pas de tap, et c'est ce qui rend une mesure reproductible,
                 `chain_spec()` : la chaîne à jouer, celle des options OU celle d'un preset
                 (`--preset`, #159 ; les options de chaîne sont alors refusées, le cadre — trim,
                 niveau, master, limiteur — reste celui de la config et des options),
@@ -174,6 +183,16 @@ concernée). Erreurs : `anyhow`.
   le nombre d'effets. Le son ne se coupe dans aucun des deux cas : la chaîne précédente joue jusqu'au
   fondu. Un preset pas encore préchargé retombe sur l'ancien chemin. **Pi 5 non mesuré**
   (#44 / #45) ; coût mémoire et détail du préchargement : `crates/engine/CLAUDE.md`.
+
+- **Le tempo du preset arrive bien jusqu'au son** (#195, ADR 0008). Mesuré (`render --preset` sur
+  une impulsion, `--no-limiter`, preset `tempo_bpm = 92` + `delay:division=1/8.`) : échos à
+  **489,1 / 978,3 / 1467,4 ms** — la croche pointée à 92 BPM. `--tempo 120` sur le même preset :
+  **375,0 ms**. C'était un **bug** du premier jet : `chain_spec()` ne reprenait que `volume_db` du
+  preset, donc toute division retombait à 120 BPM quoi qu'il arrive. Le test
+  `amp::tests::a_preset_brings_its_own_tempo_and_tempo_wins` le garde.
+  Dans `browse`, un paramètre remplacé par une division se montre **entre parenthèses** avec la
+  durée que le tempo lui impose (`(375 ms)`, `(2000 ms, plafond)`), et le régler est refusé **avec
+  la marche à suivre** — ne jamais afficher un nombre qui n'agit pas (même esprit que #178).
 
 - Niveau d'entrée : les captures Tone3000 n'ont pas d'`input_level_dbu`. Avec la basse de
   l'utilisateur dans l'iTwo (crête ~ -12 dBFS), il a fallu -18 dB d'entrée pour retrouver le son des

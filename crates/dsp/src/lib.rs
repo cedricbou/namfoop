@@ -20,6 +20,7 @@ pub mod preset;
 pub mod profile;
 pub mod split;
 pub mod swap;
+pub mod tempo;
 pub mod wav;
 
 pub use chain::Chain;

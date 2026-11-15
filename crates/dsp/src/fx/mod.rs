@@ -23,6 +23,7 @@ pub mod reverb;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::tempo::{self, Tempo};
 use crate::{Error, Result, Stage};
 
 /// Unité d'un paramètre (affichage et aide).
@@ -37,6 +38,11 @@ pub enum Unit {
     Seconds,
     /// Pente de filtre (dB/octave).
     DbOct,
+    /// **Division rythmique** (ADR 0008) : la valeur est un **indice** dans
+    /// [`tempo::DIVISIONS`], dont le 0 est `libre` — l'effet garde alors son temps en
+    /// millisecondes. Un scalaire comme les autres (min 0, max [`tempo::max_index`], pas 1) ; seul
+    /// son affichage diffère, voir [`Unit::format`].
+    Division,
 }
 
 impl Unit {
@@ -50,7 +56,48 @@ impl Unit {
             Unit::Q => "Q",
             Unit::Seconds => "s",
             Unit::DbOct => "dB/oct",
+            Unit::Division => "note",
         }
+    }
+
+    /// La valeur d'un paramètre telle qu'on la **montre** : `-6 dB`, `400 ms`, et pour une
+    /// division son étiquette (`1/8.`) plutôt que son indice, que personne ne veut compter.
+    ///
+    /// Un seul endroit pour cette règle : `namfoop fx`, le panneau de réglages de `browse` et la
+    /// mini-syntaxe doivent tous dire la même chose.
+    pub fn format(self, v: f32) -> String {
+        if self == Unit::Division {
+            return tempo::label_at(v).to_string();
+        }
+        let n = format!("{v:.2}");
+        let n = n.trim_end_matches('0').trim_end_matches('.');
+        format!("{n} {}", self.symbol())
+    }
+}
+
+/// Ce que [`Effect::build`] a besoin de savoir, une fois pour toute la chaîne.
+///
+/// Un contexte plutôt que des arguments qui s'ajoutent un à un : le tempo est le premier réglage
+/// que **plusieurs** étages dérivent d'une même valeur (ADR 0008), et le suivant (`set_param`, #6)
+/// voyagera par ici sans toucher aux onze effets.
+#[derive(Clone, Debug)]
+pub struct BuildCtx {
+    pub sample_rate: u32,
+    pub max_block: usize,
+    /// Le tempo dont les paramètres `division` tirent leur durée : figé (`run`, `render`, les
+    /// rendus de référence) ou **vivant** (`browse`).
+    pub tempo: Tempo,
+}
+
+impl BuildCtx {
+    /// Le contexte d'une chaîne sans tempo particulier : [`tempo::DEFAULT_BPM`], figé.
+    pub fn new(sample_rate: u32, max_block: usize) -> Self {
+        Self { sample_rate, max_block, tempo: Tempo::default() }
+    }
+
+    /// Le même contexte à un tempo donné.
+    pub fn with_tempo(sample_rate: u32, max_block: usize, tempo: Tempo) -> Self {
+        Self { sample_rate, max_block, tempo }
     }
 }
 
@@ -80,7 +127,13 @@ pub trait Effect: Clone + Default {
     /// Écrit un paramètre déjà vérifié (nom connu, valeur dans la plage).
     fn put(&mut self, name: &str, v: f32);
     /// Construit l'étage (hors temps réel : peut allouer).
-    fn build(&self, sample_rate: u32, max_block: usize) -> Result<Box<dyn Stage>>;
+    fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>>;
+    /// Le paramètre qu'une division rythmique **remplace** quand elle agit (`time` pour le
+    /// `delay`) : l'écran doit le montrer comme dérivé, et refuser de le régler (ADR 0008).
+    /// Chaque effet le déclare — rien n'est deviné depuis les unités.
+    fn division_target(&self) -> Option<&'static str> {
+        None
+    }
     /// Durée (s) pendant laquelle l'effet peut encore sonner après la fin du signal, au-delà des
     /// 10 s couvertes par défaut (delay, réverbe). Le test `silence_after_the_tail` attend cette
     /// durée, plafonnée à [`MAX_TEST_TAIL_SECONDS`] pour les réglages du catalogue.
@@ -177,6 +230,16 @@ impl FxSpec {
         with_effect!(self, e => e.get(name))
     }
 
+    /// L'unité d'un paramètre, pour l'afficher ou le lire (`None` : nom inconnu).
+    pub fn unit_of(&self, name: &str) -> Option<Unit> {
+        self.params().iter().find(|p| p.name == name).map(|p| p.unit)
+    }
+
+    /// La valeur d'un paramètre telle qu'on la montre (`1/8.`, `-6 dB`) ; `None` : nom inconnu.
+    pub fn show(&self, name: &str) -> Option<String> {
+        Some(self.unit_of(name)?.format(self.get(name)?))
+    }
+
     /// Règle un paramètre ; refuse un nom inconnu ou une valeur hors plage, avec un message clair.
     pub fn set(&mut self, name: &str, v: f32) -> Result<()> {
         let kind = self.kind();
@@ -197,14 +260,23 @@ impl FxSpec {
         Ok(())
     }
 
+    /// Quand une division rythmique agit : le paramètre qu'elle remplace et la durée (ms) qu'elle
+    /// lui impose à ce tempo. `None` : aucune division réglée, le paramètre agit normalement.
+    pub fn division_ms(&self, bpm: f32) -> Option<(&'static str, f32)> {
+        let target = with_effect!(self, e => e.division_target())?;
+        let p = self.params().iter().find(|p| p.unit == Unit::Division)?;
+        let ms = tempo::at(self.get(p.name)?).ms_at(bpm)?;
+        Some((target, ms))
+    }
+
     /// Durée de la queue après la fin du signal (s) : voir [`Effect::tail_seconds`].
     pub fn tail_seconds(&self) -> f32 {
         with_effect!(self, e => e.tail_seconds())
     }
 
     /// Construit l'étage (hors temps réel).
-    pub fn build(&self, sample_rate: u32, max_block: usize) -> Result<Box<dyn Stage>> {
-        with_effect!(self, e => e.build(sample_rate, max_block))
+    pub fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
+        with_effect!(self, e => e.build(ctx))
     }
 
     /// Cet effet publie-t-il une **action** pour le synoptique de `browse` (#107) : la réduction
@@ -217,17 +289,16 @@ impl FxSpec {
     /// ([`FxSpec::has_action_meter`]) ; les autres l'ignorent.
     pub fn build_metered(
         &self,
-        sample_rate: u32,
-        max_block: usize,
+        ctx: &BuildCtx,
         action: Option<&crate::meter::Meter>,
     ) -> Result<Box<dyn Stage>> {
         let Some(m) = action.filter(|_| self.has_action_meter()) else {
-            return self.build(sample_rate, max_block);
+            return self.build(ctx);
         };
         Ok(match self {
-            FxSpec::Comp(p) => Box::new(p.stage(sample_rate).with_meter(m.clone())),
-            FxSpec::Gate(p) => Box::new(p.stage(sample_rate).with_meter(m.clone())),
-            _ => return self.build(sample_rate, max_block),
+            FxSpec::Comp(p) => Box::new(p.stage(ctx.sample_rate).with_meter(m.clone())),
+            FxSpec::Gate(p) => Box::new(p.stage(ctx.sample_rate).with_meter(m.clone())),
+            _ => return self.build(ctx),
         })
     }
 
@@ -264,7 +335,12 @@ impl fmt::Display for FxSpec {
         for p in self.params() {
             let v = self.get(p.name).unwrap_or(p.default);
             if v != p.default {
-                write!(f, "{sep}{}={v}", p.name)?;
+                // une division s'écrit par son nom de note : `delay:division=1/8.`
+                if p.unit == Unit::Division {
+                    write!(f, "{sep}{}={}", p.name, tempo::label_at(v))?;
+                } else {
+                    write!(f, "{sep}{}={v}", p.name)?;
+                }
                 sep = ',';
             }
         }
@@ -288,10 +364,22 @@ impl std::str::FromStr for FxSpec {
             let Some((k, v)) = arg.split_once('=') else {
                 return Err(Error::Fx(format!("{} : « {arg} » : forme attendue param=valeur", fx.kind())));
             };
-            let v: f32 = v.trim().parse().map_err(|_| {
-                Error::Fx(format!("{} : {} = « {} » n'est pas un nombre", fx.kind(), k.trim(), v.trim()))
-            })?;
-            fx.set(k.trim(), v)?;
+            let (k, v) = (k.trim(), v.trim());
+            // une division s'écrit `1/8.` aussi bien que `4` : sans ça, il faut compter les crans
+            let v: f32 = match fx.unit_of(k).filter(|u| *u == Unit::Division).and_then(|_| tempo::index_of(v))
+            {
+                Some(i) => i,
+                None => v.parse().map_err(|_| {
+                    let what = if fx.unit_of(k) == Some(Unit::Division) {
+                        let labels: Vec<&str> = tempo::DIVISIONS.iter().map(|d| d.label).collect();
+                        format!("n'est pas une division ({})", labels.join(", "))
+                    } else {
+                        "n'est pas un nombre".to_string()
+                    };
+                    Error::Fx(format!("{} : {k} = « {v} » {what}", fx.kind()))
+                })?,
+            };
+            fx.set(k, v)?;
         }
         Ok(fx)
     }
@@ -326,6 +414,31 @@ mod tests {
         let mut kinds: Vec<&str> = catalog().iter().map(|f| f.kind()).collect();
         kinds.dedup();
         assert_eq!(kinds.len(), catalog().len(), "noms d'effets en double");
+    }
+
+    /// Une division s'écrit et se relit par son **nom de note**, pas par son indice : personne ne
+    /// veut compter les crans dans un exemple du guide (ADR 0008).
+    #[test]
+    fn a_division_is_written_and_read_as_a_note() {
+        let fx: FxSpec = "delay:division=1/8.".parse().expect("division par étiquette");
+        assert_eq!(fx.get("division"), Some(tempo::index_of("1/8.").unwrap()));
+        // l'écriture rend l'étiquette, et le tour est complet
+        assert_eq!(fx.to_string(), "delay:division=1/8.");
+        assert_eq!(fx.to_string().parse::<FxSpec>().unwrap(), fx);
+        assert_eq!(fx.show("division").as_deref(), Some("1/8."));
+
+        // l'indice reste accepté : c'est le même paramètre scalaire
+        assert_eq!("delay:division=4".parse::<FxSpec>().unwrap(), fx);
+        // `libre` est le défaut, donc rien n'est écrit
+        assert_eq!("delay:division=libre".parse::<FxSpec>().unwrap().to_string(), "delay");
+
+        // une étiquette inconnue dit ce qui est accepté, au lieu de « n'est pas un nombre »
+        let err = "delay:division=1/3".parse::<FxSpec>().expect_err("refusé").to_string();
+        assert!(err.contains("1/8."), "{err}");
+        assert!(err.contains("division"), "{err}");
+        // et un paramètre ordinaire garde son message
+        let err = "delay:time=vite".parse::<FxSpec>().expect_err("refusé").to_string();
+        assert!(err.contains("n'est pas un nombre"), "{err}");
     }
 
     /// Les tables de paramètres sont cohérentes (défaut dans la plage, pas positif, aide écrite).

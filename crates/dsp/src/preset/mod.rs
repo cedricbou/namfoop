@@ -129,7 +129,7 @@ pub struct PresetBranch {
 }
 
 /// Une chaîne enregistrée.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PresetSpec {
     #[serde(default)]
     pub name: String,
@@ -139,6 +139,12 @@ pub struct PresetSpec {
     /// peut pas s'écrire après un tableau de tables.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub volume_db: f32,
+    /// **Tempo du preset** (BPM) : ce dont les paramètres `division` des effets de temps tirent
+    /// leur durée (ADR 0008). Changer de preset change donc le tempo. Déclaré **avant** `blocks`,
+    /// comme `volume_db`, et omis quand il vaut [`crate::tempo::DEFAULT_BPM`] : un preset écrit
+    /// par une version précédente se relit à l'identique, et se réécrit sans ligne en plus.
+    #[serde(default = "default_bpm", skip_serializing_if = "is_default_bpm")]
+    pub tempo_bpm: f32,
     #[serde(default, rename = "block", skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<PresetBlock>,
     /// Dossier qui sert à résoudre les chemins relatifs (la bibliothèque) ; non sérialisé.
@@ -146,8 +152,28 @@ pub struct PresetSpec {
     pub base: PathBuf,
 }
 
+impl Default for PresetSpec {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            volume_db: 0.0,
+            tempo_bpm: default_bpm(),
+            blocks: Vec::new(),
+            base: PathBuf::new(),
+        }
+    }
+}
+
 fn is_zero(v: &f32) -> bool {
     *v == 0.0
+}
+
+fn default_bpm() -> f32 {
+    crate::tempo::DEFAULT_BPM
+}
+
+fn is_default_bpm(v: &f32) -> bool {
+    *v == crate::tempo::DEFAULT_BPM
 }
 
 /// Le fichier est-il un preset (`*.preset.toml`) ?

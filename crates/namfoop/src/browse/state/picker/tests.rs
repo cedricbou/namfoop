@@ -240,7 +240,7 @@ fn a_block_citing_the_live_blend_has_no_current_row() {
 #[test]
 fn the_library_tabs_do_not_write_into_the_block_being_tried() {
     let mut s = sample();
-    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(0))], volume_db: 0.0 };
+    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(0))], volume_db: 0.0, ..Default::default() };
     s.fx.cursor = Cursor::Top(0);
     s.space = space::Space::Chain;
     s.tick(1000);

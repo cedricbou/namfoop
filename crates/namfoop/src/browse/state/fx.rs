@@ -201,6 +201,18 @@ impl State {
         }
     }
 
+    /// `(375 ms)` quand le paramètre `name` de cet effet est **remplacé** par une division
+    /// rythmique au tempo de la chaîne ; `None` quand il agit normalement. Au-delà du plafond du
+    /// tampon du delay, la valeur le dit.
+    fn derived_ms(&self, spec: Option<&FxSpec>, name: &str) -> Option<String> {
+        let (target, ms) = spec?.division_ms(self.fx.chain.tempo_bpm)?;
+        if target != name {
+            return None;
+        }
+        let max = dsp::fx::delay::MAX_SECONDS * 1000.0;
+        Some(if ms > max { format!("({max:.0} ms, plafond)") } else { format!("({ms:.0} ms)") })
+    }
+
     /// Valeur affichée d'un réglage, et sa position dans sa plage (pour la barre).
     pub fn field_value(&self, f: Field) -> (String, f32) {
         let cur = self.fx.cursor;
@@ -208,12 +220,20 @@ impl State {
         let yes_no = |v: bool| ((if v { "oui" } else { "non" }).to_string(), f32::from(v));
         match f {
             Field::Param(p) => {
-                let v = match self.fx.chain.leaf(cur) {
-                    Some(Leaf::Fx(s)) => s.spec.get(p.name).unwrap_or(p.default),
-                    _ => p.default,
+                let spec = match self.fx.chain.leaf(cur) {
+                    Some(Leaf::Fx(s)) => Some(s.spec.clone()),
+                    _ => None,
                 };
+                let v = spec.as_ref().and_then(|s| s.get(p.name)).unwrap_or(p.default);
                 let frac = if p.max > p.min { (v - p.min) / (p.max - p.min) } else { 0.0 };
-                (chain::num(v), frac)
+                // un paramètre remplacé par une division rythmique se montre **dérivé**, entre
+                // parenthèses, avec la durée que le tempo lui impose (ADR 0008) : c'est le signe
+                // qu'il ne se règle plus, et le même esprit que le gain annulé par l'alignement
+                // sur le DI (#178) — ne jamais afficher un nombre qui n'agit pas
+                if let Some(ms) = self.derived_ms(spec.as_ref(), p.name) {
+                    return (ms, frac);
+                }
+                (p.unit.format(v), frac)
             }
             Field::Mode => match self.fx.chain.split_at(cur.top()).map(|s| s.mode) {
                 Some(Mode::Bands) => ("bandes".into(), 1.0),
@@ -247,11 +267,23 @@ impl State {
         match f {
             Field::Param(p) => {
                 let cur = self.fx.cursor;
+                // régler un paramètre que la division remplace ne ferait rien : le dire plutôt que
+                // de laisser croire que le réglage est cassé (#177)
+                let spec = match self.fx.chain.leaf(cur) {
+                    Some(Leaf::Fx(s)) => Some(s.spec.clone()),
+                    _ => None,
+                };
+                if self.derived_ms(spec.as_ref(), p.name).is_some() {
+                    return Some(format!(
+                        "{} suit la division rythmique : mets « division » sur libre pour le régler en ms",
+                        p.name
+                    ));
+                }
                 let Some(Leaf::Fx(slot)) = self.fx.chain.leaf_mut(cur) else { return None };
                 let v = step_value(&p, slot.spec.get(p.name)?, steps);
                 slot.spec.set(p.name, v).ok()?;
                 let kind = slot.spec.kind();
-                Some(format!("{kind} : {} = {} {}", p.name, chain::num(v), p.unit.symbol()))
+                Some(format!("{kind} : {} = {}", p.name, p.unit.format(v)))
             }
             Field::Mode => {
                 let top = self.fx.cursor.top();

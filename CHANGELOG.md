@@ -6,6 +6,25 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#195)
+- **Les effets de temps se règlent au tempo.** Un `delay` accepte désormais sa durée en **division
+  rythmique** — `--post delay:division=1/8.` — au lieu de millisecondes : neuf valeurs, de `1/16` à
+  `1/1`, dans l'ordre des noms de notes. `libre` est le défaut, et `time` agit alors exactement
+  comme avant. Mesuré : à 120 BPM, `1/4` place les échos à 500,0 ms et `1/8.` à 375,0 ms ; à 92 BPM,
+  `1/4` à 652,2 ms ; une division plus longue que le tampon de 2 s est écrêtée et le dit.
+- **Un tempo par preset** : `tempo_bpm` dans le `.preset.toml` (30 à 300 BPM, 120 par défaut).
+  Changer de preset change le tempo. Un preset écrit par une version précédente se relit et se
+  réécrit sans ligne en plus.
+- **`--tempo BPM`** pour `run` et `render` : de quoi comparer deux réglages sans rien laisser au
+  hasard. Le tempo est un **paramètre vivant** (ADR 0007) : en changer ne rebâtit aucune chaîne et
+  ne coupe aucune répétition, et le passage d'un temps à l'autre fond en 50 ms — pas de clic, pas de
+  glissement de hauteur.
+- Une division s'écrit par son **nom de note** partout (`delay:division=1/8.`), se relit de même, et
+  un nom inconnu rappelle les valeurs acceptées au lieu de dire « n'est pas un nombre ».
+
+Le tap (`*`), l'arbitrage entre preset, tap et horloge MIDI, et le métronome audible viennent
+ensuite (épique #188, [ADR 0008](docs/adr/0008-tempo-et-divisions.md)).
+
 ### Modifié (#193)
 - Les traces de diagnostic posées pour la chasse de #191 (une ligne par touche, l'état de la banque
   à chaque demande) sont retirées : elles n'avaient de sens que pour cette enquête. Le relevé garde

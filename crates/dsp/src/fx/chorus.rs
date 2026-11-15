@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effect, ParamInfo, Unit};
+use super::{BuildCtx, Effect, ParamInfo, Unit};
 use crate::biquad::{Biquad, Shape};
 use crate::{Result, Stage};
 
@@ -100,7 +100,8 @@ impl Effect for ChorusParams {
         }
     }
 
-    fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
+    fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
+        let sample_rate = ctx.sample_rate;
         let sr = sample_rate as f32;
         let ms = |v: f32| v * 1e-3 * sr;
         let len = ((ms(MAX_DELAY_MS + MAX_DEPTH_MS) as usize) + 8).next_power_of_two();
@@ -200,7 +201,7 @@ mod tests {
     }
 
     fn run(p: &ChorusParams, input: &[f32]) -> Vec<f32> {
-        let mut st = p.build(SR, 64).unwrap();
+        let mut st = p.build(&BuildCtx::new(SR, 64)).unwrap();
         let mut buf = input.to_vec();
         for c in buf.chunks_mut(64) {
             st.process(c);

@@ -114,6 +114,8 @@ pub(super) fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
         size,
         ir_ms: 200.0,
         master_db: 0.0,
+        // le tempo n'arrive pas par les options : c'est une case vivante, posée sur la ChainSpec
+        tempo: None,
         pre: Vec::new(),
         post: Vec::new(),
         crossover: None,
@@ -125,6 +127,17 @@ pub(super) fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
     }
 }
 
+/// Les **paramètres vivants** de la session (ADR 0007) : des cases que `browse/mod.rs` écrit et
+/// que chaque chaîne bâtie ici lit une fois par bloc, celles de la banque préchargée comprises.
+/// Le prochain (#6) s'ajoute ici, sans un argument de plus à `spawn`.
+#[derive(Clone)]
+pub(super) struct Live {
+    /// Volume du preset (#187).
+    pub volume: dsp::param::Control,
+    /// Tempo, d'où les paramètres `division` tirent leur durée (ADR 0008).
+    pub tempo: dsp::param::Control,
+}
+
 /// Lance le thread de construction et rend les deux bouts du dialogue : les demandes d'un côté,
 /// ce qui a été installé de l'autre.
 pub(super) fn spawn(
@@ -134,9 +147,7 @@ pub(super) fn spawn(
     rate: u32,
     limiter: Arc<AtomicU32>,
     size: f64,
-    // la case du volume du preset (#187) : chaque chaîne bâtie ici la lit, celles de la banque
-    // préchargée comprises
-    volume: dsp::param::Control,
+    live: Live,
 ) -> Result<(mpsc::Sender<Job>, mpsc::Receiver<Built>)> {
     // construction des chaînes hors temps réel : la demande la plus récente gagne, et les chaînes
     // des presets sont bâties à l'avance (banque préchargée, #6 : bascule en 1 µs au lieu de 80 ms)
@@ -154,7 +165,9 @@ pub(super) fn spawn(
             spec.blocks = block_specs(&req.blocks, lib, req, size);
             // le volume du preset, après l'alignement de niveau (#179) : vivant, donc la chaîne
             // suit la case au lieu de porter un gain figé (#187)
-            spec.volume = volume.clone().into();
+            spec.volume = live.volume.clone().into();
+            // le tempo, vivant pour la même raison (ADR 0008) : un tap ne rebâtit rien
+            spec.tempo = live.tempo.clone().into();
             Ok(spec)
         };
         let mut wanted: Option<Request> = None;

@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effect, ParamInfo, Unit};
+use super::{BuildCtx, Effect, ParamInfo, Unit};
 use crate::meter::Meter;
 use crate::{db_to_gain, Result, Stage};
 
@@ -116,8 +116,8 @@ impl Effect for GateParams {
         }
     }
 
-    fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
-        Ok(Box::new(self.stage(sample_rate)))
+    fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
+        Ok(Box::new(self.stage(ctx.sample_rate)))
     }
 }
 
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn steady_state_gains() {
         let p = GateParams { range: -40.0, ..Default::default() };
-        let mut g = p.build(48000, 64).unwrap();
+        let mut g = p.build(&BuildCtx::new(48000, 64)).unwrap();
         let mut below = sine(-70.0, 48000);
         let input = below.clone();
         g.process(&mut below);
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn gain_is_smoothed() {
         let p = GateParams { range: -80.0, ..Default::default() };
-        let mut g = p.build(48000, 64).unwrap();
+        let mut g = p.build(&BuildCtx::new(48000, 64)).unwrap();
         // salves au-dessus du seuil, séparées de silence : ouvertures et fermetures
         let mut sig = Vec::new();
         for _ in 0..4 {

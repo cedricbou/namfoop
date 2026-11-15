@@ -38,6 +38,7 @@ fn a_preset_survives_a_round_trip_through_toml() {
         *on = false; // un bloc coupé garde son état
     }
     let spec = PresetSpec {
+        tempo_bpm: crate::tempo::DEFAULT_BPM,
         name: "Chill verse".into(),
         volume_db: -2.5,
         blocks: vec![
@@ -121,6 +122,7 @@ fn to_blocks_resolves_the_files_and_drops_what_is_cut() {
         *on = false;
     }
     let spec = PresetSpec {
+        tempo_bpm: crate::tempo::DEFAULT_BPM,
         name: "T".into(),
         blocks: vec![
             nam("nam/MESA/800D.nam", "m2z7"),
@@ -168,6 +170,7 @@ fn a_moved_sound_is_found_again_by_its_short_id() {
     std::fs::create_dir_all(moved.parent().expect("dossier")).expect("création");
     std::fs::write(&moved, b"x").expect("écriture");
     let spec = PresetSpec {
+        tempo_bpm: crate::tempo::DEFAULT_BPM,
         name: "T".into(),
         blocks: vec![nam("nam/MESA/800D.nam", "m2z7")],
         base: base.clone(),

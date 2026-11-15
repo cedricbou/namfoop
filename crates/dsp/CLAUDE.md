@@ -7,7 +7,15 @@ chaîne, changement de chaîne à chaud, analyses hors ligne.
 une case `param::Control` : lecture **une fois par bloc**, rampe de `RAMP_MS` = 20 ms comptées en
 **échantillons**, qui traverse les frontières de bloc — jamais une rampe étalée sur le buffer, qui
 ferait dépendre le son de la taille de bloc ; case lue à la construction ET à `reset()`, sinon une
-chaîne préchargée sauterait de 36 dB à l'installation), `param.rs` (**LA CASE DE RÉGLAGE**, ADR 0007 :
+chaîne préchargée sauterait de 36 dB à l'installation), `tempo.rs` (**LE TEMPO ET LES DIVISIONS**, ADR 0008 : `DIVISIONS`, la table des **neuf**
+divisions — indice **0 = `libre`**, qui rend la main au temps en millisecondes —, dans l'ordre des
+noms de notes, qui est aussi croissant en durée (`←` / `→` prévisibles) ; `MAX_INDEX` est une
+**const** parce que les tables `PARAMS` en sont une, et un test vérifie qu'elle suit la table ;
+`at` / `label_at` / `index_of` (l'étiquette en mini-syntaxe : `delay:division=1/8.`),
+`Division::ms_at`, `clamp_bpm` (30 à 300, non fini -> 120) ; et `Tempo::{Bpm, Live}`, calqué sur
+`chain::Volume` : figé pour `run` / `render` / `bench` / les rendus de référence, **vivant** pour
+`browse`. Qui *décide* du tempo (preset, tap, horloge MIDI) est l'affaire de l'arbitre d'`engine`),
+`param.rs` (**LA CASE DE RÉGLAGE**, ADR 0007 :
 miroir de `meter.rs` dans l'autre sens — le **contrôle possède la valeur**, le temps réel la lit ; un
 seul écrivain par case ; elle ne décrit rien, la description reste `fx::ParamInfo`), `limiter.rs`,
 `meter.rs`
@@ -42,7 +50,13 @@ dont se sert `Level::Match`, #181), `split.rs` (étage parallèle `Split` : 2 à
 polarité, muet (muette = pas traitée) ; réglages vérifiés à la construction (`Result`), jamais en RT ;
 retards mesurés par corrélation et compensés, imbricable ; `measure_latency`), `biquad.rs` (biquad RBJ en TDF-II, f64, `response_db`,
 formes passe-bas / passe-haut / cloche / plateaux / **passe-tout** ; réutilisable par le crossover et les
-effets de temps), `fx/` (effets réglables : `FxSpec`, `catalog()`, voir « Ajouter un effet » ; le parallèle **n'est
+effets de temps), `fx/` (effets réglables : `FxSpec`, `catalog()`, voir « Ajouter un effet » ;
+`Effect::build` prend un **`BuildCtx`** `{ sample_rate, max_block, tempo }` et non deux arguments :
+c'est ce qui fait voyager la case de tempo jusqu'à l'étage, et le prochain paramètre vivant (#6)
+passera par là sans toucher aux onze effets. `Unit::Division` est un **scalaire comme les autres**
+(min 0, max `tempo::MAX_INDEX`, pas 1, ADR 0005 préservé) : seul son affichage diffère, et
+`Unit::format` est le **seul** endroit qui dit comment montrer la valeur d'un paramètre (`-6 dB`,
+`1/8.`) — `namfoop fx`, le panneau de `browse` et la mini-syntaxe doivent dire la même chose ; le parallèle **n'est
 pas** un effet : c'est `block::SplitSpec`, et `fx::STRUCTURAL_KINDS` le refuse en mini-syntaxe avec
 un message qui dit où le décrire), `swap.rs` (changement de chaîne à chaud : `SwapHandle`
 envoie une `Chain` construite, `SwapChain` fond en ~20 ms **sur l'entrée** des deux chaînes, et la
@@ -227,6 +241,19 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   b7k + IR dg212 : 43–44 échantillons (0,9 ms, l'attaque de l'IR). Alignement du grave clair sur la
   calibration de l'utilisateur : -14,7 dB, niveau final inchangé (RMS -24,4 dBFS) ; coût `split`
   vide (4 biquads) 0,67 µs par bloc de 64 (0,05 %).
+- **Delay synchronisé au tempo** (#195, ADR 0008) : `division` vaut `libre` par défaut, donc les
+  rendus de référence sont **inchangés au bit près**. L'étage lit le tempo **une fois par bloc**
+  (`follow_tempo`) et n'appelle `set_time` que si le nombre d'échantillons **change** — sinon le
+  fondu de 50 ms redémarrerait sans cesse ; en `libre`, le tempo n'est même pas lu. Le tempo est
+  relu **aussi à `reset()`** et sans fondu : une chaîne préchargée depuis dix minutes doit repartir
+  au tempo du moment (même raison que `gain::LiveGain`). Revenir à `libre` **retrouve** `time` tel
+  qu'il était réglé (`time_ms` est gardé). Mesuré (`render`, impulsion, `--no-limiter`) : à 120 BPM
+  `1/4` -> échos à **500,0 / 1000,0 / 1500,0 ms**, `1/8.` -> **375,0 / 750,0 / 1125,0**, `1/16` ->
+  **125,0** ; à 92 BPM `1/4` -> **652,2** ; à 90 BPM `1/8T` -> **222,2 / 444,5 / 666,7**. Une
+  division plus longue que le tampon (2 s) est **écrêtée** : `1/1` à 60 BPM (4 s voulues) donne
+  2000,0 ms. Le tampon n'est **pas** agrandi : `time` resterait borné à 2000 ms et, à 90 % de
+  réinjection, `tail_seconds` dépasserait `MAX_TEST_TAIL_SECONDS`. `tail_seconds` part donc du
+  **plafond** dès qu'une division agit (le tempo est inconnu hors temps réel) : 32,7 s aux défauts.
 - Delay et chorus (#84, `bench --fx`, bloc 64) : `delay` 0,27 µs (0,02 %), `chorus` 1,6 µs (0,12 %).
   Delay : tampon de 2 s alloué à la construction (2^17 floats, 512 Kio), réinjection ≤ 90 %
   (filtres de boucle Butterworth de gain ≤ 1 : gain de boucle < 1, stable) ; queue à -140 dB à
@@ -257,9 +284,11 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
   un lookahead de ~1 ms serait plus propre mais ajoute de la latence.
-- `Delay::set_time` (fondu entre deux têtes) n'est appelé que par les tests : à brancher sur
-  `set_param` (#6).
-- Un seul paramètre est **vivant** (le volume du preset, ADR 0007) : les paramètres d'effet, eux,
+- `Delay::set_time` est enfin appelé en vrai, mais seulement par la **synchronisation au tempo**
+  (#195) : régler `time` à la main reconstruit encore la chaîne, en attendant `set_param` (#6).
+- `Unit::format` refait le formatage de nombre de `namfoop::browse::state::label::num` (deux
+  lignes) : `dsp` ne peut pas dépendre du binaire. À unifier dans le sens `namfoop` -> `dsp`.
+- Deux paramètres sont **vivants** (le volume du preset et le tempo, ADR 0007 et 0008) : les paramètres d'effet, eux,
   reconstruisent encore la chaîne à chaque appui — c'est la promesse non tenue de l'ADR 0005
   (`set_param` avec lissage, #6) et la cause de #177 (« on croit que le réglage ne fait rien »).
 
@@ -267,6 +296,7 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 ```
 crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolver), gain.rs, limiter.rs,
+                  tempo.rs (tempo et divisions rythmiques : DIVISIONS, Tempo figé / vivant),
                   chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs,
                   blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement),
                   preset.rs (presets .preset.toml : la chaîne enregistrée, chemins relatifs + identifiant

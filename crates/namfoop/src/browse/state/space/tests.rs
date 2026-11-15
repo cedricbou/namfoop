@@ -148,6 +148,7 @@ fn the_bench_starts_on_the_model_of_the_starting_chain() {
     s.fx.chain = chain::Chain {
         blocks: vec![fx_block("gate:threshold=-60"), Block::Leaf(nam(2)), Block::Leaf(ir(1))],
         volume_db: 0.0,
+        ..Default::default()
     };
     s.start_bench_from_chain();
     assert_eq!((s.model, s.ir), (Some(2), IrChoice::Item(1)));

@@ -73,6 +73,10 @@ pub struct AmpArgs {
     /// Volume final (dB)
     #[arg(long, default_value_t = 0.0, allow_hyphen_values = true)]
     pub master_db: f32,
+    /// Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée
+    /// (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
+    #[arg(long, value_name = "BPM", value_parser = parse_tempo)]
+    pub tempo: Option<f32>,
     /// Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,...
     /// (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
     #[arg(long = "pre", value_name = "FX", value_parser = parse_fx)]
@@ -103,6 +107,30 @@ pub struct AmpArgs {
 /// Mini-syntaxe d'un effet pour clap (message d'erreur de `FxSpec`).
 fn parse_fx(s: &str) -> std::result::Result<FxSpec, String> {
     s.parse::<FxSpec>().map_err(|e| format!("{e} (liste et paramètres : namfoop fx)"))
+}
+
+/// Un bloc (ou une branche) contient-il un effet réglé en division rythmique ? Sert à ne parler du
+/// tempo dans le log que quand il change quelque chose.
+fn uses_a_division(b: &dsp::block::BlockSpec) -> bool {
+    use dsp::block::BlockSpec;
+    match b {
+        BlockSpec::Fx(f) => f
+            .params()
+            .iter()
+            .any(|p| p.unit == dsp::fx::Unit::Division && f.get(p.name).is_some_and(|v| v > 0.0)),
+        BlockSpec::Split(s) => s.branches.iter().flat_map(|br| &br.blocks).any(uses_a_division),
+        BlockSpec::Nam { .. } | BlockSpec::Ir { .. } => false,
+    }
+}
+
+/// `--tempo` : un BPM dans les bornes de `dsp::tempo`, refusé clairement sinon.
+fn parse_tempo(s: &str) -> std::result::Result<f32, String> {
+    let v: f32 = s.trim().parse().map_err(|_| format!("« {s} » n'est pas un nombre de BPM"))?;
+    let (lo, hi) = (dsp::tempo::MIN_BPM, dsp::tempo::MAX_BPM);
+    if !v.is_finite() || v < lo || v > hi {
+        return Err(format!("tempo {v} hors plage ({lo} … {hi} BPM)"));
+    }
+    Ok(v)
 }
 
 /// Le gain d'entrée propre à un modèle (`library/overrides.toml`), comme dans `browse`.
@@ -176,6 +204,13 @@ impl AmpArgs {
         chain.volume = preset.volume_db.into();
         if preset.volume_db != 0.0 {
             log::info!("volume du preset {:+.1} dB", preset.volume_db);
+        }
+        // le tempo du preset, d'où les divisions rythmiques tirent leur durée (ADR 0008) :
+        // `--tempo` l'emporte quand il est donné, sinon c'est celui qui a été enregistré
+        let bpm = dsp::tempo::clamp_bpm(self.tempo.unwrap_or(preset.tempo_bpm));
+        chain.tempo = dsp::tempo::Tempo::Bpm(bpm);
+        if chain.blocks.iter().any(uses_a_division) {
+            log::info!("tempo {bpm:.1} BPM");
         }
         Ok(chain)
     }
@@ -285,9 +320,61 @@ impl AmpArgs {
                 high_db: self.crossover_high_db,
             }),
             level,
+            tempo_bpm: self.tempo,
             master_db: self.master_db,
             limiter: (cfg.limiter && !self.no_limiter)
                 .then(|| LimiterSpec { meter: limiter_meter, ..Default::default() }),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Le preset porte son tempo (ADR 0008) : `run --preset` doit sonner comme dans `browse`, où il
+    /// a été réglé. `--tempo` l'emporte quand il est donné. C'est la régression de #195 : sans ce
+    /// branchement, une croche pointée tombait à 375 ms (120 BPM) au lieu de 489 (92 BPM).
+    #[test]
+    fn a_preset_brings_its_own_tempo_and_tempo_wins() {
+        let dir = std::env::temp_dir().join(format!("namfoop-tempo-{}", std::process::id()));
+        let presets = dir.join("presets");
+        std::fs::create_dir_all(&presets).expect("dossier jetable");
+        std::fs::write(
+            presets.join("Couplet.preset.toml"),
+            "name = \"Couplet\"\ntempo_bpm = 92.0\n\n[[block]]\nkind = \"fx\"\n[block.fx]\n\
+             type = \"delay\"\ndivision = 4.0\n",
+        )
+        .expect("preset écrit");
+
+        // les valeurs par défaut de clap, sans les réécrire à la main
+        #[derive(clap::Parser)]
+        struct Defaults {
+            #[command(flatten)]
+            amp: AmpArgs,
+        }
+        let conf = LoadedConfig::load(None, true).expect("config ignorée");
+        let args = |tempo: Option<f32>| AmpArgs {
+            preset: Some("couplet".into()),
+            library: dir.clone(),
+            tempo,
+            ..<Defaults as clap::Parser>::parse_from(["namfoop"]).amp
+        };
+        let bpm = |tempo| args(tempo).chain_spec(&conf, None).expect("chaîne du preset").tempo.bpm();
+        assert_eq!(bpm(None), 92.0, "le tempo enregistré dans le preset");
+        assert_eq!(bpm(Some(140.0)), 140.0, "--tempo l'emporte");
+        // hors bornes, on reste dans la plage plutôt que de propager n'importe quoi
+        assert_eq!(bpm(Some(1000.0)), dsp::tempo::MAX_BPM);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Le log ne parle du tempo que quand il change quelque chose.
+    #[test]
+    fn the_tempo_is_logged_only_when_a_division_acts() {
+        let fx = |s: &str| dsp::block::BlockSpec::Fx(s.parse::<FxSpec>().expect(s));
+        assert!(uses_a_division(&fx("delay:division=1/4")));
+        assert!(!uses_a_division(&fx("delay:time=400")), "libre : le tempo ne sert à rien");
+        assert!(!uses_a_division(&fx("gain:db=-6")), "aucun paramètre de division");
     }
 }

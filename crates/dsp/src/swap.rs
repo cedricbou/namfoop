@@ -274,6 +274,7 @@ impl Stage for SwapChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fx::BuildCtx;
     use crate::gain::Gain;
 
     fn gain_chain(db: f32) -> Chain {
@@ -287,7 +288,7 @@ mod tests {
         let spec: crate::fx::FxSpec =
             format!("delay:time={ms},feedback=0,mix=100").parse().expect("effet connu");
         let mut c = Chain::new();
-        c.push_boxed(spec.build(48000, 64).expect("construit"));
+        c.push_boxed(spec.build(&BuildCtx::new(48000, 64)).expect("construit"));
         c
     }
 

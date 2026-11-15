@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effect, ParamInfo, Unit};
+use super::{BuildCtx, Effect, ParamInfo, Unit};
 use crate::{Result, Stage};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ impl Effect for GainParams {
         }
     }
 
-    fn build(&self, _sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
+    fn build(&self, _ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
         Ok(Box::new(crate::gain::Gain::db(self.db, "gain")))
     }
 }

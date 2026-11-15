@@ -1456,6 +1456,51 @@ namfoop run -m b7k -i "dg212 sm57" --post hpf:freq=35 --post peak:freq=300,gain=
 namfoop fx peak
 ```
 
+### Tempo et divisions rythmiques : `--tempo`, `division`
+
+Sur scène, ce qu'on veut d'un écho ce n'est pas « 344 ms », c'est **une croche pointée au tempo du
+morceau**. Les effets de temps acceptent donc leur temps de deux façons :
+
+- **en millisecondes**, comme avant : `delay:time=375` ;
+- **en division rythmique** : `delay:division=1/8.` — le temps est alors calculé au tempo courant,
+  et `time` est ignoré (mais conservé : y revenir le retrouve tel quel).
+
+Les neuf valeurs, du plus court au plus long, dans l'ordre où `←` / `→` les parcourent :
+
+| valeur | `libre` | `1/16` | `1/8T` | `1/8` | `1/8.` | `1/4` | `1/4.` | `1/2` | `1/1` |
+|---|---|---|---|---|---|---|---|---|---|
+| en noires | — | ¼ | ⅓ | ½ | ¾ | **1** | 1½ | 2 | 4 |
+| à 120 BPM | `time` | 125 ms | 167 ms | 250 ms | 375 ms | **500 ms** | 750 ms | 1 s | 2 s |
+
+`libre` est la valeur par défaut : sans rien changer, un delay se règle en millisecondes comme il
+l'a toujours fait. `1/8.` (la croche pointée) est le réglage de delay le plus répandu ; `1/4` suit
+simplement la pulsation.
+
+**D'où vient le tempo.** Le tempo appartient au **preset** : changer de preset change le tempo. Il
+s'écrit `tempo_bpm` dans le `.preset.toml`, entre 30 et 300 BPM, et vaut 120 quand le preset n'en
+porte pas. En ligne de commande, `--tempo` le donne directement — indispensable pour comparer deux
+réglages avec `render`, où rien n'est laissé au hasard.
+
+```sh
+# une croche pointée à 92 BPM : 652 ms / 0,75 = 489 ms, sans calculer
+namfoop run -m b7k -i "dg212 sm57" --tempo 92 --post delay:division=1/8.,feedback=40,mix=25
+```
+
+**Parcours type.** Dans `browse`, espace Chaîne, curseur sur le bloc `delay`, `Entrée` ouvre ses
+réglages : `division` se parcourt à `←` / `→`. Dès qu'une note est choisie, la ligne `time` passe
+**entre parenthèses** avec sa valeur calculée — c'est le signe qu'elle ne se règle plus. `S`
+enregistre le preset, tempo compris.
+
+**À savoir.**
+
+- Le tampon du delay fait **2 secondes**. Une division plus longue est **écrêtée** et le dit
+  (`(2000 ms, plafond)`) : à 60 BPM, une ronde demanderait 4 s. En pratique, cela ne concerne que
+  les tempos lents avec `1/2` ou `1/1`.
+- Un changement de tempo **fond** entre deux têtes de lecture en 50 ms : pas de clic, et pas de
+  glissement de hauteur comme sur certaines pédales.
+- `namfoop fx delay` liste les valeurs acceptées, et un nom inconnu les rappelle au lieu de dire
+  « n'est pas un nombre ».
+
 ### `delay` : écho
 
 Répète le son toutes les `time` ms. La réinjection est **filtrée** : chaque répétition passe par un
@@ -1463,14 +1508,17 @@ passe-haut (`lowcut`) et un passe-bas (`highcut`), elle devient plus fine et plu
 précédente et ne brouille pas le grave.
 
 - `time` : 1 à 2000 ms. Un écho court (80–150 ms) épaissit, un écho long (300–500 ms) se cale sur
-  le tempo : `60000 / BPM` ms pour une noire (120 BPM : 500 ms).
+  le tempo — mais plutôt que de calculer `60000 / BPM`, mieux vaut régler `division` (ci-dessus) et
+  laisser le tempo faire le calcul.
+- `division` : le temps **au tempo** (`1/8.`, `1/4`…) ; `libre` (le défaut) rend la main à `time`.
 - `feedback` : nombre de répétitions, de 0 (une seule) à 90 %. Plafonné à 90 % : la queue est alors
   très longue (une minute) mais ne s'emballe jamais.
 - `mix` : niveau des répétitions ; le son direct reste toujours à 100 %.
 - `lowcut` (80 Hz par défaut) : à monter vers 200–300 Hz pour que les répétitions laissent la place
   à la fondamentale.
 - Piège : changer un paramètre reconstruit la chaîne et coupe les répétitions en cours (prototype ;
-  le maintien des queues viendra avec les presets).
+  le maintien des queues viendra avec les presets). Le **tempo**, lui, est déjà vivant : en changer
+  ne rebâtit rien et ne coupe aucune répétition.
 
 ```sh
 namfoop run -m b7k -i "dg212 sm57" --post delay:time=375,feedback=40,lowcut=200,mix=25

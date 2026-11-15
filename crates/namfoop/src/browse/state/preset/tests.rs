@@ -369,7 +369,7 @@ fn n_starts_a_blank_chain_detached_from_the_preset() {
     assert!(s.message.as_deref().is_some_and(|m| m.contains("déjà vierge")), "{:?}", s.message);
 
     // un bloc ajouté : `S` propose un nom neuf, pas celui de l'ancien preset (et au singulier)
-    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(1))], volume_db: 0.0 };
+    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(1))], volume_db: 0.0, ..Default::default() };
     s.fx.cursor = Cursor::Top(0);
     assert_eq!(s.default_preset_name(), "800D Modern + 1 bloc");
     // `PgDn` après un `n` repart du premier preset de la banque

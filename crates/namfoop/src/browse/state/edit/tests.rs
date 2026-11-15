@@ -551,3 +551,45 @@ fn the_output_of_a_parallel_is_where_you_add_after_it() {
     assert!(s.fields().is_empty());
     assert_eq!(s.fields_title(), "sortie du parallèle · 2 branches sommées");
 }
+
+/// Une division rythmique **remplace** `time` (ADR 0008) : la ligne `time` montre alors la durée
+/// que le tempo lui impose, **entre parenthèses**, et la régler ne fait rien — mais le dit, plutôt
+/// que de laisser croire que le réglage est cassé (#177).
+#[test]
+fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
+    let mut s = with_chain(vec![fx_block("delay:time=400")]);
+    s.fx.chain.tempo_bpm = 120.0;
+    s.on_key(Key::Enter); // réglages du delay
+    let field = |s: &State, name: &str| {
+        *s.fields()
+            .iter()
+            .find(|f| f.name() == name)
+            .unwrap_or_else(|| panic!("champ « {name} » : {:?}", s.fields()))
+    };
+    // `libre` : `time` agit, en millisecondes
+    assert_eq!(s.field_value(field(&s, "division")).0, "libre");
+    assert_eq!(s.field_value(field(&s, "time")).0, "400 ms");
+
+    // la croche pointée à 120 BPM : 375 ms, et `time` passe en dérivé
+    let Some(Leaf::Fx(slot)) = s.fx.chain.leaf_mut(s.fx.cursor) else { panic!("un delay") };
+    slot.spec.set("division", dsp::tempo::index_of("1/8.").unwrap()).expect("division");
+    assert_eq!(s.field_value(field(&s, "division")).0, "1/8.");
+    assert_eq!(s.field_value(field(&s, "time")).0, "(375 ms)");
+
+    // le tempo change, la durée dérivée suit sans rien rebâtir
+    s.fx.chain.tempo_bpm = 92.0;
+    assert_eq!(s.field_value(field(&s, "time")).0, "(489 ms)");
+
+    // régler `time` est refusé, avec la marche à suivre
+    s.fx.param = s.fields().iter().position(|f| f.name() == "time").expect("time");
+    s.on_key(Key::Right);
+    let msg = s.message.clone().expect("un message");
+    assert!(msg.contains("division"), "{msg}");
+    assert_eq!(s.field_value(field(&s, "time")).0, "(489 ms)", "la valeur n'a pas bougé");
+
+    // au-delà du tampon de 2 s, la valeur le dit
+    let Some(Leaf::Fx(slot)) = s.fx.chain.leaf_mut(s.fx.cursor) else { panic!("un delay") };
+    slot.spec.set("division", dsp::tempo::index_of("1/1").unwrap()).expect("ronde");
+    s.fx.chain.tempo_bpm = 60.0;
+    assert_eq!(s.field_value(field(&s, "time")).0, "(2000 ms, plafond)");
+}

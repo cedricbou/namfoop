@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effect, ParamInfo, Unit};
+use super::{BuildCtx, Effect, ParamInfo, Unit};
 use crate::biquad::{Biquad, Shape};
 use crate::{Result, Stage};
 
@@ -66,9 +66,9 @@ macro_rules! effect {
                 }
             }
 
-            fn build(&self, sample_rate: u32, _max_block: usize) -> Result<Box<dyn Stage>> {
+            fn build(&self, ctx: &BuildCtx) -> Result<Box<dyn Stage>> {
                 let f: fn(&$ty, f64) -> Vec<Biquad> = $build;
-                Ok(Box::new(Filter { stages: f(self, sample_rate as f64), name: $kind }))
+                Ok(Box::new(Filter { stages: f(self, ctx.sample_rate as f64), name: $kind }))
             }
         }
     };
@@ -117,7 +117,7 @@ effect!(HighshelfParams, "highshelf", "plateau aigu : plus ou moins de présence
 
 #[cfg(test)]
 mod tests {
-    use crate::fx::FxSpec;
+    use crate::fx::{BuildCtx, FxSpec};
     use crate::gain_to_db;
 
     const SR: f32 = 48000.0;
@@ -125,7 +125,7 @@ mod tests {
     /// Gain mesuré (dB) d'un sinus à `f` en régime établi.
     fn measured(fx: &str, f: f32) -> f32 {
         let spec: FxSpec = fx.parse().unwrap();
-        let mut st = spec.build(SR as u32, 64).unwrap();
+        let mut st = spec.build(&BuildCtx::new(SR as u32, 64)).unwrap();
         let n = SR as usize * 2;
         let input: Vec<f32> =
             (0..n).map(|i| 0.5 * (2.0 * std::f32::consts::PI * f * i as f32 / SR).sin()).collect();
@@ -178,7 +178,7 @@ mod tests {
                 for q in [q_range.0, q_range.1] {
                     let spec: FxSpec = format!("{fx}:freq={f},q={q}").parse().unwrap();
                     for sr in [44100u32, 48000, 96000] {
-                        let mut st = spec.build(sr, 64).unwrap();
+                        let mut st = spec.build(&BuildCtx::new(sr, 64)).unwrap();
                         let mut s: Vec<f32> =
                             (0..sr as usize).map(|i| if i % 997 == 0 { 1.0 } else { 0.0 }).collect();
                         st.process(&mut s);

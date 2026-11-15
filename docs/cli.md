@@ -181,6 +181,9 @@ Options:
           
           [default: 0]
 
+      --tempo <BPM>
+          Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
+
       --pre <FX>
           Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
 
@@ -322,6 +325,9 @@ Options:
           Volume final (dB)
           
           [default: 0]
+
+      --tempo <BPM>
+          Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
 
       --pre <FX>
           Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
