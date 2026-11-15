@@ -9,7 +9,9 @@ remet à zéro), `BlockMeters { peak, action }` (`action` = réduction du comp /
 `BranchMeters { sum, blocks }`, `SplitMeters`, `ChainMeters` (préallouée, `clear()`, et
 `level_db` : l'alignement sur le DI mesuré à la construction, que l'écran doit montrer, #178), et
 l'étage `Probe` qui ne touche pas au signal), `block.rs`
-(**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, master_db, limiter }`,
+(**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, volume_db, master_db,
+limiter }` — `volume_db` est le **volume du preset** (#179), poussé **après** l'alignement de niveau
+et avant le master : le seul gain d'un preset que `Level::Match` n'annule pas (#178) —,
 `BlockSpec::{Fx, Nam, Ir, Split}`, `SplitSpec`/`BranchSpec` (nom, gain, polarité, muet, blocs) ;
 `validate()` refuse un parallèle dans une branche (un seul niveau) ; `build()` charge, aligne les
 branches sans modèle sur la première qui en a un, et place le trim ; `build_with_meters()` rend en
@@ -19,7 +21,8 @@ plus la table des vumètres (`meter.rs`), seule à poser des sondes ; `describe(
 les options CLI, qui **produisent** une `ChainSpec` via `to_chain_spec()` — `--crossover HZ` = bandes
 [HZ], grave = son direct),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
-chargement), `preset.rs` (**presets** `.preset.toml` : la chaîne enregistrée — blocs, parallèles,
+chargement), `preset.rs` (**presets** `.preset.toml` : la chaîne enregistrée, son `volume_db` (#179, déclaré
+**avant** `blocks` : en TOML une valeur ne s'écrit pas après un tableau de tables) — blocs, parallèles,
 branches ; chemins **relatifs** à la bibliothèque avec l'identifiant court en filet ; effets écrits
 au complet par serde pour que le son soit figé ; `to_blocks()` donne les `BlockSpec` du temps réel), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
 `from_transfer`, distorsion harmonique), `split.rs` (étage parallèle `Split` : 2 à `MAX_BRANCHES` = 4 branches, mode copie ou bandes

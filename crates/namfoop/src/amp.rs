@@ -171,6 +171,12 @@ impl AmpArgs {
         frame.ir = first_of(&blocks, false).map(|p| p.display().to_string());
         let mut chain = frame.spec(conf, limiter_meter)?.to_chain_spec();
         chain.blocks = blocks;
+        // le volume du preset, appliqué après l'alignement de niveau (#179) : `run --preset` doit
+        // sonner comme dans `browse`, où il a été réglé à l'oreille
+        chain.volume_db = preset.volume_db;
+        if preset.volume_db != 0.0 {
+            log::info!("volume du preset {:+.1} dB", preset.volume_db);
+        }
         Ok(chain)
     }
 

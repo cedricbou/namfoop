@@ -39,6 +39,7 @@ fn a_preset_survives_a_round_trip_through_toml() {
     }
     let spec = PresetSpec {
         name: "Chill verse".into(),
+        volume_db: -2.5,
         blocks: vec![
             fx("hpf:freq=30"),
             gate,
@@ -64,6 +65,7 @@ fn a_preset_survives_a_round_trip_through_toml() {
     spec.save(&file).expect("écriture");
     let back = PresetSpec::load(&file).expect("lecture");
     assert_eq!(back.name, spec.name);
+    assert_eq!(back.volume_db, spec.volume_db, "le volume du preset (#179)");
     assert_eq!(back.blocks, spec.blocks, "les blocs sont identiques");
     assert_eq!(back.base, base, "la bibliothèque est deux dossiers au-dessus du fichier");
 
@@ -79,6 +81,15 @@ fn a_preset_survives_a_round_trip_through_toml() {
     assert!(text.contains("mode = \"bands\"") && text.contains("freqs = [150.0]"), "{text}");
     assert!(text.contains("invert = true") && text.contains("mute = true"), "{text}");
     assert!(!text.contains("solo"), "le solo ne s'enregistre jamais (ADR 0006) :\n{text}");
+    // le volume est une valeur : il doit s'écrire AVANT les tableaux de blocs, sinon le TOML est
+    // invalide — et il disparaît du fichier quand il est nul (#179)
+    let (vol, block) = (text.find("volume_db").expect("le volume"), text.find("[[block]]").unwrap());
+    assert!(vol < block, "le volume avant les blocs :\n{text}");
+    let plain = PresetSpec { volume_db: 0.0, ..spec.clone() };
+    plain.save(&file).expect("écriture");
+    let text = std::fs::read_to_string(&file).expect("relecture");
+    assert!(!text.contains("volume_db"), "un volume nul ne s'écrit pas :\n{text}");
+    assert_eq!(PresetSpec::load(&file).expect("lecture").volume_db, 0.0);
 }
 
 /// Un preset sans nom prend celui du fichier ; `is_preset_file` et `display_name` reconnaissent
@@ -125,6 +136,7 @@ fn to_blocks_resolves_the_files_and_drops_what_is_cut() {
             },
         ],
         base,
+        ..Default::default()
     };
     let input_db = |p: &Path| if p.ends_with("800D.nam") { -3.0 } else { 0.0 };
     let blocks = spec.to_blocks(1.0, &input_db, &|_| None).expect("blocs");
@@ -155,8 +167,12 @@ fn a_moved_sound_is_found_again_by_its_short_id() {
     let moved = base.join("nam/ailleurs/800D.nam");
     std::fs::create_dir_all(moved.parent().expect("dossier")).expect("création");
     std::fs::write(&moved, b"x").expect("écriture");
-    let spec =
-        PresetSpec { name: "T".into(), blocks: vec![nam("nam/MESA/800D.nam", "m2z7")], base: base.clone() };
+    let spec = PresetSpec {
+        name: "T".into(),
+        blocks: vec![nam("nam/MESA/800D.nam", "m2z7")],
+        base: base.clone(),
+        ..Default::default()
+    };
     // le filet : l'identifiant enregistré
     let by_id = |id: &str| (id == "m2z7").then(|| moved.clone());
     let blocks = spec.to_blocks(1.0, &|_| 0.0, &by_id).expect("blocs");

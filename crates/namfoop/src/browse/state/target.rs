@@ -56,7 +56,8 @@ impl State {
         if ir != IrChoice::None {
             blocks.push(chain::Block::Leaf(chain::Leaf::Ir { ir, on: true }));
         }
-        chain::Chain { blocks }
+        // le banc d'essai n'est pas un preset : pas de volume propre (#179)
+        chain::Chain { blocks, volume_db: 0.0 }
     }
 }
 
@@ -74,5 +75,6 @@ fn isolate(c: &chain::Chain, p: &super::picker::Picker) -> chain::Chain {
     let other = c.neighbor(p.at, !p.nam).and_then(one);
     let blocks =
         if p.nam { me.into_iter().chain(other).collect() } else { other.into_iter().chain(me).collect() };
-    chain::Chain { blocks }
+    // l'écoute isolée garde le volume du preset : c'est bien lui qu'on règle à l'oreille
+    chain::Chain { blocks, volume_db: c.volume_db }
 }

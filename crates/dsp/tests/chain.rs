@@ -177,6 +177,34 @@ fn level_match_includes_effects() {
     assert_eq!(spec.describe(), "NAM wavenet › gain:db=-6 › niveau DI");
 }
 
+/// Le **volume du preset** s'applique après l'alignement sur le DI : contrairement à un bloc
+/// `gain` (#178), il change bien le niveau de sortie (#179).
+#[test]
+fn the_preset_volume_survives_the_di_alignment() {
+    use dsp::block::{BlockSpec, ChainSpec};
+    use dsp::chain::Level;
+    use std::sync::Arc;
+    let reference = signal(48000);
+    let spec = |volume_db: f32| ChainSpec {
+        // un bloc `gain` dans la chaîne : l'alignement l'annule, lui
+        blocks: vec![BlockSpec::Fx("gain:db=-12".parse().unwrap())],
+        level: Level::Match { reference: Arc::new(reference.clone()), sample_rate: 48000 },
+        volume_db,
+        ..Default::default()
+    };
+    for v in [-6.0, 0.0, 3.0] {
+        let mut chain = spec(v).build(48000, 64).unwrap();
+        let mut out = reference.clone();
+        for c in out.chunks_mut(64) {
+            chain.process(c);
+        }
+        let diff = 20.0 * (rms(&out) / rms(&reference)).log10();
+        assert!((diff - v).abs() < 0.01, "volume {v} dB : sortie à {diff:+.2} dB du DI");
+    }
+    assert!(spec(-6.0).describe().contains("volume -6.0 dB"), "{}", spec(-6.0).describe());
+    assert!(!spec(0.0).describe().contains("volume"), "un volume nul ne se dit pas");
+}
+
 /// L'alignement sur le DI **annule** un bloc `gain`, et sa valeur est publiée dans la table de
 /// vumètres pour que l'écran puisse la montrer (#178).
 #[test]

@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#179)
+- **Volume par preset** (`,` et `.` dans l'espace Chaîne de `browse`, par pas d'1 dB, de -24 à
+  +12 dB) : chaque preset porte son propre niveau de sortie, enregistré dans son `.preset.toml`.
+  C'est ce qui permet qu'un preset saturé ne saute pas à l'oreille à côté d'un clair.
+- Il s'applique **après** l'alignement de niveau sur le DI (et avant le master) : c'est donc le
+  seul gain d'un preset que cet alignement n'annule pas — un bloc `gain`, lui, reste sans effet sur
+  la sortie (#178).
+- Il se lit dans l'en-tête (« preset 2/5 : Couplet · volume +3 dB ») et en gris en bout de
+  synoptique, après l'étage « niveau DI » : l'ordre du signal. Il compte comme une modification,
+  donc `S` le propose à l'enregistrement.
+- `namfoop presets` le montre en fin de chaîne, et `namfoop run --preset` le joue : le preset sonne
+  comme il a été réglé à l'oreille. Mesuré hors ligne : un preset enregistré à +3 dB rend bien
+  +3,0 dB de RMS.
+- Le master (`--master-db`, `master_db` de la config) reste à part : c'est le volume de la scène.
+
 ### Ajouté (#183)
 - `browse`, banc d'essai : **panneau Bandes** (`z`), un égaliseur graphique des sept zones (sub,
   grave, bas-médium, médium, haut-médium, présence, air) qui montre d'un regard ce que la chaîne

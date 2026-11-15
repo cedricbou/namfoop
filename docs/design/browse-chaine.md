@@ -46,6 +46,9 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
   traits en gris. Bloc coupé : gris barré. Branche muette, ou hors solo quand une branche est en
   solo : toute la ligne assombrie. Curseur : fond cyan.
 - Chaîne vide : `IN ─ (chaîne vide : a pour ajouter) ─ OUT`.
+- **Volume du preset** (`,` / `.`, #179), en gris, **après** l'étage d'alignement et juste avant
+  `OUT` : `─ volume +3 dB ─ OUT`. C'est l'ordre du signal. Comme l'alignement, ce n'est pas un bloc
+  (pas de curseur, pas de vumètre) ; il disparaît au neutre, et se lit aussi dans l'en-tête.
 - **Alignement de niveau sur le DI** (`level = "match"`), en bout de chaîne juste avant `OUT`, en
   gris : `─ niveau DI -11.1 dB ─ OUT` (#178). Ce n'est **pas un bloc** : pas de curseur dessus, pas
   de réglage, pas de déplacement, pas de vumètre. Sa valeur est celle de la chaîne **installée**
@@ -124,6 +127,7 @@ IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ 
 | Entrée, Tab | focus « réglages » (§ 6) si l'élément en a. Sur un bloc `nam` / `ir`, Entrée ouvre le **sélecteur sur place** (§ 5 de `browse-espaces.md`) | |
 | Échap | ne quitte **jamais**. | `Échap revient en arrière mais ne quitte jamais : q pour quitter` |
 | `v` | vumètres affichés / masqués. | `vumètres masqués` |
+| `,` / `.` | **volume du preset** (#179) : -1 dB / +1 dB, borné à [-24, +12]. Appliqué **après** l'alignement de niveau sur le DI, donc le seul gain du preset que cet alignement n'annule pas (#178). Enregistré dans le `.preset.toml`, compte comme une modification. | `volume du preset +3 dB — après l'alignement sur le DI, S pour l'enregistrer` / `volume du preset : -24 dB, c'est la borne` |
 | `t` | déplie / replie le TOML du preset (replié par défaut, une ligne `▸ preset TOML (t)`). | |
 | `S` | enregistrer le preset (§ 8). | |
 | `n` | **nouvelle chaîne vierge** (§ 8). | `nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant)` / `la chaîne est déjà vierge : a ajoute un bloc` |

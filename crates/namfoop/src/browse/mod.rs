@@ -333,6 +333,7 @@ pub fn run(
                     let mut req = Request {
                         blocks: plan_blocks(&plan.blocks, &st, &audition),
                         input_db: st.input_offset(),
+                        volume_db: plan.volume_db,
                         preset: None,
                     };
                     // cette chaîne est-elle exactement celle d'un preset ? alors elle est déjà

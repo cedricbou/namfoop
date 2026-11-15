@@ -63,6 +63,53 @@ fn a_chain_survives_a_round_trip_through_a_preset() {
     assert_eq!(s.preset_line(0), s.chain_line(&back), "la banque montre la chaîne en une ligne");
 }
 
+/// `,` / `.` règlent le **volume du preset** (#179) : il s'enregistre avec la chaîne, il compte
+/// comme une modification, il est borné, et il part dans la demande faite au thread de
+/// construction — contrairement à un bloc `gain`, que l'alignement sur le DI annule (#178).
+#[test]
+fn the_preset_volume_is_adjusted_saved_and_bounded() {
+    let mut s = with_chain(vec![Block::Leaf(nam(1)), Block::Leaf(ir(2))]);
+    s.mark_start();
+    assert!(s.unsaved().is_empty(), "rien de changé au départ");
+
+    // `.` monte, `,` baisse, d'un dB
+    assert!(matches!(s.on_key(Key::Char('.')), Action::Play { .. }), "le son change");
+    assert_eq!(s.fx.chain.volume_db, 1.0);
+    s.on_key(Key::Char('.'));
+    s.on_key(Key::Char(','));
+    assert_eq!(s.fx.chain.volume_db, 1.0);
+    assert!(!s.unsaved().is_empty(), "le volume compte comme une modification");
+    assert!(s.preset_label().0.contains("volume +1 dB"), "{}", s.preset_label().0);
+
+    // enregistré puis relu : le volume revient
+    let spec = s.to_preset("Couplet");
+    assert_eq!(spec.volume_db, 1.0);
+    s.adopt_presets(vec![("p1".into(), "Couplet".into(), "/x/Couplet.preset.toml".into(), spec)]);
+    assert_eq!(s.presets[0].chain.as_ref().expect("chaîne").volume_db, 1.0);
+
+    // borné : on ne remplace pas le master de la scène
+    for _ in 0..60 {
+        s.on_key(Key::Char(','));
+    }
+    assert_eq!(s.fx.chain.volume_db, chain::VOLUME_MIN_DB);
+    assert!(s.message.as_deref().is_some_and(|m| m.contains("borne")), "{:?}", s.message);
+    for _ in 0..60 {
+        s.on_key(Key::Char('.'));
+    }
+    assert_eq!(s.fx.chain.volume_db, chain::VOLUME_MAX_DB);
+
+    // le banc d'essai n'a pas de volume propre : il n'est pas un preset
+    s.space = space::Space::Library;
+    assert_eq!(s.plan().volume_db, 0.0);
+    s.space = space::Space::Chain;
+    assert_eq!(s.plan().volume_db, chain::VOLUME_MAX_DB, "la chaîne éditée, elle, le porte");
+
+    // et depuis la Bibliothèque, `,` et `.` ne touchent à rien (le Mélange s'en sert déjà pour +/-)
+    s.space = space::Space::Library;
+    s.on_key(Key::Char(','));
+    assert_eq!(s.fx.chain.volume_db, chain::VOLUME_MAX_DB);
+}
+
 /// Un son que la bibliothèque n'a plus : le preset reste listé, la raison remplace sa chaîne, et
 /// le charger refuse en le disant.
 #[test]
@@ -75,6 +122,7 @@ fn a_preset_whose_sound_is_missing_says_so() {
             model: dsp::preset::PresetFile::new("nam/ailleurs/X.nam", Some("zzzz".into())),
         }],
         base: Default::default(),
+        ..Default::default()
     };
     s.adopt_presets(vec![("p1".into(), "Perdu".into(), "/x/Perdu.preset.toml".into(), spec)]);
     assert!(s.presets[0].chain.is_none());
@@ -89,6 +137,7 @@ fn a_preset_whose_sound_is_missing_says_so() {
             model: dsp::preset::PresetFile::new("nam/ailleurs/X.nam", Some(s.models[2].id.clone())),
         }],
         base: Default::default(),
+        ..Default::default()
     };
     s.adopt_presets(vec![("p2".into(), "Bougé".into(), "/x/B.preset.toml".into(), spec)]);
     let c = s.presets[0].chain.clone().expect("retrouvé par identifiant");
@@ -316,7 +365,7 @@ fn n_starts_a_blank_chain_detached_from_the_preset() {
     assert!(s.message.as_deref().is_some_and(|m| m.contains("déjà vierge")), "{:?}", s.message);
 
     // un bloc ajouté : `S` propose un nom neuf, pas celui de l'ancien preset (et au singulier)
-    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(1))] };
+    s.fx.chain = chain::Chain { blocks: vec![Block::Leaf(nam(1))], volume_db: 0.0 };
     s.fx.cursor = Cursor::Top(0);
     assert_eq!(s.default_preset_name(), "800D Modern + 1 bloc");
     // `PgDn` après un `n` repart du premier preset de la banque

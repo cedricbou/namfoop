@@ -239,6 +239,18 @@ pub fn build(st: &State) -> Synoptic {
         g.plain(0, " ─ ", line_style());
         g.sync();
     }
+    // le volume du preset : pas un bloc non plus, mais le réglage qui suit l'alignement (#179)
+    if chain.volume_db != 0.0 {
+        g.add(
+            0,
+            &format!("volume {:+.0} dB", chain.volume_db),
+            Style::new().fg(Color::DarkGray),
+            false,
+            Vec::new(),
+        );
+        g.plain(0, " ─ ", line_style());
+        g.sync();
+    }
     g.add(0, "OUT", io, false, m(MeterAt::Output, MeterKind::Peak, 3, false));
     Synoptic { grid: g, show_meters, cursor_cols }
 }
@@ -468,6 +480,20 @@ mod tests {
         // chaîne vidée : plus d'alignement, et surtout pas celui de la chaîne précédente
         s.fx.chain.blocks.clear();
         assert!(!text(&s).contains("niveau DI"), "{}", text(&s));
+    }
+
+    /// Le **volume du preset** se voit lui aussi en bout de synoptique, **après** l'alignement :
+    /// c'est l'ordre du signal, et c'est ce qui le distingue d'un bloc `gain` (#179).
+    #[test]
+    fn the_preset_volume_is_shown_after_the_alignment() {
+        use crate::browse::state::tests::{fx_block, with_chain};
+        let mut s = with_chain(vec![fx_block("gain:db=-40")]);
+        s.show_meters = false;
+        let text = |s: &State| build(s).lines(400, 0)[0].to_string();
+        assert!(!text(&s).contains("volume"), "au neutre, rien à montrer : {}", text(&s));
+        s.fx.chain.volume_db = -6.0;
+        s.set_chain_meters(dsp::meter::ChainMeters { level_db: Some(40.9), ..Default::default() });
+        assert!(text(&s).ends_with("gain ─ niveau DI +40.9 dB ─ volume -6 dB ─ OUT"), "{}", text(&s));
     }
 
     /// Toutes les lignes d'un parallèle ont la même largeur, et les traits verticaux tombent dans

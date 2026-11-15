@@ -47,7 +47,12 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 demande une fois (confirm_switch) et `n` la CHAÎNE VIERGE (#170 : chaîne vide,
                 preset DÉTACHÉ pour que `S` propose un nom neuf, mark_start sur la chaîne vide) ;
                 les deux passent par pending_switch: Option<Pending> (Preset(i) | New), que
-                browse/mod.rs reprend après l'écriture d'un preset ;
+                browse/mod.rs reprend après l'écriture d'un preset ; LE VOLUME DU PRESET (#179,
+                `,` / `.`, adjust_volume) vit dans chain::Chain::volume_db — avec les blocs, pour
+                qu'unsaved() le voie sans code en plus — part dans Request::volume_db (donc dans
+                l'égalité des demandes et la correspondance avec la banque) et finit sur
+                ChainSpec::volume_db, après l'alignement de niveau ; amp.rs le reprend pour
+                `run --preset` ;
                 send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la

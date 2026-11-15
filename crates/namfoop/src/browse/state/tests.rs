@@ -21,7 +21,7 @@ pub fn item(id: &str, label: &str, pack: &str, needs: NeedsIr, rec: Vec<usize>) 
 pub fn with_chain(blocks: Vec<chain::Block>) -> State {
     let mut s = sample();
     s.space = space::Space::Chain;
-    s.fx.chain = chain::Chain { blocks };
+    s.fx.chain = chain::Chain { blocks, volume_db: 0.0 };
     s.fx.cursor = if s.fx.chain.is_empty() { chain::Cursor::Empty } else { chain::Cursor::Top(0) };
     s
 }

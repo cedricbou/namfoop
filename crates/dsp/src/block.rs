@@ -86,14 +86,19 @@ pub struct BranchSpec {
     pub blocks: Vec<BlockSpec>,
 }
 
-/// Une chaîne complète : trim, blocs, puis niveau, master et limiteur (qui restent en fin de
-/// chaîne, hors de l'éditeur).
+/// Une chaîne complète : trim, blocs, puis niveau, volume, master et limiteur (qui restent en fin
+/// de chaîne, hors de l'éditeur).
 #[derive(Clone, Debug, Default)]
 pub struct ChainSpec {
     /// Gain d'entrée (dB) propre à l'instrument (basse + carte son), mesuré par `calibrate`.
     pub trim_db: f32,
     pub blocks: Vec<BlockSpec>,
     pub level: Level,
+    /// **Volume propre à la chaîne** (dB), appliqué **après** l'alignement de niveau et **avant**
+    /// le master (#179). C'est le seul gain qu'un preset peut porter sans être annulé par
+    /// `Level::Match` : l'alignement se mesure sur les blocs, pas sur lui. Il sert à équilibrer
+    /// les presets entre eux ; le master, lui, reste le volume de la scène.
+    pub volume_db: f32,
     pub master_db: f32,
     pub limiter: Option<LimiterSpec>,
 }
@@ -411,6 +416,9 @@ impl ChainSpec {
             }
             _ => {}
         }
+        if self.volume_db != 0.0 {
+            parts.push(format!("volume {:+.1} dB", self.volume_db));
+        }
         if self.master_db != 0.0 {
             parts.push(format!("master {:+.1} dB", self.master_db));
         }
@@ -541,6 +549,10 @@ impl ChainSpec {
             } else {
                 log::warn!("référence de niveau silencieuse : pas d'alignement");
             }
+        }
+        // après l'alignement : c'est ce qui le distingue d'un bloc `gain`, que l'alignement annule
+        if self.volume_db != 0.0 {
+            chain.push(Gain::db(self.volume_db, "volume"));
         }
         if self.master_db != 0.0 {
             chain.push(Gain::db(self.master_db, "master"));
