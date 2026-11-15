@@ -44,7 +44,6 @@ pub(super) fn bank_requests(st: &State, audition: &Path) -> Vec<Option<Request>>
             p.chain.as_ref().map(|c| Request {
                 blocks: plan_blocks(&c.blocks, st, audition),
                 input_db: 0.0,
-                volume_db: c.volume_db,
                 preset: None,
             })
         })
@@ -101,6 +100,9 @@ pub(super) fn spawn(
     rate: u32,
     limiter: Arc<AtomicU32>,
     size: f64,
+    // la case du volume du preset (#187) : chaque chaîne bâtie ici la lit, celles de la banque
+    // préchargée comprises
+    volume: dsp::param::Control,
 ) -> Result<(mpsc::Sender<Job>, mpsc::Receiver<Built>)> {
     // construction des chaînes hors temps réel : la demande la plus récente gagne, et les chaînes
     // des presets sont bâties à l'avance (banque préchargée, #6 : bascule en 1 µs au lieu de 80 ms)
@@ -116,8 +118,9 @@ pub(super) fn spawn(
         let to_spec = |req: &Request, lib: &Library| -> Result<dsp::block::ChainSpec> {
             let mut spec = amp_args(&lib_dir, size, req).spec(&conf2, Some(limiter.clone()))?.to_chain_spec();
             spec.blocks = block_specs(&req.blocks, lib, req, size);
-            // le volume du preset, après l'alignement de niveau (#179)
-            spec.volume_db = req.volume_db;
+            // le volume du preset, après l'alignement de niveau (#179) : vivant, donc la chaîne
+            // suit la case au lieu de porter un gain figé (#187)
+            spec.volume = volume.clone().into();
             Ok(spec)
         };
         let mut wanted: Option<Request> = None;

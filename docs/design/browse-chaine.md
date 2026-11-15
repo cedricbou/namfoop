@@ -127,7 +127,7 @@ IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ 
 | Entrée, Tab | focus « réglages » (§ 6) si l'élément en a. Sur un bloc `nam` / `ir`, Entrée ouvre le **sélecteur sur place** (§ 5 de `browse-espaces.md`) | |
 | Échap | ne quitte **jamais**. | `Échap revient en arrière mais ne quitte jamais : q pour quitter` |
 | `v` | vumètres affichés / masqués. | `vumètres masqués` |
-| `,` / `.` | **volume du preset** (#179) : -1 dB / +1 dB, borné à [-24, +12]. Appliqué **après** l'alignement de niveau sur le DI, donc le seul gain du preset que cet alignement n'annule pas (#178). Enregistré dans le `.preset.toml`, compte comme une modification. | `volume du preset +3 dB — après l'alignement sur le DI, S pour l'enregistrer` / `volume du preset : -24 dB, c'est la borne` |
+| `,` / `.` | **volume du preset** (#179) : -1 dB / +1 dB, borné à [-24, +12]. Appliqué **après** l'alignement de niveau sur le DI, donc le seul gain du preset que cet alignement n'annule pas (#178). Enregistré dans le `.preset.toml`, compte comme une modification. **Vivant** : s'entend au bloc suivant, sans reconstruction (#187). | `volume du preset +3 dB — après l'alignement sur le DI, S pour l'enregistrer` / `volume du preset : -24 dB, c'est la borne` |
 | `t` | déplie / replie le TOML du preset (replié par défaut, une ligne `▸ preset TOML (t)`). | |
 | `S` | enregistrer le preset (§ 8). | |
 | `n` | **nouvelle chaîne vierge** (§ 8). | `nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant)` / `la chaîne est déjà vierge : a ajoute un bloc` |
@@ -138,7 +138,10 @@ filtre tapé au clavier (les noms qui **commencent** par le filtre d'abord, puis
 contiennent dans le nom ou l'aide), ↑↓, Entrée ajoute, Échap annule, Retour arrière efface. Le
 catalogue contient les effets, `nam` et `ir` ; pas de parallèle (on le crée avec `s`).
 
-Chaque changement s'écoute après le délai d'écoute actuel (reconstruction de la chaîne + fondu).
+Chaque changement s'écoute après le délai d'écoute actuel (reconstruction de la chaîne + fondu) —
+**sauf le volume du preset** (`,` / `.`), qui est un **paramètre vivant** ([ADR 0007](../adr/0007-parametres-vivants.md),
+#187) : la chaîne qui joue lit sa valeur une fois par bloc, donc le réglage s'entend au bloc suivant,
+lissé sur 20 ms, sans rien rebâtir.
 
 ## 6. Réglages (focus « réglages »)
 

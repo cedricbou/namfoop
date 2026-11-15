@@ -15,6 +15,7 @@ pub mod ir;
 pub mod limiter;
 pub mod meter;
 pub mod nam;
+pub mod param;
 pub mod preset;
 pub mod profile;
 pub mod split;

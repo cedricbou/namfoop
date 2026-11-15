@@ -160,3 +160,26 @@ fn multi_band_chain_does_not_allocate_in_process() {
         assert_no_alloc(|| chain.process(&mut big));
     }
 }
+
+/// Gain vivant (ADR 0007) : la case change **entre deux blocs**, donc la branche de rampe est
+/// exercée et pas seulement le régime établi — toujours sans allouer.
+#[test]
+fn a_live_gain_does_not_allocate_when_its_control_moves() {
+    use dsp::Stage;
+    let control = dsp::param::Control::new(0.0);
+    let mut stage = dsp::gain::LiveGain::new(control.clone(), 48000, "volume");
+    let mut buf = vec![0.0f32; 64];
+    let mut big = vec![0.1f32; 2000]; // plus long qu'une rampe complète (960 à 48 kHz)
+    for i in 0..200 {
+        // un réglage à chaque bloc : le pire cas du geste de l'utilisateur
+        control.set(if i % 2 == 0 { -24.0 } else { 12.0 });
+        buf.iter_mut().enumerate().for_each(|(k, x)| *x = ((i * 64 + k) as f32 * 0.01).sin() * 0.3);
+        assert_no_alloc(|| stage.process(&mut buf));
+        assert!(buf.iter().all(|x| x.is_finite()));
+    }
+    control.set(-6.0);
+    assert_no_alloc(|| stage.process(&mut big));
+    control.set(f32::NAN);
+    assert_no_alloc(|| stage.process(&mut buf));
+    assert!(buf.iter().chain(&big).all(|x| x.is_finite()));
+}

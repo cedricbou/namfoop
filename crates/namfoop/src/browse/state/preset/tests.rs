@@ -64,17 +64,21 @@ fn a_chain_survives_a_round_trip_through_a_preset() {
 }
 
 /// `,` / `.` règlent le **volume du preset** (#179) : il s'enregistre avec la chaîne, il compte
-/// comme une modification, il est borné, et il part dans la demande faite au thread de
-/// construction — contrairement à un bloc `gain`, que l'alignement sur le DI annule (#178).
+/// comme une modification, il est borné, et il se lit dans la chaîne écoutée — contrairement à un
+/// bloc `gain`, que l'alignement sur le DI annule (#178).
+///
+/// Il ne demande **aucune** chaîne au thread de construction : c'est un réglage **vivant** (#187),
+/// que la boucle d'affichage pose dans la case que la chaîne qui joue relit à chaque bloc.
 #[test]
 fn the_preset_volume_is_adjusted_saved_and_bounded() {
     let mut s = with_chain(vec![Block::Leaf(nam(1)), Block::Leaf(ir(2))]);
     s.mark_start();
     assert!(s.unsaved().is_empty(), "rien de changé au départ");
 
-    // `.` monte, `,` baisse, d'un dB
-    assert!(matches!(s.on_key(Key::Char('.')), Action::Play { .. }), "le son change");
+    // `.` monte, `,` baisse, d'un dB — sans rien rebâtir (#187)
+    assert_eq!(s.on_key(Key::Char('.')), Action::None, "aucune chaîne redemandée");
     assert_eq!(s.fx.chain.volume_db, 1.0);
+    assert_eq!(s.plan().volume_db, 1.0, "mais la chaîne écoutée le porte : la case suivra");
     s.on_key(Key::Char('.'));
     s.on_key(Key::Char(','));
     assert_eq!(s.fx.chain.volume_db, 1.0);

@@ -38,10 +38,6 @@ pub(super) struct Request {
     pub blocks: Vec<PlanBlock>,
     /// Gain d'entrée en plus (essai en cours dans l'éditeur).
     pub input_db: f32,
-    /// Volume du preset (dB), appliqué après l'alignement de niveau (#179). Il fait partie de
-    /// l'égalité des demandes : le changer rebâtit la chaîne, et une place de banque ne correspond
-    /// que si son volume est le même.
-    pub volume_db: f32,
     /// Place de la banque dont cette chaîne est **exactement** celle du preset : sa chaîne est
     /// alors déjà bâtie et préchauffée, l'installer ne charge rien (#6). `None` : à bâtir.
     pub preset: Option<usize>,
@@ -135,10 +131,10 @@ impl Request {
             }
         }
         let blocks: Vec<String> = self.blocks.iter().map(one).collect();
-        let volume =
-            if self.volume_db == 0.0 { String::new() } else { format!(" volume={:+.1}", self.volume_db) };
+        // le volume n'est plus ici : c'est un réglage **vivant**, hors de l'identité de la demande
+        // (#187). `browse` le trace à part, quand la case change.
         format!(
-            "chaîne={} entrée={:+.1}{volume}",
+            "chaîne={} entrée={:+.1}",
             if blocks.is_empty() { "-".to_string() } else { blocks.join(" > ") },
             self.input_db
         )

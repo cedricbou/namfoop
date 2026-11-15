@@ -49,10 +49,15 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 les deux passent par pending_switch: Option<Pending> (Preset(i) | New), que
                 browse/mod.rs reprend après l'écriture d'un preset ; LE VOLUME DU PRESET (#179,
                 `,` / `.`, adjust_volume) vit dans chain::Chain::volume_db — avec les blocs, pour
-                qu'unsaved() le voie sans code en plus — part dans Request::volume_db (donc dans
-                l'égalité des demandes et la correspondance avec la banque) et finit sur
-                ChainSpec::volume_db, après l'alignement de niveau ; amp.rs le reprend pour
-                `run --preset` ;
+                qu'unsaved() le voie sans code en plus. C'est un PARAMÈTRE VIVANT (#187, ADR 0007) :
+                il n'est PAS dans Request (une demande décrit le son, pas le preset, donc une place
+                de banque correspond quel que soit son volume) et ne demande AUCUNE chaîne ;
+                browse/mod.rs tient la seule case (dsp::param::Control), l'écrit d'après
+                st.plan().volume_db JUSTE APRÈS le `match action` — pour qu'une chaîne installée par
+                ce tour-ci la lise dès son premier bloc — et la trace (`volume=±x.x`) quand elle
+                change ; le thread de construction la pose en ChainSpec::volume = Volume::Live dans
+                toutes les chaînes, banque comprise. `run --preset` (amp.rs), lui, garde un gain
+                figé (Volume::Db) ;
                 send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la

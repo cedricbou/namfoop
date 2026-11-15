@@ -3,21 +3,32 @@
 **Responsabilité.** Les traitements, sans carte son ni config : étages mono (trait `Stage`),
 chaîne, changement de chaîne à chaud, analyses hors ligne.
 
-**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs`, `limiter.rs`, `meter.rs`
+**Fichiers / API.** `nam.rs`, `ir.rs` (fft-convolver), `gain.rs` (`Gain` figé, et `LiveGain` qui suit
+une case `param::Control` : lecture **une fois par bloc**, rampe de `RAMP_MS` = 20 ms comptées en
+**échantillons**, qui traverse les frontières de bloc — jamais une rampe étalée sur le buffer, qui
+ferait dépendre le son de la taille de bloc ; case lue à la construction ET à `reset()`, sinon une
+chaîne préchargée sauterait de 36 dB à l'installation), `param.rs` (**LA CASE DE RÉGLAGE**, ADR 0007 :
+miroir de `meter.rs` dans l'autre sens — le **contrôle possède la valeur**, le temps réel la lit ; un
+seul écrivain par case ; elle ne décrit rien, la description reste `fx::ParamInfo`), `limiter.rs`,
+`meter.rs`
 (vumètres d'affichage : `Meter` (f32 dans un `AtomicU32`, maximum gardé jusqu'à la lecture qui
 remet à zéro), `BlockMeters { peak, action }` (`action` = réduction du comp / fermeture du gate),
 `BranchMeters { sum, blocks }`, `SplitMeters`, `ChainMeters` (préallouée, `clear()`, et
 `level_db` : l'alignement sur le DI mesuré à la construction, que l'écran doit montrer, #178), et
 l'étage `Probe` qui ne touche pas au signal), `block.rs`
-(**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, volume_db, master_db,
-limiter }` — `volume_db` est le **volume du preset** (#179), poussé **après** l'alignement de niveau
-et avant le master : le seul gain d'un preset que `Level::Match` n'annule pas (#178) —,
+(**la chaîne en blocs**, ADR 0006 : `ChainSpec { trim_db, blocks, level, volume, master_db,
+limiter }` — `volume` est le **volume du preset** (#179), poussé **après** l'alignement de niveau
+et avant le master : le seul gain d'un preset que `Level::Match` n'annule pas (#178). Il est soit
+`Volume::Db` (figé : `run`, `render`, `bench`, les rendus de référence ; aucun étage posé au neutre),
+soit `Volume::Live` (une case, posée par `browse` : l'étage est alors posé **même au neutre**, sinon
+la case ne serait lue par personne, #187) —,
 `BlockSpec::{Fx, Nam, Ir, Split}`, `SplitSpec`/`BranchSpec` (nom, gain, polarité, muet, blocs) ;
 `validate()` refuse un parallèle dans une branche (un seul niveau) ; `build()` charge, aligne les
 branches sans modèle sur la première qui en a un, et place le trim ; `build_with_meters()` rend en
 plus la table des vumètres (`meter.rs`), seule à poser des sondes ; `describe()` pour le log
 `chaîne :` — `◆ bandes 150 Hz [< 150 Hz : direct | > 150 Hz : NAM b7k › IR sm57]`), `chain.rs`
-(`Chain`, `Level` raw / normalize / match mesuré sur toute la chaîne, `LimiterSpec`, et `AmpSpec` :
+(`Chain`, `Level` raw / normalize / match mesuré sur toute la chaîne, `Volume` figé / vivant,
+`LimiterSpec`, et `AmpSpec` :
 les options CLI, qui **produisent** une `ChainSpec` via `to_chain_spec()` — `--crossover HZ` = bandes
 [HZ], grave = son direct),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
@@ -92,6 +103,15 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   niveaux (crête/RMS) et des comparaisons numériques.
 
 ## Faits mesurés
+
+- **Le volume du preset est vivant** (#187, ADR 0007) : il ne rebâtit plus la chaîne. Mesuré en
+  pseudo-terminal (x86, profil `ci`, backend sim, bibliothèque jetable, `level = "match"`, de la
+  touche à la ligne `NAMFOOP_BROWSE_TRACE`) : **21 ms**, le plancher de la boucle d'affichage de
+  `browse` (la même valeur qu'une bascule de preset depuis la banque), et **aucune chaîne
+  installée** — contre **143 ms** pour `nam › ir` et **358 à 389 ms** pour un parallèle à deux NAM
+  quand le volume faisait partie de l'identité de la demande. Dont ≈ 61 ms de DI de calibration
+  repassé dans la chaîne pour un alignement qui ne pouvait pas changer. **Pi 5 non mesuré**
+  (#44 / #45).
 
 - **L'alignement sur le DI compare des loudness pondérées K** (#181), et non des RMS larges :
   `profile::loudness_db` (ITU-R BS.1770 sans porte ; les deux biquads de la norme reconstruits par
@@ -239,7 +259,9 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   un lookahead de ~1 ms serait plus propre mais ajoute de la latence.
 - `Delay::set_time` (fondu entre deux têtes) n'est appelé que par les tests : à brancher sur
   `set_param` (#6).
-- Pas encore de lissage des paramètres ni de changement de chaîne à chaud (prévu avec les presets).
+- Un seul paramètre est **vivant** (le volume du preset, ADR 0007) : les paramètres d'effet, eux,
+  reconstruisent encore la chaîne à chaque appui — c'est la promesse non tenue de l'ADR 0005
+  (`set_param` avec lissage, #6) et la cause de #177 (« on croit que le réglage ne fait rien »).
 
 ## Carte détaillée (reprise du `CLAUDE.md` racine)
 

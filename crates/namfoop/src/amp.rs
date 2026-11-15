@@ -173,7 +173,7 @@ impl AmpArgs {
         chain.blocks = blocks;
         // le volume du preset, appliqué après l'alignement de niveau (#179) : `run --preset` doit
         // sonner comme dans `browse`, où il a été réglé à l'oreille
-        chain.volume_db = preset.volume_db;
+        chain.volume = preset.volume_db.into();
         if preset.volume_db != 0.0 {
             log::info!("volume du preset {:+.1} dB", preset.volume_db);
         }
