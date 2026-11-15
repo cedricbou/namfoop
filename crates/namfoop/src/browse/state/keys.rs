@@ -108,6 +108,9 @@ impl State {
             Key::Char('1') => return self.go_to(space::Space::Library),
             Key::Char('2') => return self.go_to(space::Space::Chain),
             Key::Char('S') => return self.save_preset(),
+            // `*` : le tap tempo (ADR 0008). À droite de `ù` sur AZERTY FR, sans Maj, et depuis
+            // les deux espaces — comme toute touche commune, après les couches de saisie (#175).
+            Key::Char('*') => return self.tap_tempo(),
             // `n` : repartir d'une chaîne vierge, depuis les deux espaces (#170)
             Key::Char('n') => return self.new_chain_or_confirm(),
             Key::Char('P') => {

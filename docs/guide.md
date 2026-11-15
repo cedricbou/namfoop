@@ -1481,6 +1481,23 @@ s'écrit `tempo_bpm` dans le `.preset.toml`, entre 30 et 300 BPM, et vaut 120 qu
 porte pas. En ligne de commande, `--tempo` le donne directement — indispensable pour comparer deux
 réglages avec `render`, où rien n'est laissé au hasard.
 
+**Taper le tempo : `*`.** Dans `browse`, la touche `*` (à droite de `ù` sur un clavier AZERTY, sans
+Maj) tape le tempo. **Deux frappes suffisent** ; au-delà, c'est la moyenne des quatre derniers
+intervalles, donc taper quatre à cinq fois donne une valeur plus sûre. Une frappe trop écartée des
+précédentes (une hésitation, ou un autre tempo) **repart** une séquence au lieu de polluer la
+moyenne, et trois secondes sans frappe la terminent.
+
+L'en-tête affiche en permanence le tempo **et d'où il vient** : `♩ 104 (tap)`, `♩ 92 (preset)`.
+Sans cette mention, on ne saurait pas pourquoi le delay ne suit pas ce qu'on croit avoir réglé.
+
+Un tempo tapé **modifie le preset**, comme n'importe quel autre réglage : l'étoile « non
+enregistré » apparaît, `S` l'enregistre, et passer au preset suivant restaure le tempo de celui-là.
+Autrement dit, un tap qu'on ne garde pas est perdu — c'est voulu, et c'est la même règle que pour
+tout le reste de `browse`.
+
+Le tempo est un **réglage vivant** : taper pendant que le delay sonne ne reconstruit rien et ne
+coupe aucune répétition. Le passage d'un temps à l'autre fond en 50 ms, sans glissement de hauteur.
+
 ```sh
 # une croche pointée à 92 BPM : 652 ms / 0,75 = 489 ms, sans calculer
 namfoop run -m b7k -i "dg212 sm57" --tempo 92 --post delay:division=1/8.,feedback=40,mix=25
@@ -1500,6 +1517,8 @@ enregistre le preset, tempo compris.
   glissement de hauteur comme sur certaines pédales.
 - `namfoop fx delay` liste les valeurs acceptées, et un nom inconnu les rappelle au lieu de dire
   « n'est pas un nombre ».
+- Le tempo pourra aussi venir d'une **horloge MIDI** (à venir) : elle aura alors la priorité sur le
+  preset, un `*` reprendra la main dessus, et l'en-tête dira laquelle des deux parle.
 
 ### `delay` : écho
 

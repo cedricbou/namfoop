@@ -4,8 +4,11 @@
 //! boucle de `browse` écrit dans la case lue par le temps réel.
 //!
 //! Machine à états **pure** : aucun audio, aucun thread, aucune poignée `dsp`, et l'horloge est
-//! **fournie** par l'appelant (même patron que `namfoop::latency::Detector` et `browse::state`),
-//! ce qui la rend testable au millième de seconde près.
+//! **fournie** par l'appelant — un nombre de **microsecondes** monotones, comme `browse::state`
+//! reçoit des millisecondes. Pas d'`Instant` : `browse` devrait alors tenir une seconde ligne de
+//! temps, et ses tests perdraient leur déterminisme. La microseconde garde la précision dont
+//! l'horloge MIDI a besoin (un top vaut 20 833 µs à 120 BPM, et 1 ms de quantification suffirait à
+//! fausser le tempo de 0,24 BPM).
 //!
 //! Priorité, de la plus forte à la plus faible :
 //!
@@ -23,8 +26,6 @@
 //! Une horloge qui **meurt** ne provoque jamais de saut de tempo : on garde la dernière valeur
 //! connue et l'écran le dit. Un retour silencieux à la valeur du preset serait un changement de son
 //! audible causé par une panne.
-
-use std::time::{Duration, Instant};
 
 use dsp::tempo::{clamp_bpm, DEFAULT_BPM};
 
@@ -118,9 +119,9 @@ pub struct Arbiter {
     preset_bpm: f32,
     /// Un tap a détrôné l'horloge : elle ne réécrit plus le tempo jusqu'au prochain événement net.
     tap_wins: bool,
-    last_tap: Option<Instant>,
+    last_tap: Option<u64>,
     taps: Window<TAP_WINDOW>,
-    last_tick: Option<Instant>,
+    last_tick: Option<u64>,
     ticks: Window<{ TICKS_PER_BEAT as usize }>,
     clock_locked: bool,
     /// Incrémenté chaque fois que le **temps 1** est recalé (un tap, un `Start`) : le métronome n'a
@@ -175,14 +176,15 @@ impl Arbiter {
         }
     }
 
-    /// Une frappe. Deux suffisent à donner un tempo ; à partir de la troisième, c'est la moyenne
-    /// des [`TAP_WINDOW`] derniers intervalles. Une frappe recale aussi le **temps 1**.
-    pub fn tap(&mut self, now: Instant) {
+    /// Une frappe, à `now_us` microsecondes. Deux suffisent à donner un tempo ; à partir de la
+    /// troisième, c'est la moyenne des [`TAP_WINDOW`] derniers intervalles. Une frappe recale aussi
+    /// le **temps 1**.
+    pub fn tap(&mut self, now_us: u64) {
         self.beat_epoch += 1;
-        let Some(last) = self.last_tap.replace(now) else {
+        let Some(last) = self.last_tap.replace(now_us) else {
             return; // première frappe : rien à mesurer encore
         };
-        let dt = ms_between(last, now);
+        let dt = ms_between(last, now_us);
         if dt < TAP_BOUNCE_MS as f32 {
             // rebond de touche : ne compte pas, et ne casse pas la séquence en cours
             self.last_tap = Some(last);
@@ -203,12 +205,12 @@ impl Arbiter {
         self.publish(60_000.0 / mean, TempoSource::Tap);
     }
 
-    /// Un top d'horloge MIDI (`0xF8`).
-    pub fn clock_tick(&mut self, now: Instant) {
-        let Some(last) = self.last_tick.replace(now) else {
+    /// Un top d'horloge MIDI (`0xF8`), à `now_us` microsecondes.
+    pub fn clock_tick(&mut self, now_us: u64) {
+        let Some(last) = self.last_tick.replace(now_us) else {
             return;
         };
-        let dt = ms_between(last, now);
+        let dt = ms_between(last, now_us);
         if dt <= 0.0 || dt > CLOCK_LOST_MS as f32 {
             // trou dans le flux : on repart d'une fenêtre propre plutôt que de moyenner un vide
             self.lose_clock();
@@ -258,10 +260,8 @@ impl Arbiter {
 
     /// À appeler régulièrement (la boucle d'affichage le fait) : détecte l'horloge qui s'est tue.
     /// Le tempo ne bouge **pas** — seule la source change, pour que l'écran le dise.
-    pub fn poll(&mut self, now: Instant) {
-        let silent = self
-            .last_tick
-            .is_some_and(|t| now.saturating_duration_since(t) > Duration::from_millis(CLOCK_LOST_MS));
+    pub fn poll(&mut self, now_us: u64) {
+        let silent = self.last_tick.is_some_and(|t| now_us.saturating_sub(t) > CLOCK_LOST_MS * 1000);
         if silent && (self.clock_locked || self.last_tick.is_some()) {
             self.lose_clock();
         }
@@ -292,8 +292,10 @@ impl Arbiter {
     }
 }
 
-fn ms_between(a: Instant, b: Instant) -> f32 {
-    b.saturating_duration_since(a).as_secs_f32() * 1000.0
+/// Millisecondes entre deux instants en microsecondes (jamais négatif : une horloge monotone qui
+/// reculerait donne 0, et l'appelant reste protégé).
+fn ms_between(a: u64, b: u64) -> f32 {
+    b.saturating_sub(a) as f32 / 1000.0
 }
 
 #[cfg(test)]
@@ -301,20 +303,30 @@ mod tests {
     use super::*;
     use dsp::tempo::{MAX_BPM, MIN_BPM};
 
-    /// Une horloge régulière à `bpm`, `beats` noires de tops, depuis `t0`.
-    fn feed_clock(a: &mut Arbiter, t0: Instant, bpm: f32, beats: u32) -> Instant {
-        let step = 60.0 / bpm as f64 / TICKS_PER_BEAT as f64;
+    /// L'horloge des tests : des microsecondes, lisibles en millisecondes.
+    const fn ms(v: u64) -> u64 {
+        v * 1000
+    }
+
+    /// Une noire en microsecondes.
+    fn beat_us(bpm: f32) -> u64 {
+        (60_000_000.0 / bpm as f64).round() as u64
+    }
+
+    /// Une horloge régulière à `bpm`, `beats` noires de tops, depuis `t0` ; rend le dernier top.
+    fn feed_clock(a: &mut Arbiter, t0: u64, bpm: f32, beats: u32) -> u64 {
+        let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
         let mut t = t0;
         for _ in 0..beats * TICKS_PER_BEAT {
-            t += Duration::from_secs_f64(step);
+            t += step;
             a.clock_tick(t);
         }
         t
     }
 
     /// `strikes` frappes à `bpm` depuis `t0` ; rend l'instant de la **dernière** frappe.
-    fn tap_at(a: &mut Arbiter, t0: Instant, bpm: f32, strikes: u32) -> Instant {
-        let step = Duration::from_secs_f64(60.0 / bpm as f64);
+    fn tap_at(a: &mut Arbiter, t0: u64, bpm: f32, strikes: u32) -> u64 {
+        let step = beat_us(bpm);
         let mut t = t0;
         for k in 0..strikes {
             if k > 0 {
@@ -345,18 +357,17 @@ mod tests {
     #[test]
     fn two_taps_are_enough_and_the_rest_is_averaged() {
         let mut a = Arbiter::new();
-        let t0 = Instant::now();
-        a.tap(t0);
+        a.tap(ms(0));
         assert_eq!(a.source(), TempoSource::Preset, "une seule frappe ne mesure rien");
 
         // deuxième frappe 500 ms plus tard : 120 BPM, et le tap prend la main
-        a.tap(t0 + Duration::from_millis(500));
+        a.tap(ms(500));
         assert_eq!((a.bpm(), a.source()), (120.0, TempoSource::Tap));
 
         // des frappes irrégulières autour de 100 BPM : la moyenne reste proche de 100
-        let mut t = t0 + Duration::from_millis(500);
+        let mut t = ms(500);
         for dt in [600u64, 580, 620, 610] {
-            t += Duration::from_millis(dt);
+            t += ms(dt);
             a.tap(t);
         }
         assert!((a.bpm() - 99.6).abs() < 1.0, "{} BPM", a.bpm());
@@ -369,24 +380,23 @@ mod tests {
     #[test]
     fn bounces_pauses_and_hesitations_do_not_poison_the_average() {
         let mut a = Arbiter::new();
-        let t0 = Instant::now();
-        let t = tap_at(&mut a, t0, 120.0, 4);
+        let t = tap_at(&mut a, 0, 120.0, 4);
         assert_eq!(a.bpm(), 120.0);
 
         // rebond : 10 ms après la dernière frappe, ignoré
-        a.tap(t + Duration::from_millis(10));
+        a.tap(t + ms(10));
         assert_eq!(a.bpm(), 120.0, "un rebond ne change pas le tempo");
 
         // longue pause puis deux frappes à 90 BPM : la séquence repart, sans mélange avec 120
-        let t = t + Duration::from_millis(TAP_TIMEOUT_MS + 500);
+        let t = t + ms(TAP_TIMEOUT_MS + 500);
         a.tap(t);
         assert_eq!(a.bpm(), 120.0, "la frappe qui suit la pause ne mesure rien");
-        a.tap(t + Duration::from_secs_f32(60.0 / 90.0));
+        a.tap(t + beat_us(90.0));
         assert_eq!(a.bpm(), 90.0, "nouvelle séquence, pas une moyenne avec l'ancienne");
 
         // un intervalle deux fois plus long repart aussi : on ne moyenne pas 90 et 45
-        let t = t + Duration::from_secs_f32(60.0 / 90.0);
-        a.tap(t + Duration::from_secs_f32(60.0 / 45.0));
+        let t = t + beat_us(90.0);
+        a.tap(t + beat_us(45.0));
         assert_eq!(a.bpm(), 45.0, "{} BPM", a.bpm());
     }
 
@@ -395,12 +405,12 @@ mod tests {
     fn the_clock_locks_then_only_moves_on_a_real_change() {
         let mut a = Arbiter::new();
         a.preset(92.0);
-        let t0 = Instant::now();
 
         // moins de 24 intervalles : pas encore de verrou, le preset tient
-        let mut t = t0;
+        let step = beat_us(120.0) / TICKS_PER_BEAT as u64;
+        let mut t = 0;
         for _ in 0..TICKS_PER_BEAT - 1 {
-            t += Duration::from_secs_f64(60.0 / 120.0 / TICKS_PER_BEAT as f64);
+            t += step;
             a.clock_tick(t);
         }
         assert_eq!((a.bpm(), a.source()), (92.0, TempoSource::Preset), "pas de verrou trop tôt");
@@ -409,7 +419,7 @@ mod tests {
         assert_eq!(a.source(), TempoSource::MidiClock);
         assert!((a.bpm() - 120.0).abs() < 0.2, "{} BPM", a.bpm());
 
-        // une horloge qui dérive de 0,1 BPM ne republie rien (sinon le delay vibrerait)
+        // une horloge qui dérive d'un cheveu ne republie rien (sinon le delay vibrerait)
         let locked = a.bpm();
         let t = feed_clock(&mut a, t, 120.05, 4);
         assert_eq!(a.bpm(), locked, "sous l'hystérésis, le tempo ne bouge pas");
@@ -424,8 +434,7 @@ mod tests {
     #[test]
     fn a_tap_beats_the_clock_until_a_clean_event() {
         let mut a = Arbiter::new();
-        let t0 = Instant::now();
-        let t = feed_clock(&mut a, t0, 120.0, 2);
+        let t = feed_clock(&mut a, 0, 120.0, 2);
         assert_eq!(a.source(), TempoSource::MidiClock);
 
         // on tape 90 BPM : le tap gagne, et l'horloge continue sans écrire
@@ -438,7 +447,7 @@ mod tests {
         a.clock_stop();
         assert_eq!(a.bpm(), 90.0, "un Stop ne change jamais le tempo");
         // l'horloge peut alors reprendre la main
-        feed_clock(&mut a, t + Duration::from_secs(1), 120.0, 2);
+        feed_clock(&mut a, t + ms(1000), 120.0, 2);
         assert_eq!(a.source(), TempoSource::MidiClock);
         assert!((a.bpm() - 120.0).abs() < 0.3, "{} BPM", a.bpm());
     }
@@ -447,14 +456,13 @@ mod tests {
     #[test]
     fn a_preset_cancels_the_tap_but_not_a_locked_clock() {
         let mut a = Arbiter::new();
-        let t0 = Instant::now();
-        tap_at(&mut a, t0, 90.0, 3);
+        tap_at(&mut a, 0, 90.0, 3);
         assert_eq!(a.source(), TempoSource::Tap);
         a.preset(140.0);
         assert_eq!((a.bpm(), a.source()), (140.0, TempoSource::Preset), "le preset reprend la main");
 
         // horloge verrouillée : c'est elle qui tient, le preset ne la détrône pas
-        let t = feed_clock(&mut a, t0 + Duration::from_secs(10), 120.0, 2);
+        let t = feed_clock(&mut a, ms(10_000), 120.0, 2);
         assert_eq!(a.source(), TempoSource::MidiClock);
         a.preset(140.0);
         assert_eq!(a.source(), TempoSource::MidiClock, "l'horloge est plus forte que le preset");
@@ -470,24 +478,24 @@ mod tests {
     fn a_dead_clock_keeps_the_last_tempo_and_says_so() {
         let mut a = Arbiter::new();
         a.preset(92.0);
-        let t = feed_clock(&mut a, Instant::now(), 132.0, 2);
+        let t = feed_clock(&mut a, 0, 132.0, 2);
         assert_eq!(a.source(), TempoSource::MidiClock);
         let locked = a.bpm();
 
         // rien ne se passe pendant moins de 500 ms : le verrou tient
-        a.poll(t + Duration::from_millis(CLOCK_LOST_MS - 100));
+        a.poll(t + ms(CLOCK_LOST_MS - 100));
         assert_eq!(a.source(), TempoSource::MidiClock);
 
-        a.poll(t + Duration::from_millis(CLOCK_LOST_MS + 50));
+        a.poll(t + ms(CLOCK_LOST_MS + 50));
         assert_eq!(a.source(), TempoSource::ClockLost, "la perte doit se voir");
         assert_eq!(a.bpm(), locked, "et surtout : le tempo ne bouge pas");
         assert_ne!(a.bpm(), 92.0, "pas de retour silencieux au preset");
 
         // un trou au milieu du flux est traité pareil
         let mut a = Arbiter::new();
-        let t = feed_clock(&mut a, Instant::now(), 120.0, 2);
+        let t = feed_clock(&mut a, 0, 120.0, 2);
         let before = a.bpm();
-        a.clock_tick(t + Duration::from_secs(2));
+        a.clock_tick(t + ms(2000));
         assert_eq!(a.source(), TempoSource::ClockLost);
         assert_eq!(a.bpm(), before);
     }
@@ -497,13 +505,12 @@ mod tests {
     #[test]
     fn the_downbeat_is_realigned_by_a_tap_and_by_start() {
         let mut a = Arbiter::new();
-        let t0 = Instant::now();
         assert_eq!(a.beat_epoch(), 0);
-        a.tap(t0);
-        a.tap(t0 + Duration::from_millis(500));
+        a.tap(ms(0));
+        a.tap(ms(500));
         assert_eq!(a.beat_epoch(), 2, "une frappe = un recalage");
         // un rebond ne recale rien
-        a.tap(t0 + Duration::from_millis(505));
+        a.tap(ms(505));
         assert_eq!(a.beat_epoch(), 2);
         a.clock_start();
         assert_eq!(a.beat_epoch(), 3);
@@ -516,13 +523,25 @@ mod tests {
     #[test]
     fn start_hands_the_clock_back_without_changing_the_tempo() {
         let mut a = Arbiter::new();
-        let t0 = Instant::now();
-        let t = tap_at(&mut a, t0, 90.0, 3);
+        let t = tap_at(&mut a, 0, 90.0, 3);
         a.clock_start();
         assert_eq!(a.bpm(), 90.0, "Start ne change pas le tempo par lui-même");
         assert_ne!(a.source(), TempoSource::Tap, "le tap n'est plus l'autorité");
         feed_clock(&mut a, t, 120.0, 2);
         assert_eq!(a.source(), TempoSource::MidiClock);
+    }
+
+    /// Une horloge qui reculerait (temps non monotone) ne fait ni paniquer ni dériver.
+    #[test]
+    fn a_clock_going_backwards_is_harmless() {
+        let mut a = Arbiter::new();
+        a.tap(ms(1000));
+        a.tap(ms(500)); // en arrière
+        assert!(a.bpm().is_finite() && (MIN_BPM..=MAX_BPM).contains(&a.bpm()), "{}", a.bpm());
+        a.clock_tick(ms(1000));
+        a.clock_tick(ms(0));
+        a.poll(0);
+        assert!(a.bpm().is_finite());
     }
 
     /// Les étiquettes affichées (en-tête de `browse`).

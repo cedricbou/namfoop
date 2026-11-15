@@ -333,6 +333,9 @@ impl State {
             return Action::None;
         };
         let (name, path) = (item.name.clone(), item.path.clone());
+        // le preset donne son tempo à l'arbitre : il annule un tap, mais pas une horloge
+        // verrouillée, qui est plus forte (ADR 0008)
+        self.tempo.preset(chain.tempo_bpm);
         self.fx.chain = chain;
         self.fx.cursor = if self.fx.chain.is_empty() { chain::Cursor::Empty } else { chain::Cursor::Top(0) };
         self.fx.focus = super::fx::FxFocus::Chain;
@@ -467,6 +470,7 @@ impl State {
     /// ajoute le premier bloc.
     fn new_chain(&mut self) -> Action {
         self.fx.chain = chain::Chain::default();
+        self.tempo.preset(self.fx.chain.tempo_bpm);
         self.fx.cursor = chain::Cursor::Empty;
         self.fx.focus = super::fx::FxFocus::Chain;
         self.fx.catalog = None;

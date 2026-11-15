@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#200)
+- **Le tap tempo : `*` dans `browse`.** Deux frappes suffisent, puis c'est la moyenne des quatre
+  derniers intervalles ; une frappe trop écartée repart une séquence, trois secondes la terminent.
+  Taper pendant que le delay sonne **ne reconstruit rien** et ne coupe aucune répétition.
+- **L'en-tête dit le tempo et d'où il vient** : `♩ 104 (tap)`, `♩ 92 (preset)` — sans cette
+  mention, on ne saurait pas pourquoi le delay ne suit pas ce qu'on croit avoir réglé. Une horloge
+  MIDI perdue s'affichera en jaune, le tempo étant gardé.
+- Un tempo tapé **modifie le preset**, comme tout autre réglage : l'étoile « non enregistré »
+  apparaît, `S` l'enregistre, et passer au preset suivant restaure le tempo de celui-là.
+- Dans le panneau de réglages, un paramètre remplacé par une division suit le tempo **entendu** :
+  `(489 ms)` à 92 BPM, `(375 ms)` à 120.
+
+Mesuré en pseudo-terminal (backend `sim`, bibliothèque jetable) : charger un preset à 92 BPM écrit
+`tempo=92.0 (preset)` dans la trace, deux frappes à 522 ms donnent `tempo=114.9 (tap)`, et l'étoile
+« non enregistré » apparaît bien.
+
 ### Ajouté (#196)
 - **L'arbitre de tempo** (`engine::tempo`), socle du tap et de l'horloge MIDI : trois sources
   veulent donner le tempo — le preset, le tap, l'horloge — et une seule peut écrire. La priorité est

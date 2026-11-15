@@ -434,10 +434,13 @@ pub fn run(
                 volume.set(heard_volume);
                 trace(&format!("volume={heard_volume:+.1}"));
             }
-            // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008)
-            if heard.tempo_bpm != tempo.get() {
-                tempo.set(heard.tempo_bpm);
-                trace(&format!("tempo={:.1}", heard.tempo_bpm));
+            // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008). C'est
+            // celui de l'**arbitre** et non celui du preset : dès qu'une horloge MIDI tournera
+            // (#7), les deux diffèreront, et c'est l'arbitre qui dit ce qu'on entend.
+            let heard_tempo = st.heard_tempo_bpm();
+            if heard_tempo != tempo.get() {
+                tempo.set(heard_tempo);
+                trace(&format!("tempo={heard_tempo:.1} ({})", st.tempo_source().label()));
             }
             while let Ok((m, input_db, text)) = rx_grain_done.try_recv() {
                 if st.editor.as_ref().is_some_and(|e| e.model == m && e.draft.input_db == input_db) {

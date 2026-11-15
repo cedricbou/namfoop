@@ -242,6 +242,11 @@ pub struct State {
     saved_blend: (Vec<BlendPart>, bool),
     pending: Option<u64>,
     now: u64,
+    /// **L'arbitre de tempo** (ADR 0008) : il tranche entre le preset, le tap et — plus tard —
+    /// l'horloge MIDI (#7). Le tempo **entendu** est le sien ([`State::heard_tempo_bpm`]) ; celui
+    /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
+    /// le changent. Les deux diffèrent dès qu'une horloge tourne, et l'en-tête le dit.
+    tempo: engine::tempo::Arbiter,
 }
 
 impl State {
@@ -293,6 +298,7 @@ impl State {
             start_fx: chain::Chain::default(),
             saved_blend: (Vec::new(), true),
             now: 0,
+            tempo: engine::tempo::Arbiter::new(),
             pending: None,
         }
     }
@@ -384,9 +390,38 @@ impl State {
         }
     }
 
+    /// Le tempo **entendu** et d'où il vient : ce que l'en-tête affiche et ce que la case lue par
+    /// le temps réel reçoit. Ce n'est pas forcément celui du preset (horloge MIDI, tap non
+    /// enregistré).
+    pub fn heard_tempo_bpm(&self) -> f32 {
+        self.tempo.bpm()
+    }
+
+    pub fn tempo_source(&self) -> engine::tempo::TempoSource {
+        self.tempo.source()
+    }
+
+    /// Un **tap** (`*`) : il donne le tempo *et* modifie le preset, comme tout autre réglage
+    /// (#110) — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de preset
+    /// restaure celui du preset suivant.
+    fn tap_tempo(&mut self) -> Action {
+        self.tempo.tap(self.now * 1000);
+        let bpm = self.tempo.bpm();
+        if self.tempo.source() == engine::tempo::TempoSource::Tap {
+            self.fx.chain.tempo_bpm = bpm;
+            self.message = Some(format!("tempo {bpm:.1} BPM (tap)"));
+        } else {
+            // une seule frappe ne mesure rien : le dire plutôt que de ne rien faire
+            self.message = Some(format!("tempo {bpm:.1} BPM — tape encore pour le donner"));
+        }
+        Action::None
+    }
+
     /// Horloge (ms) : déclenche l'écoute différée et la mesure du grain de l'éditeur.
     pub fn tick(&mut self, now_ms: u64) -> Action {
         self.now = now_ms;
+        // une horloge MIDI qui se tait doit se voir (#7 l'alimentera) : le tempo, lui, est gardé
+        self.tempo.poll(now_ms * 1000);
         if let (Some(t), Some(ed)) = (self.grain_due, &self.editor) {
             if now_ms >= t + GRAIN_DELAY_MS {
                 self.grain_due = None;

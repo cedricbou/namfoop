@@ -434,3 +434,48 @@ fn n_works_from_the_bank_window() {
     assert!(s.bank.is_none(), "la banque se referme");
     assert!(s.fx.chain.is_empty() && s.preset.is_none());
 }
+
+/// **Chaque preset porte son tempo** (ADR 0008) : le charger le donne, et un tempo tapé puis non
+/// enregistré est perdu à la bascule, comme tout autre réglage. C'est le `Tap Mode = PRESET` du
+/// marché, et la décision de l'utilisateur.
+#[test]
+fn each_preset_brings_its_own_tempo_and_a_tap_is_lost_on_the_switch() {
+    let mut s = sample();
+    let preset = |name: &str, bpm: f32| {
+        let spec = PresetSpec {
+            name: name.into(),
+            tempo_bpm: bpm,
+            blocks: vec![PresetBlock::Fx { on: true, fx: "delay:division=1/8.".parse().expect("delay") }],
+            ..Default::default()
+        };
+        (name.to_lowercase(), name.to_string(), format!("/x/{name}.preset.toml").into(), spec)
+    };
+    s.adopt_presets(vec![preset("Couplet", 92.0), preset("Refrain", 128.0)]);
+
+    s.load_preset(0);
+    assert_eq!(s.heard_tempo_bpm(), 92.0, "le tempo enregistré dans le preset");
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Preset);
+    assert!(s.unsaved().is_empty(), "charger un preset ne le modifie pas : {:?}", s.unsaved());
+
+    // on tape 104 BPM : le preset est marqué modifié
+    let step = (60_000.0f32 / 104.0).round() as u64;
+    s.tick(1000);
+    s.on_key(Key::Char('*'));
+    s.tick(1000 + step);
+    s.on_key(Key::Char('*'));
+    assert!((s.heard_tempo_bpm() - 104.0).abs() < 0.3, "{} BPM", s.heard_tempo_bpm());
+    assert!(!s.unsaved().is_empty(), "le tap modifie le preset");
+
+    // bascule vers le preset suivant : son tempo, et le tap est oublié
+    s.load_preset(1);
+    assert_eq!(s.heard_tempo_bpm(), 128.0, "le tempo du preset suivant");
+    assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Preset);
+
+    // revenir au premier : 92, pas 104 — le tap n'avait pas été enregistré
+    s.load_preset(0);
+    assert_eq!(s.heard_tempo_bpm(), 92.0, "le tap non enregistré est bien perdu");
+
+    // enregistrer, en revanche, le garde : le preset converti porte le tempo courant
+    s.fx.chain.tempo_bpm = 104.0;
+    assert_eq!(s.to_preset("Couplet").tempo_bpm, 104.0);
+}
