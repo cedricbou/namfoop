@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Maquette du mode Set (épique #215). Référence de comportement : docs/design/set.md. Presets, morceaux et textes fictifs. Le code n'est pas à reprendre. -->
+<title>namfoop — maquette : le mode Set</title>
+<style>
+  :root{
+    --bg:#0b0e14; --term:#0f131a; --fg:#d7dae0; --dim:#5c6370; --line:#4b5263;
+    --cyan:#56d4e8; --green:#8bd17c; --yellow:#e5c07b; --red:#e06c75; --blue:#61afef; --mag:#c678dd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:1320px;margin:0 auto;padding:18px 16px 40px;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}
+  @media (max-width:1000px){.wrap{grid-template-columns:1fr}}
+  h1{font-size:17px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--dim);margin:0 0 12px;font-size:13px}
+  .sub code,.q code{font:12px ui-monospace,Menlo,monospace;background:#1a212c;border-radius:3px;padding:0 4px;color:var(--fg)}
+  .term{background:var(--term);border:1px solid #232a35;border-radius:8px;overflow:hidden;max-width:100%;
+        font:13px/1.35 "DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;outline:none;position:relative}
+  .term:focus{border-color:#3d6b3a}
+  .top{padding:6px 10px 0;white-space:pre;overflow:hidden;display:flex}
+  .top .grow{flex:1}
+  .box{border:1px solid #2a313d;margin:12px 8px 8px;border-radius:2px;position:relative}
+  .box > .t{position:absolute;top:-9px;left:10px;background:var(--term);padding:0 6px;font-weight:bold;white-space:pre;max-width:calc(100% - 20px);overflow:hidden}
+  .box.set{border-color:#3d6b3a}.box.set > .t{color:var(--green)}
+  .box.edit{border-color:#8a7440}.box.edit > .t{color:var(--yellow)}
+  .box.run{border-color:#3d6b3a}.box.run > .t{color:var(--green)}
+  .box.prm > .t{color:var(--fg)}
+  .cols{display:flex;align-items:stretch}
+  .cols > .box{margin:12px 4px 8px 8px}
+  .cols > #prmbox{flex:1;min-width:0;margin-left:4px;margin-right:8px}
+  .cols.scene > #mainbox{flex:0 0 46ch}
+  .cols.wide > #mainbox{flex:1;margin-right:8px}
+  pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow:hidden}
+  .dim{color:var(--dim)} .b{font-weight:bold} .ok{color:var(--green)} .warn{color:var(--yellow)} .err{color:var(--red)}
+  .cy{color:var(--cyan)} .mag{color:var(--mag)} .bl{color:var(--blue)}
+  .play{background:var(--green);color:#0b0e14;font-weight:bold}
+  .cur{background:#1d2b3a}
+  .kcur{outline:1px solid var(--yellow)}
+  .tabon{background:var(--green);color:#0b0e14;font-weight:bold}
+  .lock{background:#3d6b3a;color:#0b0e14;font-weight:bold}
+  .secon{color:var(--green);font-weight:bold}
+  .lineon{background:#1b2a1b}
+  .dn{background:var(--yellow);color:#0b0e14;font-weight:bold}
+  .bt{background:var(--green);color:#0b0e14;font-weight:bold}
+  .listen{padding:2px 12px 0;white-space:pre;overflow:hidden}
+  .msg{padding:4px 12px 4px;min-height:24px;color:var(--yellow);white-space:pre-wrap}
+  .help{padding:0 12px 10px;color:var(--dim);white-space:pre-wrap}
+  .help b{color:var(--fg);font-weight:normal}
+  .popup{position:absolute;left:50%;top:70px;transform:translateX(-50%);width:min(640px,94%);background:#121821;
+         border:1px solid var(--green);border-radius:3px;box-shadow:0 10px 40px #000a;z-index:5}
+  .popup.y{border-color:var(--yellow)}
+  .popup .pt{padding:6px 10px 0;color:var(--green);font-weight:bold;white-space:pre-wrap}
+  .popup.y .pt{color:var(--yellow)}
+  .popup pre{padding:8px 10px}
+  .side{display:flex;flex-direction:column;gap:14px}
+  .card{background:#11161e;border:1px solid #232a35;border-radius:8px;padding:12px 14px}
+  .card h2{font-size:13px;margin:0 0 8px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .ex{display:flex;flex-direction:column;gap:6px}
+  button{font:inherit;background:#1a212c;color:var(--fg);border:1px solid #2c3543;border-radius:6px;padding:7px 10px;cursor:pointer;text-align:left}
+  button:hover{border-color:var(--green)}
+  button.on{border-color:var(--green);color:var(--green)}
+  .rowb{display:flex;gap:6px;flex-wrap:wrap}.rowb button{flex:1;text-align:center}
+  .keybar{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+  .keybar button{padding:4px 8px;font:12px ui-monospace,Menlo,monospace;text-align:center;min-width:30px}
+  .q{font-size:12.5px;color:#aab;margin:0;padding-left:18px}
+  .q li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>namfoop · le mode Set : la set list de concert</h1>
+    <p class="sub">Maquette de <code>docs/design/set.md</code>. Clique dans le terminal puis joue au clavier (ou avec la barre de touches). Rien n'est joué : la ligne <code>♪</code> dit ce qu'on entendrait. Le pédalier envoie <code>PgDn</code> / <code>PgUp</code> (son suivant / précédent) et <code>→</code> / <code>←</code> (morceau suivant / précédent, touches réglables). Presets, morceaux et textes sont fictifs.</p>
+    <div class="term" id="term" tabindex="0">
+      <div class="top" id="top"></div>
+      <div class="cols" id="cols">
+        <div class="box set" id="mainbox"><span class="t" id="maintitle"></span><pre id="main"></pre></div>
+        <div class="box prm" id="prmbox"><span class="t" id="prmtitle"></span><pre id="prm"></pre></div>
+      </div>
+      <div class="listen" id="listen"></div>
+      <div class="msg" id="msg"></div>
+      <div class="help" id="help"></div>
+      <div class="popup" id="popup" style="display:none"><div class="pt" id="poptitle"></div><pre id="pop"></pre></div>
+    </div>
+    <div class="keybar" id="keybar"></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>Écran</h2>
+      <div class="rowb">
+        <button id="m-browse" class="on">browse · espace 3</button>
+        <button id="m-run">run --set (scène)</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Sets d'exemple</h2>
+      <div class="ex">
+        <button data-set="g1">Groupe 1 · Live Mairie (6 morceaux, 1 ou 2 sons)</button>
+        <button data-set="trio">Trio acoustique (3 sons qu'on alterne)</button>
+        <button data-set="">Aucun set (banque entière, comme aujourd'hui)</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>MIDI simulé (US 7)</h2>
+      <p class="sub" style="margin:0 0 6px">PC = le morceau (son 1) · CC 69 = le son du morceau joué · horloge du séquenceur.</p>
+      <div class="rowb" id="pcs"></div>
+      <div class="rowb" id="ccs" style="margin-top:6px"></div>
+      <div class="rowb" style="margin-top:6px">
+        <button id="clk-start">Start horloge</button><button id="clk-stop">Stop</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Vitesse de la maquette</h2>
+      <div class="rowb"><button id="sp1" class="on">temps réel</button><button id="sp4">× 4</button></div>
+    </div>
+    <div class="card">
+      <h2>Décidé le 15/11</h2>
+      <ol class="q">
+        <li>MIDI à la Helix : <code>PC n</code> = le morceau (n° unique dans le set), <code>CC 69</code> valeur k = son k+1 du morceau joué.</li>
+        <li>Métrique dans le ChordPro (<code>{time}</code>, <code>{tempo}</code> successifs) ; BPM toujours à la noire, comme Live.</li>
+        <li>Bande de battue : temps 1 en jaune, compte à rebours avant un changement de son.</li>
+      </ol>
+      <h2 style="margin-top:12px">À valider</h2>
+      <ol class="q">
+        <li>Pas de bouclage dans un set : <code>PgDn</code> sur le dernier son ne revient pas au premier.</li>
+        <li>Le morceau impose son tempo à tous ses sons ; le volume, lui, se règle son par son.</li>
+        <li>Dans la Chaîne, <code>S</code> modifie le preset partout où il sert (le set le rappelle).</li>
+        <li>En défilement, la position suit le temps ; à l'arrêt, elle suit le son.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+// ---------- données ----------
+const BANK = {
+  "clean-svt": {name:"Clean SVT", tempo:120, chain:"gate -60 › nam·SVT Classic › ir·8x10 SM57 › comp"},
+  "fuzz-face": {name:"Fuzz Face", tempo:120, chain:"gate -55 › ◆[ direct | nam·Fuzz Face › ir·4x10 ] › peak"},
+  "drive-b7k": {name:"Drive B7K", tempo:120, chain:"gate -60 › nam·B7K Ultra › ir·8x10 SM57"},
+  "synth-oct": {name:"Synth octave", tempo:120, chain:"◆[ direct | nam·Octaver › chorus ] › ir·8x10 SM57 › delay 1/8."},
+  "fretless":  {name:"Fretless chorus", tempo:90, chain:"nam·Acoustic DI › chorus › reverb"},
+  "dub-sub":   {name:"Dub sub", tempo:90, chain:"nam·SVT Classic › eq › ir·1x15"},
+  "acou-di":   {name:"Acoustique DI", tempo:90, chain:"comp › eq › reverb"},
+};
+const P_PHARE = [
+  {label:"Intro", sound:"fuzz-face", bars:4, lines:["basse seule, 4 mesures, fuzz plein pot", "| E5 . . . | E5 . . . | G5 . E5 . | D5 C5 B4 . |"]},
+  {label:"Couplet 1", bars:8, lines:["| E5 . . E5 | G5 . E5 . | D5 . C5 . | B4 . . . |  ×2", "(cue) entrée batterie mesure 5"]},
+  {label:"Refrain", sound:"clean-svt", bars:8, lines:["| A . . . | C . . . | G . . . | D . . . |", "(cue) chœurs : tenir la fondamentale", "| A . . . | C . . . | G . . . | D . D . |"]},
+  {label:"Couplet 2", sound:"fuzz-face", bars:8, lines:["comme couplet 1", "(cue) break sur 4 : couper net"]},
+  {label:"Fin", bars:2, lines:["arrêt sur le 1, regarder Seb"]},
+];
+const P_NEON = [
+  {label:"Intro", sound:"synth-oct", bars:4, lines:["| Am . . . | Am . . . | F . . . | G . . . |", "synth seul, filtre fermé"]},
+  {label:"Couplet", bars:8, lines:["| Am . . . | F . . . | C . . . | G . . . |  ×2"]},
+  {label:"Pont", time:"7/8", group:"2+2+3", bars:4, lines:["| Dm . . | F . . . | ×2", "(cue) compter 1-2 1-2 1-2-3"]},
+  {label:"Final", time:"4/4", tempo:92, bars:4, lines:["| Am . . . | F . . . | G . . . | Am . . . |", "(cue) ralenti, tenir le dernier"]},
+];
+const P_MAREE = [
+  {label:"Couplet", sound:"clean-svt", bars:8, lines:["| D . . G . . | D . . A . . |  ×4", "doigts, pas de médiator"]},
+  {label:"Solo basse", sound:"drive-b7k", bars:4, lines:["| Bm . . G . . | D . . A . . |", "(cue) le clavier tient l'accord"]},
+  {label:"Couplet", sound:"clean-svt", bars:8, lines:["comme le premier couplet"]},
+];
+function fresh(){ return {
+  g1:{file:"groupe-1", name:"Groupe 1 · Live Mairie", songs:[
+    {title:"Ouverture", pc:1, tempo:96, sounds:[{p:"clean-svt"}]},
+    {title:"Le Phare", pc:2, tempo:124, prompt:P_PHARE, sounds:[{p:"fuzz-face"},{p:"clean-svt", vol:-1.5}]},
+    {title:"Néon", pc:3, tempo:100, prompt:P_NEON, sounds:[{p:"synth-oct"}]},
+    {title:"Marée basse", pc:4, tempo:82, time:"6/8", prompt:P_MAREE, sounds:[{p:"clean-svt"},{p:"drive-b7k"}]},
+    {title:"Sur le fil", pc:5, tempo:117, sounds:[{p:"clean-svt"}]},
+    {title:"Rappel", pc:6, tempo:110, sounds:[{p:"drive-b7k"},{p:"synth-oct"}]},
+  ]},
+  trio:{file:"trio", name:"Trio acoustique", songs:[
+    {title:"", pc:1, sounds:[{p:"acou-di"},{p:"fretless"},{p:"dub-sub"}]},
+  ]},
+};}
+let SETS = fresh();
+
+// ---------- état ----------
+const ROWS = 18;
+const S = {detail:new Set(), mode:"browse", set:"g1", song:1, snd:0, cs:1, ck:0, edit:false, dirty:false,
+           popup:null, scroll:0, auto:false, timer:null, msg:"", bank:0, clock:false, speed:1, pos:{sec:0,bar:0,tick:0}};
+const set = () => SETS[S.set];
+const songs = () => set() ? set().songs : [];
+const flat = () => { const f=[]; songs().forEach((s,i)=>s.sounds.forEach((_,k)=>f.push([i,k]))); return f; };
+const bankIds = Object.keys(BANK);
+const pname = id => BANK[id] ? BANK[id].name : "⚠ "+id+" introuvable";
+const pad = (s,n) => { s=String(s); const l=[...s].length; return l>=n ? [...s].slice(0,n).join("") : s+" ".repeat(n-l); };
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const usesOf = id => songs().filter(s=>s.sounds.some(x=>x.p===id)).length;
+
+function heardTempo(){
+  if(!set()) return BANK[bankIds[S.bank]].tempo;
+  const so = songs()[S.song]; if(!so) return 120;
+  const sd = so.sounds[S.snd];
+  return secTempo(so, S.pos.sec) || (sd && BANK[sd.p] ? BANK[sd.p].tempo : 120);
+}
+function playing(){ if(!set()) return bankIds[S.bank]; const so=songs()[S.song]; return so && so.sounds[S.snd] ? so.sounds[S.snd].p : null; }
+
+// ---------- déplacements ----------
+function play(si, k, why){
+  const so = songs()[si]; if(!so) return;
+  if(!so.sounds.length){ S.msg = `« ${so.title} » n'a pas encore de son (e pour éditer, + pour en ajouter)`; return; }
+  const songChanged = si!==S.song;
+  S.song = si; S.snd = Math.min(k, so.sounds.length-1); S.cs = si; S.ck = S.snd;
+  if(songChanged){ S.pos={sec:0,bar:0,tick:0}; if(!S.clock) stopRun(); posToScroll(); }
+  followPrompt();
+  S.msg = why || "";
+}
+function stepSound(d){
+  if(!set()){ S.bank = (S.bank + d + bankIds.length) % bankIds.length; S.msg = "sans set : la banque entière, en boucle (comme aujourd'hui)"; return; }
+  const f = flat(); const i = f.findIndex(([a,b])=>a===S.song&&b===S.snd); const j = i+d;
+  if(j<0){ S.msg = "début du set : rien avant ce son"; return; }
+  if(j>=f.length){ S.msg = "fin du set : rien après ce son (pas de bouclage)"; return; }
+  const [a,b] = f[j]; const changed = a!==S.song;
+  play(a,b, changed ? `morceau ${a+1} · ${songs()[a].title || set().name}` : "");
+}
+function stepSong(d){
+  if(!set()){ S.msg = "sans set, pas de morceaux : PgDn / PgUp parcourent la banque"; return; }
+  let j = S.song + d;
+  while(j>=0 && j<songs().length && !songs()[j].sounds.length) j += d;
+  if(j<0){ S.msg = "premier morceau du set"; return; }
+  if(j>=songs().length){ S.msg = "dernier morceau du set"; return; }
+  play(j,0,`morceau ${j+1} · ${songs()[j].title}`);
+}
+function receivePC(n){
+  if(!set()){ const i = n-1; if(i<bankIds.length){ S.bank=i; S.msg=`PC ${n} : preset n°${n} de la banque`; } else S.msg=`PC ${n} : pas de preset n°${n}`; return render(); }
+  const si = songs().findIndex(s=>s.pc===n);
+  if(si<0){ S.msg = `PC ${n} : aucun morceau du set n'a ce numéro (ignoré, on garde le son joué)`; return render(); }
+  play(si,0,`PC ${n} : morceau ${si+1} « ${songs()[si].title||set().name} », son 1 — un CC 69 reçu juste après choisit directement un autre son`);
+  render();
+}
+function receiveCC(v){
+  if(!set()){ S.msg="CC 69 sans set : ignoré"; return render(); }
+  const so = songs()[S.song];
+  if(!so || v>=so.sounds.length){ S.msg=`CC 69 = ${v} : ce morceau n'a pas de son ${v+1} (ignoré)`; return render(); }
+  play(S.song,v,`CC 69 = ${v} : son ${v+1} du morceau joué, ${pname(so.sounds[v].p)}`); render();
+}
+
+// ---------- prompteur ----------
+function promptLines(){
+  const so = set() && songs()[S.song]; if(!so || !so.prompt) return null;
+  const out=[]; so.prompt.forEach((sec,si)=>{ out.push({head:true, sec:si, label:sec.label, sound:sec.sound, bars:sec.bars});
+    sec.lines.forEach(l=>out.push({head:false, sec:si, text:l, bars:sec.bars/sec.lines.length})); });
+  return out;
+}
+// ---------- métrique et battue ----------
+// BPM toujours à la noire (comme Live et l'horloge MIDI) ; en x/8 le tick est la croche.
+function parseTime(t, group){
+  const [n,d] = String(t||"4/4").split("/").map(Number);
+  const g = group ? group.split("+").map(Number) : (d===8 && n%3===0 ? Array(n/3).fill(3) : Array(n).fill(1));
+  const starts=[]; let acc=0; g.forEach(x=>{ starts.push(acc); acc+=x; });
+  return {n, d, g, starts, label:`${n}/${d}`, full:`${n}/${d}`+(group?` (${group})`:'')};
+}
+function secMeter(so, si){ let t=so.time||"4/4", gr=null;
+  if(so.prompt) for(let i=0;i<=si && i<so.prompt.length;i++) if(so.prompt[i].time){ t=so.prompt[i].time; gr=so.prompt[i].group||null; }
+  return parseTime(t,gr); }
+function secTempo(so, si){ let t = so.tempo || null;
+  if(so.prompt) for(let i=0;i<=si && i<so.prompt.length;i++) if(so.prompt[i].tempo) t=so.prompt[i].tempo;
+  return t; }
+function curMeter(){ const so=set()&&songs()[S.song]; return so ? secMeter(so, S.pos.sec) : parseTime("4/4"); }
+function tickMs(){ const m=curMeter(), q=60000/heardTempo(); return (m.d===8 ? q/2 : m.d===2 ? q*2 : q) / S.speed; }
+function posToScroll(){
+  const L=promptLines(); if(!L){ S.scroll=0; return; }
+  const sec=songs()[S.song].prompt[S.pos.sec]; if(!sec) return;
+  const h=L.findIndex(l=>l.head&&l.sec===S.pos.sec), nl=sec.lines.length;
+  S.scroll = h+1+Math.min(nl-1, Math.floor(S.pos.bar*nl/sec.bars));
+}
+function setSec(si){ S.pos={sec:si,bar:0,tick:0}; posToScroll(); }
+function startRun(why){
+  if(!set() || !songs()[S.song]){ S.msg="pas de morceau"; return; }
+  S.auto=true; S.pos.tick=0; clearTimeout(S.timer); S.timer=setTimeout(tick, tickMs());
+  S.msg = why || `battue lancée : cet appui est le 1 de la mesure ${S.pos.bar+1} (♩ ${heardTempo()} ${curMeter().full}) — Espace l'arrête`;
+}
+function stopRun(why){ S.auto=false; clearTimeout(S.timer); if(why!==undefined) S.msg=why; }
+function tick(){
+  if(!S.auto) return;
+  const so=songs()[S.song], m=curMeter();
+  S.pos.tick++;
+  if(S.pos.tick>=m.n){ S.pos.tick=0; S.pos.bar++;
+    const secs = so && so.prompt;
+    if(secs && S.pos.bar>=secs[S.pos.sec].bars){
+      if(S.pos.sec+1<secs.length){ S.pos.sec++; S.pos.bar=0; }
+      else { S.pos.bar=secs[S.pos.sec].bars-1; S.pos.tick=m.n-1; stopRun("fin du morceau : la battue s'arrête"); posToScroll(); render(); return; }
+    }
+  }
+  posToScroll(); render(); S.timer=setTimeout(tick, tickMs());
+}
+function followPrompt(){
+  // en défilement, la position suit le temps ; à l'arrêt, elle suit le son
+  if(S.auto) return;
+  const so=songs()[S.song]; if(!so || !so.prompt){ S.scroll=0; return; }
+  const p = playing();
+  let hit = so.prompt.findIndex((sec,i)=>sec.sound===p && i>=S.pos.sec);
+  if(hit<0) hit = so.prompt.findIndex(sec=>sec.sound===p);
+  if(hit>=0 && hit!==S.pos.sec) setSec(hit); else posToScroll();
+}
+function scrollBy(d){
+  const so=songs()[S.song];
+  if(!so || !so.prompt){ S.msg = "pas de sections pour ce morceau (t pour écrire le prompteur)"; return; }
+  const want = d==="sec+" ? S.pos.sec+1 : Math.max(0,S.pos.sec-1);
+  if(want>=so.prompt.length){ S.msg="dernière section"; return; }
+  setSec(want);
+  if(S.auto){ clearTimeout(S.timer); S.timer=setTimeout(tick, tickMs()); S.msg=`recalé sur le 1 de ${so.prompt[want].label}`; }
+}
+function setAuto(on, why){ if(on) startRun(why); else stopRun(why===undefined ? "battue arrêtée" : why); }
+function band(){
+  const so=songs()[S.song]; if(!so) return ["",""];
+  const m=curMeter(), w = m.d===8 ? 4 : 7;
+  let cells="";
+  for(let t=0;t<m.n;t++){
+    const gi=m.starts.indexOf(t), isStart=gi>=0, on=S.auto && t===S.pos.tick;
+    const txt = pad(" "+(isStart? String(gi+1) : "·"), w);
+    cells += `<span class="${on ? (t===0?'dn':'bt') : (isStart?'b':'dim')}">${txt}</span>`;
+  }
+  const secs=so.prompt, sec=secs&&secs[S.pos.sec];
+  const where = sec ? `mes. ${S.pos.bar+1}/${sec.bars} ${esc(sec.label.toUpperCase())}` : `mes. ${S.pos.bar+1}`;
+  const l1 = ` ${cells}   <span class="b">♩${heardTempo()} ${m.full}</span>   ${where}   ${S.auto?'<span class="ok">⏵</span>':'<span class="dim">⏸ Espace</span>'}`;
+  let l2;
+  if(!secs) l2 = `<span class="dim"> pas de sections : la battue compte les mesures${S.mode==='run'?'':' (t pour écrire le prompteur)'}</span>`;
+  else {
+    const nx=secs[S.pos.sec+1], left=sec.bars-S.pos.bar;
+    if(!nx) l2 = `<span class="dim"> fin du morceau dans ${left} mes.</span>`;
+    else {
+      const change = nx.sound && nx.sound!==playing();
+      const extras=[]; const nm=secMeter(so,S.pos.sec+1); if(nm.full!==m.full) extras.push(`<span class="warn">passe en ${nm.full}</span>`);
+      const nt=secTempo(so,S.pos.sec+1); if(nt && nt!==secTempo(so,S.pos.sec)) extras.push(`<span class="warn">♩${nt}</span>`);
+      if(change && left===1 && S.auto){
+        const total=m.starts.length, idx=m.starts.filter(x=>x<=S.pos.tick).length-1;
+        const seq=[]; for(let v=total; v>=1; v--) seq.push(v===total-idx ? `<span class="dn"> ${v} </span>` : `<span class="dim"> ${v} </span>`);
+        l2 = ` <span class="dn"> → ${esc(pname(nx.sound).toUpperCase())} </span>  ${seq.join('·')}   ${esc(nx.label.toUpperCase())}${extras.length?'  '+extras.join('  '):''}`;
+      } else {
+        l2 = ` ${change?`<span class="warn b">→ ${esc(pname(nx.sound))} dans ${left} mes.</span>   `:''}${esc(nx.label.toUpperCase())} dans ${left} mes.${extras.length?'   '+extras.join('  '):''}`;
+      }
+    }
+  }
+  return [l1,l2];
+}
+
+// ---------- vue scène : deux colonnes ----------
+function soundLines(so, i, single, withDetail){
+  const isPlay = i===S.song; const out=[];
+  so.sounds.forEach((sd,k)=>{
+    const on = isPlay && k===S.snd;
+    const det = withDetail ? `<span class="dim"> ${pad('CC69:'+k+(sd.vol?' '+(sd.vol>0?'+':'')+sd.vol.toFixed(1)+'dB':''),14)}</span>` : '';
+    const nm = pname(sd.p);
+    if(on) out.push({i, html:`${single?'  ':'     '}<span class="play"> ● ${esc(pad(nm,single?24:18))}</span>${det}`});
+    else out.push({i, html:`${single?'  ':'     '}<span class="${isPlay||single?'':'dim'}"> ○ ${esc(pad(nm,single?24:18))}</span>${det}`});
+  });
+  if(withDetail && !single){
+    out.push({i, html:`<span class="dim">       PC ${so.pc ?? '—'} · prompteur : ${so.prompt?so.prompt.length+' sections':'aucun'}</span>`});
+  }
+  return out;
+}
+function setColumn(single){
+  let lines=[];
+  if(single){ lines = soundLines(songs()[0],0,true,S.detail.has(0)); }
+  else songs().forEach((so,i)=>{
+    const isPlay=i===S.song, isCur=i===S.cs && i!==S.song;
+    const tmp = so.tempo ? pad('♩'+so.tempo,4) : '<span class="dim">♩---</span>';
+    const mt = secMeter(so,0).label; const mtx = mt==="4/4" ? '   ' : mt;
+    const prm = so.prompt ? '≡' : ' ';
+    const title = `${isPlay?'<span class="ok b">▶</span>':' '} ${pad(i+1,2)} ${esc(pad(so.title||'—',21))} ${tmp} <span class="cy">${mtx}</span> <span class="dim">${prm}</span>`;
+    lines.push({i, html:`<span class="${isPlay?'b':''} ${isCur?'cur':''}">${title}</span>`, head:true});
+    if(isPlay || S.detail.has(i)) lines = lines.concat(soundLines(so,i,false,S.detail.has(i)));
+  });
+  // fenêtre : un morceau avant celui qu'on joue, puis tout ce qui vient
+  let start = Math.max(0, lines.findIndex(l=>l.head && l.i===Math.max(0,S.song-1)));
+  if(single) start=0;
+  const view = lines.slice(start, start+ROWS-1).map(l=>l.html);
+  const after = lines.length - (start+ROWS-1);
+  while(view.length<ROWS-1) view.push("");
+  view.push(after>0 ? `<span class="dim">   … ${after} ligne(s) plus bas</span>` : `<span class="dim">   ${start>0?'↑ '+start+' ligne(s) plus haut':''}</span>`);
+  return view.join("\n");
+}
+function promptColumn(single){
+  const so = songs()[S.song]; if(!so) return "";
+  const f = flat(); const i = f.findIndex(([a,b])=>a===S.song&&b===S.snd); const nx = f[i+1];
+  const next = nx ? (nx[0]===S.song ? `ensuite ${pname(so.sounds[nx[1]].p)}` : `ensuite ${nx[0]+1} · ${songs()[nx[0]].title || pname(songs()[nx[0]].sounds[0].p)}`) : "fin du set";
+  el("prmtitle").textContent = `${single?'':(S.song+1)+' · '+so.title+'  ·  '}son ${S.snd+1}/${so.sounds.length} ${pname(so.sounds[S.snd]?so.sounds[S.snd].p:'')}  ·  PgDn : ${next}`;
+  const L = promptLines(); const bd = band();
+  const out=[bd[0], bd[1], `<span class="dim">${'─'.repeat(70)}</span>`];
+  if(!L){ out.push(`<span class="dim">  pas de prompteur pour ce morceau</span>`);
+    if(S.mode!=="run") out.push(`<span class="dim">  t l'écrit dans ton éditeur (ChordPro : prompts/${(so.title||set().file).toLowerCase().replace(/[^a-zéèêàç0-9]+/g,'-')}.cho)</span>`); }
+  else {
+    const p = playing(); const curSec = L[S.scroll] ? L[S.scroll].sec : 0;
+    const start = Math.max(0, S.scroll-2);
+    const secs = so.prompt;
+    for(let j=start;j<L.length && out.length<ROWS-4;j++){ const l=L[j];
+      if(l.head){ const on = l.sec===curSec; const linked = l.sound ? `  <span class="${l.sound===p?'ok':'dim'}">→ ${esc(pname(l.sound))}</span>`:'';
+        const sc = secs[l.sec]; const chg = (sc.time?` <span class="cy">${sc.time}${sc.group?' ('+sc.group+')':''}</span>`:'') + (sc.tempo?` <span class="cy">♩${sc.tempo}</span>`:'');
+        out.push(`<span class="${on?'secon':l.sec<curSec?'dim':'b'}"> ${on?'▸':' '} ${pad(l.label.toUpperCase(),12)}</span><span class="dim">${pad(l.bars+' mes.',7)}</span>${chg}${linked}`); }
+      else { const on = j===S.scroll; out.push(`<span class="${on?'lineon':l.sec<curSec?'dim':''}">   ${on?'<span class="ok">›</span>':' '}  ${esc(l.text)}</span>`); }
+    }
+  }
+  // au bout du texte : le morceau suivant, pour voir venir
+  const ns = !single && songs()[S.song+1];
+  if(ns && out.length<ROWS-3){
+    out.push(""); out.push(`<span class="dim"> ── ensuite (→) : ${S.song+2} · ${esc(ns.title)}  ${ns.tempo?'♩'+ns.tempo:''}  ${ns.sounds.map(x=>pname(x.p)).join(' · ')}</span>`);
+    if(ns.prompt) ns.prompt.slice(0,2).forEach(sec=>{ if(out.length<ROWS-2) out.push(`<span class="dim">    ${pad(sec.label.toUpperCase(),12)} ${esc(sec.lines[0])}</span>`); });
+  }
+  while(out.length<ROWS-1) out.push("");
+  out.push(`<span class="dim">  Espace battue (appui = le 1) · Fin/Début section${S.mode==='run'?'':' · t éditer'}</span>`);
+  return out.join("\n");
+}
+
+// ---------- rendu ----------
+function el(id){ return document.getElementById(id); }
+function render(){
+  const run = S.mode==="run";
+  // en-tête
+  const tempo = heardTempo();
+  const src = set() && songs()[S.song] && songs()[S.song].tempo ? "du morceau" : "du preset";
+  const right = `  ${S.clock?'<span class="ok">⏵ horloge MIDI</span>  ':''}<span class="${S.clock?'ok':''}">♩ ${tempo} ${set()?curMeter().label:''}</span> <span class="dim">(${S.clock?'horloge':src})</span>  ${set()? (S.dirty?'<span class="warn">● non enregistré (S)</span>':'<span class="dim">'+esc(set().file)+' ✓</span>') : ''} `;
+  if(run) el("top").innerHTML = `<span> <span class="b">namfoop run</span>  <span class="lock"> 🔒 SET </span> ${esc(set()?set().name:"—")}</span><span class="grow"></span><span>${right}</span>`;
+  else el("top").innerHTML = `<span> <span class="b">namfoop browse</span>  <span class="mag">1 Bibliothèque</span>  <span class="cy">2 Chaîne</span>  <span class="tabon"> 3 Set </span> ${esc(set()?set().name:"aucun set")}</span><span class="grow"></span><span>${right}</span>`;
+
+  const mb = el("mainbox"); mb.className = "box " + (S.edit ? "edit" : run ? "run" : "set");
+  if(!set()){
+    el("maintitle").textContent = "♪ SET — aucun set : la banque entière (PgDn / PgUp en boucle)";
+    el("main").innerHTML = bankIds.map((id,i)=>`<span class="${i===S.bank?'play':''}">${i===S.bank?' ▶ ':'   '}${pad(i+1,3)} ${pad(BANK[id].name,20)}</span> <span class="dim">${esc(BANK[id].chain)}</span>`).join("\n")
+      + `\n\n<span class="dim">   L choisir un set   ·   L › « nouveau set » pour en créer un</span>`;
+    el("prmbox").style.display="none"; el("cols").className="cols wide";
+  } else {
+    const nS = songs().length, nK = flat().length;
+    const single = nS===1 && !songs()[0].title;
+    el("maintitle").textContent = S.edit ? `✎ ÉDITION — ${set().name} · ${nS} morceau${nS>1?'x':''} · ${nK} sons${S.dirty?'  ● non enregistré':''}`
+                                        : `♪ ${set().name} · ${single? nK+' sons' : (S.song+1)+'/'+nS}`;
+    if(S.edit){
+      el("cols").className="cols wide"; el("prmbox").style.display="none";
+    const rows=[];
+    songs().forEach((so,i)=>{
+      const isPlay = i===S.song; const isCur = i===S.cs;
+      const mark = isPlay ? '▶' : ' ';
+      const sounds = so.sounds.length ? so.sounds.map((sd,k)=>{
+        const on = isPlay && k===S.snd;
+        const extra = `<span class="dim">${pad((sd.vol?(sd.vol>0?'+':'')+sd.vol.toFixed(1)+' dB':''),9)}</span>`;
+        let cls = on ? 'play' : '';
+        if(S.edit && isCur && k===S.ck) cls += ' kcur';
+        const nm = pname(sd.p); return `<span class="${cls}">${on?'[':' '}${esc(nm)}${on?']':' '}</span>${' '.repeat(Math.max(1,16-[...nm].length))}${extra}`;
+      }).join('<span class="dim">·</span>') : `<span class="warn"> (aucun son${S.edit?' : + pour en ajouter':''})</span>`;
+      const title = single ? '' : pad((so.title||'—'),16);
+      const prm = so.prompt ? '<span class="dim">≡</span>' : ' ';
+      const tcol = single ? '' : (so.tempo ? pad('♩ '+so.tempo,7) : '<span class="dim">♩ ---  </span>');
+      const pcol = `<span class="${so.pc==null?'warn':'cy'}">${pad(so.pc==null?'PC —':'PC'+so.pc,5)}</span>`;
+      rows.push(`<span class="${isCur && !(isPlay&&!S.edit) ? 'cur':''}"> ${isPlay?'<span class="ok b">'+mark+'</span>':mark} ${single?'':pad(i+1,2)+'  '}${esc(title)} ${pcol} ${tcol} ${prm} ${sounds}</span>`);
+    });
+    if(S.edit && !run) rows.push(`\n<span class="dim">   ↑↓ morceau   a ajouter   r renommer   T tempo (♩ --- : celui des presets)   p n° de PC   X retirer   [ ] déplacer\n   ←→ son       + ajouter   Entrée remplacer   x retirer   { } déplacer (= sa valeur de CC 69)   , . volume</span>`);
+    el("main").innerHTML = rows.join("\n");
+    } else {
+      el("cols").className="cols scene"; el("prmbox").style.display="";
+      el("main").innerHTML = setColumn(single);
+      el("prm").innerHTML = promptColumn(single);
+    }
+  }
+  // ligne d'écoute
+  const p = playing();
+  el("listen").innerHTML = set()
+    ? ` ♪ set : ${songs()[S.song]&&songs()[S.song].title ? (S.song+1)+' '+esc(songs()[S.song].title)+' › ' : ''}son ${S.snd+1} ${esc(pname(p))} · <span class="dim">${esc(BANK[p]?BANK[p].chain:'')}${songs()[S.song]&&songs()[S.song].sounds[S.snd]&&songs()[S.song].sounds[S.snd].vol?' › volume '+songs()[S.song].sounds[S.snd].vol.toFixed(1)+' dB (du morceau)':''}</span>`
+    : ` ♪ preset : ${esc(pname(p))} · <span class="dim">${esc(BANK[p].chain)}</span>`;
+  el("msg").textContent = S.msg;
+  el("help").innerHTML = helpText();
+  renderPopup();
+}
+function helpText(){
+  const k = (a,b)=>`<b>${a}</b> ${b}`;
+  if(S.popup) return "";
+  if(S.mode==="run") return [k("PgDn/PgUp","son"),k("→/←","morceau"),k("Espace","battue"),k("Fin/Début","section"),k("i","détail"),k("*","tap"),k("q","quitter (Q confirme)")].join("   ");
+  if(S.edit) return [k("S","enregistrer le set"),k("Échap / e","sortir de l'édition"),k("h","aide"),k("q","quitter")].join("   ");
+  return [k("PgDn/PgUp","son"),k("→/←","morceau"),k("↑↓ Entrée","jouer un morceau"),k("i","détail"),k("Espace","battue"),k("Fin/Début","section"),k("L","sets"),k("e","éditer"),k("t","prompteur"),k("*","tap"),k("1 2","espaces"),k("q","quitter")].join("   ");
+}
+
+// ---------- fenêtres ----------
+function renderPopup(){
+  const pp = el("popup"); const P = S.popup;
+  if(!P){ pp.style.display="none"; return; }
+  pp.style.display=""; pp.className = "popup" + (P.kind==="input"||P.kind==="pick"?" y":"");
+  if(P.kind==="sets"){
+    el("poptitle").textContent = "Choisir le set";
+    const items = P.items.map((it,i)=>`${i===P.i?'<span class="cur"> ▶ ':'   '}${pad(it.label,32)}${i===P.i?'</span>':''} <span class="dim">${esc(it.info)}</span>`);
+    el("pop").innerHTML = items.join("\n") + `\n\n<span class="dim"> ↑↓ choisir   Entrée activer (seuls ses sons sont préchargés)   Échap fermer</span>`;
+  } else if(P.kind==="pick"){
+    el("poptitle").textContent = P.title;
+    el("pop").innerHTML = bankIds.map((id,i)=>`${i===P.i?'<span class="cur"> ▶ ':'   '}${pad(BANK[id].name,18)}${i===P.i?'</span>':''} <span class="dim">${esc(BANK[id].chain)}</span>`).join("\n")
+      + `\n\n<span class="dim"> ↑↓ écouter le preset   Entrée le mettre dans le morceau   Échap annuler</span>`;
+  } else if(P.kind==="input"){
+    el("poptitle").textContent = P.title;
+    el("pop").innerHTML = ` ${esc(P.label)} : <span class="b">${esc(P.value)}</span><span class="ok">▏</span>\n\n<span class="dim"> ${esc(P.hint||'')}\n Entrée valider   Échap annuler</span>`;
+  } else if(P.kind==="confirm"){
+    el("poptitle").textContent = P.title;
+    el("pop").innerHTML = P.text + `\n\n<span class="dim"> ${P.keys}</span>`;
+  }
+}
+function openSets(){
+  const items = Object.entries(SETS).map(([id,s])=>({id, label:s.name, info:`${s.songs.filter(x=>x.title).length||'—'} morceaux · ${s.songs.reduce((a,x)=>a+x.sounds.length,0)} sons · sets/${s.file}.set.toml`}));
+  items.push({id:"", label:"aucun set", info:"la banque entière, comme aujourd'hui"});
+  items.push({id:"+", label:"＋ nouveau set…", info:"un set vide, à remplir en édition"});
+  S.popup = {kind:"sets", items, i: Math.max(0, items.findIndex(x=>x.id===S.set))};
+}
+function input(title,label,value,hint,done){ S.popup={kind:"input",title,label,value:String(value??""),hint,done,fresh:true}; }
+
+// ---------- clavier ----------
+function onKey(key){
+  S.msg = S.msg && key!=="__" ? S.msg : S.msg;
+  const P = S.popup;
+  if(P){ popupKey(key); return render(); }
+  S.msg = "";
+  if(S.mode==="run"){ runKey(key); return render(); }
+  if(S.edit){ if(editKey(key)) return render(); }
+  switch(key){
+    case "PageDown": stepSound(1); break;
+    case "PageUp": stepSound(-1); break;
+    case "ArrowRight": if(!S.edit) stepSong(1); break;
+    case "ArrowLeft": if(!S.edit) stepSong(-1); break;
+    case "ArrowDown": S.cs = Math.min(S.cs+1, songs().length-1); S.ck=0; if(!S.edit && set()) S.msg="Entrée pour jouer ce morceau (le son ne change pas tant que tu n'appuies pas)"; break;
+    case "ArrowUp": S.cs = Math.max(S.cs-1, 0); S.ck=0; break;
+    case "Enter": if(set()) play(S.cs, S.edit?S.ck:0, `morceau ${S.cs+1} · ${songs()[S.cs].title}`); break;
+    case " ": setAuto(!S.auto); break;
+    case "End": scrollBy("sec+"); break;
+    case "Home": scrollBy("sec-"); break;
+    case "L": case "l": openSets(); break;
+    case "i": if(set()){ const t = songs().length===1 && !songs()[0].title ? 0 : S.cs; S.detail.has(t)?S.detail.delete(t):S.detail.add(t); S.msg = S.detail.has(t)?"détail du morceau : son PC, ses sons (valeur de CC 69) et leurs volumes (i le replie)":""; } break;
+    case "e": if(!set()){ S.msg="pas de set à éditer : L › nouveau set"; break; } S.edit = !S.edit; S.cs=S.song; S.ck=S.snd; S.msg = S.edit ? "édition du set : ↑↓ ←→ pour viser, le son visé n'est joué qu'avec Entrée" : ""; break;
+    case "t": if(set()) S.msg = `ouvre prompts/…cho dans $EDITOR (ChordPro), relu au retour`; break;
+    case "*": S.msg = "tap : recale le tempo entendu (le tempo du morceau reste celui du fichier)"; break;
+    case "1": S.msg = "→ Bibliothèque (non dessinée ici)"; break;
+    case "2": S.msg = set() ? `→ Chaîne : tu édites le preset « ${pname(playing())} » — utilisé par ${usesOf(playing())} morceau(x) de ce set, S le modifie partout` : "→ Chaîne (non dessinée ici)"; break;
+    case "q": S.msg = S.dirty ? "q : set non enregistré — S pour l'enregistrer, Q pour quitter quand même" : "q : quitter (fenêtre habituelle)"; break;
+    case "Escape": if(S.edit){ S.edit=false; } break;
+    case "h": S.msg = "h : l'aide de l'espace Set (non dessinée ici)"; break;
+  }
+  render();
+}
+function runKey(key){
+  switch(key){
+    case "PageDown": stepSound(1); break;
+    case "PageUp": stepSound(-1); break;
+    case "ArrowRight": stepSong(1); break;
+    case "ArrowLeft": stepSong(-1); break;
+    case " ": setAuto(!S.auto); break;
+    case "End": scrollBy("sec+"); break;
+    case "Home": scrollBy("sec-"); break;
+    case "*": S.msg = "tap tempo"; break;
+    case "i": { S.detail.has(S.song)?S.detail.delete(S.song):S.detail.add(S.song); break; }
+    case "q": S.popup = {kind:"confirm", title:"Quitter la scène ?", text:" Le son s'arrête.", keys:"Q quitter   Échap rester", onKey:k=>{ if(k==="Q"){ S.popup=null; S.msg="(quitté)"; } else if(k==="Escape"){ S.popup=null; } }}; break;
+    default:
+      if(key.length===1 || ["Enter","ArrowUp","ArrowDown"].includes(key)) S.msg = "🔒 run --set : rien ne s'édite ici (le pied seul : PgDn PgUp → ← Espace Fin Début)";
+  }
+}
+function editKey(key){
+  const so = songs()[S.cs];
+  const dirty = m => { S.dirty = true; S.msg = m || ""; };
+  switch(key){
+    case "ArrowRight": if(so) S.ck = Math.min(S.ck+1, Math.max(0,so.sounds.length-1)); return true;
+    case "ArrowLeft": S.ck = Math.max(0, S.ck-1); return true;
+    case "a": input("Nouveau morceau","titre","","il se place après le morceau visé ; tempo : celui du preset tant que T ne le fixe pas",
+                    v=>{ if(!v.trim()) return "un titre, même court"; let pc=1; while(songs().some(x=>x.pc===pc)) pc++; songs().splice(S.cs+1,0,{title:v.trim(),pc,sounds:[]}); if(S.song>S.cs) S.song++; S.cs++; S.ck=0; dirty(`« ${v.trim()} » ajouté avec le PC ${songs()[S.cs].pc} (premier libre, p pour le changer) : + pour lui donner un son`); }); return true;
+    case "r": if(!so) return true; input("Renommer le morceau","titre",so.title,"",v=>{ so.title=v.trim(); dirty(); }); return true;
+    case "T": if(!so) return true; input(`Tempo de « ${so.title} »`,"BPM",so.tempo||"","vide : chaque son garde le tempo de son preset. Fixé : il prime sur le preset (delays calés)",
+                    v=>{ if(!v.trim()){ delete so.tempo; dirty("tempo : celui des presets"); return; } const n=+v; if(!(n>=30&&n<=300)) return "entre 30 et 300"; so.tempo=n; dirty(`♩ ${n} pour tous les sons de ce morceau`); }); return true;
+    case "+": if(!so) return true; S.popup={kind:"pick",title:`Ajouter un son à « ${so.title||set().name} »`,i:0,replace:false}; return true;
+    case "Enter": if(!so||!so.sounds.length) return true; S.popup={kind:"pick",title:`Remplacer « ${pname(so.sounds[S.ck].p)} »`,i:Math.max(0,bankIds.indexOf(so.sounds[S.ck].p)),replace:true}; return true;
+    case "x": if(!so||!so.sounds.length) return true; { const r=so.sounds.splice(S.ck,1)[0]; S.ck=Math.max(0,S.ck-1); fix(); dirty(`son retiré : ${pname(r.p)} (le preset, lui, reste dans la banque)`); } return true;
+    case "X": if(!so) return true; S.popup={kind:"confirm",title:`Retirer « ${so.title} » du set ?`,text:` ${so.sounds.length} son(s). Les presets restent dans la banque.`,keys:"Entrée retirer   Échap annuler",
+                    onKey:k=>{ if(k==="Enter"){ songs().splice(S.cs,1); S.cs=Math.max(0,Math.min(S.cs,songs().length-1)); fix(); S.popup=null; dirty("morceau retiré"); } else if(k==="Escape") S.popup=null; }}; return true;
+    case "[": case "]": { const d = key==="]"?1:-1; const j=S.cs+d; if(j<0||j>=songs().length) return true;
+                    const L=songs(); [L[S.cs],L[j]]=[L[j],L[S.cs]]; if(S.song===S.cs) S.song=j; else if(S.song===j) S.song=S.cs; S.cs=j; dirty(); return true; }
+    case "{": case "}": { if(!so) return true; const d = key==="}"?1:-1; const j=S.ck+d; if(j<0||j>=so.sounds.length) return true;
+                    [so.sounds[S.ck],so.sounds[j]]=[so.sounds[j],so.sounds[S.ck]]; S.ck=j; dirty(); return true; }
+    case ",": case ".": { if(!so||!so.sounds.length) return true; const sd=so.sounds[S.ck]; sd.vol=Math.round(((sd.vol||0)+(key==="."?0.5:-0.5))*10)/10; if(!sd.vol) delete sd.vol;
+                    dirty(`volume de ${pname(sd.p)} dans ce morceau : ${sd.vol?(sd.vol>0?'+':'')+sd.vol.toFixed(1):'0.0'} dB (le preset n'est pas touché)`); return true; }
+    case "p": { if(!so) return true;
+                    input(`Program Change de « ${so.title||set().name} »`,"PC (1-128)",so.pc??"","le PC choisit le morceau (son 1) ; unique dans le set. Les sons du morceau se choisissent avec le CC 69 (valeur 0, 1, 2…)",
+                      v=>{ if(!v.trim()){ delete so.pc; dirty("morceau sans PC : il ne se joue qu'au pied"); return; } const n=+v; if(!(n>=1&&n<=128)) return "entre 1 et 128";
+                           const o=songs().findIndex((x,i)=>x!==so&&x.pc===n); if(o>=0) return `PC ${n} déjà pris par « ${songs()[o].title} » (morceau ${o+1})`;
+                           so.pc=n; dirty(`PC ${n} → « ${so.title||set().name} »`); }); return true; }
+    case "S": S.dirty=false; S.msg=`set enregistré : sets/${set().file}.set.toml`; return true;
+    case "Escape": case "e": S.edit=false; S.msg = S.dirty ? "édition fermée — ● set non enregistré (S)" : ""; return true;
+  }
+  return false;
+}
+function fix(){ const L=songs(); if(S.song>=L.length) S.song=Math.max(0,L.length-1); const so=L[S.song]; if(so && S.snd>=so.sounds.length) S.snd=Math.max(0,so.sounds.length-1); }
+function popupKey(key){
+  const P = S.popup;
+  if(P.kind==="confirm"){ P.onKey(key); return; }
+  if(P.kind==="sets"){
+    if(key==="ArrowDown") P.i=Math.min(P.i+1,P.items.length-1);
+    else if(key==="ArrowUp") P.i=Math.max(P.i-1,0);
+    else if(key==="Escape") S.popup=null;
+    else if(key==="Enter"){ const it=P.items[P.i]; S.popup=null;
+      if(it.id==="+"){ input("Nouveau set","nom","","fichier : library/sets/<nom>.set.toml",v=>{ if(!v.trim()) return "un nom"; const id="n"+Date.now(); SETS[id]={file:v.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'),name:v.trim(),songs:[]}; S.set=id; S.song=0;S.snd=0;S.cs=0;S.ck=0; S.edit=true; S.dirty=true; S.msg="set vide : a pour ajouter un morceau"; }); return; }
+      activate(it.id); }
+    return;
+  }
+  if(P.kind==="pick"){
+    if(key==="ArrowDown"){ P.i=Math.min(P.i+1,bankIds.length-1); S.msg=`♪ essai : ${pname(bankIds[P.i])} (écouté, rien n'est écrit)`; }
+    else if(key==="ArrowUp"){ P.i=Math.max(P.i-1,0); S.msg=`♪ essai : ${pname(bankIds[P.i])} (écouté, rien n'est écrit)`; }
+    else if(key==="Escape"){ S.popup=null; S.msg="annulé : on réentend le son joué"; }
+    else if(key==="Enter"){ const so=songs()[S.cs]; const id=bankIds[P.i];
+      if(P.replace){ so.sounds[S.ck].p=id; } else { so.sounds.splice(so.sounds.length?S.ck+1:0,0,{p:id}); S.ck = so.sounds.length===1?0:S.ck+1; }
+      S.popup=null; S.dirty=true; S.msg=`${pname(id)} dans « ${so.title||set().name} » : son ${so.sounds.findIndex(x=>x.p===id)+1}, CC 69 = ${so.sounds.findIndex(x=>x.p===id)} — , . pour son volume dans ce morceau`; }
+    return;
+  }
+  if(P.kind==="input"){
+    if(key==="Escape"){ S.popup=null; return; }
+    if(key==="Enter"){ const err=P.done(P.value); if(typeof err==="string") S.msg=err; else if(S.popup===P) S.popup=null; return; }
+    if(key==="Backspace"){ P.value=P.value.slice(0,-1); P.fresh=false; return; }
+    if(key.length===1){ P.value = P.fresh ? key : P.value+key; P.fresh=false; }
+  }
+}
+function activate(id){
+  S.set=id; S.song=0; S.snd=0; S.cs=0; S.ck=0; S.edit=false; S.dirty=false; S.pos={sec:0,bar:0,tick:0}; stopRun("");
+  // premier morceau qui a un son
+  if(set()){ const i=songs().findIndex(s=>s.sounds.length); if(i>=0){ S.song=i; S.cs=i; } followPrompt(); }
+  S.msg = set() ? `set « ${set().name} » : ${flat().length} sons préchargés (et seulement eux)` : "aucun set : la banque entière, comme aujourd'hui";
+}
+
+// ---------- branchements ----------
+const term = el("term");
+term.addEventListener("keydown", e=>{
+  const keys=["PageDown","PageUp","ArrowRight","ArrowLeft","ArrowDown","ArrowUp","Enter","Escape","Backspace","End","Home"];
+  if(keys.includes(e.key) || e.key.length===1){ e.preventDefault(); onKey(e.key); }
+});
+const KB = [["PgDn","PageDown"],["PgUp","PageUp"],["←","ArrowLeft"],["→","ArrowRight"],["↑","ArrowUp"],["↓","ArrowDown"],["Entrée","Enter"],["Espace"," "],["Début","Home"],["Fin","End"],["i","i"],["L","L"],["e","e"],["t","t"],["Échap","Escape"],["a","a"],["r","r"],["T","T"],["+","+"],["x","x"],["X","X"],["[","["],["]","]"],["{","{"],["}","}"],[",",","],[".","."],["p","p"],["S","S"],["q","q"],["Q","Q"]];
+KB.forEach(([l,k])=>{ const b=document.createElement("button"); b.textContent=l; b.onclick=()=>{ onKey(k); term.focus(); }; el("keybar").appendChild(b); });
+[1,2,3,4,6,9].forEach(n=>{ const b=document.createElement("button"); b.textContent="PC "+n; b.onclick=()=>{ receivePC(n); term.focus(); }; el("pcs").appendChild(b); });
+[0,1,2].forEach(v=>{ const b=document.createElement("button"); b.textContent="CC69 = "+v; b.onclick=()=>{ receiveCC(v); term.focus(); }; el("ccs").appendChild(b); });
+el("clk-start").onclick=()=>{ S.clock=true; S.popup=null; setSec(0); startRun("horloge MIDI : Start = le 1 de la mesure 1 du morceau ; la carte des mesures du .cho donne la suite (SPP : on s'y place)"); render(); term.focus(); };
+el("clk-stop").onclick=()=>{ S.clock=false; stopRun("horloge MIDI : Stop — la battue s'arrête"); render(); term.focus(); };
+const speed = v=>{ S.speed=v; el("sp1").classList.toggle("on",v===1); el("sp4").classList.toggle("on",v===4); term.focus(); };
+el("sp1").onclick=()=>speed(1); el("sp4").onclick=()=>speed(4);
+document.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{ SETS=fresh(); activate(b.dataset.set); S.popup=null; render(); term.focus(); });
+el("m-browse").onclick=()=>{ S.mode="browse"; el("m-browse").classList.add("on"); el("m-run").classList.remove("on"); render(); term.focus(); };
+el("m-run").onclick=()=>{ if(!S.set) activate("g1"); S.mode="run"; S.edit=false; S.popup=null; el("m-run").classList.add("on"); el("m-browse").classList.remove("on"); S.msg="namfoop run --set groupe-1 : la vue scène, verrouillée"; render(); term.focus(); };
+activate("g1"); S.song=1; S.cs=1; S.snd=0; followPrompt(); S.msg="Clique ici puis : PgDn / PgUp (son), → / ← (morceau), Espace (battue), e (édition), L (sets). Essaie Néon (7/8) et Marée basse (6/8).";
+render();
+</script>
+</body>
+</html>
