@@ -6,7 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
-_Rien pour l'instant._
+### Ajouté (#217)
+- **Les sets de concert existent sur disque** : `library/sets/<nom>.set.toml` liste les morceaux
+  d'un concert dans l'ordre, chacun avec ses sons (des presets **référencés**, non copiés), son n°
+  de Program Change, son tempo, sa mesure et son prompteur. Un show à trois sons qu'on alterne est
+  un set à un seul morceau sans titre. Le format est documenté dans le guide, section « Le mode
+  Set ».
+- **`namfoop sets`** liste les sets : identifiant, nom, nombre de morceaux et de sons — et surtout
+  **ce qui ne va pas**. La distinction compte avant une scène : une **erreur** empêche le set de
+  s'ouvrir (le même PC sur deux morceaux, un tempo hors 30-300, une mesure illisible) parce qu'elle
+  rendrait la navigation imprévisible ; un **avertissement** le laisse jouer et marque seulement ce
+  qui manque (un preset renommé, un prompteur absent) — un concert ne s'arrête pas pour ça.
+- Premier pas de l'épique #215 : jouer un set au pied, l'écran de scène, le prompteur et la battue
+  viennent ensuite.
 
 ## 0.5.0 — 2026-11-15
 

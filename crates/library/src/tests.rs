@@ -181,3 +181,54 @@ fn presets_are_indexed_searchable_and_loadable() {
     // où enregistrer : `presets/<nom>.preset.toml`, les séparateurs remplacés
     assert_eq!(lib.preset_path("Chill/verse"), d.join("presets/Chill-verse.preset.toml"));
 }
+
+/// Un set de `sets/` est indexé comme les presets : identifiant court `s…`, nom lisible, trouvable
+/// par identifiant et par mots-clés, et ses avertissements résolus contre **cette** bibliothèque
+/// (#217). Les trois sortes de TOML de la bibliothèque ne se mélangent pas.
+#[test]
+fn sets_are_indexed_searchable_and_checked() {
+    let set = concat!(
+        "name = \"Groupe 1 · Live Mairie\"\n",
+        "[[song]]\ntitle = \"Le Phare\"\npc = 2\n",
+        "  [[song.sound]]\n  preset = \"Chill verse\"\n",
+        "  [[song.sound]]\n  preset = \"disparu\"\n",
+    );
+    let d = fake_library(
+        "sets",
+        &[
+            ("presets/Chill verse.preset.toml", "name = \"Chill verse\"\n"),
+            ("sets/Groupe 1.set.toml", set),
+            ("sets/Trio.set.toml", "name = \"Trio\"\n[[song]]\npc = 1\n"),
+            // les deux autres TOML de la bibliothèque ne doivent pas finir dans les sets
+            ("cabs/mix 1.cab.toml", "name = \"mix 1\"\n[[ir]]\nfile = \"x.wav\"\n"),
+        ],
+    );
+    let lib = Library::scan(&d);
+    let sets: Vec<&Entry> = lib.of_kind(Kind::Set).collect();
+    assert_eq!(sets.len(), 2, "{sets:?}");
+    assert!(sets.iter().all(|e| e.id.starts_with('s')), "identifiants s… : {sets:?}");
+    assert!(sets.iter().any(|e| e.stem == "Groupe 1"), "nom sans .set.toml : {sets:?}");
+    assert_eq!(lib.of_kind(Kind::Preset).count(), 1, "le preset reste un preset");
+    assert_eq!(lib.of_kind(Kind::Cab).count(), 1, "le mélange reste un mélange");
+
+    // résolution : par mots-clés, puis par identifiant
+    let p = lib.resolve_set("groupe").expect("par mots-clés");
+    assert!(p.ends_with("sets/Groupe 1.set.toml"), "{p:?}");
+    let id = &sets.iter().find(|e| e.stem == "Groupe 1").expect("là").id;
+    assert_eq!(lib.resolve_set(id).expect("par identifiant"), p);
+    // un set introuvable renvoie à la bonne commande
+    let err = lib.resolve_set("inconnu").expect_err("refusé").to_string();
+    assert!(err.contains("namfoop sets"), "{err}");
+
+    // lu, puis ses avertissements résolus contre la bibliothèque : « Chill verse » existe,
+    // « disparu » non — et le set joue quand même
+    let spec = lib.set(&p).expect("lecture");
+    assert_eq!(spec.sound_count(), 2);
+    let w = lib.set_warnings(&spec);
+    assert_eq!(w.len(), 1, "{w:?}");
+    assert_eq!(w[0].sound, Some(1));
+    assert!(w[0].text.contains("disparu"), "{}", w[0].text);
+
+    // et où un set s'enregistre
+    assert!(lib.set_path("Groupe 2").ends_with("sets/Groupe 2.set.toml"));
+}

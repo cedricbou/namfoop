@@ -29,12 +29,13 @@ Sommaire :
 8. [Jouer](#8-jouer)
 9. [Régler le son et le volume](#9-régler-le-son-et-le-volume)
 10. [Effets](#10-effets)
-11. [Backends, carte et routage en ligne de commande](#11-backends-carte-et-routage-en-ligne-de-commande)
-12. [Travailler sans jouer : rendu, bench, inventaire](#12-travailler-sans-jouer--rendu-bench-inventaire)
-13. [Mesurer la latence](#13-mesurer-la-latence)
-14. [Le fichier de configuration](#14-le-fichier-de-configuration)
-15. [Dépannage](#15-dépannage)
-16. [Limites actuelles](#16-limites-actuelles)
+11. [Le mode Set : la set list de concert](#11-le-mode-set--la-set-list-de-concert)
+12. [Backends, carte et routage en ligne de commande](#12-backends-carte-et-routage-en-ligne-de-commande)
+13. [Travailler sans jouer : rendu, bench, inventaire](#13-travailler-sans-jouer--rendu-bench-inventaire)
+14. [Mesurer la latence](#14-mesurer-la-latence)
+15. [Le fichier de configuration](#15-le-fichier-de-configuration)
+16. [Dépannage](#16-dépannage)
+17. [Limites actuelles](#17-limites-actuelles)
 
 ---
 
@@ -209,7 +210,7 @@ enregistrer. Six étapes :
 5. **Buffer** : chaque taille est testée 5 s, en silence, avec un vrai modèle de ta bibliothèque
    comme charge. La plus petite taille sans xrun est présélectionnée.
 6. **Résumé** : Entrée enregistre les sections `[audio]` et `[routing]` de la config
-   ([§ 14](#14-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
+   ([§ 15](#15-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
 
 Ensuite, `namfoop run`, `calibrate` et `latency` utilisent cette carte et ce routage sans aucune
 option. `--library` indique où chercher le modèle utilisé comme charge au test des buffers.
@@ -616,7 +617,7 @@ Pour un modèle qui en a besoin, namfoop **conseille des IR**. Il cherche d'abor
 guitare (4x12, V30…). Une seule IR par pack figure en tête de liste. `-i auto` prend la première
 conseillée (ou aucune si le baffle est inclus). `run` sans `-i` sur un tel modèle affiche les
 trois meilleures suggestions. Pour imposer ta préférée partout, mets `default_ir` dans la config
-([§ 14](#14-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
+([§ 15](#15-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
 (l'IR préférée du modèle passe avant tout le reste).
 
 ```sh
@@ -994,7 +995,7 @@ Trois règles tiennent l'ensemble :
 En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
 exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
 (filtre de départ, ex. `--filter PopPunk`), et le routage
-`--bass-in`, `--mic-in`, `--route` ([§ 11](#11-backends-carte-et-routage-en-ligne-de-commande)).
+`--bass-in`, `--mic-in`, `--route` ([§ 12](#12-backends-carte-et-routage-en-ligne-de-commande)).
 Sans matériel : `namfoop --backend sim --no-config browse`.
 
 #### Modifier et calibrer un modèle (`e`)
@@ -1078,7 +1079,7 @@ namfoop run -m "800d modern" -i <id du mélange>
 Les modèles récents (format NAM 0.7, « slimmable ») contiennent plusieurs tailles du même son :
 `--size 0` choisit la plus légère (ex. 3 canaux), `--size 1` (défaut) la complète (ex. 8 canaux).
 La version légère coûte environ deux fois moins de CPU : utile sur Raspberry Pi. Voir
-`namfoop bench --all-sizes` ([§ 12](#12-travailler-sans-jouer--rendu-bench-inventaire)).
+`namfoop bench --all-sizes` ([§ 13](#13-travailler-sans-jouer--rendu-bench-inventaire)).
 
 ---
 
@@ -1101,7 +1102,7 @@ namfoop calibrate
    Trim d'entrée proposé : -18.0 dB (crête robuste visée -30 dBFS à l'entrée des modèles)
    ```
 3. Il sauve le trim, ton enregistrement et le mode de volume **match** dans
-   `~/.config/namfoop/` ([§ 14](#14-le-fichier-de-configuration)). Toutes les commandes `run` et
+   `~/.config/namfoop/` ([§ 15](#15-le-fichier-de-configuration)). Toutes les commandes `run` et
    `render` les utilisent ensuite.
 
 Options :
@@ -1214,7 +1215,7 @@ au son, il le décrit.
 |---|---|
 | `-m`, `--model` | modèle NAM ([§ 6](#6-la-bibliothèque-de-sons)) |
 | `-i`, `--ir` | IR de baffle |
-| `--bass-in`, `--mic-in`, `--route` | routage pour cette session ([§ 11](#11-backends-carte-et-routage-en-ligne-de-commande)) |
+| `--bass-in`, `--mic-in`, `--route` | routage pour cette session ([§ 12](#12-backends-carte-et-routage-en-ligne-de-commande)) |
 | `--seconds` | arrêt automatique (tests) |
 | `-q`, `--quiet` | pas de ligne d'état |
 
@@ -1710,7 +1711,91 @@ Les branches ne se décrivent **pas en ligne de commande** (ce serait illisible)
 
 ---
 
-## 11. Backends, carte et routage en ligne de commande
+## 11. Le mode Set : la set list de concert
+
+Un **set** est la liste ordonnée des morceaux d'un concert, chacun avec **ses sons** — des presets
+de ta bibliothèque, **référencés et non copiés** : modifier un preset le change dans tous les
+morceaux qui s'en servent.
+
+> Ce qui existe aujourd'hui : écrire un set à la main et le vérifier avec `namfoop sets`. Le jouer
+> au pied, l'écran de scène, le prompteur et la battue viennent ensuite (épique #215).
+
+### Le fichier : `library/sets/<nom>.set.toml`
+
+```toml
+name = "Groupe 1 · Live Mairie"
+
+[[song]]
+title = "Le Phare"
+pc = 2                               # facultatif : le Program Change qui appelle CE morceau
+tempo_bpm = 124                      # facultatif : prime sur le tempo des presets du morceau
+time = "4/4"                         # facultatif : mesure par défaut
+prompt = "prompts/le-phare.cho"      # facultatif : prompteur ChordPro, relatif à library/sets/
+  [[song.sound]]                     # son 1
+  preset = "fuzz-face"               # identifiant du preset (celui de `namfoop presets`)
+  [[song.sound]]                     # son 2
+  preset = "clean-svt"
+  volume_db = -1.5                   # facultatif : s'ajoute au volume du preset, dans ce morceau
+```
+
+Un show à trois sons qu'on alterne, sans titres de morceau, est un set à **un seul morceau sans
+titre** :
+
+```toml
+name = "Trio acoustique"
+[[song]]
+pc = 1
+  [[song.sound]]
+  preset = "acou-di"
+  [[song.sound]]
+  preset = "fretless"
+  [[song.sound]]
+  preset = "dub-sub"
+```
+
+| | |
+|---|---|
+| `name` | le nom du set, affiché à l'écran |
+| `title` | le titre du morceau. Absent : un set sans titres |
+| `pc` | le **Program Change** qui appelle ce morceau, de 1 à 128, **unique dans le set**. Absent : le morceau ne se joue qu'au pied |
+| `tempo_bpm` | le tempo du morceau (à la noire), de 30 à 300. Il **prime** sur celui des presets qu'il joue |
+| `time` | la mesure par défaut (`4/4`, `6/8`, `7/8`…) ; les changements en cours de morceau viendront du prompteur |
+| `prompt` | le prompteur ChordPro du morceau, relatif à `library/sets/` |
+| `preset` | l'identifiant d'un preset, celui que donne `namfoop presets` |
+| `volume_db` | ce que **ce morceau** ajoute au volume du preset |
+
+**Un son n'a pas de numéro de Program Change** : il est désigné par sa **place** dans le morceau,
+comme les snapshots d'un Helix ou les scènes d'un Quad Cortex. Réordonner les sons d'un morceau
+change donc leur numéro — c'est le PC qui choisit le morceau, pas le son.
+
+### Vérifier un set : `namfoop sets`
+
+```sh
+namfoop sets
+```
+
+```
+Sets (3) — identifiant utilisable avec --set :
+  s557   Cassé     ⚠ pc = 7 sur deux morceaux, morceau 1 « Premier » et morceau 2 « Second »
+  smfs   Groupe 1  Groupe 1 · Live Mairie — 2 morceaux, 4 sons
+                     Le Phare : ⚠ prompteur prompts/le-phare.cho introuvable
+                     Marée basse : ⚠ drive-b7k introuvable
+  shzw   Trio      Trio acoustique — 1 morceau, 1 son
+```
+
+Deux sortes de problèmes, et la différence compte sur scène :
+
+- une **erreur** empêche le set de s'ouvrir, parce qu'elle rendrait la navigation imprévisible :
+  le même `pc` sur deux morceaux (lequel jouer ?), un tempo hors de 30-300, un PC hors de 1-128,
+  une mesure illisible ;
+- un **avertissement** laisse le set jouer, et marque seulement ce qui manque : un preset
+  introuvable (renommé, supprimé) ou un prompteur absent. Un concert ne s'arrête pas parce qu'un
+  son a changé de nom — mais il faut le voir **avant** de monter sur scène, d'où cette commande.
+
+Un morceau **sans son** ou **sans `pc`** est permis : on écrit un set par étapes, et un morceau
+peut ne se jouer qu'au pied.
+
+## 12. Backends, carte et routage en ligne de commande
 
 L'assistant ([§ 5](#5-configurer-la-carte--lassistant)) enregistre ces réglages ; les options
 ci-dessous les remplacent pour une session. Les **options globales** se placent **avant** la
@@ -1752,7 +1837,7 @@ namfoop --backend alsa --device hw:1,0 --capture-device hw:1,1 --buffer 48 laten
 
 **En ALSA, si PipeWire utilise la carte**, namfoop coupe son profil le temps de la session et le
 remet à l'arrêt, y compris en cas de plantage. Seul un `kill -9` peut laisser le profil sur « off »
-([§ 15](#15-dépannage)).
+([§ 16](#16-dépannage)).
 
 ### Routage
 
@@ -1814,7 +1899,7 @@ Pièges :
 
 ---
 
-## 12. Travailler sans jouer : rendu, bench, inventaire
+## 13. Travailler sans jouer : rendu, bench, inventaire
 
 ### `namfoop render` : traiter un fichier
 
@@ -1850,7 +1935,7 @@ les ports JACK audio et MIDI.
 
 ---
 
-## 13. Mesurer la latence
+## 14. Mesurer la latence
 
 Relie une **sortie** à une **entrée** avec un câble (par défaut sortie 1 -> entrée 2), gain de
 l'entrée bas, bouton Mixer côté Playback, casque bas (la mesure émet des clics) :
@@ -1877,7 +1962,7 @@ avant, #70). Deux pièges qui restent :
 
 ---
 
-## 14. Le fichier de configuration
+## 15. Le fichier de configuration
 
 `~/.config/namfoop/config.toml`, écrit par `setup` et `calibrate`, modifiable à la main :
 
@@ -1916,7 +2001,7 @@ Les options de la ligne de commande priment toujours sur ce fichier.
 
 ---
 
-## 15. Dépannage
+## 16. Dépannage
 
 **Le son est beaucoup plus saturé que la démo Tone3000.** Niveau d'entrée trop chaud : lance
 `namfoop calibrate`, ou essaie `--input-db -12`.
@@ -1968,7 +2053,7 @@ une issue avec le nom du pack.
 
 ---
 
-## 16. Limites actuelles
+## 17. Limites actuelles
 
 namfoop est un prototype. Les effets sont là (gate, compresseur, EQ, crossover, chorus, delay,
 réverbe : [§ 10](#10-effets)), mais changer un réglage coupe les queues de delay et de réverbe.

@@ -134,6 +134,10 @@ import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'
 meta_cmd.rs     `meta` : options clap, affichage d'un modèle
 models_cmd.rs   `models` : inventaire affiché
 presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne via BlockSpec::describe)
+sets_cmd.rs     `sets` : les sets de concert (identifiant, nom, morceaux et sons), et SURTOUT ce qui
+                ne va pas — un avertissement (preset renommé, prompteur absent) sous son set, une
+                erreur bloquante à la place de la ligne. C'est la commande qui dit si un concert est
+                prêt ; le format et les contrôles sont dans library::set (#217)
 fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::catalog ; le parallèle
                 n'est pas un effet) ; `--pre` / `--post` dans amp.rs,
                 `bench --fx` dans offline.rs

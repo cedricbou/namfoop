@@ -12,6 +12,7 @@ mod meta_cmd;
 mod models_cmd;
 mod offline;
 mod presets_cmd;
+mod sets_cmd;
 mod setup;
 mod tui;
 
@@ -142,6 +143,12 @@ enum Cmd {
         #[arg(default_value = "library")]
         library: PathBuf,
     },
+    /// Liste les sets de concert (identifiant, nom, morceaux et sons, avertissements)
+    Sets {
+        /// Dossier de la bibliothèque
+        #[arg(default_value = "library")]
+        library: PathBuf,
+    },
     /// Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
     Calibrate {
         /// Durée d'enregistrement (s)
@@ -247,6 +254,7 @@ fn main() -> Result<()> {
         Cmd::Meta { args } => meta_cmd::run(&args, &conf),
         Cmd::Models { library } => models_cmd::list(&library, &conf),
         Cmd::Presets { library } => presets_cmd::list(&library, &conf),
+        Cmd::Sets { library } => sets_cmd::list(&library, &conf),
         Cmd::Fx { name } => fx_cmd::run(name.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let (audio, profile) = audio()?;
