@@ -92,7 +92,12 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 chaîne déjà prête. Une demande porte la place de banque dont elle est exactement la
                 chaîne (Request::preset, égalité des blocs résolus) ; dès qu'on édite, isole ou
                 essaie un son, elle vaut None et la chaîne est rebâtie. Job::Bank(reqs) rejoue le
-                préchargement après chaque enregistrement de preset), plan.rs (la chaîne demandée au
+                préchargement après chaque enregistrement de preset. `drain()` vide la file sans
+                bloquer, la DERNIÈRE chaîne demandée gagne, et elle est rappelée JUSTE AVANT
+                d'installer : une chaîne bâtie pendant que l'utilisateur a déjà rappuyé est JETÉE
+                plutôt qu'installée (#191 — sinon on entend le preset d'il y a un ou deux appuis).
+                Le préchauffage (bank.prewarm, 26 à 54 ms) se fait donc AVANT cette vérification, et
+                l'installation par bank.install_warm), plan.rs (la chaîne demandée au
                 thread de construction : chemins résolus, blocs coupés retirés, solo en muets) ; `import --review` l'ouvre sur les
                 modèles importés (browse::Start) ; ui/windows.rs les fenêtres (« non enregistré »,
                 « mettre dans la chaîne ») et l'OVERLAY D'AIDE `h`, contextuel, par-dessus tout
@@ -147,7 +152,13 @@ concernée). Erreurs : `anyhow`.
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
   installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
-  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. Chaque
+  ligne est **horodatée** (ms depuis la première) et écrite en **un seul** appel, sinon les lignes
+  des deux threads se coupent (#191). Elle dit aussi la touche reçue et le preset que l'écran croit
+  jouer, une demande ignorée parce qu'identique à celle qui joue, l'état de chaque place de la
+  banque et ses réponses (déjà en jeu, pas prête, occupée, échec), et une chaîne **jetée** parce
+  qu'une demande plus récente est arrivée : c'est là qu'on voit un écran et un son désaccordés.
+  La logique se teste dans `setup::state` / `browse::state`.
 - Test de fumée : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`.
 
 ## Faits mesurés
@@ -238,7 +249,13 @@ nam/              zips d'origine : Tone3000, komposition101 (achetés) — non v
   JETABLE (`--library <tmp>`) : il écrit les mélanges dans `<library>/cabs/`, ne jamais polluer
   `library/` de l'utilisateur. `NAMFOOP_BROWSE_TRACE=<fichier>` y écrit chaque chaîne réellement
   installée dans le thread audio (modèle, IR, entrée, effets pré / post, taille de la table de
-  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. La logique se teste dans `setup::state` / `browse::state`.
+  vumètres) et chaque grain mesuré par l'éditeur : c'est la vérification de ce qu'on entend. Chaque
+  ligne est **horodatée** (ms depuis la première) et écrite en **un seul** appel, sinon les lignes
+  des deux threads se coupent (#191). Elle dit aussi la touche reçue et le preset que l'écran croit
+  jouer, une demande ignorée parce qu'identique à celle qui joue, l'état de chaque place de la
+  banque et ses réponses (déjà en jeu, pas prête, occupée, échec), et une chaîne **jetée** parce
+  qu'une demande plus récente est arrivée : c'est là qu'on voit un écran et un son désaccordés.
+  La logique se teste dans `setup::state` / `browse::state`.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.

@@ -32,7 +32,10 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
   `next_waiting()` + `preload(i, &ChainSpec)` quand il a du temps, puis `switch(i)` -> `Switch`
   (`Installed(ChainMeters)`, `AlreadyPlaying`, `NotReady` — à l'appelant de bâtir comme avant —,
   `Failed(raison)`, `Busy`), `install(chain)` pour une chaîne bâtie ailleurs (l'éditeur de
-  `browse`), `collect()` qui **reprend** la chaîne sortante, la **remet à zéro** et la range dans sa
+  `browse`) — ou, quand l'appelant veut vérifier entre les deux qu'une demande plus récente n'est
+  pas arrivée (#191), `prewarm(&mut chain)` **puis** `install_warm(chain)` : le préchauffage est le
+  gros du coût (26 à 54 ms), et l'installer à l'aveugle fait entendre une chaîne qu'on ne veut
+  plus —, `collect()` qui **reprend** la chaîne sortante, la **remet à zéro** et la range dans sa
   place, `invalidate(i)` / `resize(n)` quand la banque change, `state(i)`, `progress()`, `playing()`.
   Une place en échec ne bloque pas la banque. Avec une **queue de preset** (`trails_ms`, #172), la
   chaîne sortante ne revient qu'une fois éteinte : sa place reste `Out`, et y revenir pendant ce
