@@ -180,7 +180,9 @@ impl State {
         } else {
             format!("volume du preset {next:+.0} dB — après l'alignement sur le DI, S pour l'enregistrer")
         });
-        self.play()
+        // aucune chaîne à redemander : le volume est **vivant**, la boucle d'affichage pose la
+        // valeur dans la case et la chaîne qui joue la lit au bloc suivant (#187)
+        Action::None
     }
 
     /// La chaîne éditée, en preset : chemins relatifs et identifiants de la bibliothèque.

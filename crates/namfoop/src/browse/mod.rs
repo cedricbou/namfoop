@@ -234,6 +234,10 @@ pub fn run(
 
     // audio : routeur + chaîne échangeable (au départ vide = son direct)
     let limiter: Arc<AtomicU32> = Arc::default();
+    // le volume du preset est un réglage **vivant** (#187, ADR 0007) : la chaîne lit cette case une
+    // fois par bloc, donc `,` / `.` s'entendent sans rien rebâtir. Un seul écrivain : la boucle
+    // ci-dessous, d'après l'état — jamais `browse::state`, qui ne tient aucune poignée `dsp`.
+    let volume = dsp::param::Control::new(0.0);
     let mut engine = Engine::start(
         EngineConfig {
             audio: cfg.clone(),
@@ -252,7 +256,7 @@ pub fn run(
     }
     let handle = engine.take_chain_sender().expect("pris une seule fois");
     // construction des chaînes hors temps réel, et préchargement de la banque de presets (#6)
-    let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size)?;
+    let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size, volume.clone())?;
 
     // grain de l'éditeur : mesuré hors temps réel avec la basse de l'utilisateur, la plus récente gagne
     let (tx_grain, rx_grain) = mpsc::channel::<(usize, f32, PathBuf)>();
@@ -417,6 +421,14 @@ pub fn run(
                     saved = Some((id, st.blend.clone(), st.align));
                     st.mark_blend_saved();
                 }
+            }
+            // le volume écouté : posé **juste après** le `match`, pour qu'une chaîne installée par
+            // ce tour-ci le lise dès son premier bloc (ADR 0007). `plan()` plutôt qu'une règle
+            // réécrite : c'est lui qui sait déjà ce qu'on écoute (banc d'essai à nu, écoute isolée).
+            let heard_volume = st.plan().volume_db;
+            if heard_volume != volume.get() {
+                volume.set(heard_volume);
+                trace(&format!("volume={heard_volume:+.1}"));
             }
             while let Ok((m, input_db, text)) = rx_grain_done.try_recv() {
                 if st.editor.as_ref().is_some_and(|e| e.model == m && e.draft.input_db == input_db) {
