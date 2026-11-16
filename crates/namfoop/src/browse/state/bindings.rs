@@ -372,6 +372,11 @@ const SET: &[Binding] = &[
         bar: "i détail",
     },
     Binding { keys: &[k('L')], label: "L", what: "choisir le set de concert (ou aucun set)", bar: "L sets" },
+    // `n` **éclipsée** (#250) : commune ailleurs, elle vidait la chaîne et quittait cet espace.
+    // Ici elle dit où bâtir — la barre de cet écran est pleine, l'aide `h` la porte.
+    Binding {
+        keys: &[k('n')], label: "n", what: "une chaîne vierge se bâtit dans la Chaîne (2)", bar: ""
+    },
     Binding { keys: &[k('*')], label: "*", what: "tap tempo", bar: "* tap" },
     Binding { keys: &[k('k')], label: "k", what: "clic du métronome", bar: "k clic" },
     Binding { keys: &[k('h'), k('?')], label: "h", what: "cette aide", bar: "h aide" },

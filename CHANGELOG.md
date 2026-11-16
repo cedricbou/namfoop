@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#250)
+- **`n` ne vide plus la chaîne depuis l'espace Set.** Touche commune, elle y vidait la chaîne,
+  détachait le preset **et quittait l'écran de concert** — sans rien demander, puisqu'il n'y avait
+  rien de non enregistré. L'espace Set se l'approprie et renvoie à la Chaîne (« n bâtit une
+  chaîne : 2 pour la Chaîne »). Dans la Chaîne, `n` fait toujours son travail : l'éclipse est locale.
+
 ### Corrigé (#249)
 - **Les réglages d'un effet n'éditent plus la chaîne derrière leur panneau.** `Retour` et `x` y
   retiraient le bloc dont on réglait justement les paramètres, `s` le mettait en parallèle, `a` et

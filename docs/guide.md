@@ -1863,6 +1863,11 @@ sons.
 `Entrée` qui change le son. Sur scène, c'est ce qui permet de préparer le morceau suivant sans
 toucher à ce qu'on entend.
 
+**Les espaces sont indépendants** : une touche d'ici n'agit jamais sur l'objet d'un autre espace, et
+réciproquement. `n` (repartir d'une chaîne vierge) est donc **refusée** et renvoie à la Chaîne
+(`2`) — elle vidait la chaîne et quittait l'écran de concert, sans rien demander. `S` et `P`
+restent : enregistrer le preset joué et ouvrir la banque ne font rien perdre.
+
 Le **set actif est retenu** d'une session à l'autre (`[set] default` de la config) : `browse`
 rouvre le dernier set choisi. `--set` passe outre pour une session.
 
