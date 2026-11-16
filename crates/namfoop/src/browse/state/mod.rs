@@ -553,9 +553,13 @@ impl State {
 }
 
 pub mod bands;
+/// La table des touches : ce que chaque contexte possède, déclaré une fois (#243).
+pub mod bindings;
 mod blend;
 pub mod chain;
 mod compare;
+/// Le contexte : qui a le clavier, en une valeur (#243).
+pub mod context;
 mod edit;
 mod editor;
 pub mod fx;

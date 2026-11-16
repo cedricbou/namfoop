@@ -515,3 +515,118 @@ fn parse(table: &str) -> std::collections::BTreeMap<String, std::collections::BT
     }
     out
 }
+
+// ====================================================================================== JOINTURE
+// Ce qui suit lie la **table** (`bindings.rs`, ce qu'on annonce) à l'**oracle** (ci-dessus, ce qui
+// agit vraiment). C'est cette jointure qui rend #238 impossible plutôt qu'improbable : une touche
+// annoncée sans rien derrière, ou un contexte qui déclare une touche qu'il ne consomme pas, fait
+// échouer le test.
+
+use super::bindings::{bindings, KeySpec};
+use super::context::Context;
+
+/// Un contexte de l'oracle, mais désigné par son `Context` : la jointure a besoin des deux bouts.
+fn context_cases() -> Vec<(Context, Ctx)> {
+    let mut v = Vec::new();
+    for ctx in contexts() {
+        let s = (ctx.build)();
+        v.push((s.context(), ctx));
+    }
+    v
+}
+
+/// **`State::context()` dit bien où l'on est.** Sans ça, toute la jointure parlerait d'un autre
+/// contexte que celui qu'on mesure — et personne ne le verrait.
+#[test]
+fn every_measured_context_is_named_correctly() {
+    let want = [
+        ("bibliothèque · onglet Modèles", Context::Models),
+        ("bibliothèque · onglet IR", Context::Irs),
+        ("bibliothèque · onglet Mélange", Context::Blend),
+        ("bibliothèque · saisie du filtre", Context::Filtering),
+        ("chaîne · vide", Context::Chain),
+        ("chaîne · trois blocs", Context::Chain),
+        ("chaîne · réglages d'un effet", Context::Params),
+        ("chaîne · catalogue de blocs", Context::Catalog),
+        ("bibliothèque · fenêtre « mettre dans la chaîne »", Context::Send),
+        ("chaîne · mode pose", Context::Place),
+        ("set · aucun set actif", Context::Set),
+        ("set · un set joué", Context::Set),
+        ("set · fenêtre L (choisir le set)", Context::SetPicker),
+        ("banque de presets (P)", Context::Bank),
+        ("chaîne · sélecteur sur place (Entrée sur un nam)", Context::Picker),
+        ("éditeur d'un modèle (e)", Context::Editor),
+        ("confirmation « non enregistré » (bascule de preset)", Context::ConfirmSwitch),
+        ("saisie du nom (S)", Context::Naming),
+        ("confirmation « quitter » (q)", Context::ConfirmQuit),
+        ("aide (h)", Context::Help),
+        ("scène verrouillée (run --set)", Context::Stage),
+    ];
+    for (ctx, case) in context_cases() {
+        let expected = want
+            .iter()
+            .find(|(name, _)| *name == case.name)
+            .unwrap_or_else(|| panic!("contexte « {} » absent de la liste de ce test", case.name))
+            .1;
+        assert_eq!(ctx, expected, "contexte « {} »", case.name);
+    }
+}
+
+/// **Tout ce qui est déclaré est possédé.** C'est LA jointure : une touche annoncée que personne
+/// ne consomme, c'est exactement #238 — un `PgDn/PgUp son` affiché sans rien derrière.
+///
+/// Le prédicat n'est pas « ça change quelque chose » mais « un étage l'a prise », et c'est ce que
+/// `State::unhandled` mesure depuis #242. La différence compte : `↑` en haut d'une liste ne change
+/// rien, mais la liste la **possède** bel et bien — la refuser ici obligerait chaque contexte à
+/// démarrer dans une position choisie, ce qui ne mesurerait plus le clavier mais le curseur.
+#[test]
+fn everything_declared_is_actually_owned() {
+    let mut orphans = Vec::new();
+    for (ctx, case) in context_cases() {
+        for b in bindings(ctx) {
+            for spec in b.keys {
+                let mut s = (case.build)();
+                let key = spec.resolve(s.song_keys);
+                s.unhandled = None;
+                s.on_key(key);
+                if s.unhandled.is_some() {
+                    orphans.push(format!("  [{}] {:?} (annoncée « {} »)", case.name, key, b.label));
+                }
+            }
+        }
+    }
+    assert!(orphans.is_empty(), "touches ANNONCÉES que personne ne possède :\n{}", orphans.join("\n"));
+}
+
+/// **Aucune touche déclarée deux fois** dans le même contexte : sinon l'aide la montre deux fois,
+/// et surtout on ne sait plus laquelle des deux explications est la bonne.
+#[test]
+fn no_key_is_declared_twice_in_a_context() {
+    for ctx in Context::ALL {
+        let mut seen: Vec<KeySpec> = Vec::new();
+        for b in bindings(*ctx) {
+            for spec in b.keys {
+                assert!(!seen.contains(spec), "{ctx:?} déclare {spec:?} deux fois");
+                seen.push(*spec);
+            }
+        }
+    }
+}
+
+/// **La scène est incluse dans l'espace Set.** `run --set` garde une **liste blanche** et non une
+/// liste de refus : une liste de refus échoue *ouvert*, et une touche ajoutée au Set demain
+/// arriverait sur scène. Ce test vérifie l'autre moitié : la scène ne promet rien que l'espace Set
+/// ne sache faire.
+#[test]
+fn the_stage_is_included_in_the_set_space() {
+    let set: Vec<KeySpec> = bindings(Context::Set).iter().flat_map(|b| b.keys.iter().copied()).collect();
+    for b in bindings(Context::Stage) {
+        for spec in b.keys {
+            assert!(
+                set.contains(spec),
+                "la scène annonce {spec:?} (« {} ») que l'espace Set ne déclare pas",
+                b.label
+            );
+        }
+    }
+}

@@ -2,10 +2,10 @@
 //! (`q`, § 8 de `browse-chaine.md`) et « Mettre « … » dans la chaîne » (Entrée dans la
 //! Bibliothèque, § 4 de `browse-espaces.md`). La fenêtre du catalogue est dans `ui/fx.rs`.
 
-use super::super::state::chain::Spot;
-use super::super::state::fx::FxFocus;
 use super::super::state::preset::Pending;
 use super::*;
+use crate::browse::state::bindings::bindings;
+use crate::browse::state::context::Context;
 
 /// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un
 /// geste volontaire pour quitter (`Q` majuscule). Elle se dessine en dernier, par-dessus l'onglet.
@@ -226,192 +226,89 @@ pub(super) fn render_set_picker(s: &State, f: &mut Frame, area: Rect) {
     );
 }
 
+/// Le titre et les touches de l'écran où l'on est (`h`, § 11 de `browse-espaces.md`).
+///
+/// **Dérivée de la table** depuis #243 : les ~96 paires (touche, explication) qui vivaient ici,
+/// écrites une par une, étaient une copie du dispatch que rien ne vérifiait. Ne restent ici que ce
+/// que la table ne peut pas porter : le **titre** et les **notes** en gris.
 fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
-    let mut v = Vec::new();
-    // les fenêtres et modes qui prennent le clavier passent avant le reste
-    if s.send.is_some() {
-        v.push(key_line("↑↓", "choisir le bloc à remplacer, ou « ajouter »"));
-        if s.send.as_ref().is_some_and(|x| x.with_ir) {
-            v.push(key_line("Espace", "cocher « avec son IR »"));
-        }
-        v.push(key_line("Entrée", "valider"));
-        v.push(key_line("Échap", "annuler : rien n'est changé dans la chaîne"));
-        return ("Mettre le son du banc dans la chaîne".into(), v);
-    }
-    if s.place.is_some() {
-        v.push(key_line("←→ ↑↓", "choisir l'endroit dans la chaîne"));
-        v.push(key_line("Entrée", "poser après le curseur"));
-        v.push(key_line("Échap", "annuler et revenir à la Bibliothèque"));
-        return ("Où poser le bloc".into(), v);
-    }
-    if s.editor.is_some() {
-        v.push(key_line("↑↓", "champ (type, entrée, IR préférée, marque, nom)"));
-        v.push(key_line("←→", "changer la valeur — le changement s'entend tout de suite"));
-        v.push(key_line("Entrée", "saisir un texte (marque, nom)"));
-        v.push(key_line("s", "enregistrer dans library/overrides.toml"));
-        v.push(key_line("a", "appliquer ce changement à tous les modèles filtrés"));
-        v.push(key_line("b / r", "avec ou sans IR · A/B avec la référence"));
-        v.push(key_line("Échap", "fermer sans enregistrer"));
-        return ("Modifier et calibrer le modèle (e)".into(), v);
-    }
-    if s.bank.is_some() {
-        v.push(key_line("↑↓", "choisir un preset"));
-        v.push(key_line("Entrée", "le charger (la chaîne en cours est remplacée)"));
-        v.push(key_line("/", "filtrer par nom ou identifiant"));
-        v.push(key_line("S", "enregistrer la chaîne en cours comme preset"));
-        v.push(key_line("n", "repartir d'une chaîne vierge (la banque se referme)"));
-        v.push(key_line("Échap", "fermer la banque"));
-        v.push(Line::raw(""));
-        v.push(Line::styled(
-            " Les presets vivent dans library/presets/ ; un son manquant est signalé en rouge.",
-            Style::new().fg(Color::DarkGray),
-        ));
-        return ("Banque de presets".into(), v);
-    }
-    if s.fx.catalog.is_some() {
-        v.push(key_line("tape", "filtrer le catalogue"));
-        v.push(key_line("↑↓", "choisir"));
-        v.push(key_line("Entrée", "ajouter le bloc (nam et ir ouvrent aussitôt leur liste)"));
-        v.push(key_line("Échap", "annuler"));
-        return ("Catalogue des blocs".into(), v);
-    }
-    if let Some(p) = s.picker.as_ref() {
-        v.push(key_line("↑↓", "essayer dans la chaîne, avec ses effets"));
-        v.push(key_line("Entrée", "garder ce qu'on entend"));
+    // l'aide s'ouvre AU-DESSUS d'un contexte : c'est celui du dessous qu'elle explique
+    let ctx = s.context_under_help();
+    let mut v: Vec<Line<'static>> = bindings(ctx).iter().map(|b| key_line(b.label, b.what)).collect();
+    // l'alignement sur le DI n'est pas une touche, mais c'est la question qu'on se pose devant un
+    // gain qui ne fait rien : l'étage grisé en bout de synoptique (#178)
+    if matches!(ctx, Context::Chain | Context::ChainMerge) && s.level_match {
         v.push(key_line(
-            "Échap",
-            if p.is_new { "ne rien ajouter : le bloc est retiré" } else { "revenir à l'ancien" },
+            "niveau DI",
+            "volume aligné sur le DI : l'étage grisé annule les blocs gain (reste la saturation)",
         ));
-        v.push(key_line("c", "actuel ↔ essai, sans bouger le curseur"));
-        v.push(key_line("o", "n'écouter que ce bloc et son voisin (basse › nam › ir)"));
-        v.push(key_line("r", "avec ou sans les effets de la chaîne"));
-        v.push(key_line("/", "filtrer la liste"));
+    }
+    let notes = help_notes(s, ctx);
+    if !notes.is_empty() {
         v.push(Line::raw(""));
-        v.push(Line::styled(
-            " Tant que tu n'as pas validé, la chaîne n'est pas modifiée.",
-            Style::new().fg(Color::DarkGray),
-        ));
-        let quoi = if p.nam { "le modèle" } else { "l'IR" };
-        return (format!("Chaîne · choisir {quoi} d'un bloc"), v);
-    }
-    if s.locked {
-        v.push(key_line("PgDn / PgUp", "son suivant / précédent du set (sans bouclage)"));
-        v.push(key_line("↑↓", "viser un morceau — rien ne change à l'oreille"));
-        v.push(key_line("Entrée", "jouer le morceau visé, sur son premier son"));
-        v.push(key_line("i", "déplier le détail du morceau : PC, CC 69, volumes, prompteur"));
-        v.push(key_line("*", "tap tempo · k : clic du métronome"));
-        v.push(key_line("q", "quitter la scène (confirmation)"));
-        v.push(Line::raw(""));
-        v.push(Line::styled(
-            "  Rien ne s'édite ici : pas de preset, pas de bibliothèque, pas de choix de set.",
-            Style::new().fg(Color::DarkGray),
-        ));
-        v.push(Line::styled(
-            "  Pour régler quelque chose, quitte et ouvre `namfoop browse`.",
-            Style::new().fg(Color::DarkGray),
-        ));
-        return ("🔒 run --set — la scène".into(), v);
-    }
-    if s.space == Space::Set {
-        v.push(key_line("PgDn / PgUp", "son suivant / précédent du set (sans bouclage)"));
-        v.push(key_line("↑↓", "viser un morceau — rien ne change à l'oreille"));
-        v.push(key_line("Entrée", "jouer le morceau visé, sur son premier son"));
-        v.push(key_line("i", "déplier le détail du morceau : PC, CC 69, volumes, prompteur"));
-        v.push(key_line("L", "choisir le set de concert (ou aucun set)"));
-        v.push(key_line("*", "tap tempo · k : clic du métronome"));
-        v.push(key_line("1 / 2", "la Bibliothèque · la Chaîne"));
-        return ("Set — la vue scène".into(), v);
-    }
-    if s.space == Space::Chain {
-        if s.fx.chain.spot(s.fx.cursor) == Spot::Merge {
-            v.push(key_line("a", "ajouter un bloc **après** le parallèle"));
-            v.push(key_line("i", "ajouter à la fin de la première branche"));
-            v.push(key_line("←→", "la fin de la 1re branche · le bloc qui suit le parallèle"));
-            v.push(key_line("↑", "le `◆` : mode, coupures, `+` branche, `x` défaire, `[ ]` déplacer"));
-            v.push(Line::raw(""));
-            v.push(Line::styled(
-                " Les branches se somment ici. Ses réglages propres (niveau, mix) viendront.",
-                Style::new().fg(Color::DarkGray),
-            ));
-            return ("Chaîne · sortie du parallèle (◇)".into(), v);
-        }
-        if s.fx.focus == FxFocus::Params {
-            v.push(key_line("↑↓", "choisir le réglage"));
-            v.push(key_line("←→", "changer la valeur (Maj : pas fin)"));
-            v.push(key_line("Entrée / Échap", "revenir à la chaîne"));
-            return ("Chaîne · réglages".into(), v);
-        }
-        v.push(key_line("←→ ↑↓", "se déplacer : séries et branches"));
-        v.push(key_line("Entrée", "réglages · sur un nam ou un ir : choisir dans la bibliothèque"));
-        v.push(key_line("Tab", "réglages de l'élément sous le curseur"));
-        v.push(key_line("a / i", "ajouter un bloc après / avant le curseur (catalogue)"));
-        v.push(key_line("s / +", "mettre en parallèle · une branche de plus"));
-        v.push(key_line("x", "retirer le bloc, la branche, ou défaire le parallèle"));
-        v.push(key_line("[ ] / { }", "déplacer dans la chaîne · changer de branche"));
-        v.push(key_line("b", "couper ou remettre le bloc"));
-        v.push(key_line("m / o / p", "muet · solo · polarité de la branche"));
-        v.push(key_line("◇", "la sortie du parallèle : a y ajoute après lui (↑ : le ◆)"));
-        v.push(key_line("v / r", "vumètres · avec ou sans effets"));
-        v.push(key_line(", / .", "volume du preset (1 dB) : après l'alignement, donc il compte"));
-        v.push(key_line("*", "tap tempo : deux frappes suffisent · modifie le preset, comme tout réglage"));
-        v.push(key_line("k", "clic du métronome, dans les sorties in-ear seulement · éteint au démarrage"));
-        v.push(key_line(
-            "division",
-            "un effet de temps au tempo (1/8., 1/4…) : « time » passe alors entre parenthèses",
-        ));
-        if s.level_match {
-            // ce n'est pas une touche, mais c'est la question qu'on se pose devant un gain qui ne
-            // fait rien : l'étage grisé en bout de synoptique (#178)
-            v.push(key_line(
-                "niveau DI",
-                "volume aligné sur le DI : l'étage grisé annule les blocs gain (reste la saturation)",
-            ));
-        }
-        v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
-        v.push(key_line("n", "nouvelle chaîne vierge (le preset courant est détaché)"));
-        v.push(key_line("PgDn / PgUp", "preset suivant / précédent (la banque en boucle)"));
-        v.push(key_line("t", "déplier le TOML du preset"));
-        v.push(key_line("1", "revenir à la Bibliothèque (le banc d'essai)"));
-        v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));
-        return ("Chaîne · le synoptique est l'éditeur".into(), v);
-    }
-    // Bibliothèque
-    v.push(key_line("↑↓ PgUp PgDn", "écouter au banc d'essai (basse › modèle › IR, sans effets)"));
-    v.push(key_line("Entrée", "mettre le son du banc dans la chaîne"));
-    v.push(key_line("Tab / Maj+Tab", "onglet suivant / précédent"));
-    v.push(key_line("→ ←", "onglet voisin (ils ne mènent pas à la Chaîne)"));
-    match s.tab {
-        Tab::Models => {
-            v.push(key_line("e", "modifier et calibrer le modèle (type, entrée, IR, nom)"));
-            v.push(key_line("c / r", "épingler une référence (◆) · A/B ton choix ↔ référence"));
-            v.push(key_line("b", "avec ou sans IR"));
-            v.push(key_line("/", "filtrer (Entrée valide, Échap efface)"));
-        }
-        Tab::Irs => {
-            v.push(key_line("espace", "ajouter ou retirer l'IR du mélange"));
-            v.push(key_line("c / r", "épingler une référence (◆) · A/B ton choix ↔ référence"));
-            v.push(key_line("b", "avec ou sans IR"));
-            v.push(key_line("/", "filtrer (Entrée valide, Échap efface)"));
-        }
-        Tab::Blend => {
-            v.push(key_line("+ / -", "gain de l'IR choisie (pas de 1 dB)"));
-            v.push(key_line("p", "inverser sa polarité"));
-            v.push(key_line("a", "alignement automatique des retards"));
-            v.push(key_line("x", "retirer l'IR du mélange"));
-            v.push(key_line("s", "sauver le mélange dans library/cabs/"));
+        for n in notes {
+            v.push(Line::styled(n, Style::new().fg(Color::DarkGray)));
         }
     }
-    v.push(key_line("z", "panneau Bandes : ce que la chaîne fait aux 7 zones (sub … air)"));
-    v.push(key_line("S / P", "enregistrer la chaîne en preset · ouvrir la banque"));
-    v.push(key_line("n", "nouvelle chaîne vierge (on passe à la Chaîne pour la bâtir)"));
-    v.push(key_line("2", "aller à la Chaîne (effets, parallèles)"));
-    v.push(key_line("q", "quitter — Échap ne quitte jamais, il remonte d'un niveau"));
-    let tab = match s.tab {
-        Tab::Models => "Modèles",
-        Tab::Irs => "IR",
-        Tab::Blend => "Mélange",
-    };
-    (format!("Bibliothèque · {tab} (banc d'essai)"), v)
+    (help_title(s, ctx), v)
+}
+
+/// Le titre de l'overlay : il dit **où l'on est**, ce que la liste de touches ne dit pas.
+fn help_title(s: &State, ctx: Context) -> String {
+    match ctx {
+        Context::Stage | Context::StageQuit => "🔒 run --set — la scène".into(),
+        Context::Help => "Aide".into(),
+        Context::ConfirmQuit | Context::ConfirmQuitEmpty => "Quitter ?".into(),
+        Context::ConfirmSwitch => "Modifications non enregistrées".into(),
+        Context::Send => "Mettre le son du banc dans la chaîne".into(),
+        Context::Place => "Où poser le bloc".into(),
+        Context::Editor | Context::EditorTyping => "Modifier et calibrer le modèle (e)".into(),
+        Context::Bank => "Banque de presets".into(),
+        Context::Catalog => "Catalogue des blocs".into(),
+        Context::Picker | Context::PickerFiltering => {
+            let quoi = if s.picker.as_ref().is_some_and(|p| p.nam) { "le modèle" } else { "l'IR" };
+            format!("Chaîne · choisir {quoi} d'un bloc")
+        }
+        Context::SetPicker => "Choisir le set".into(),
+        Context::Set => "Set — la vue scène".into(),
+        Context::ChainMerge => "Chaîne · sortie du parallèle (◇)".into(),
+        Context::Params => "Chaîne · réglages".into(),
+        Context::Chain => "Chaîne · le synoptique est l'éditeur".into(),
+        Context::Naming | Context::Filtering | Context::Models | Context::Irs | Context::Blend => {
+            let tab = match s.tab {
+                Tab::Models => "Modèles",
+                Tab::Irs => "IR",
+                Tab::Blend => "Mélange",
+            };
+            format!("Bibliothèque · {tab} (banc d'essai)")
+        }
+    }
+}
+
+/// Les notes en gris : ce qu'il faut savoir et qui n'est pas une touche.
+fn help_notes(s: &State, ctx: Context) -> Vec<String> {
+    match ctx {
+        Context::Stage | Context::StageQuit => vec![
+            "  Rien ne s'édite ici : pas de preset, pas de bibliothèque, pas de choix de set.".into(),
+            "  Pour régler quelque chose, quitte et ouvre `namfoop browse`.".into(),
+        ],
+        Context::Bank => {
+            vec![" Les presets vivent dans library/presets/ ; un son manquant est signalé en rouge.".into()]
+        }
+        Context::Picker | Context::PickerFiltering => {
+            vec![" Tant que tu n'as pas validé, la chaîne n'est pas modifiée.".into()]
+        }
+        Context::ChainMerge => {
+            vec![" Les branches se somment ici. Ses réglages propres (niveau, mix) viendront.".into()]
+        }
+        Context::SetPicker if s.set.is_none() => {
+            vec![" Aucun set actif : la banque entière répond à PgDn / PgUp, en boucle.".into()]
+        }
+        _ => {
+            let _ = s;
+            Vec::new()
+        }
+    }
 }
 
 /// L'overlay d'aide (`h`) : les touches de l'écran où l'on est, par-dessus tout l'écran.

@@ -12,7 +12,12 @@ cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings
 cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
-browse/         `browse` : state/ (logique pure + horloge fournie, testée : keyboard.rs L'ORACLE DU
+browse/         `browse` : state/ (logique pure + horloge fournie, testée : bindings.rs LA TABLE DES
+                TOUCHES (#243) — ce que chaque contexte possède, déclaré UNE FOIS : label (l'aide),
+                what (l'aide), bar (la barre du bas), keys (la jointure). ui/footer.rs et
+                ui/windows.rs::help_lines en DÉRIVENT leur texte ; ajouter une touche = une ligne
+                ici. context.rs dit QUI A LE CLAVIER (State::context(), et context_under_help()
+                parce que `h` explique le contexte du DESSOUS). keyboard.rs L'ORACLE DU
                 CLAVIER (#241, épique #240) — un test qui mesure, pour chacun des 21 contextes et
                 des 52 touches, ce qui se passe VRAIMENT (couche qui consomme, action, message,
                 champs d'état changés) et le fige dans keyboard.ref.txt. C'est LUI qu'on lit pour
