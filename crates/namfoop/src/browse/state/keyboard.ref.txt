@@ -210,6 +210,44 @@
   'x'      « nam·800D Modern retiré »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Ir { ir: Item(2), on: true }), Leaf…
   inertes : ↑ ↓ ← Maj+← Maj+→ ' ' '-' '/' '[' 'c' 'e' 'é' 'L' 'Q' 'z'
 
+## chaîne · un set actif (les espaces sont indépendants)
+  PgUp     → Play   « preset « Chill verse » chargé (1/2) »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
+  PgDn     → Play   « preset « Chill verse » chargé (1/2) »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
+  Entrée   sélecteur: false → true
+  Tab      « Entrée pour choisir le modèle de ce bloc »
+  Maj+Tab  « Entrée pour choisir le modèle de ce bloc »
+  Échap    « Échap ne quitte pas : q pour quitter »
+  Retour   « nam·B7K Ultra retiré »   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
+  '*'      « tempo 120.0 BPM — tape encore pour le donner »
+  '+'      « + s'utilise dans un parallèle (s pour en créer un) »
+  ','      « volume du preset -1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…
+  '.'      « volume du preset +1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…
+  '='      « + s'utilise dans un parallèle (s pour en créer un) »
+  '?'      aide: false → true
+  '{'      « { } déplace un bloc d'une branche à l'autre »
+  '}'      « { } déplace un bloc d'une branche à l'autre »
+  '1'      → Play   espace: Chain → Library
+  '2'      « tu es déjà dans la Chaîne »
+  '3'      → Play   espace: Chain → Set
+  'a'      catalogue: false → true
+  'b'      « nam·B7K Ultra coupé »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [Leaf(Nam { model: Some(0), on: false })]…
+  'h'      aide: false → true
+  'i'      catalogue: false → true
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
+  'm'      « m / o / p agissent sur une branche »
+  'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → None
+  'o'      « m / o / p agissent sur une branche »
+  'P'      banque: false → true
+  'p'      « m / o / p agissent sur une branche »
+  'q'      → Quit
+  'r'      « A/B : sans effets (r pour les remettre) »
+  's'      « parallèle créé : crossover 150 Hz, grave = son direct, aigu = nam·B7K Ultra »   curseur chaîne: Top(0) → Block { top: 0, b: 1, j: 0 }   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [Split(Split { mode: Bands, freqs: [150.0…
+  'S'      nom: None → Some("Punk chorus")
+  't'      toml: false → true
+  'v'      « vumètres masqués »   vumètres: true → false
+  'x'      « nam·B7K Ultra retiré »   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
+  inertes : ↑ ↓ ← → Maj+← Maj+→ ' ' '-' '/' '[' ']' 'c' 'e' 'é' 'L' 'Q' 'z'
+
 ## chaîne · réglages d'un effet
   ←        « reverb : decay = 1.4 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   →        « reverb : decay = 1.6 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
@@ -276,8 +314,8 @@
   ↓        « aucun set : L pour en choisir un »
   ←        « aucun set : L pour en choisir un »
   →        « aucun set : L pour en choisir un »
-  PgUp     « aucun preset enregistré : S enregistre la chaîne »
-  PgDn     « aucun preset enregistré : S enregistre la chaîne »
+  PgUp     « aucun set : L pour en choisir un »
+  PgDn     « aucun set : L pour en choisir un »
   Entrée   « aucun set : L pour en choisir un »
   Échap    « Échap ne quitte pas : q pour quitter »
   '*'      « tempo 120.0 BPM — tape encore pour le donner »

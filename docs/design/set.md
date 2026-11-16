@@ -121,9 +121,10 @@ avertissements.
 
 ## 5. Se déplacer
 
-**`PgDn` / `PgUp` : la liste à plat.** Son suivant / précédent ; après le dernier son d'un morceau,
-le premier du morceau suivant. **Pas de bouclage** : sur le dernier son du set, `PgDn` ne fait rien et
-le message dit `fin du set`. (Sans set : la banque en boucle, inchangé.)
+**`PgDn` / `PgUp` : la liste à plat**, dans l'espace Set et sur scène (#247 : **pas** dans la
+Chaîne, qui garde sa banque). Son suivant / précédent ; après le dernier son d'un morceau, le
+premier du morceau suivant. **Pas de bouclage** : sur le dernier son du set, `PgDn` ne fait rien et
+le message dit `fin du set`. Sans set, l'espace Set le dit (`aucun set : L pour en choisir un`).
 
 **Morceau suivant / précédent** : deux touches réglables (défaut `→` / `←`), qui vont au **premier
 son** du morceau. Elles servent quand un morceau finit sur son 2e son, et aux pédaliers à 3 boutons
@@ -355,7 +356,18 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
 
 ## 13. Ce qui change ailleurs, ce qui ne change pas
 
-- **`PgDn` / `PgUp` dans la Chaîne** suivent le set actif (la liste à plat) au lieu de la banque entière.
+- **Les espaces restent indépendants** (règle générale du § 2 de `browse-espaces.md`) : choisir un
+  espace, c'est travailler sur ce qu'il représente. Un set actif ne change donc **rien** au clavier
+  des autres espaces.
+  - dans la **Chaîne**, `PgDn` / `PgUp` parcourent la **banque**, en boucle, set actif ou non : on y
+    travaille son preset ;
+  - le set ne se joue que dans **son** espace et sur scène (`run --set`).
+
+  > Corrigé le 16/11/2026 (#247) : cette section demandait l'inverse (« `PgDn` / `PgUp` dans la
+  > Chaîne suivent le set actif »), et c'était faux — on ne pouvait plus travailler à la maille
+  > preset dans l'espace fait pour ça. La banque **préchargée** reste celle du set (§ 4) : c'est en
+  > Set et sur scène que la bascule doit être instantanée ; dans la Chaîne, un preset hors du set
+  > se charge par l'ancien chemin (~80 ms, sans coupure).
 - La Bibliothèque est inchangée (ses `PgDn` / `PgUp` déplacent la liste de 10).
 - Sans set actif : `browse`, `run --preset`, la banque, `P`, `S`, `n` sont **exactement** ceux
   d'aujourd'hui (tests de non-régression de #110 et #131).

@@ -69,7 +69,11 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
                 set/ LE SET ACTIF (#218, #219, § 4 et § 5 de docs/design/set.md) : ActiveSet porte le
                 SetSpec lu par library::set et, pour chaque son, sa place dans State::presets
-                (None : preset introuvable, le son est SAUTÉ). flat() est la liste à plat du § 5,
+                (None : preset introuvable, le son est SAUTÉ). LES ESPACES SONT INDÉPENDANTS (#247) : `step_preset` (la
+                banque, en boucle) est à la CHAÎNE, `step_set` (la liste à plat du set) est à
+                l'espace SET et à la scène. Ne jamais refaire détourner l'un vers l'autre — c'était
+                le cas jusqu'à #247, et la spécification le demandait : on ne pouvait plus
+                travailler à la maille preset dans la Chaîne. flat() est la liste à plat du § 5,
                 step() / step_song() n'y BOUCLENT PAS (fin du set / début du set : on ne rejoue pas
                 le premier morceau par mégarde), distinct_slots() donne la banque du set — UNE
                 place par preset distinct, parce que le volume et le tempo sont vivants, donc hors

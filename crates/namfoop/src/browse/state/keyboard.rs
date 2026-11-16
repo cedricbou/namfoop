@@ -89,6 +89,18 @@ fn contexts() -> Vec<Ctx> {
             check: |s| s.space == Space::Chain && s.fx.chain.blocks.len() == 3,
         },
         Ctx {
+            // le contexte qui fige #247 : un set actif ne doit **rien** changer à la Chaîne
+            name: "chaîne · un set actif (les espaces sont indépendants)",
+            build: || {
+                let mut s = staged_set();
+                s.play_set_sound((0, 0));
+                s.on_key(Key::Char('2'));
+                s.message = None;
+                s
+            },
+            check: |s| s.space == Space::Chain && s.set.is_some(),
+        },
+        Ctx {
             name: "chaîne · réglages d'un effet",
             build: || {
                 let mut s = chain_of_three();
@@ -546,6 +558,7 @@ fn every_measured_context_is_named_correctly() {
         ("bibliothèque · saisie du filtre", Context::Filtering),
         ("chaîne · vide", Context::Chain),
         ("chaîne · trois blocs", Context::Chain),
+        ("chaîne · un set actif (les espaces sont indépendants)", Context::Chain),
         ("chaîne · réglages d'un effet", Context::Params),
         ("chaîne · catalogue de blocs", Context::Catalog),
         ("bibliothèque · fenêtre « mettre dans la chaîne »", Context::Send),
