@@ -42,6 +42,14 @@ pub(super) fn keys(s: &State, lib: bool) -> String {
         _ if s.editor.is_some() => {
             "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer aux modèles filtrés   b/r A/B   h aide   Échap fermer".into()
         }
+        _ if s.set_picker.is_some() => {
+            "↑↓ choisir   Entrée activer   Échap fermer   h aide".into()
+        }
+        _ if s.space == Space::Set => {
+            "PgDn/PgUp son   ↑↓ Entrée jouer un morceau   i détail   L sets   * tap   k clic   \
+             h aide   1 2 espaces   q quitter"
+                .into()
+        }
         _ if !lib => fx::fx_keys(s),
         (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
         (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),

@@ -1829,8 +1829,42 @@ next_song = "Right"      # morceau suivant
 prev_song = "Left"       # morceau précédent
 ```
 
-> Ces deux touches agiront dans l'espace Set, qui vient avec l'écran de scène ; `PgDn` / `PgUp`,
+> Le morceau suivant / précédent viendra avec le reste des touches de scène ; `PgDn` / `PgUp`,
 > eux, suivent déjà le set.
+
+### L'espace Set : la vue scène
+
+`3` ouvre un **troisième espace** (après `1` Bibliothèque et `2` Chaîne), en vert : la **set list à
+gauche**, le **cadre du morceau à droite**. La hauteur sert à voir venir, la largeur au texte du
+prompteur (qui arrive ensuite).
+
+La colonne de gauche donne, par morceau, l'essentiel : son numéro, son titre, son tempo (`♩---`
+s'il suit les presets), sa mesure **si elle n'est pas 4/4**, et `≡` s'il a un prompteur. Le morceau
+joué porte `▶` et **déplie ses sons** : `●` celui qu'on entend, `○` les autres. La liste commence
+**un morceau avant** celui qu'on joue, pour que le reste de la hauteur montre ce qui vient.
+
+Le cadre de droite dit **ce que fera le prochain appui** :
+`2 · Le Phare · son 1/2 fuzz · PgDn : ensuite clean`, puis le morceau suivant avec son tempo et ses
+sons.
+
+| touche | |
+|---|---|
+| `PgDn` / `PgUp` | son suivant / précédent du set |
+| `↑` `↓` | **viser** un morceau — rien ne change à l'oreille |
+| `Entrée` | jouer le morceau visé, sur son premier son |
+| `i` | déplier le détail du morceau visé : son PC, la valeur de CC 69 de chaque son, son volume propre, son prompteur. Plusieurs morceaux peuvent rester dépliés |
+| `L` | choisir le set — ou `aucun set`, qui rend la banque entière |
+
+**Viser n'est pas jouer** : parcourir sa set list pendant un morceau ne produit aucun son, c'est
+`Entrée` qui change le son. Sur scène, c'est ce qui permet de préparer le morceau suivant sans
+toucher à ce qu'on entend.
+
+Le **set actif est retenu** d'une session à l'autre (`[set] default` de la config) : `browse`
+rouvre le dernier set choisi. `--set` passe outre pour une session.
+
+**Terminal étroit** : sous 100 colonnes la set list se réduit, sous 70 elle disparaît au profit
+d'une ligne `2/6 Le Phare ● fuzz → clean` au-dessus du cadre, qui prend toute la largeur. Un petit
+écran ne doit pas cacher ce qu'on joue.
 
 ## 12. Backends, carte et routage en ligne de commande
 

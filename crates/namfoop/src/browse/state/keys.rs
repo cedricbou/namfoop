@@ -107,6 +107,7 @@ impl State {
         match key {
             Key::Char('1') => return self.go_to(space::Space::Library),
             Key::Char('2') => return self.go_to(space::Space::Chain),
+            Key::Char('3') => return self.go_to(space::Space::Set),
             Key::Char('S') => return self.save_preset(),
             // `*` : le tap tempo (ADR 0008). À droite de `ù` sur AZERTY FR, sans Maj, et depuis
             // les deux espaces — comme toute touche commune, après les couches de saisie (#175).
@@ -125,6 +126,11 @@ impl State {
                 return Action::None;
             }
             _ => {}
+        }
+        // la vue scène prend ses touches avant les communes (le curseur de la set list, `i`),
+        // et la fenêtre `L` prend tout quand elle est ouverte (§ 6, § 7)
+        if let Some(a) = self.set_key(key) {
+            return a;
         }
         if self.space == space::Space::Chain {
             if let Some(a) = self.fx_key(key) {

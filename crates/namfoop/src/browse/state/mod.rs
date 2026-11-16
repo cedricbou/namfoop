@@ -153,6 +153,12 @@ pub enum Action {
         model: usize,
         input_db: f32,
     },
+    /// `L` : la boucle doit lister les sets de la bibliothèque (§ 7, #219).
+    ListSets,
+    /// Ouvre ce set (son identifiant court) : la boucle le lit et précharge sa banque.
+    OpenSet(String),
+    /// Le set actif a changé (ou disparu) : la banque préchargée doit être refaite.
+    SetChanged,
     Quit,
 }
 
@@ -250,6 +256,8 @@ pub struct State {
     /// (`[set] next_song` / `prev_song`, § 9). Elles agiront dans l'espace Set (US 3) ; `PgDn` /
     /// `PgUp`, eux, suivent déjà le set.
     pub song_keys: (Key, Key),
+    /// La fenêtre **`L` : choisir le set** (§ 7). `None` : fermée.
+    pub set_picker: Option<set::screen::Picker>,
     /// Le **clic du métronome** est-il allumé ? Éteint au démarrage, toujours : c'est une aide
     /// d'écoute, pas un son, et il ne vit donc pas dans un preset (ADR 0008). `k` le bascule.
     pub metronome: bool,
@@ -315,6 +323,7 @@ impl State {
             tempo: engine::tempo::Arbiter::new(),
             set: None,
             song_keys: (Key::Right, Key::Left),
+            set_picker: None,
             metronome: false,
             metronome_routed: false,
             pending: None,

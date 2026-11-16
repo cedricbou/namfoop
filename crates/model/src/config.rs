@@ -95,6 +95,11 @@ pub struct Config {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Set {
+    /// **Le set du moment** : identifiant court du dernier set activé. `browse` le rouvre d'une
+    /// session à l'autre (§ 4), et `run --set` sans argument le prendra (§ 9, US 5) — c'est ce que
+    /// lancera le service de scène du Pi. Absent : aucun set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
     /// Morceau suivant (défaut `Right`).
     pub next_song: String,
     /// Morceau précédent (défaut `Left`).
@@ -103,7 +108,7 @@ pub struct Set {
 
 impl Default for Set {
     fn default() -> Self {
-        Self { next_song: "Right".into(), prev_song: "Left".into() }
+        Self { default: None, next_song: "Right".into(), prev_song: "Left".into() }
     }
 }
 
