@@ -81,6 +81,11 @@ enum Cmd {
         /// (jamais dans le sondier). Niveau et temps par mesure : [metronome] de la config
         #[arg(long)]
         click: bool,
+        /// Jouer un SET de concert, écran de scène VERROUILLÉ : rien ne s'édite, seuls les sons
+        /// changent. Identifiant, nom ou mots-clés (`namfoop sets`) ; sans valeur, le set retenu
+        /// (`[set] default` de la config). S'exclut avec --preset
+        #[arg(long, value_name = "SET", num_args = 0..=1, default_missing_value = "")]
+        set: Option<String>,
     },
     /// Traite un WAV hors ligne avec la même chaîne que `run`
     Render {
@@ -218,7 +223,37 @@ fn main() -> Result<()> {
     // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
     let audio = || cli_audio::settings(&cli.audio, &conf);
     match cli.cmd {
-        Cmd::Run { amp, routing, seconds, quiet, no_trails, click } => {
+        Cmd::Run { amp, routing, seconds, quiet, no_trails, click, set } => {
+            // `run --set` : la scène verrouillée (§ 9 de docs/design/set.md). C'est l'écran de
+            // `browse`, privé de tout ce qui édite — plutôt qu'un second écran à tenir à jour.
+            if let Some(query) = set {
+                if amp.preset.is_some() {
+                    anyhow::bail!(
+                        "--set et --preset s'excluent : un set choisit déjà ses presets, morceau \
+                         par morceau. Donne l'un ou l'autre."
+                    );
+                }
+                // sans valeur (`run --set`), c'est le set retenu. On le vérifie **avant** de
+                // prendre la carte son : un service de scène mal configuré doit échouer tout de
+                // suite, pas après avoir ouvert l'audio et scanné la bibliothèque.
+                let kept = conf.config.set.as_ref().and_then(|x| x.default.as_deref());
+                if query.is_empty() && kept.is_none() {
+                    anyhow::bail!(
+                        "run --set : aucun set indiqué et aucun set retenu. Donne-le \
+                         (`run --set <id>`, cf. `namfoop sets`), ou ouvre-le une fois dans \
+                         `browse` (touche L) pour qu'il devienne le set par défaut."
+                    );
+                }
+                let (audio, profile) = audio()?;
+                let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
+                let start = browse::Start {
+                    set: (!query.is_empty()).then_some(query.as_str()),
+                    locked: true,
+                    ..Default::default()
+                };
+                // la bibliothèque est celle de `--library`, que `AmpArgs` porte déjà
+                return browse::run(&audio, &conf, &amp.library, &routing, 1.0, !no_trails, start);
+            }
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             let session = live::Session { seconds, quiet, trails: !no_trails, click };

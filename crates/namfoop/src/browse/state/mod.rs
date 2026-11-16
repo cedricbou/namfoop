@@ -258,6 +258,10 @@ pub struct State {
     pub song_keys: (Key, Key),
     /// La fenêtre **`L` : choisir le set** (§ 7). `None` : fermée.
     pub set_picker: Option<set::screen::Picker>,
+    /// **`run --set` : la scène verrouillée** (§ 9, #221). Seuls les gestes de scène répondent —
+    /// changer de son, de morceau, voir un détail, taper le tempo. Tout le reste affiche
+    /// `🔒 run --set : rien ne s'édite ici`. On ne modifie pas un preset par mégarde en concert.
+    pub locked: bool,
     /// Le **clic du métronome** est-il allumé ? Éteint au démarrage, toujours : c'est une aide
     /// d'écoute, pas un son, et il ne vit donc pas dans un preset (ADR 0008). `k` le bascule.
     pub metronome: bool,
@@ -324,6 +328,7 @@ impl State {
             set: None,
             song_keys: (Key::Right, Key::Left),
             set_picker: None,
+            locked: false,
             metronome: false,
             metronome_routed: false,
             pending: None,

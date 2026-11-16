@@ -233,6 +233,9 @@ Options:
       --click
           Clic de métronome au tempo, dans les sorties déclarées « in-ear » par `namfoop setup` (jamais dans le sondier). Niveau et temps par mesure : [metronome] de la config
 
+      --set [<SET>]
+          Jouer un SET de concert, écran de scène VERROUILLÉ : rien ne s'édite, seuls les sons changent. Identifiant, nom ou mots-clés (`namfoop sets`) ; sans valeur, le set retenu (`[set] default` de la config). S'exclut avec --preset
+
   -h, --help
           Print help (see a summary with '-h')
 ```

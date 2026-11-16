@@ -10,6 +10,43 @@ use super::*;
 /// Fenêtre « Modifications non enregistrées » (`q`) : dit ce qui serait perdu, et n'offre qu'un
 /// geste volontaire pour quitter (`Q` majuscule). Elle se dessine en dernier, par-dessus l'onglet.
 pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
+    // la scène (§ 9) : rien ne s'enregistre ici, donc la question est simple — mais elle est posée,
+    // parce que couper le son d'un concert sur une touche serait pire
+    if s.locked {
+        let lines = vec![
+            Line::raw("  Le set joue."),
+            Line::raw(""),
+            Line::from(vec![
+                Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                Span::raw("       quitter la scène"),
+            ]),
+            Line::from(vec![
+                Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                Span::raw("   rester (par défaut)"),
+            ]),
+        ];
+        let w = (lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16 + 4).min(body.width);
+        let h = (lines.len() as u16 + 2).min(body.height);
+        let area = Rect {
+            x: body.x + (body.width.saturating_sub(w)) / 2,
+            y: body.y + (body.height.saturating_sub(h)) / 2,
+            width: w,
+            height: h,
+        };
+        f.render_widget(Clear, area);
+        f.render_widget(
+            Paragraph::new(lines).block(
+                Block::bordered()
+                    .title(Span::styled(
+                        " Quitter la scène ? ",
+                        Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    ))
+                    .style(Style::new().bg(Color::Black)),
+            ),
+            area,
+        );
+        return;
+    }
     let empty = s.empty_chain_warning();
     let mut lines = Vec::new();
     // chaîne vide alors que le banc joue un son : on le signale toujours (§ 9)
@@ -256,6 +293,24 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         ));
         let quoi = if p.nam { "le modèle" } else { "l'IR" };
         return (format!("Chaîne · choisir {quoi} d'un bloc"), v);
+    }
+    if s.locked {
+        v.push(key_line("PgDn / PgUp", "son suivant / précédent du set (sans bouclage)"));
+        v.push(key_line("↑↓", "viser un morceau — rien ne change à l'oreille"));
+        v.push(key_line("Entrée", "jouer le morceau visé, sur son premier son"));
+        v.push(key_line("i", "déplier le détail du morceau : PC, CC 69, volumes, prompteur"));
+        v.push(key_line("*", "tap tempo · k : clic du métronome"));
+        v.push(key_line("q", "quitter la scène (confirmation)"));
+        v.push(Line::raw(""));
+        v.push(Line::styled(
+            "  Rien ne s'édite ici : pas de preset, pas de bibliothèque, pas de choix de set.",
+            Style::new().fg(Color::DarkGray),
+        ));
+        v.push(Line::styled(
+            "  Pour régler quelque chose, quitte et ouvre `namfoop browse`.",
+            Style::new().fg(Color::DarkGray),
+        ));
+        return ("🔒 run --set — la scène".into(), v);
     }
     if s.space == Space::Set {
         v.push(key_line("PgDn / PgUp", "son suivant / précédent du set (sans bouclage)"));

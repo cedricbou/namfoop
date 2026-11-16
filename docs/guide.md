@@ -1866,6 +1866,40 @@ rouvre le dernier set choisi. `--set` passe outre pour une session.
 d'une ligne `2/6 Le Phare ● fuzz → clean` au-dessus du cadre, qui prend toute la largeur. Un petit
 écran ne doit pas cacher ce qu'on joue.
 
+### Jouer le set sur scène : `run --set`
+
+Sur scène, `browse` offre trop de touches : une de travers enregistre un preset, vide une chaîne ou
+ouvre la bibliothèque. `run --set` donne **le même écran de scène, verrouillé**.
+
+```sh
+namfoop run --set concert        # identifiant, nom ou mots-clés (`namfoop sets`)
+namfoop run --set                # sans valeur : le set retenu ([set] default)
+```
+
+L'en-tête devient `namfoop run  🔒 SET  <nom du set>` — plus d'espaces, puisqu'on ne peut plus les
+ouvrir. Ne répondent que les **gestes de scène** :
+
+| touche | |
+|---|---|
+| `PgDn` / `PgUp` | son suivant / précédent du set |
+| `↑` `↓` `Entrée` | viser puis jouer un morceau |
+| `i` | déplier le détail du morceau visé |
+| `*` | tap tempo · `k` : clic du métronome |
+| `h` | l'aide · `q` puis `Q` : quitter la scène |
+
+**Toute autre touche est refusée** et le dit : `🔒 run --set : rien ne s'édite ici (…)`. Rien ne
+s'enregistre, aucune bibliothèque ne s'ouvre, le set lui-même ne se change pas — pour régler quelque
+chose, on quitte et on ouvre `browse`.
+
+`q` demande confirmation (`Quitter la scène ? Q quitter · Échap rester`) : couper le son d'un
+concert sur une seule touche serait pire que d'en taper deux.
+
+**Si le set manque, la commande refuse de démarrer**, avec un message clair et un code d'erreur —
+avant même de prendre la carte son. C'est ce qu'il faut pour un service de démarrage automatique
+(le Pi de scène) : un concert mal configuré doit échouer bruyamment, pas ouvrir un écran vide.
+
+`--set` et `--preset` s'excluent : un set choisit déjà ses presets, morceau par morceau.
+
 ## 12. Backends, carte et routage en ligne de commande
 
 L'assistant ([§ 5](#5-configurer-la-carte--lassistant)) enregistre ces réglages ; les options

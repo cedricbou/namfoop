@@ -161,6 +161,12 @@ fx_cmd.rs       `fx [nom]` : catalogue des effets et paramètres (dsp::fx::catal
                 n'est pas un effet) ; `--pre` / `--post` dans amp.rs,
                 `bench --fx` dans offline.rs
 live.rs (suite) `run --click` allume le clic ; il refuse de démarrer si aucune sortie ne le reçoit
+                ATTENTION : `run --set` NE PASSE PAS par live.rs — c'est browse::run en mode
+                VERROUILLÉ (State::locked, #221, § 9 de docs/design/set.md), parce que la scène est
+                exactement la vue Set, privée de ce qui édite. keys.rs::locked_key est une liste
+                BLANCHE (ce qui est permis) et non noire : une touche ajoutée ailleurs dans browse
+                n'arrive donc jamais par accident sur scène. main.rs refuse AVANT d'ouvrir la carte
+                quand aucun set n'est donné ni retenu : un service de scène doit échouer bruyamment
 amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (priorité CLI > config > défaut) ;
                 `--tempo BPM` (ADR 0008) y pose AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run`
                 et `render` n'ont pas de tap, et c'est ce qui rend une mesure reproductible,
@@ -233,7 +239,13 @@ concernée). Erreurs : `anyhow`.
   l'aide du réglage sous le curseur, **dynamique** pour une division (`1/4 = une noire, soit un
   temps (500 ms à 120 BPM)`) : la colonne de valeur du panneau ne fait que **9 caractères**, donc
   tout ce qui doit s'expliquer va dans cette ligne, pas dans la valeur.
-  **Piège pour écrire ces tests** : il faut poser la taille du pseudo-terminal (`TIOCSWINSZ`),
+  **Pièges pour écrire ces tests** : `os.kill(pid, 0)` **réussit sur un zombie**, donc il ne dit
+  pas si le processus a fini — seul `waitpid(pid, WNOHANG)` le dit (j'ai cru à tort que `browse` ne
+  quittait pas sur `q`/`Q`) ; un **emoji occupe deux cellules** du tampon ratatui, donc ne jamais
+  coller une assertion à droite d'un emoji (`🔒 SET` se lit `🔒  SET`) ; dans un écran à **deux
+  colonnes**, un `lines().find(...)` attrape la ligne ENTIÈRE, les deux colonnes mêlées (chercher
+  la dernière, ou découper la largeur de la colonne).
+  Il faut aussi poser la taille du pseudo-terminal (`TIOCSWINSZ`),
   sinon ratatui ne dessine rien du tout ; et **ne pas scruter l'écran pour une valeur qui change** —
   ratatui n'écrit que les cellules modifiées, si bien qu'un `♩ 92 (preset)` arrive en morceaux
   épars et qu'une recherche de texte retrouve l'ancienne valeur. La trace est la source de vérité.

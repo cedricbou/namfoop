@@ -7,6 +7,13 @@ use super::*;
 /// Les touches à afficher : la première couche qui a la main gagne (aide, fenêtres, saisies),
 /// sinon l'espace où l'on est.
 pub(super) fn keys(s: &State, lib: bool) -> String {
+    // la scène verrouillée n'a que ses gestes : la barre ne doit pas proposer ce qui est refusé
+    if s.locked {
+        if s.confirm_quit {
+            return "Q quitter la scène   Échap rester".into();
+        }
+        return "PgDn/PgUp son   ↑↓ Entrée morceau   i détail   * tap   k clic   h aide   q quitter".into();
+    }
     match (s.naming.is_some(), s.filtering, s.tab) {
         _ if s.help => "h ou n'importe quelle touche : fermer l'aide".into(),
         _ if s.bank.is_some() => {

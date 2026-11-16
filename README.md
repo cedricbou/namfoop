@@ -32,6 +32,7 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant (S enregistre un preset, n repart de zéro)
 ./target/release/namfoop presets              # les presets enregistrés
 ./target/release/namfoop sets                 # les sets de concert (morceaux et leurs sons)
+./target/release/namfoop run --set concert    # JOUER UN CONCERT : écran de scène verrouillé
 ./target/release/namfoop run --preset chill   # rejouer un preset
 ./target/release/namfoop run -m b7k           # jouer
 ./target/release/namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
