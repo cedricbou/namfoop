@@ -51,7 +51,9 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 le volume du morceau à celui du preset et passe son tempo à l'arbitre comme le
                 ferait un preset. set/screen.rs : L'ESPACE SET (#219) — le curseur (VISER N'EST PAS
                 JOUER : ↑↓ ne changent rien à l'oreille, Entrée joue le morceau visé sur son son 1),
-                `i` (plusieurs morceaux peuvent rester dépliés) et la fenêtre `L`, qui rend
+                `i` (plusieurs morceaux peuvent rester dépliés), LES TOUCHES DU PIED (PgDn/PgUp
+                et morceau suivant / précédent : à lier ICI, parce que step_preset n'est atteint
+                que par fx_key, qui ne tourne que dans l'espace Chaîne — #238) et la fenêtre `L`, qui rend
                 Action::ListSets puis OpenSet / SetChanged — la boucle seule voit la bibliothèque.
                 Le set actif est retenu dans `[set] default` de la config, que `run --set` sans
                 argument prendra aussi (#221) : une seule notion de « set du moment ». Attention,
