@@ -149,6 +149,46 @@ fn key_line(keys: &str, what: &str) -> Line<'static> {
 }
 
 /// Le titre et les touches de l'écran où l'on est (`h`, § 11 de `browse-espaces.md`).
+/// **`L` : choisir le set** (§ 7 de `docs/design/set.md`). `aucun set` rend la banque entière,
+/// `＋ nouveau set…` en crée un vide (la suite du geste est l'US 4).
+pub(super) fn render_set_picker(s: &State, f: &mut Frame, area: Rect) {
+    let Some(p) = s.set_picker.as_ref() else { return };
+    let rows: Vec<(String, String)> = p.sets.iter().map(|e| e.columns()).collect();
+    let left = rows.iter().map(|(a, _)| a.chars().count()).max().unwrap_or(10).min(34);
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, (a, b)) in rows.iter().enumerate() {
+        let on = i == p.cursor;
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!(" {} {:<left$}  ", if on { "▶" } else { " " }, a, left = left),
+                if on {
+                    Style::new().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::new()
+                },
+            ),
+            Span::styled(b.clone(), Style::new().fg(Color::DarkGray)),
+        ]));
+    }
+    lines.push(Line::raw(""));
+    lines
+        .push(Line::styled("  ↑↓ choisir · Entrée activer · Échap fermer", Style::new().fg(Color::DarkGray)));
+    let h = (lines.len() as u16 + 2).min(area.height);
+    let w = (left as u16 + 56).min(area.width);
+    let win = Rect {
+        x: area.x + (area.width.saturating_sub(w)) / 2,
+        y: area.y + (area.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    };
+    f.render_widget(Clear, win);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(Block::bordered().title(" Choisir le set ").border_style(Style::new().fg(Color::Green))),
+        win,
+    );
+}
+
 fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
     let mut v = Vec::new();
     // les fenêtres et modes qui prennent le clavier passent avant le reste
@@ -216,6 +256,16 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
         ));
         let quoi = if p.nam { "le modèle" } else { "l'IR" };
         return (format!("Chaîne · choisir {quoi} d'un bloc"), v);
+    }
+    if s.space == Space::Set {
+        v.push(key_line("PgDn / PgUp", "son suivant / précédent du set (sans bouclage)"));
+        v.push(key_line("↑↓", "viser un morceau — rien ne change à l'oreille"));
+        v.push(key_line("Entrée", "jouer le morceau visé, sur son premier son"));
+        v.push(key_line("i", "déplier le détail du morceau : PC, CC 69, volumes, prompteur"));
+        v.push(key_line("L", "choisir le set de concert (ou aucun set)"));
+        v.push(key_line("*", "tap tempo · k : clic du métronome"));
+        v.push(key_line("1 / 2", "la Bibliothèque · la Chaîne"));
+        return ("Set — la vue scène".into(), v);
     }
     if s.space == Space::Chain {
         if s.fx.chain.spot(s.fx.cursor) == Spot::Merge {

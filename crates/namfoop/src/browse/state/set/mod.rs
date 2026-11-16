@@ -13,6 +13,8 @@
 
 use library::set::SetSpec;
 
+pub mod screen;
+
 /// Où l'on en est dans le set : un morceau et un son.
 pub type At = (usize, usize);
 
@@ -30,6 +32,12 @@ pub struct ActiveSet {
     slots: Vec<Vec<Option<usize>>>,
     /// Le son joué. `None` : on n'a encore rien joué du set.
     pub at: Option<At>,
+    /// Morceau **visé** par `↑` / `↓` dans la vue scène : viser ne change pas le son, c'est
+    /// `Entrée` qui joue (§ 6). Rien ne bouge à l'oreille en parcourant la set list.
+    pub cursor: usize,
+    /// Morceaux dont le **détail** est déplié (`i`) : PC, valeurs de CC 69, volumes, prompteur.
+    /// Plusieurs peuvent rester ouverts (§ 6).
+    pub expanded: Vec<usize>,
 }
 
 impl ActiveSet {
@@ -38,7 +46,7 @@ impl ActiveSet {
     pub fn new(id: String, stem: String, spec: SetSpec, find: &dyn Fn(&str) -> Option<usize>) -> Self {
         let slots =
             spec.songs.iter().map(|song| song.sounds.iter().map(|s| find(&s.preset)).collect()).collect();
-        Self { id, stem, spec, slots, at: None }
+        Self { id, stem, spec, slots, at: None, cursor: 0, expanded: Vec::new() }
     }
 
     /// Tous les sons **jouables**, dans l'ordre du set : c'est la liste à plat du § 5. Un son dont
@@ -193,6 +201,9 @@ impl State {
         // `switch_to` peut demander confirmation : la position ne bouge qu'une fois le son installé
         if let Some(s) = self.set.as_mut() {
             s.at = Some(at);
+            // le curseur suit : viser est indépendant de jouer (§ 5), mais après avoir joué on
+            // est **là**, et `i` comme `Entrée` doivent partir de là
+            s.cursor = at.0;
         }
         self.apply_set_sound(volume, tempo);
         self.message = Some(label);

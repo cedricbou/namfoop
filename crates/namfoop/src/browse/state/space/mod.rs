@@ -16,6 +16,9 @@ pub enum Space {
     Library,
     /// Le synoptique et ses réglages : on entend la chaîne.
     Chain,
+    /// **La vue scène** (§ 6 du mode Set, #219) : la set list et le prompteur. On y entend la
+    /// chaîne, comme dans l'espace Chaîne — un son du set *est* un preset.
+    Set,
 }
 
 /// Les trois onglets de la Bibliothèque, dans l'ordre.
@@ -29,12 +32,19 @@ impl State {
                 match space {
                     Space::Library => "tu es déjà dans la Bibliothèque",
                     Space::Chain => "tu es déjà dans la Chaîne",
+                    Space::Set => "tu es déjà dans le Set",
                 }
                 .into(),
             );
             return Action::None;
         }
         self.space = space;
+        if space == Space::Set {
+            // le curseur vise d'emblée le morceau joué : on arrive sur scène, pas en haut de liste
+            if let Some(s) = self.set.as_mut() {
+                s.cursor = s.at.map(|(i, _)| i).unwrap_or(0);
+            }
+        }
         self.filtering = false;
         self.pending = None;
         self.fx_due = None;

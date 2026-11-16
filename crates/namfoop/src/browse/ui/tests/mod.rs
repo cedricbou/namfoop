@@ -299,3 +299,4 @@ fn the_spectrum_panel_appears_from_128_columns() {
 }
 
 mod chain;
+mod set;

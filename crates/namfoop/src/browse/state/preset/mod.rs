@@ -347,7 +347,11 @@ impl State {
         self.bank = None;
         self.preset = Some(PresetRef { name: name.clone(), path });
         self.mark_start();
-        self.space = super::space::Space::Chain;
+        // charger un preset mène à la Chaîne — sauf **depuis la vue scène**, où jouer un son du
+        // set ne doit pas quitter l'écran de concert (§ 6, #219)
+        if self.space != super::space::Space::Set {
+            self.space = super::space::Space::Chain;
+        }
         let place = match (
             self.presets.iter().position(|x| x.path == self.preset.as_ref().expect("posé").path),
             self.presets.len(),

@@ -39,7 +39,7 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
                 effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2
                 changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
-                set/ LE SET ACTIF (#218, § 4 et § 5 de docs/design/set.md) : ActiveSet porte le
+                set/ LE SET ACTIF (#218, #219, § 4 et § 5 de docs/design/set.md) : ActiveSet porte le
                 SetSpec lu par library::set et, pour chaque son, sa place dans State::presets
                 (None : preset introuvable, le son est SAUTÉ). flat() est la liste à plat du § 5,
                 step() / step_song() n'y BOUCLENT PAS (fin du set / début du set : on ne rejoue pas
@@ -49,7 +49,15 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 morceaux n'occupe qu'une place et ne rebâtit rien quand on passe d'un morceau à
                 l'autre (vérifié dans la trace : place=0/1/2, `préchargée`). play_set_sound ajoute
                 le volume du morceau à celui du preset et passe son tempo à l'arbitre comme le
-                ferait un preset. `browse --set <id>` l'ouvre (le choix `L` est l'US 3) ;
+                ferait un preset. set/screen.rs : L'ESPACE SET (#219) — le curseur (VISER N'EST PAS
+                JOUER : ↑↓ ne changent rien à l'oreille, Entrée joue le morceau visé sur son son 1),
+                `i` (plusieurs morceaux peuvent rester dépliés) et la fenêtre `L`, qui rend
+                Action::ListSets puis OpenSet / SetChanged — la boucle seule voit la bibliothèque.
+                Le set actif est retenu dans `[set] default` de la config, que `run --set` sans
+                argument prendra aussi (#221) : une seule notion de « set du moment ». Attention,
+                `load_preset` ne quitte PAS l'espace Set — jouer un son du set ne doit pas sortir de
+                l'écran de concert. Le dessin est dans ui/set.rs (deux colonnes, trois largeurs :
+                44 colonnes de set list au-delà de 100, 30 en dessous, une ligne compacte sous 70) ;
                 preset/ les PRESETS (#110) : conversion chaîne <-> dsp::preset::PresetSpec (index
                 de la bibliothèque <-> chemins relatifs + identifiant en filet), la banque `P`
                 (presets déjà convertis : charger ne lit aucun fichier), `S` (nom proposé, écrit par

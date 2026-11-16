@@ -327,7 +327,12 @@ pub fn run(
     }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
-    if let Some(query) = start_with.set {
+    // `--set` d'abord, sinon **le set retenu** de la session précédente (§ 4)
+    let wanted_set = start_with
+        .set
+        .map(str::to_string)
+        .or_else(|| conf.config.set.as_ref().and_then(|s| s.default.clone()));
+    if let Some(query) = wanted_set.as_deref() {
         match open_set(library, query, &st) {
             Ok(set) => {
                 st.message = Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
@@ -374,6 +379,30 @@ pub fn run(
             match action {
                 Action::None => {}
                 Action::Quit => return Ok(()),
+                // `L` : la liste des sets de la bibliothèque, que seule la boucle voit (§ 7)
+                Action::ListSets => st.adopt_sets(list_sets(library)),
+                Action::OpenSet(id) => match open_set(library, &id, &st) {
+                    Ok(set) => {
+                        st.message =
+                            Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
+                        st.set = Some(set);
+                        remember_set(conf, Some(&id));
+                        // sa banque remplace la banque entière (§ 4)
+                        bank_reqs = bank_requests(&st, &audition);
+                        let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
+                        // et son premier son joue
+                        let first = st.set.as_ref().and_then(|s| s.flat().first().copied());
+                        if let Some(at) = first {
+                            st.play_set_sound(at);
+                        }
+                    }
+                    Err(e) => st.message = Some(format!("set « {id} » : {e:#}")),
+                },
+                Action::SetChanged => {
+                    remember_set(conf, None);
+                    bank_reqs = bank_requests(&st, &audition);
+                    let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
+                }
                 Action::Play { .. } => {
                     // le mélange d'écoute est écrit avant d'être cité par un bloc `ir`
                     let plan = st.plan();
@@ -573,6 +602,46 @@ fn trace(line: &str) {
 
 fn stream_label(cfg: &Settings) -> String {
     format!("{:?} {}", cfg.backend, cfg.device.as_deref().unwrap_or("")).to_lowercase()
+}
+
+/// Les sets de la bibliothèque, pour la fenêtre `L` (§ 7). Un set illisible est quand même listé,
+/// avec ce qu'on sait de lui : mieux vaut le voir que l'escamoter.
+fn list_sets(library: &Path) -> Vec<state::set::screen::Entry> {
+    let lib = Library::scan(library);
+    lib.of_kind(library::Kind::Set)
+        .map(|e| {
+            let (name, songs, sounds) = match lib.set(&e.path) {
+                Ok(spec) => (spec.name.clone(), spec.songs.len(), spec.sound_count()),
+                Err(_) => (format!("⚠ {}", e.stem), 0, 0),
+            };
+            state::set::screen::Entry::Set {
+                id: e.id.clone(),
+                stem: e.stem.clone(),
+                name,
+                songs,
+                sounds,
+                rel: e.rel.clone(),
+            }
+        })
+        .collect()
+}
+
+/// Retient le set actif d'une session à l'autre (§ 4) : `[set] default` de la config, qui sert
+/// aussi à `run --set` sans argument (§ 9, US 5). Sans config (`--no-config`), rien n'est écrit.
+fn remember_set(conf: &LoadedConfig, id: Option<&str>) {
+    if conf.ignored {
+        return;
+    }
+    let mut cfg = conf.config.clone();
+    let mut set = cfg.set.clone().unwrap_or_default();
+    if set.default.as_deref() == id {
+        return;
+    }
+    set.default = id.map(str::to_string);
+    cfg.set = Some(set);
+    if let Err(e) = cfg.save(&conf.path) {
+        log::warn!("set actif non retenu : {e:#}");
+    }
 }
 
 /// Ouvre un set de la bibliothèque et place ses sons dans la banque de `browse` (§ 4, US 2).

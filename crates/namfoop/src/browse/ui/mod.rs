@@ -18,6 +18,7 @@ mod footer;
 mod fx;
 mod picker;
 mod rows;
+mod set;
 mod spectrum;
 pub mod synoptic;
 mod windows;
@@ -185,13 +186,23 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             },
         )
     };
-    // à droite, l'état d'enregistrement du preset (#110)
-    let (what, up_to_date) = s.preset_label();
+    // à droite, l'état d'enregistrement du preset (#110) — ou, dans la vue scène, celui du **set**
+    // (§ 6). Rien ne peut encore le modifier : l'édition est l'US 4 (#220).
+    let (what, up_to_date) = match (s.space, s.set.as_ref()) {
+        (Space::Set, Some(set)) => (format!("set : {}.set.toml", set.stem), true),
+        _ => s.preset_label(),
+    };
     let mut head = vec![
         Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
         space_span(lib, "1 Bibliothèque".into(), Color::Magenta),
         Span::raw(" "),
-        space_span(!lib, format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }), Color::Cyan),
+        space_span(
+            s.space == Space::Chain,
+            format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }),
+            Color::Cyan,
+        ),
+        Span::raw(" "),
+        space_span(s.space == Space::Set, set_badge(s), set::ACCENT),
     ];
     // le tempo et **d'où il vient** (ADR 0008) : sans la source, on ne saurait pas pourquoi le
     // delay ne suit pas ce qu'on croit avoir réglé
@@ -237,7 +248,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         };
         Span::styled(format!("  {label}"), style)
     };
-    let tab_line = if lib {
+    let tab_line = if s.space == Space::Set {
+        // la vue scène n'a pas d'onglets : la maquette met les deux cadres juste sous l'en-tête
+        Line::raw("")
+    } else if lib {
         Line::from(
             vec![
                 tab(Tab::Models, format!("Modèles ({})", s.models.len())),
@@ -426,6 +440,8 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }
     if let Some(ed) = &s.editor {
         render_editor(s, ed, f, body);
+    } else if s.space == Space::Set {
+        set::render(s, f, body);
     } else if !lib {
         fx::render_fx(s, f, body);
     } else if body.width >= SPECTRUM_MIN_WIDTH {
@@ -475,7 +491,27 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         meters.push(Span::styled(format!("  banque {done}/{total}"), Style::new().fg(Color::DarkGray)));
     }
     // la ligne d'écoute : on sait toujours ce qu'on entend (§ 2, règle 2)
-    let (heard, second) = if lib {
+    let (heard, second) = if s.space == Space::Set {
+        // § 6 : morceau › son › la chaîne en une ligne, et le volume du morceau s'il y en a un
+        let where_ = match (s.set.as_ref(), s.set.as_ref().and_then(|x| x.at)) {
+            (Some(set), Some(at)) => format!("{} › ", set.label(at)),
+            _ => String::new(),
+        };
+        let volume = match s.fx.chain.volume_db {
+            0.0 => String::new(),
+            v => format!("   volume {v:+.1} dB"),
+        };
+        (
+            Line::from(vec![
+                Span::styled(" ♪ set : ", Style::new().fg(set::ACCENT).add_modifier(Modifier::BOLD)),
+                Span::raw(format!("{where_}basse › {}", s.chain_text())),
+            ]),
+            Line::from(Span::styled(
+                format!("   ♩ {:.0} ({}){volume}", s.heard_tempo_bpm(), s.tempo_source().label()),
+                Style::new().fg(Color::DarkGray),
+            )),
+        )
+    } else if lib {
         (
             Line::from(vec![
                 Span::styled(" ♪ banc : ", Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
@@ -529,6 +565,9 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }
     if s.confirm_switch {
         windows::render_confirm_switch(s, body, f);
+    }
+    if s.set_picker.is_some() {
+        windows::render_set_picker(s, f, f.area());
     }
     // l'aide passe par-dessus tout (y compris le catalogue et le sélecteur)
     if s.help {
@@ -597,3 +636,12 @@ fn trial_line(s: &State) -> Option<String> {
 
 #[cfg(test)]
 mod tests;
+
+/// Ce que l'onglet `3 Set` affiche : le nom du set actif, ou rien quand il n'y en a pas (§ 6).
+fn set_badge(s: &State) -> String {
+    match s.set.as_ref() {
+        Some(set) if !set.spec.name.trim().is_empty() => format!("3 Set {}", set.spec.name),
+        Some(set) => format!("3 Set {}", set.stem),
+        None => "3 Set".into(),
+    }
+}

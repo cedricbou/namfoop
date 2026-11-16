@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#219)
+- **L'espace Set : la vue scène.** `3` ouvre un troisième espace (en vert) : la **set list à
+  gauche**, le **cadre du morceau à droite**. La colonne de gauche donne l'essentiel par morceau
+  (numéro, titre, tempo, mesure si elle n'est pas 4/4, `≡` s'il a un prompteur), déplie les sons du
+  morceau joué (`●` celui qu'on entend, `○` les autres) et commence **un morceau avant** celui qu'on
+  joue, pour montrer ce qui vient. Le cadre de droite dit **ce que fera le prochain appui** :
+  `2 · Le Phare · son 1/2 fuzz · PgDn : ensuite clean`.
+- **`↑` `↓` visent, `Entrée` joue** : parcourir la set list pendant un morceau ne produit aucun son.
+  C'est ce qui permet de préparer le morceau suivant sans toucher à ce qu'on entend.
+- **`i`** déplie le détail du morceau visé : son PC, la valeur de CC 69 de chaque son, son volume
+  propre, son prompteur. Plusieurs morceaux peuvent rester dépliés.
+- **`L`** choisit le set, ou `aucun set` qui rend la banque entière. Le **set actif est retenu**
+  d'une session à l'autre (`[set] default`) : `browse` rouvre le dernier set choisi.
+- **Terminal étroit** : sous 100 colonnes la set list se réduit, sous 70 elle disparaît au profit
+  d'une ligne qui garde l'essentiel. Vérifié en 60×25, 80×25, 110×33 et 160×50.
+
 ### Ajouté (#218)
 - **Un set se joue au pied** : `namfoop browse --set <id | mots-clés>`, puis `PgDn` / `PgUp` suivent
   le set — son suivant, puis le premier son du morceau suivant. **Pas de bouclage** : sur le dernier
