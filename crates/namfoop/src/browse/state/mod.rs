@@ -554,6 +554,9 @@ mod compare;
 mod edit;
 mod editor;
 pub mod fx;
+/// L'oracle du clavier (#241) : la table de référence de ce que fait chaque touche.
+#[cfg(test)]
+mod keyboard;
 mod keys;
 mod label;
 mod lists;

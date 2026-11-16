@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#241)
+- **Les touches d'un espace n'agissent plus dans un autre.** La dernière couche du clavier était en
+  réalité celle de la **Bibliothèque**, mais sans garde d'espace : toute touche qu'un espace ne
+  consommait pas y retombait et agissait sur un écran qu'on ne regarde même pas. Depuis la vue
+  scène, `b` **coupait l'IR du son joué**, `e` ouvrait l'éditeur de modèle par-dessus la set list,
+  `/` lançait un filtre invisible et `Tab`/`←→` changeaient un onglet caché ; depuis la Chaîne, `/`
+  et `e` faisaient de même. C'était la cause de fond de #238, #207 et #175.
+- `Échap` et `q` restent valables partout : ce sont les deux sorties.
+
+### Ajouté (#241)
+- **L'oracle du clavier** : un test qui mesure, pour chacun des **21 contextes** et des
+  **52 touches**, ce qui se passe réellement — quelle couche consomme, quelle action, quel message,
+  quels champs d'état changent — et le fige dans `keyboard.ref.txt`. Toute évolution du clavier
+  devient un **diff lisible** au lieu d'une surprise. Régénérer :
+  `NAMFOOP_UPDATE_KEYBOARD=1 cargo test -p namfoop --bin namfoop keyboard`.
+
 ### Corrigé (#238)
 - **`PgDn` / `PgUp` ne jouaient pas le set dans l'espace Set de `browse`** — l'espace où la touche
   du pied compte le plus. Elles tombaient sur le défilement de la liste de la Bibliothèque, qui ne

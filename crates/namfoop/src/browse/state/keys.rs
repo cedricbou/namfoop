@@ -142,6 +142,21 @@ impl State {
                 return a;
             }
         }
+        // **Le clavier de la BIBLIOTHÈQUE** (#241) : tout ce qui suit agit sur les listes, le banc
+        // d'essai et le mélange. Sans cette garde, une touche qu'un espace ne consomme pas y
+        // retombe et agit sur un écran qu'on ne regarde même pas — c'était la cause de #238, et
+        // le code s'en protégeait déjà une touche à la fois (`z`, `e`, `c`). `Échap` et `q` sont
+        // au-dessus : ils valent partout.
+        if self.space != space::Space::Library {
+            return match key {
+                Key::Esc => {
+                    self.message = Some("Échap ne quitte pas : q pour quitter".into());
+                    Action::None
+                }
+                Key::Char('q') => self.quit_or_confirm(),
+                _ => Action::None,
+            };
+        }
         let c = self.cursor();
         match key {
             // Échap ne quitte jamais : ici, aucun niveau à remonter (filtre, nom, éditeur et
