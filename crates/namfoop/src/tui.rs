@@ -27,6 +27,36 @@ pub enum Key {
     Char(char),
 }
 
+impl Key {
+    /// Une touche désignée **par son nom**, pour les touches réglables de la config (§ 9 du mode
+    /// Set) : les noms de crossterm, sans tenir compte de la casse — `Right`, `Left`, `Space`,
+    /// `End`, `Home`, `PageDown`… Un caractère seul se donne tel quel (`k`, `*`).
+    pub fn from_name(name: &str) -> Option<Key> {
+        let n = name.trim();
+        Some(match n.to_ascii_lowercase().as_str() {
+            "up" => Key::Up,
+            "down" => Key::Down,
+            "left" => Key::Left,
+            "right" => Key::Right,
+            "pageup" | "pgup" => Key::PageUp,
+            "pagedown" | "pgdn" => Key::PageDown,
+            "enter" | "return" => Key::Enter,
+            "tab" => Key::Tab,
+            "backtab" => Key::BackTab,
+            "esc" | "escape" => Key::Esc,
+            "backspace" => Key::Backspace,
+            "space" => Key::Char(' '),
+            _ => {
+                let mut it = n.chars();
+                match (it.next(), it.next()) {
+                    (Some(c), None) => Key::Char(c),
+                    _ => return None,
+                }
+            }
+        })
+    }
+}
+
 pub fn map_key(code: KeyCode) -> Option<Key> {
     Some(match code {
         KeyCode::Up => Key::Up,

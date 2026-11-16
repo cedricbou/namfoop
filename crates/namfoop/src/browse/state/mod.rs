@@ -242,6 +242,14 @@ pub struct State {
     saved_blend: (Vec<BlendPart>, bool),
     pending: Option<u64>,
     now: u64,
+    /// **Le set actif** (§ 4, US 2) : quand il y en a un, `PgDn` / `PgUp` suivent sa liste à plat
+    /// au lieu de la banque entière, et la banque préchargée est celle du set. `None` : tout est
+    /// exactement comme avant (§ 13).
+    pub set: Option<set::ActiveSet>,
+    /// Les touches **morceau suivant / précédent** du set, réglables pour coller au pédalier
+    /// (`[set] next_song` / `prev_song`, § 9). Elles agiront dans l'espace Set (US 3) ; `PgDn` /
+    /// `PgUp`, eux, suivent déjà le set.
+    pub song_keys: (Key, Key),
     /// Le **clic du métronome** est-il allumé ? Éteint au démarrage, toujours : c'est une aide
     /// d'écoute, pas un son, et il ne vit donc pas dans un preset (ADR 0008). `k` le bascule.
     pub metronome: bool,
@@ -305,6 +313,8 @@ impl State {
             saved_blend: (Vec::new(), true),
             now: 0,
             tempo: engine::tempo::Arbiter::new(),
+            set: None,
+            song_keys: (Key::Right, Key::Left),
             metronome: false,
             metronome_routed: false,
             pending: None,
@@ -538,6 +548,7 @@ pub mod picker;
 pub mod preset;
 mod quit;
 pub mod send;
+pub mod set;
 pub mod space;
 mod target;
 

@@ -175,6 +175,10 @@ enum Cmd {
         /// Filtre initial de la liste (ex: "PopPunk")
         #[arg(long)]
         filter: Option<String>,
+        /// Set de concert à ouvrir : identifiant (`namfoop sets`), nom ou mots-clés. PgDn / PgUp
+        /// suivent alors ses morceaux au lieu de la banque entière
+        #[arg(long, value_name = "SET")]
+        set: Option<String>,
         /// Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au
         /// changement, mais une seule chaîne tourne (moins de charge DSP)
         #[arg(long)]
@@ -268,10 +272,11 @@ fn main() -> Result<()> {
             }
             calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
         }
-        Cmd::Browse { library, size, filter, no_trails, routing } => {
+        Cmd::Browse { library, size, filter, set, no_trails, routing } => {
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
-            let start = browse::Start { filter: filter.as_deref(), ..Default::default() };
+            let start =
+                browse::Start { filter: filter.as_deref(), set: set.as_deref(), ..Default::default() };
             browse::run(&audio, &conf, &library, &routing, size, !no_trails, start)
         }
         Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),

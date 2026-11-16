@@ -84,6 +84,27 @@ pub struct Config {
     /// en TOML, une table ne peut pas précéder les valeurs qui la suivent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metronome: Option<Metronome>,
+    /// Réglages du **mode Set** (§ 9 de `docs/design/set.md`). Absent : les valeurs par défaut, et
+    /// rien n'est écrit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set: Option<Set>,
+}
+
+/// Le **mode Set** : les touches de scène, réglables pour coller au pédalier qu'on a sous le pied
+/// (§ 9). Les noms sont ceux de crossterm (`Right`, `Left`, `Space`, `End`, `Home`, `F5`…).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Set {
+    /// Morceau suivant (défaut `Right`).
+    pub next_song: String,
+    /// Morceau précédent (défaut `Left`).
+    pub prev_song: String,
+}
+
+impl Default for Set {
+    fn default() -> Self {
+        Self { next_song: "Right".into(), prev_song: "Left".into() }
+    }
 }
 
 /// Le **clic** du métronome : son niveau et sa mesure. Le routage, lui, est par sortie
@@ -147,6 +168,7 @@ impl Default for Config {
             audio: AudioConfig::default(),
             routing: Routing::default(),
             metronome: None,
+            set: None,
         }
     }
 }
