@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#249)
+- **Les réglages d'un effet n'éditent plus la chaîne derrière leur panneau.** `Retour` et `x` y
+  retiraient le bloc dont on réglait justement les paramètres, `s` le mettait en parallèle, `a` et
+  `i` ouvraient le catalogue, `n` vidait la chaîne — depuis un écran qui ne montre qu'une liste de
+  valeurs. Le panneau refuse maintenant ce qui **édite** et le dit (« rien ne s'édite depuis les
+  réglages : Échap revient à la chaîne »).
+- Ce qui **écoute** ou **montre** le traverse, puisque c'est ce qu'on fait en réglant : le volume du
+  preset (`,` / `.`), l'A/B sans effets (`r`), les vumètres (`v`), et `S` / `P`.
+- `PgDn` / `PgUp` — le geste du pédalier — ne se bloquent **jamais** : ils changent de preset depuis
+  les réglages, et le panneau se referme, son bloc ayant disparu avec la chaîne.
+
 ### Corrigé (#247)
 - **Les espaces sont indépendants.** Dans l'espace **Chaîne**, `PgDn` / `PgUp` changeaient de
   morceau du set dès qu'un set était actif : on ne pouvait plus travailler à la maille preset dans

@@ -33,9 +33,15 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 (set_key / fx_key / library_key) > LE COMMUN (S P n, éclipsable par déclaration —
                 c'est ainsi que #220 prendra `S` dans l'espace Set) > LE DERNIER RECOURS (Échap, et
                 la touche sans propriétaire posée dans State::unhandled que la boucle trace).
-                DEUX RÈGLES À NE PAS CASSER : une modale ne retombe JAMAIS (un `?` sur un champ
+                TROIS RÈGLES À NE PAS CASSER : une modale ne retombe JAMAIS (un `?` sur un champ
                 interne à une modale ouverte est un piège — son None veut dire « pas à moi », et
-                `n` effaçait la chaîne derrière la fenêtre L), et `library_key` doit rendre None sur
+                `n` effaçait la chaîne derrière la fenêtre L), un PANNEAU non plus (#249 : les
+                réglages d'un effet, FxFocus::Params dans fx.rs, laissaient tomber dans le `match`
+                d'édition tout ce qu'ils ne traitaient pas — `Retour` et `x` retiraient LE BLOC
+                QU'ON RÉGLAIT ; la garde est une liste BLANCHE, parce qu'une liste de refus échoue
+                OUVERTE : passent ce qui écoute ou montre — `,` `.` `r` `v` `S` `P` — et `PgDn` /
+                `PgUp`, le geste du pédalier, qui ne se bloque JAMAIS et referme le panneau),
+                et `library_key` doit rendre None sur
                 une touche inconnue (son ancien `_ => {}` avalait tout, les étages du dessous
                 mourraient dans la Bibliothèque). LA DERNIÈRE COUCHE EST CELLE DE LA
                 BIBLIOTHÈQUE et porte sa garde d'espace depuis #241 : sans elle, toute touche qu'un

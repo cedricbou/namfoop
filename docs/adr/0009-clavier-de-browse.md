@@ -72,6 +72,29 @@ Conséquence pratique : un `?` (`Option`) sur un champ interne à une modale est
 que son `None` signifie « pas à moi » pour l'appelant. Dans une modale ouverte, tout chemin doit
 rendre `Some`.
 
+### Un panneau non plus (complément, #249)
+
+*La règle vaut pour tout ce qui **recouvre** un écran, fenêtre ou non.* Les réglages d'un effet
+(`FxFocus::Params`) ne sont pas une modale mais une **colonne** de l'espace Chaîne : ils vivaient
+donc *dans* `fx_key`, au-dessus du `match` d'édition, et tout ce qu'ils ne traitaient pas y tombait.
+`Retour` et `x` retiraient **le bloc dont on réglait les paramètres** — en laissant le focus sur un
+bloc qui n'en a aucun —, `s` le mettait en parallèle, `a` ouvrait le catalogue, `n` vidait la chaîne,
+depuis un écran qui montre une liste de valeurs. C'est #241 (agir sur un écran qu'on ne regarde pas)
+appliqué à un quasi-modal, et c'est l'oracle qui l'a montré : la table le disait depuis #244, mais
+rien ne le faisait échouer, parce que la jointure ne va que dans le sens « déclaré ⇒ possédé »
+(#252).
+
+Un panneau se garde donc par une liste **blanche**, comme la scène et pour la même raison : une
+liste de refus échoue *ouverte*, et la prochaine touche d'édition agirait de nouveau derrière lui.
+**La règle de la liste** : le panneau refuse ce qui **édite** la chaîne, et laisse passer ce qui
+**écoute** ou **montre** — le volume du preset, l'A/B sans effets, les vumètres —, parce que c'est
+exactement ce qu'on fait en réglant un paramètre.
+
+Avec une exception qui n'en est pas une : **`PgDn` / `PgUp` ne se bloquent jamais.** C'est le geste
+du pédalier (#158), et la fiabilité live prime. Le preset remplace la chaîne entière, donc le
+panneau n'a plus de sujet : il se referme de lui-même. Le même raisonnement rouvrira la question
+pour les modales (#253), où `q` et `*` sont aujourd'hui inertes.
+
 ### L'éclipse se déclare
 
 Un espace peut s'approprier une touche commune : il suffit qu'il la consomme à l'étage 2.

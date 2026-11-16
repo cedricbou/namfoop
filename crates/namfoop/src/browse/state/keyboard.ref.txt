@@ -253,41 +253,53 @@
   →        « reverb : decay = 1.6 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   Maj+←    « reverb : decay = 1.49 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   Maj+→    « reverb : decay = 1.51 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
-  PgUp     « aucun preset enregistré : S enregistre la chaîne »
-  PgDn     « aucun preset enregistré : S enregistre la chaîne »
+  PgUp     « aucun preset enregistré : S enregistre la chaîne »   focus chaîne: Params → Chain
+  PgDn     « aucun preset enregistré : S enregistre la chaîne »   focus chaîne: Params → Chain
   Entrée   focus chaîne: Params → Chain
+  Tab      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  Maj+Tab  « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   Échap    focus chaîne: Params → Chain
-  Retour   « reverb retiré »   curseur chaîne: Top(2) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
+  Retour   « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  ' '      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
-  '+'      « + s'utilise dans un parallèle (s pour en créer un) »
+  '+'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   ','      « volume du preset -1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
+  '-'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   '.'      « volume du preset +1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
-  '='      « + s'utilise dans un parallèle (s pour en créer un) »
+  '/'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  '='      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   '?'      aide: false → true
-  '['      curseur chaîne: Top(2) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
-  '{'      « { } déplace un bloc d'une branche à l'autre »
-  '}'      « { } déplace un bloc d'une branche à l'autre »
+  '['      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  ']'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  '{'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  '}'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   '1'      → Play   espace: Chain → Library
   '2'      « tu es déjà dans la Chaîne »
   '3'      → Play   espace: Chain → Set
-  'a'      catalogue: false → true
-  'b'      « reverb coupé »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
+  'a'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'b'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'c'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'e'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'é'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'h'      aide: false → true
-  'i'      catalogue: false → true
+  'i'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
-  'm'      « m / o / p agissent sur une branche »
-  'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   curseur chaîne: Top(2) → Empty   focus chaîne: Params → Chain   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
-  'o'      « m / o / p agissent sur une branche »
+  'L'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'm'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'n'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'o'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'P'      « aucun preset enregistré : S enregistre la chaîne »   banque: false → true
-  'p'      « m / o / p agissent sur une branche »
+  'p'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'q'      → Quit
+  'Q'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'r'      « A/B : sans effets (r pour les remettre) »
-  's'      « parallèle créé (copie) : B1 = son direct, B2 = reverb »   curseur chaîne: Top(2) → Block { top: 2, b: 1, j: 0 }   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
+  's'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'S'      nom: None → Some("800D Modern + 3 blocs")
-  't'      toml: false → true
+  't'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'v'      « vumètres masqués »   vumètres: true → false
-  'x'      « reverb retiré »   curseur chaîne: Top(2) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
-  inertes : ↑ ↓ Tab Maj+Tab ' ' '-' '/' ']' 'c' 'e' 'é' 'L' 'Q' 'z'
+  'x'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'z'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  inertes : ↑ ↓
 
 ## chaîne · catalogue de blocs
   Entrée   sélecteur: false → true   catalogue: true → false   curseur chaîne: Top(0) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
