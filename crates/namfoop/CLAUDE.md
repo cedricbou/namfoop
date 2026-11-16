@@ -12,8 +12,21 @@ cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings
 cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
-browse/         `browse` : state/ (logique pure + horloge fournie, testée : keys.rs LE CLAVIER,
-                seul endroit où l'ordre des couches est écrit — toute SAISIE DE TEXTE (nom, filtre
+browse/         `browse` : state/ (logique pure + horloge fournie, testée : keyboard.rs L'ORACLE DU
+                CLAVIER (#241, épique #240) — un test qui mesure, pour chacun des 21 contextes et
+                des 52 touches, ce qui se passe VRAIMENT (couche qui consomme, action, message,
+                champs d'état changés) et le fige dans keyboard.ref.txt. C'est LUI qu'on lit pour
+                savoir ce que fait une touche : `on_key` est une cascade de 14 fonctions sur 9
+                fichiers, la lire ne suffit pas. Régénérer après avoir VOULU le diff :
+                NAMFOOP_UPDATE_KEYBOARD=1 cargo test -p namfoop --bin namfoop keyboard.
+                Deux pièges d'écriture : chaque touche part d'un état NEUF (sinon on mesure une
+                séquence), et on ne regarde JAMAIS l'écran (ratatui n'écrit que les cellules
+                modifiées) ; keys.rs LE CLAVIER,
+                seul endroit où l'ordre des couches est écrit. LA DERNIÈRE COUCHE EST CELLE DE LA
+                BIBLIOTHÈQUE et porte sa garde d'espace depuis #241 : sans elle, toute touche qu'un
+                espace ne consomme pas y retombait et agissait sur un écran qu'on ne regarde pas
+                (depuis la vue scène, `b` coupait l'IR du son joué, `e` ouvrait l'éditeur de
+                modèle). `Échap` et `q` sont au-dessus : ils valent partout. Toute SAISIE DE TEXTE (nom, filtre
                 des listes, filtre du catalogue de blocs) passe AVANT les touches communes
                 (1 / 2 / S / P / n), sinon une lettre commune est volée au filtre et agit deux fois
                 (#175 : le « n » de nam et de gain effaçait la chaîne) ; mod.rs état et
