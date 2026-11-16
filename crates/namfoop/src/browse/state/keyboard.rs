@@ -460,22 +460,58 @@ fn the_keyboard_does_exactly_what_the_reference_says() {
     if want == now {
         return;
     }
-    // un diff ligne par ligne : la table fait un millier de lignes, on ne la compare pas à l'œil
+    // Un diff **par (contexte, touche)**, jamais par ligne : une touche ajoutée décale tout le
+    // reste, et un diff de lignes noie alors les quatre vrais changements dans trois cents faux.
+    let (a, b) = (parse(&want), parse(&now));
     let mut diff = Vec::new();
-    let (a, b): (Vec<&str>, Vec<&str>) = (want.lines().collect(), now.lines().collect());
-    for i in 0..a.len().max(b.len()) {
-        match (a.get(i), b.get(i)) {
-            (x, y) if x == y => {}
-            (Some(x), Some(y)) => diff.push(format!("  ligne {}\n    réf : {x}\n    or  : {y}", i + 1)),
-            (Some(x), None) => diff.push(format!("  ligne {} en trop dans la réf : {x}", i + 1)),
-            (None, Some(y)) => diff.push(format!("  ligne {} nouvelle : {y}", i + 1)),
-            (None, None) => {}
+    for (ctx, keys) in &a {
+        match b.get(ctx) {
+            None => diff.push(format!("  contexte DISPARU : {ctx}")),
+            Some(other) => {
+                for (k, was) in keys {
+                    let now = other.get(k).map(String::as_str).unwrap_or("(touche absente)");
+                    if now != was {
+                        diff.push(format!("  [{ctx}] {k}\n      avant : {was}\n      après : {now}"));
+                    }
+                }
+            }
         }
     }
+    for ctx in b.keys() {
+        if !a.contains_key(ctx) {
+            diff.push(format!("  contexte NOUVEAU : {ctx}"));
+        }
+    }
+    assert!(!diff.is_empty(), "les tables diffèrent mais aucun (contexte, touche) ne change");
     panic!(
-        "le clavier ne fait plus ce que dit {REF} ({} différence(s)) :\n{}\n\n\
+        "le clavier ne fait plus ce que dit {REF} — {} changement(s) :\n{}\n\n\
          Si c'est voulu : NAMFOOP_UPDATE_KEYBOARD=1 cargo test -p namfoop --bin namfoop keyboard",
         diff.len(),
-        diff.iter().take(40).cloned().collect::<Vec<_>>().join("\n")
+        diff.join("\n")
     );
+}
+
+/// Relire une table en `contexte -> touche -> ce qu'elle fait`, pour comparer **ce qui compte** et
+/// non des numéros de ligne. Les touches inertes y entrent explicitement : « cette touche ne fait
+/// rien ici » est une information, c'est même celle que #238 aurait dû donner.
+fn parse(table: &str) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> {
+    let mut out: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> =
+        Default::default();
+    let mut ctx = String::new();
+    for l in table.lines() {
+        if let Some(name) = l.strip_prefix("## ") {
+            ctx = name.to_string();
+            out.entry(ctx.clone()).or_default();
+        } else if let Some(idle) = l.strip_prefix("  inertes : ") {
+            let e = out.entry(ctx.clone()).or_default();
+            for k in idle.split_whitespace() {
+                e.insert(k.to_string(), "(inerte)".into());
+            }
+        } else if let Some(row) = l.strip_prefix("  ") {
+            if let Some((k, what)) = row.split_once(char::is_whitespace) {
+                out.entry(ctx.clone()).or_default().insert(k.to_string(), what.trim().to_string());
+            }
+        }
+    }
+    out
 }

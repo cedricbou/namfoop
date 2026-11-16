@@ -22,7 +22,17 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 Deux pièges d'écriture : chaque touche part d'un état NEUF (sinon on mesure une
                 séquence), et on ne regarde JAMAIS l'écran (ratatui n'écrit que les cellules
                 modifiées) ; keys.rs LE CLAVIER,
-                seul endroit où l'ordre des couches est écrit. LA DERNIÈRE COUCHE EST CELLE DE LA
+                seul endroit où l'ordre des couches est écrit — QUATRE ÉTAGES depuis #242
+                (ADR 0009) : les modes (fenêtres, saisies) puis la PÉDALE (1 2 3 q h * k, qu'un
+                espace ne peut PAS éclipser : un risque live, pas une esthétique) > L'ESPACE
+                (set_key / fx_key / library_key) > LE COMMUN (S P n, éclipsable par déclaration —
+                c'est ainsi que #220 prendra `S` dans l'espace Set) > LE DERNIER RECOURS (Échap, et
+                la touche sans propriétaire posée dans State::unhandled que la boucle trace).
+                DEUX RÈGLES À NE PAS CASSER : une modale ne retombe JAMAIS (un `?` sur un champ
+                interne à une modale ouverte est un piège — son None veut dire « pas à moi », et
+                `n` effaçait la chaîne derrière la fenêtre L), et `library_key` doit rendre None sur
+                une touche inconnue (son ancien `_ => {}` avalait tout, les étages du dessous
+                mourraient dans la Bibliothèque). LA DERNIÈRE COUCHE EST CELLE DE LA
                 BIBLIOTHÈQUE et porte sa garde d'espace depuis #241 : sans elle, toute touche qu'un
                 espace ne consomme pas y retombait et agissait sur un écran qu'on ne regarde pas
                 (depuis la vue scène, `b` coupait l'IR du son joué, `e` ouvrait l'éditeur de

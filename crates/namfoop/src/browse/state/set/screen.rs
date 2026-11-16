@@ -63,9 +63,6 @@ impl State {
     /// Les touches de l'espace **Set**. Rend `None` quand la touche ne lui appartient pas, pour
     /// qu'elle retombe sur les touches communes (patron de `fx_key`).
     pub(in crate::browse::state) fn set_key(&mut self, key: Key) -> Option<Action> {
-        if self.set_picker.is_some() {
-            return self.set_picker_key(key);
-        }
         if self.space != space::Space::Set {
             return None;
         }
@@ -149,7 +146,7 @@ impl State {
             .unwrap_or(0);
     }
 
-    fn set_picker_key(&mut self, key: Key) -> Option<Action> {
+    pub(in crate::browse::state) fn set_picker_key(&mut self, key: Key) -> Option<Action> {
         let n = self.set_picker.as_ref()?.sets.len();
         match key {
             Key::Esc | Key::Char('L') => {
@@ -168,8 +165,13 @@ impl State {
                 Some(Action::None)
             }
             Key::Enter => {
-                let p = self.set_picker.as_ref()?;
-                let choice = p.sets.get(p.cursor)?.clone();
+                // ATTENTION : une modale ne **retombe jamais**. Le `?` sur une liste encore vide
+                // (la boucle n'a pas répondu à `ListSets`) laissait passer `Entrée` vers les étages
+                // du dessous, qui jouaient un morceau DERRIÈRE la fenêtre ouverte (#242).
+                let Some(choice) = self.set_picker.as_ref().and_then(|p| p.sets.get(p.cursor)).cloned()
+                else {
+                    return Some(Action::None);
+                };
                 self.set_picker = None;
                 Some(match choice {
                     Entry::Set { id, .. } => Action::OpenSet(id),

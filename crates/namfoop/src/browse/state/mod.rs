@@ -258,6 +258,10 @@ pub struct State {
     pub song_keys: (Key, Key),
     /// La fenêtre **`L` : choisir le set** (§ 7). `None` : fermée.
     pub set_picker: Option<set::screen::Picker>,
+    /// La dernière touche que **personne** n'a possédée (ADR 0009, #242). La boucle l'écrit dans
+    /// `NAMFOOP_BROWSE_TRACE` puis la remet à `None` : sur scène, « j'ai appuyé et rien ne s'est
+    /// passé » devient diagnosticable, sans rien afficher à l'utilisateur.
+    pub unhandled: Option<crate::tui::Key>,
     /// **`run --set` : la scène verrouillée** (§ 9, #221). Seuls les gestes de scène répondent —
     /// changer de son, de morceau, voir un détail, taper le tempo. Tout le reste affiche
     /// `🔒 run --set : rien ne s'édite ici`. On ne modifie pas un preset par mégarde en concert.
@@ -328,6 +332,7 @@ impl State {
             set: None,
             song_keys: (Key::Right, Key::Left),
             set_picker: None,
+            unhandled: None,
             locked: false,
             metronome: false,
             metronome_routed: false,

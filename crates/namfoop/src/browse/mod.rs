@@ -399,6 +399,12 @@ pub fn run(
             if action == Action::None {
                 if let Some(k) = tui::poll_key(Duration::from_millis(30))? {
                     action = st.on_key(k);
+                    // une touche que **personne** ne possède (ADR 0009) : rien à l'écran, mais une
+                    // ligne dans la trace. Sur scène, « j'ai appuyé et rien ne s'est passé »
+                    // devient diagnosticable au lieu d'être une impression.
+                    if let Some(orphan) = st.unhandled.take() {
+                        trace(&format!("touche sans propriétaire : {orphan:?}"));
+                    }
                 }
             }
             match action {
