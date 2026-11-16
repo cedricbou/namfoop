@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#247)
+- **Les espaces sont indépendants.** Dans l'espace **Chaîne**, `PgDn` / `PgUp` changeaient de
+  morceau du set dès qu'un set était actif : on ne pouvait plus travailler à la maille preset dans
+  l'espace fait pour ça. Ils parcourent de nouveau la **banque**, en boucle, set actif ou non. Le
+  set ne se joue que dans **son** espace et sur scène (`run --set`).
+- La banque **préchargée** reste celle du set : c'est en Set et sur scène que la bascule doit être
+  instantanée. Dans la Chaîne, un preset hors du set se charge par l'ancien chemin (~80 ms, sans
+  coupure) — on y travaille, on n'y joue pas.
+- Sans set, `PgDn` / `PgUp` dans l'espace Set disent « aucun set : L pour en choisir un » au lieu
+  de ne rien faire.
+
 ### Modifié (#243)
 - **Les touches ne sont plus déclarées qu'une fois.** La barre du bas et l'aide `h` sont
   **dérivées** d'une table (`state/bindings.rs`) : une touche existait jusqu'à **six fois** (le

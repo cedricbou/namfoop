@@ -157,7 +157,11 @@ impl State {
     /// (§ 5). Au bout, on ne fait rien et on le dit — sur scène, dépasser la fin d'un set ne doit
     /// pas rejouer le premier morceau.
     pub(super) fn step_set(&mut self, down: bool) -> Action {
-        let Some(s) = self.set.as_ref() else { return Action::None };
+        let Some(s) = self.set.as_ref() else {
+            // possédée mais sans objet : on le dit plutôt que de ne rien faire (ADR 0009)
+            self.message = Some("aucun set : L pour en choisir un".into());
+            return Action::None;
+        };
         if !s.is_playable() {
             self.message =
                 Some(format!("set « {} » : aucun son jouable (presets introuvables : namfoop sets)", s.stem));
@@ -414,6 +418,9 @@ mod tests {
         let by_name = |q: &str| s.presets.iter().position(|p| p.name == q);
         s.set = Some(ActiveSet::new("s1".into(), "Groupe 1".into(), spec(), &|q| by_name(q)));
         s.mark_start();
+        // **dans l'espace Set** : depuis #247, la Chaîne garde sa banque, les espaces sont
+        // indépendants
+        s.on_key(Key::Char('3'));
 
         // son 1 du morceau 1 : volume du preset (0), tempo du morceau (124, qui prime sur 100)
         s.on_key(Key::PageDown);
@@ -460,5 +467,99 @@ mod tests {
         assert_eq!(Key::from_name("*"), Some(Key::Char('*')));
         assert_eq!(Key::from_name("n'importe quoi"), None);
         assert_eq!(Key::from_name(""), None);
+    }
+}
+
+#[cfg(test)]
+mod independence_tests {
+    use super::*;
+    use crate::browse::state::space::Space;
+    use crate::browse::state::tests::with_chain;
+    use crate::tui::Key;
+    use dsp::preset::PresetSpec;
+    use library::set::{SetSpec, Song, Sound};
+
+    /// Un set de deux morceaux sur deux presets, une banque de trois.
+    fn staged() -> State {
+        let mut s = with_chain(vec![]);
+        let preset = |name: &str| {
+            let spec = PresetSpec { name: name.into(), tempo_bpm: 100.0, ..Default::default() };
+            (name.to_string(), name.to_string(), format!("/x/{name}.preset.toml").into(), spec)
+        };
+        s.adopt_presets(vec![preset("alpha"), preset("beta"), preset("gamma")]);
+        let names: Vec<String> = s.presets.iter().map(|p| p.name.clone()).collect();
+        let find = |q: &str| names.iter().position(|n| n == q);
+        let sound = |p: &str| Sound { preset: p.into(), volume_db: 0.0 };
+        let spec = SetSpec {
+            name: "Concert".into(),
+            songs: vec![
+                Song { title: Some("A".into()), sounds: vec![sound("alpha")], ..Default::default() },
+                Song { title: Some("B".into()), sounds: vec![sound("beta")], ..Default::default() },
+            ],
+            ..Default::default()
+        };
+        s.set = Some(ActiveSet::new("s".into(), "concert".into(), spec, &find));
+        s.mark_start();
+        s
+    }
+
+    /// **Les espaces sont indépendants** (#247). Choisir un espace, c'est travailler sur ce qu'il
+    /// représente : dans la **Chaîne** on travaille son preset, donc `PgDn` parcourt la **banque**
+    /// même quand un set est actif. Le set ne se joue que dans **son** espace.
+    ///
+    /// C'était l'inverse jusqu'ici — `step_preset` se détournait vers le set dès qu'il y en avait
+    /// un (#218, et la spécification le demandait) — et on ne pouvait plus travailler à la maille
+    /// preset dans l'espace fait pour ça.
+    #[test]
+    fn the_chain_space_steps_the_bank_even_with_a_set() {
+        let mut s = staged();
+        s.on_key(Key::Char('2'));
+        assert_eq!(s.space, Space::Chain);
+        let set_before = s.set.as_ref().unwrap().at;
+
+        // trois presets, en boucle : c'est la banque, pas les deux sons du set
+        let mut seen = Vec::new();
+        for _ in 0..4 {
+            s.on_key(Key::PageDown);
+            seen.push(s.preset.as_ref().map(|p| p.name.clone()).unwrap_or_default());
+        }
+        assert_eq!(seen, ["alpha", "beta", "gamma", "alpha"], "la banque entière, en boucle");
+        assert_eq!(s.set.as_ref().unwrap().at, set_before, "le set n'a pas bougé");
+    }
+
+    /// Et dans l'autre sens : l'espace **Set** joue le set, et travailler un preset dans la Chaîne
+    /// ne déplace pas le morceau joué.
+    #[test]
+    fn the_set_space_steps_the_set_and_the_two_do_not_interfere() {
+        let mut s = staged();
+        s.on_key(Key::Char('3'));
+        s.on_key(Key::PageDown);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "premier son du set");
+        s.on_key(Key::PageDown);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "son suivant du set");
+        s.on_key(Key::PageDown);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "pas de bouclage : fin du set");
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("fin du set")));
+
+        // on part travailler dans la Chaîne : la banque défile, le set reste où il est
+        s.on_key(Key::Char('2'));
+        s.on_key(Key::PageDown);
+        s.on_key(Key::PageDown);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "le set n'a pas bougé");
+
+        // et on revient : le set reprend là où on l'avait laissé
+        s.on_key(Key::Char('3'));
+        s.on_key(Key::PageUp);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "le son précédent du set");
+    }
+
+    /// Sans set, l'espace Set le **dit** au lieu de ne rien faire : la touche lui appartient
+    /// (ADR 0009), elle n'a juste rien à jouer.
+    #[test]
+    fn without_a_set_the_page_keys_say_so() {
+        let mut s = with_chain(vec![]);
+        s.on_key(Key::Char('3'));
+        s.on_key(Key::PageDown);
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("L pour")), "{:?}", s.message);
     }
 }

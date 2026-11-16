@@ -75,8 +75,8 @@ impl State {
             // premier jet (#219) — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que
             // dans l'espace Chaîne — si bien que dans l'espace Set, celui où elle compte le plus,
             // PgDn/PgUp tombaient sur le curseur de liste de la Bibliothèque et ne jouaient rien.
-            Key::PageDown => Some(self.step_preset(true)),
-            Key::PageUp => Some(self.step_preset(false)),
+            Key::PageDown => Some(self.step_set(true)),
+            Key::PageUp => Some(self.step_set(false)),
             // les touches de morceau, pour la même raison : elles n'étaient liées nulle part dans
             // l'espace Set (#218 les avait laissées en attente de cet écran)
             k if k == self.song_keys.0 && songs > 0 => Some(self.step_set_song(true)),

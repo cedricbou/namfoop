@@ -103,10 +103,9 @@ impl State {
     /// celui de la banque, et on **boucle** du dernier au premier. Si la chaîne n'est pas
     /// enregistrée, on demande une fois (`switch_to`).
     pub(super) fn step_preset(&mut self, down: bool) -> Action {
-        // un set actif remplace la banque entière par sa liste à plat (§ 5, § 13)
-        if self.set.is_some() {
-            return self.step_set(down);
-        }
+        // ATTENTION (#247) : un set actif ne change RIEN ici. Les espaces sont indépendants —
+        // choisir un espace, c'est travailler sur ce qu'il représente —, donc la Chaîne parcourt
+        // toujours la banque. Le set se joue dans SON espace (`step_set`) et sur scène.
         let n = self.presets.len();
         if n == 0 {
             self.message = Some("aucun preset enregistré : S enregistre la chaîne".into());

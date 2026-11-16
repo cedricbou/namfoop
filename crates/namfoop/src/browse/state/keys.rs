@@ -377,8 +377,8 @@ impl State {
         }
         let song = self.song_keys;
         match key {
-            Key::PageDown => self.step_preset(true),
-            Key::PageUp => self.step_preset(false),
+            Key::PageDown => self.step_set(true),
+            Key::PageUp => self.step_set(false),
             k if k == song.0 => self.step_set_song(true),
             k if k == song.1 => self.step_set_song(false),
             Key::Up | Key::Down | Key::Enter | Key::Char('i') => self.set_key(key).unwrap_or(Action::None),

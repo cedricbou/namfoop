@@ -1849,7 +1849,7 @@ sons.
 
 | touche | |
 |---|---|
-| `PgDn` / `PgUp` | son suivant / précédent du set |
+| `PgDn` / `PgUp` | son suivant / précédent du set (dans **cet** espace seulement) |
 | `↑` `↓` | **viser** un morceau — rien ne change à l'oreille |
 | `Entrée` | jouer le morceau visé, sur son premier son |
 | `i` | déplier le détail du morceau visé : son PC, la valeur de CC 69 de chaque son, son volume propre, son prompteur. Plusieurs morceaux peuvent rester dépliés |
