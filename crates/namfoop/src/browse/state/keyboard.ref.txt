@@ -339,7 +339,7 @@
   'i'      « aucun set : L pour en choisir un »
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
   'L'      → ListSets   fenêtre L: false → true
-  'n'      « la chaîne est déjà vierge : a ajoute un bloc »
+  'n'      « n bâtit une chaîne : 2 pour la Chaîne »
   'P'      « aucun preset enregistré : S enregistre la chaîne »   banque: false → true
   'q'      → Quit
   'S'      « chaîne vide : rien à enregistrer »
@@ -362,7 +362,7 @@
   'i'      set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 0)), 0, [0]))
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
   'L'      → ListSets   fenêtre L: false → true
-  'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   espace: Set → Chain   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → None
+  'n'      « n bâtit une chaîne : 2 pour la Chaîne »
   'P'      banque: false → true
   'q'      → Quit
   'S'      nom: None → Some("Punk chorus")

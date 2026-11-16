@@ -79,7 +79,10 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 banque, en boucle) est à la CHAÎNE, `step_set` (la liste à plat du set) est à
                 l'espace SET et à la scène. Ne jamais refaire détourner l'un vers l'autre — c'était
                 le cas jusqu'à #247, et la spécification le demandait : on ne pouvait plus
-                travailler à la maille preset dans la Chaîne. flat() est la liste à plat du § 5,
+                travailler à la maille preset dans la Chaîne. Même règle dans l'autre sens (#250) :
+                l'espace Set ÉCLIPSE `n`, qui y vidait la chaîne, détachait le preset et quittait
+                l'écran de concert sans rien demander — une touche d'un espace n'agit pas sur
+                l'objet d'un autre. `S` suivra avec #220 (enregistrer LE SET). flat() est la liste à plat du § 5,
                 step() / step_song() n'y BOUCLENT PAS (fin du set / début du set : on ne rejoue pas
                 le premier morceau par mégarde), distinct_slots() donne la banque du set — UNE
                 place par preset distinct, parce que le volume et le tempo sont vivants, donc hors

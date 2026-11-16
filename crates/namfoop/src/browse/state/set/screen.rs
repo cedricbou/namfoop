@@ -71,6 +71,17 @@ impl State {
             // `L` : choisir le set. **Dans l'espace Set seulement** — le garde plus haut l'y
             // enferme, et le commentaire d'origine prétendait le contraire (#243).
             Key::Char('L') => Some(self.open_set_picker()),
+            // **`n` est éclipsée ici** (#250, ADR 0009 « l'éclipse se déclare »). Commune, elle
+            // vidait la chaîne, détachait le preset **et quittait l'espace** — sur l'écran de
+            // préparation de concert, sans confirmation, puisqu'il n'y a rien de non enregistré.
+            // C'est la famille de #247 : une touche d'un espace agissait sur l'objet d'un autre.
+            // Son geste — « repartir d'une chaîne vierge » — ne désigne rien d'ici, alors elle le
+            // **dit** plutôt que de ne rien faire. Sur scène (`locked_key`), la liste blanche la
+            // refusait déjà : la bonne polarité était connue, elle n'était pas appliquée ici.
+            Key::Char('n') => {
+                self.message = Some("n bâtit une chaîne : 2 pour la Chaîne".into());
+                Some(Action::None)
+            }
             // **son suivant / précédent** : la touche du pied. Elle ne passait PAS par ici au
             // premier jet (#219) — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que
             // dans l'espace Chaîne — si bien que dans l'espace Set, celui où elle compte le plus,
@@ -350,12 +361,18 @@ mod foot_tests {
     use super::*;
     use crate::browse::state::set::ActiveSet;
     use crate::browse::state::space::Space;
-    use crate::browse::state::tests::with_chain;
+    use crate::browse::state::tests::{fx_block, with_chain};
     use library::set::{SetSpec, Song, Sound};
 
     /// Deux morceaux, trois sons, trois presets distincts.
     fn staged() -> State {
-        let mut s = with_chain(vec![]);
+        staged_with(vec![])
+    }
+
+    /// Le même set, mais sur une chaîne donnée : il faut quelque chose à défendre pour vérifier
+    /// qu'une touche d'un autre espace n'y touche pas (#250).
+    fn staged_with(blocks: Vec<crate::browse::state::chain::Block>) -> State {
+        let mut s = with_chain(blocks);
         let sound = |p: &str| Sound { preset: p.into(), volume_db: 0.0 };
         let spec = SetSpec {
             name: "One More Time".into(),
@@ -413,6 +430,43 @@ mod foot_tests {
         assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "morceau suivant");
         s.on_key(s.song_keys.1);
         assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "morceau précédent");
+    }
+
+    /// **`n` est éclipsée dans l'espace Set** (#250, ADR 0009 « l'éclipse se déclare »). Commune
+    /// ailleurs, elle y vidait la chaîne, détachait le preset **et quittait l'espace** — sur
+    /// l'écran de préparation de concert, et sans confirmation puisqu'il n'y a rien de non
+    /// enregistré. Même famille que #247 : une touche d'un espace agissait sur l'objet d'un autre.
+    ///
+    /// Sur scène (`locked_key`), la liste blanche la refusait déjà : la bonne polarité était
+    /// connue, elle n'était simplement pas appliquée dans `browse`.
+    #[test]
+    fn a_blank_chain_is_refused_in_the_set_space() {
+        let mut s = staged_with(vec![fx_block("reverb")]);
+        s.mark_start();
+        s.play_set_sound((0, 0));
+        let before = (format!("{:?}", s.fx.chain), format!("{:?}", s.preset), s.space);
+        s.message = None;
+        assert!(matches!(s.on_key(Key::Char('n')), Action::None), "n ne demande aucune chaîne");
+        assert_eq!(
+            before,
+            (format!("{:?}", s.fx.chain), format!("{:?}", s.preset), s.space),
+            "n a touché à la chaîne, au preset ou à l'espace"
+        );
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("2 pour la Chaîne")), "{:?}", s.message);
+        // sans set non plus : l'espace possède la touche, set ou pas
+        let mut s = staged_with(vec![fx_block("reverb")]);
+        s.set = None;
+        s.message = None;
+        s.on_key(Key::Char('n'));
+        assert_eq!(s.space, Space::Set, "on n'a pas quitté l'espace");
+        assert!(!s.fx.chain.is_empty(), "la chaîne est toujours là");
+        // et dans la Chaîne, `n` fait toujours son travail : l'éclipse est **locale**. (Là-bas,
+        // une chaîne non enregistrée fait d'abord demander — la protection qui manquait ici.)
+        let mut s = staged_with(vec![fx_block("reverb")]);
+        s.mark_start();
+        s.on_key(Key::Char('2'));
+        s.on_key(Key::Char('n'));
+        assert!(s.fx.chain.is_empty(), "n repart d'une chaîne vierge dans la Chaîne");
     }
 
     /// **Et les autres espaces ne changent pas** : dans la Bibliothèque, `PgDn` reste le défilement
