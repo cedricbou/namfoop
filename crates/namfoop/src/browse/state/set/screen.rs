@@ -68,7 +68,8 @@ impl State {
         }
         let songs = self.set.as_ref().map(|s| s.spec.songs.len()).unwrap_or(0);
         match key {
-            // `L` : choisir le set, depuis l'espace Set comme ailleurs
+            // `L` : choisir le set. **Dans l'espace Set seulement** — le garde plus haut l'y
+            // enferme, et le commentaire d'origine prétendait le contraire (#243).
             Key::Char('L') => Some(self.open_set_picker()),
             // **son suivant / précédent** : la touche du pied. Elle ne passait PAS par ici au
             // premier jet (#219) — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que
@@ -80,8 +81,15 @@ impl State {
             // l'espace Set (#218 les avait laissées en attente de cet écran)
             k if k == self.song_keys.0 && songs > 0 => Some(self.step_set_song(true)),
             k if k == self.song_keys.1 && songs > 0 => Some(self.step_set_song(false)),
+            // sans set, l'espace possède quand même ses touches et **dit** quoi faire : une
+            // touche annoncée que personne ne consomme, c'est #238 (trouvé par la jointure #243 —
+            // les touches de morceau étaient annoncées et orphelines ici).
             _ if songs == 0 => match key {
                 Key::Up | Key::Down | Key::Enter | Key::Char('i') => {
+                    self.message = Some("aucun set : L pour en choisir un".into());
+                    Some(Action::None)
+                }
+                k if k == self.song_keys.0 || k == self.song_keys.1 => {
                     self.message = Some("aucun set : L pour en choisir un".into());
                     Some(Action::None)
                 }

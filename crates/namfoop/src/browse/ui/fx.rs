@@ -264,31 +264,13 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
 /// Touches affichées en bas de l'espace Chaîne, selon ce que le curseur désigne (§ 7). Chaque
 /// barre finit par les touches qui permettent d'en **sortir** (`h`, `1`, `q`) : c'est l'aide
 /// permanente, l'overlay `h` donne le détail (#150).
-pub fn fx_keys(s: &State) -> String {
-    // la queue commune : ce qu'on oublie et qu'il faut toujours pouvoir lire
-    const SORTIE: &str =
-        "   v vumètres   r sans effets   , . volume   * tap   k clic   PgDn/PgUp preset   S enregistrer   P banque   n vierge   t TOML   h aide   1 Bibliothèque   q quitter";
-    if let Some(p) = s.picker.as_ref() {
-        if p.filtering {
-            return "tape le filtre   Entrée valider   Échap effacer".into();
-        }
-        let esc = if p.is_new { "Échap ne rien ajouter" } else { "Échap revenir à l'ancien" };
-        return format!(
-            "↑↓ essayer dans la chaîne   Entrée garder   {esc}   c actuel / essai   o ce bloc seul   r sans effets   / filtrer   h aide"
-        );
-    }
-    if s.bank.is_some() {
-        return "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   n vierge   h aide"
-            .into();
-    }
-    if s.fx.catalog.is_some() {
-        return "tape pour filtrer   ↑↓ choisir   Entrée ajouter   Échap annuler".into();
-    }
-    if s.fx.focus == FxFocus::Params {
-        return "↑↓ réglage   ←→ valeur   Maj+←→ pas fin   Échap retour à la chaîne   h aide".into();
-    }
+/// **La tête de la barre du bas de la Chaîne** : où l'on est dans le synoptique, et donc ce que
+/// les flèches vont faire. C'est la seule partie qui dépend du curseur ; tout le reste vient de la
+/// table (`state/bindings.rs`) depuis #243 — avant, cette fonction portait aussi une constante
+/// `SORTIE` recopiée à la main, sixième copie des mêmes touches.
+pub fn chain_head(s: &State) -> String {
     let leaf = s.fx.chain.leaf(s.fx.cursor);
-    let head = match (leaf, s.fx.chain.spot(s.fx.cursor)) {
+    match (leaf, s.fx.chain.spot(s.fx.cursor)) {
         (Some(Leaf::Nam { .. }), _) => {
             "←→↑↓ se déplacer   Entrée choisir le modèle   a/i ajouter   s parallèle   [ ] déplacer   x retirer   b couper".to_string()
         }
@@ -311,6 +293,5 @@ pub fn fx_keys(s: &State) -> String {
         (_, Spot::Merge) => {
             "←→ se déplacer   a ajouter après le parallèle   i à la fin de la 1re branche   ↑ le parallèle (◆)".to_string()
         }
-    };
-    format!("{head}{SORTIE}")
+    }
 }

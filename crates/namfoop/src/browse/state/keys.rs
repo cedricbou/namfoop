@@ -396,10 +396,14 @@ impl State {
                 Action::None
             }
             _ => {
-                self.message = Some(
-                    "🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i · * · q)"
-                        .into(),
-                );
+                // la liste des touches qui marchent vient de la **table** : écrite ici, c'était
+                // une sixième copie, et elle ne nommait même pas la touche de morceau (#243)
+                let ok: Vec<&str> = super::bindings::bindings(super::context::Context::Stage)
+                    .iter()
+                    .filter(|b| !b.bar.is_empty())
+                    .map(|b| b.bar)
+                    .collect();
+                self.message = Some(format!("🔒 run --set : rien ne s'édite ici ({})", ok.join(" · ")));
                 Action::None
             }
         }
@@ -446,33 +450,53 @@ mod locked_tests {
         s
     }
 
-    /// **Rien ne s'édite sur scène.** La liste est blanche : toute touche hors des gestes de scène
-    /// est refusée *avec* la liste de celles qui marchent. C'est la garantie de #221 — en concert,
-    /// une touche de trop ne doit pas pouvoir enregistrer, charger ou vider quoi que ce soit.
+    /// **Rien ne s'édite sur scène.** Toute touche que `browse` lie **ailleurs** et que la scène
+    /// ne déclare pas doit être refusée *avec* la liste de celles qui marchent. C'est la garantie
+    /// de #221 : en concert, une touche de trop ne doit pas pouvoir enregistrer, charger ou vider.
+    ///
+    /// La liste des touches à essayer vient de la **table** (#243). Avant, c'étaient 30 touches
+    /// écrites à la main ici — une cinquième copie de l'inventaire des liaisons, que rien ne
+    /// mettait à jour quand une touche était ajoutée ailleurs.
     #[test]
     fn every_editing_key_is_refused() {
+        use crate::browse::state::bindings::bindings;
+        use crate::browse::state::context::Context;
         let mut s = stage();
+        // on compare des touches RÉSOLUES : la scène déclare `PrevSong`, l'éditeur `Left`, et
+        // avec les réglages par défaut c'est la même touche
+        let allowed: Vec<Key> = bindings(Context::Stage)
+            .iter()
+            .flat_map(|b| b.keys.iter().map(|k| k.resolve(s.song_keys)))
+            .collect();
         let before = format!("{:?}", s.fx.chain);
-        // tout ce que `browse` lie par ailleurs : espaces, preset, bibliothèque, édition, fenêtres
-        let keys = [
-            '1', '2', '3', 'S', 'P', 'n', 'e', 'a', 'c', 'r', 'b', 'o', 'p', 'm', 's', 'x', 'z', 'v', 'L',
-            't', '/', '+', '-', ',', '.', '[', ']', '{', '}',
-        ];
-        for k in keys {
-            s.message = None;
-            let action = s.on_key(Key::Char(k));
-            assert!(matches!(action, Action::None), "{k:?} a produit une action : {action:?}");
-            assert!(
-                s.message.as_deref().is_some_and(|m| m.contains("rien ne s'édite ici")),
-                "{k:?} : {:?}",
-                s.message
-            );
+        let mut tried = 0;
+        for ctx in Context::ALL {
+            if matches!(ctx, Context::Stage | Context::StageQuit) {
+                continue;
+            }
+            for b in bindings(*ctx) {
+                for spec in b.keys {
+                    let key = spec.resolve(s.song_keys);
+                    if allowed.contains(&key) {
+                        continue;
+                    }
+                    // `Q` et `Échap` servent à la fenêtre de sortie, pas à éditer
+                    if matches!(key, Key::Char('Q') | Key::Esc) {
+                        continue;
+                    }
+                    tried += 1;
+                    s.message = None;
+                    let action = s.on_key(key);
+                    assert!(matches!(action, Action::None), "{key:?} ({ctx:?}) : {action:?}");
+                    assert!(
+                        s.message.as_deref().is_some_and(|m| m.contains("rien ne s'édite ici")),
+                        "{key:?} ({ctx:?}) : {:?}",
+                        s.message
+                    );
+                }
+            }
         }
-        // et les touches de déplacement de l'édition ne bougent rien non plus
-        for k in [Key::Tab, Key::Left, Key::Right, Key::Esc, Key::Backspace] {
-            s.message = None;
-            assert!(matches!(s.on_key(k), Action::None), "{k:?}");
-        }
+        assert!(tried > 20, "seulement {tried} touches essayées : la table a-t-elle maigri ?");
         assert_eq!(before, format!("{:?}", s.fx.chain), "la chaîne n'a pas bougé");
         assert!(s.naming.is_none() && s.bank.is_none() && s.editor.is_none() && s.set_picker.is_none());
         assert_eq!(s.space, Space::Set, "on n'a pas quitté la scène");

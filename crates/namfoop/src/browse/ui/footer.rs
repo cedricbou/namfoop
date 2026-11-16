@@ -1,67 +1,58 @@
 //! La **barre du bas** : les touches de l'écran où l'on est, dans l'ordre où l'on en a besoin.
-//! Séparée du rendu (`ui/mod.rs`) parce qu'elle grandit à chaque touche nouvelle. L'aide complète
-//! (`h`), elle, est dans `windows.rs`.
+//!
+//! Depuis #243, son texte **n'est plus écrit ici** : il vient du champ `bar` de la table
+//! (`state/bindings.rs`), seule déclaration des touches. Ce fichier ne garde que ce qui est
+//! vraiment **dynamique** — un verbe qui change, une case qui n'apparaît que parfois, la tête de
+//! navigation de la Chaîne qui dépend de l'endroit du curseur.
+//!
+//! Avant, la barre était une cascade de littéraux **parallèle** à celle de `on_key` : rien ne les
+//! reliait, et cinq divergences y vivaient (`S` annoncé mais mort dans la banque, `3` traité mais
+//! annoncé nulle part, `k` actif dans la Bibliothèque sans y être dit, `?` jamais annoncé, `L`
+//! promis « comme ailleurs » mais mort hors de l'espace Set).
 
 use super::*;
+use crate::browse::state::bindings::{bindings, Binding};
+use crate::browse::state::context::Context;
 
-/// Les touches à afficher : la première couche qui a la main gagne (aide, fenêtres, saisies),
-/// sinon l'espace où l'on est.
-pub(super) fn keys(s: &State, lib: bool) -> String {
-    // la scène verrouillée n'a que ses gestes : la barre ne doit pas proposer ce qui est refusé
-    if s.locked {
-        if s.confirm_quit {
-            return "Q quitter la scène   Échap rester".into();
+/// Les touches à afficher, assemblées depuis la table du contexte où l'on est.
+pub(super) fn keys(s: &State, _lib: bool) -> String {
+    let ctx = s.context();
+    let mut parts = head(s, ctx);
+    parts.extend(
+        bindings(ctx).iter().filter(|b| !b.bar.is_empty() && shown(s, ctx, b)).map(|b| b.bar.to_string()),
+    );
+    parts.join("   ")
+}
+
+/// Ce qui ne peut pas être figé dans la table : un verbe qui change, la tête de navigation de la
+/// Chaîne. Garder ces trois cas en code vaut mieux que de rendre la table paramétrable.
+fn head(s: &State, ctx: Context) -> Vec<String> {
+    match ctx {
+        // le même mot que la fenêtre : « charger » un preset, ou « repartir » de zéro (#170)
+        Context::ConfirmSwitch => {
+            let go = if s.pending_switch == Some(Pending::New) { "repartir" } else { "charger" };
+            vec![format!("S enregistrer puis {go}"), format!("Entrée {go} quand même")]
         }
-        return "PgDn/PgUp son   ↑↓ Entrée morceau   i détail   * tap   k clic   h aide   q quitter".into();
-    }
-    match (s.naming.is_some(), s.filtering, s.tab) {
-        _ if s.help => "h ou n'importe quelle touche : fermer l'aide".into(),
-        _ if s.bank.is_some() => {
-            "↑↓ choisir   Entrée charger   / filtrer   Échap fermer   S enregistrer   n vierge   h aide"
-                .into()
-        }
-        _ if s.confirm_switch => {
-            // le même mot que la fenêtre : « charger » un preset, ou « repartir » de zéro (#170)
-            let go = if s.pending_switch == Some(Pending::New) {
-                "repartir"
+        // le sélecteur : le mot d'Échap dépend de ce qu'on a ajouté ou remplacé (§ 5)
+        Context::Picker => {
+            let esc = if s.picker.as_ref().is_some_and(|p| p.is_new) {
+                "Échap ne rien ajouter"
             } else {
-                "charger"
+                "Échap revenir à l'ancien"
             };
-            format!("S enregistrer puis {go}   Entrée {go} quand même   Échap rester")
+            vec![esc.to_string()]
         }
-        _ if s.confirm_quit && s.empty_chain_warning().is_some() => {
-            "Entrée mettre dans la chaîne et rester   Q quitter quand même   Échap rester".into()
-        }
-        _ if s.confirm_quit => {
-            "S enregistrer puis quitter   Q quitter sans enregistrer   Échap rester".into()
-        }
-        _ if s.send.is_some() => {
-            let space = if s.send.as_ref().is_some_and(|x| x.with_ir) { "   Espace cocher" } else { "" };
-            format!("↑↓ choisir{space}   Entrée valider   Échap annuler   h aide")
-        }
-        _ if s.place.is_some() => {
-            "←→↑↓ choisir l'endroit   Entrée poser après le curseur   Échap annuler, retour à la Bibliothèque   h aide"
-                .into()
-        }
-        _ if s.editor.as_ref().is_some_and(|e| e.typing.is_some()) => {
-            "tape le texte   Entrée valider   Échap annuler".into()
-        }
-        _ if s.editor.is_some() => {
-            "↑↓ champ   ←→ changer (écoute directe)   Entrée saisir   s enregistrer   a appliquer aux modèles filtrés   b/r A/B   h aide   Échap fermer".into()
-        }
-        _ if s.set_picker.is_some() => {
-            "↑↓ choisir   Entrée activer   Échap fermer   h aide".into()
-        }
-        _ if s.space == Space::Set => {
-            "PgDn/PgUp son   ↑↓ Entrée jouer un morceau   i détail   L sets   * tap   k clic   \
-             h aide   1 2 espaces   q quitter"
-                .into()
-        }
-        _ if !lib => fx::fx_keys(s),
-        (true, ..) => "tape le nom   Entrée enregistrer   Échap annuler".into(),
-        (_, true, _) => "tape pour filtrer   Entrée valider   ↑↓ quitter le filtre".into(),
-        (_, _, Tab::Models) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   Tab/→ onglets   / filtrer   e calibrer   c réf.   r A/B   b avec/sans IR   S enregistrer   P banque   n vierge   z bandes   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Irs) => "↑↓ écouter au banc   Entrée mettre dans la chaîne   espace → mélange   Tab/←→ onglets   / filtrer   c réf.   r A/B   b avec/sans IR   P banque   n vierge   z bandes   h aide   2 Chaîne   q quitter".into(),
-        (_, _, Tab::Blend) => "↑↓ choisir   +/- gain   p polarité   a alignement   x retirer   s sauver   Entrée mettre dans la chaîne   Tab/← onglets   z bandes   h aide   2 Chaîne   q quitter".into(),
+        // la Chaîne : la tête dit **où l'on est** dans le synoptique, donc elle suit le curseur
+        Context::Chain => vec![fx::chain_head(s)],
+        _ => Vec::new(),
+    }
+}
+
+/// Les quelques segments conditionnels : la case « avec son IR » n'existe que pour un modèle qui
+/// en a une.
+fn shown(s: &State, ctx: Context, b: &Binding) -> bool {
+    match ctx {
+        Context::Send if b.label == "Espace" => s.send.as_ref().is_some_and(|x| x.with_ir),
+        _ => true,
     }
 }

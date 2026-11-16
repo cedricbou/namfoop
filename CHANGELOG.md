@@ -6,6 +6,25 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Modifié (#243)
+- **Les touches ne sont plus déclarées qu'une fois.** La barre du bas et l'aide `h` sont
+  **dérivées** d'une table (`state/bindings.rs`) : une touche existait jusqu'à **six fois** (le
+  dispatch, la barre, l'aide, la liste blanche du verrou, son message de refus, et une liste de
+  30 touches dans un test). Deux tests font la jointure : **tout ce qui est annoncé est possédé**
+  (c'est ce qui rend #238 impossible plutôt qu'improbable) et **la scène est incluse dans l'espace
+  Set**.
+- Cinq divergences annoncé/traité sont fermées : `S` n'est plus annoncé dans la banque (qui
+  l'avale), **`3` (le Set) est enfin annoncé** dans la Bibliothèque et la Chaîne, `?` et la touche
+  de **morceau** sont nommés dans l'aide, et le commentaire qui promettait `L` « comme ailleurs »
+  dit maintenant la vérité.
+- `run --set` : le message de refus liste les touches qui marchent **depuis la table**, donc avec
+  leur libellé complet (`i détail`, `k clic`, `h aide`, `q quitter`) au lieu de `i · * · q`.
+
+### Corrigé (#243)
+- **Sans set, l'espace Set n'était plus maître de ses touches de morceau** : elles étaient
+  annoncées et possédées par personne. Elles disent maintenant « aucun set : L pour en choisir un »,
+  comme `↑↓`, `Entrée` et `i`. Trouvé par la jointure dès sa première exécution.
+
 ### Modifié (#242)
 - **Le clavier de `browse` a quatre étages** ([ADR 0009](docs/adr/0009-clavier-de-browse.md)) : la
   **pédale** (`1 2 3 q h * k`, qu'un espace ne peut pas éclipser — se retrouver coincé dans un
