@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#221)
+- **`namfoop run --set <set>` : la scène verrouillée.** Le même écran de scène que `browse`, privé
+  de tout ce qui édite : en-tête `namfoop run  🔒 SET  <nom>`, et seuls les gestes de scène
+  répondent (`PgDn`/`PgUp`, `↑↓ Entrée`, `i`, `*`, `k`, `h`, `q`). Toute autre touche est refusée
+  avec la liste de celles qui marchent — en concert, une touche de trop ne doit pas pouvoir
+  enregistrer, charger ou vider quoi que ce soit.
+- `run --set` **sans valeur** prend le set retenu (`[set] default`). Set absent, introuvable ou sans
+  aucun son jouable : message clair et **code d'erreur**, émis **avant** de prendre la carte son —
+  c'est ce qu'il faut pour le service de démarrage automatique du Pi.
+- `q` sur scène demande confirmation (`Quitter la scène ? Q quitter · Échap rester`), sans proposer
+  d'enregistrer : il n'y a rien à enregistrer là.
+- `--set` et `--preset` s'excluent, avec le message qui le dit.
+
 ### Ajouté (#219)
 - **L'espace Set : la vue scène.** `3` ouvre un troisième espace (en vert) : la **set list à
   gauche**, le **cadre du morceau à droite**. La colonne de gauche donne l'essentiel par morceau

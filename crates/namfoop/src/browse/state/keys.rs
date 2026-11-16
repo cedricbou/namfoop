@@ -11,6 +11,11 @@ use super::*;
 
 impl State {
     pub fn on_key(&mut self, key: Key) -> Action {
+        // la scène verrouillée (`run --set`, § 9) : le filtre passe **avant tout**, pour qu'aucune
+        // couche ne puisse laisser passer un geste d'édition
+        if self.locked {
+            return self.locked_key(key);
+        }
         if self.confirm_quit {
             return self.confirm_quit_key(key);
         }
@@ -254,5 +259,181 @@ impl State {
             _ => {}
         }
         Action::None
+    }
+}
+
+impl State {
+    /// **La scène verrouillée** (`run --set`, § 9 de `docs/design/set.md`) : on ne joue que les
+    /// sons. Rien ne s'édite, aucun espace ne s'ouvre, aucun preset ne s'enregistre — en concert,
+    /// une touche de trop ne doit pas pouvoir changer autre chose que le son.
+    ///
+    /// La liste est **blanche** (ce qui est permis), jamais noire : une touche ajoutée ailleurs
+    /// dans `browse` n'arrive donc pas par accident sur scène.
+    fn locked_key(&mut self, key: Key) -> Action {
+        // quitter la scène demande confirmation — mais pas celle de `browse` : ici rien ne
+        // s'enregistre, donc `Q` quitte et tout le reste reste
+        if self.confirm_quit {
+            self.confirm_quit = false;
+            return if key == Key::Char('Q') { Action::Quit } else { Action::None };
+        }
+        if self.help {
+            self.help = false;
+            return Action::None;
+        }
+        let song = self.song_keys;
+        match key {
+            Key::PageDown => self.step_preset(true),
+            Key::PageUp => self.step_preset(false),
+            k if k == song.0 => self.step_set_song(true),
+            k if k == song.1 => self.step_set_song(false),
+            Key::Up | Key::Down | Key::Enter | Key::Char('i') => self.set_key(key).unwrap_or(Action::None),
+            Key::Char('*') => self.tap_tempo(),
+            Key::Char('k') => self.toggle_metronome(),
+            Key::Char('h') | Key::Char('?') => {
+                self.help = true;
+                self.message = None;
+                Action::None
+            }
+            Key::Char('q') => {
+                // la scène se quitte volontairement : la fenêtre le demande (§ 9)
+                self.confirm_quit = true;
+                self.message = None;
+                Action::None
+            }
+            _ => {
+                self.message = Some(
+                    "🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i · * · q)"
+                        .into(),
+                );
+                Action::None
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod locked_tests {
+    use super::*;
+    use crate::browse::state::set::ActiveSet;
+    use crate::browse::state::space::Space;
+    use crate::browse::state::tests::with_chain;
+    use library::set::{SetSpec, Song, Sound};
+
+    /// La scène de `run --set` : un set de deux morceaux, verrouillée.
+    fn stage() -> State {
+        let mut s = with_chain(vec![]);
+        let spec = SetSpec {
+            name: "Concert".into(),
+            songs: vec![
+                Song {
+                    title: Some("A".into()),
+                    pc: Some(1),
+                    sounds: vec![
+                        Sound { preset: "p".into(), volume_db: 0.0 },
+                        Sound { preset: "p".into(), volume_db: -1.5 },
+                    ],
+                    ..Default::default()
+                },
+                Song {
+                    title: Some("B".into()),
+                    pc: Some(2),
+                    sounds: vec![Sound { preset: "p".into(), volume_db: 0.0 }],
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        s.set = Some(ActiveSet::new("s".into(), "concert".into(), spec, &|q| (q == "p").then_some(0)));
+        s.locked = true;
+        s.space = Space::Set;
+        s.play_set_sound((0, 0));
+        s.message = None;
+        s
+    }
+
+    /// **Rien ne s'édite sur scène.** La liste est blanche : toute touche hors des gestes de scène
+    /// est refusée *avec* la liste de celles qui marchent. C'est la garantie de #221 — en concert,
+    /// une touche de trop ne doit pas pouvoir enregistrer, charger ou vider quoi que ce soit.
+    #[test]
+    fn every_editing_key_is_refused() {
+        let mut s = stage();
+        let before = format!("{:?}", s.fx.chain);
+        // tout ce que `browse` lie par ailleurs : espaces, preset, bibliothèque, édition, fenêtres
+        let keys = [
+            '1', '2', '3', 'S', 'P', 'n', 'e', 'a', 'c', 'r', 'b', 'o', 'p', 'm', 's', 'x', 'z', 'v', 'L',
+            't', '/', '+', '-', ',', '.', '[', ']', '{', '}',
+        ];
+        for k in keys {
+            s.message = None;
+            let action = s.on_key(Key::Char(k));
+            assert!(matches!(action, Action::None), "{k:?} a produit une action : {action:?}");
+            assert!(
+                s.message.as_deref().is_some_and(|m| m.contains("rien ne s'édite ici")),
+                "{k:?} : {:?}",
+                s.message
+            );
+        }
+        // et les touches de déplacement de l'édition ne bougent rien non plus
+        for k in [Key::Tab, Key::Left, Key::Right, Key::Esc, Key::Backspace] {
+            s.message = None;
+            assert!(matches!(s.on_key(k), Action::None), "{k:?}");
+        }
+        assert_eq!(before, format!("{:?}", s.fx.chain), "la chaîne n'a pas bougé");
+        assert!(s.naming.is_none() && s.bank.is_none() && s.editor.is_none() && s.set_picker.is_none());
+        assert_eq!(s.space, Space::Set, "on n'a pas quitté la scène");
+    }
+
+    /// Les gestes de scène, eux, répondent : son suivant, morceau, détail, tap, clic, aide.
+    #[test]
+    fn the_stage_gestures_still_work() {
+        let mut s = stage();
+        s.on_key(Key::PageDown);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 1)), "son suivant");
+        s.on_key(Key::PageUp);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "son précédent");
+        s.on_key(s.song_keys.0);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "morceau suivant");
+        s.on_key(Key::Up);
+        assert_eq!(s.set.as_ref().unwrap().cursor, 0, "viser remonte");
+        assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "mais ne joue rien");
+        s.on_key(Key::Enter);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "Entrée joue le morceau visé");
+        s.on_key(Key::Char('i'));
+        assert!(s.set.as_ref().unwrap().is_expanded(0));
+        s.on_key(Key::Char('h'));
+        assert!(s.help, "l'aide s'ouvre");
+        s.on_key(Key::Char('x'));
+        assert!(!s.help, "et n'importe quelle touche la referme");
+    }
+
+    /// **`q` demande, `Q` quitte, tout le reste reste.** Couper le son d'un concert sur une seule
+    /// touche serait pire que de devoir en taper deux.
+    #[test]
+    fn leaving_the_stage_takes_two_keys() {
+        let mut s = stage();
+        assert!(matches!(s.on_key(Key::Char('q')), Action::None));
+        assert!(s.confirm_quit, "la fenêtre s'ouvre");
+        assert!(matches!(s.on_key(Key::Esc), Action::None));
+        assert!(!s.confirm_quit, "Échap referme");
+        // et on est toujours là
+        s.on_key(Key::Char('q'));
+        assert!(matches!(s.on_key(Key::Char('Q')), Action::Quit), "Q quitte");
+
+        // `S` ne propose PAS d'enregistrer en partant : il n'y a rien à enregistrer sur scène
+        let mut s = stage();
+        s.on_key(Key::Char('q'));
+        assert!(matches!(s.on_key(Key::Char('S')), Action::None));
+        assert!(s.naming.is_none(), "aucune saisie de nom");
+        assert!(!s.confirm_quit, "la fenêtre est refermée");
+    }
+
+    /// Le tap marche sur scène (c'est son usage principal) — et il n'y marque rien comme « non
+    /// enregistré », puisque rien ne s'y enregistre.
+    #[test]
+    fn the_tap_works_on_stage() {
+        let mut s = stage();
+        s.on_key(Key::Char('*'));
+        s.on_key(Key::Char('*'));
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("tempo") || m.contains("tape")));
     }
 }

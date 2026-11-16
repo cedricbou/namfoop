@@ -192,18 +192,30 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         (Space::Set, Some(set)) => (format!("set : {}.set.toml", set.stem), true),
         _ => s.preset_label(),
     };
-    let mut head = vec![
-        Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
-        space_span(lib, "1 Bibliothèque".into(), Color::Magenta),
-        Span::raw(" "),
-        space_span(
-            s.space == Space::Chain,
-            format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }),
-            Color::Cyan,
-        ),
-        Span::raw(" "),
-        space_span(s.space == Space::Set, set_badge(s), set::ACCENT),
-    ];
+    // `run --set` (§ 9) : on ne montre pas trois espaces qu'on ne peut pas ouvrir. Le cadenas
+    // dit en un regard qu'on est en concert et que rien ne s'édite.
+    let mut head = if s.locked {
+        vec![
+            Span::styled(" namfoop run  ", Style::new().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!(" 🔒 SET  {} ", set_title(s)),
+                Style::new().fg(Color::Black).bg(set::ACCENT).add_modifier(Modifier::BOLD),
+            ),
+        ]
+    } else {
+        vec![
+            Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
+            space_span(lib, "1 Bibliothèque".into(), Color::Magenta),
+            Span::raw(" "),
+            space_span(
+                s.space == Space::Chain,
+                format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }),
+                Color::Cyan,
+            ),
+            Span::raw(" "),
+            space_span(s.space == Space::Set, set_badge(s), set::ACCENT),
+        ]
+    };
     // le tempo et **d'où il vient** (ADR 0008) : sans la source, on ne saurait pas pourquoi le
     // delay ne suit pas ce qu'on croit avoir réglé
     {
@@ -640,8 +652,17 @@ mod tests;
 /// Ce que l'onglet `3 Set` affiche : le nom du set actif, ou rien quand il n'y en a pas (§ 6).
 fn set_badge(s: &State) -> String {
     match s.set.as_ref() {
-        Some(set) if !set.spec.name.trim().is_empty() => format!("3 Set {}", set.spec.name),
-        Some(set) => format!("3 Set {}", set.stem),
+        Some(_) => format!("3 Set {}", set_title(s)),
         None => "3 Set".into(),
+    }
+}
+
+/// Le nom du set tel qu'on l'affiche : son titre, ou le nom de son fichier s'il n'en a pas (le show
+/// à trois sons bricolé sur place n'a pas de titre, et il doit quand même se reconnaître).
+fn set_title(s: &State) -> String {
+    match s.set.as_ref() {
+        Some(set) if !set.spec.name.trim().is_empty() => set.spec.name.clone(),
+        Some(set) => set.stem.clone(),
+        None => String::new(),
     }
 }

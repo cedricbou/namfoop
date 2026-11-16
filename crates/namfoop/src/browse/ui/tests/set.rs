@@ -222,3 +222,59 @@ fn the_set_picker_lists_sets_and_the_two_special_rows() {
     assert!(out.contains("nouveau set"), "{out}");
     assert!(out.contains("Entrée activer"), "{out}");
 }
+
+/// **`run --set` : la scène verrouillée** (§ 9, #221). L'en-tête porte le cadenas et le nom du set
+/// au lieu des trois espaces — on ne montre pas des espaces qu'on ne peut pas ouvrir —, et la
+/// barre du bas ne propose que ce qui marche.
+#[test]
+fn the_locked_stage_shows_the_padlock_and_only_its_own_keys() {
+    let mut s = staged(concert(), Some((1, 0)));
+    s.locked = true;
+    let out = shot(&s, 130, 24);
+    assert!(out.contains("namfoop run"), "{out}");
+    // un emoji occupe deux cellules du tampon : ne jamais coller une assertion à sa droite
+    assert!(out.contains("🔒"), "{out}");
+    assert!(out.contains("SET  Groupe 1 · Live Mairie"), "{out}");
+    assert!(!out.contains("1 Bibliothèque"), "aucun espace proposé : {out}");
+    assert!(!out.contains("2 Chaîne"), "{out}");
+    // la vue scène, elle, est entière
+    assert!(out.contains("▶ 2 Le Phare") && out.contains("● fuzz"), "{out}");
+    // la barre du bas : ni L, ni les espaces
+    // « PgDn » apparaît aussi dans le cadre du morceau : la barre est la DERNIÈRE de ces lignes
+    let bar = out.lines().rfind(|l| l.contains("PgDn")).expect("la barre du bas");
+    assert!(bar.contains("i détail") && bar.contains("* tap") && bar.contains("q quitter"), "{bar}");
+    assert!(!bar.contains("L sets"), "{bar}");
+    assert!(!bar.contains("espaces"), "{bar}");
+
+    // une touche refusée le dit, avec la liste de celles qui marchent
+    s.on_key(Key::Char('S'));
+    let out = shot(&s, 130, 24);
+    assert!(out.contains("rien ne s'édite ici"), "{out}");
+}
+
+/// Sur scène, `q` ouvre une fenêtre qui ne propose **pas** d'enregistrer : il n'y a rien à
+/// enregistrer, et une question à trois branches devant un public est une question de trop.
+#[test]
+fn leaving_the_locked_stage_asks_a_simple_question() {
+    let mut s = staged(concert(), Some((0, 0)));
+    s.locked = true;
+    s.on_key(Key::Char('q'));
+    let out = shot(&s, 130, 24);
+    assert!(out.contains("Quitter la scène ?"), "{out}");
+    assert!(out.contains("Le set joue."), "{out}");
+    assert!(out.contains("quitter la scène") && out.contains("rester"), "{out}");
+    assert!(!out.contains("enregistrer"), "rien à enregistrer sur scène : {out}");
+}
+
+/// L'aide `h` de la scène dit aussi **ce qu'on ne peut pas faire**, et où aller pour le faire :
+/// sinon l'utilisateur cherche la touche qui manque au lieu de jouer.
+#[test]
+fn the_locked_help_says_where_to_go_to_edit() {
+    let mut s = staged(concert(), Some((0, 0)));
+    s.locked = true;
+    s.on_key(Key::Char('h'));
+    let out = shot(&s, 130, 30);
+    assert!(out.contains("run --set — la scène"), "{out}");
+    assert!(out.contains("Rien ne s'édite ici"), "{out}");
+    assert!(out.contains("namfoop browse"), "{out}");
+}

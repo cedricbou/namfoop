@@ -212,6 +212,10 @@ pub struct Start<'a> {
     pub edit: bool,
     /// Set à ouvrir (`browse --set <id | mots-clés>`, US 2). Le choix à l'écran (`L`) est l'US 3.
     pub set: Option<&'a str>,
+    /// **`run --set` : la scène verrouillée** (§ 9, #221). Le set devient obligatoire — sans lui on
+    /// refuse de démarrer, avec un code d'erreur, parce que le service de scène du Pi doit échouer
+    /// bruyamment plutôt que d'ouvrir un écran vide.
+    pub locked: bool,
 }
 
 pub fn run(
@@ -338,7 +342,28 @@ pub fn run(
                 st.message = Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
                 st.set = Some(set);
             }
+            // `run --set` ne tolère pas un set illisible : on le dit et on sort (code d'erreur)
+            Err(e) if start_with.locked => anyhow::bail!("set « {query} » : {e:#}"),
             Err(e) => st.message = Some(format!("set « {query} » : {e:#}")),
+        }
+    } else if start_with.locked {
+        anyhow::bail!(
+            "run --set : aucun set indiqué et aucun set retenu. Donne-le (`run --set <id>`), ou \
+             ouvre-le une fois dans `browse` (touche L) pour qu'il devienne le set par défaut."
+        );
+    }
+    if start_with.locked {
+        // la scène : on ouvre sur la vue du set, verrouillée, et le premier son joue tout de suite
+        st.locked = true;
+        st.space = state::space::Space::Set;
+        if let Some(at) = st.set.as_ref().and_then(|s| s.flat().first().copied()) {
+            st.play_set_sound(at);
+        }
+        if !st.set.as_ref().is_some_and(|s| s.is_playable()) {
+            anyhow::bail!(
+                "run --set : aucun son jouable dans ce set (presets introuvables). \
+                 `namfoop sets` dit lesquels."
+            );
         }
     }
     // le banc démarre sur le modèle (et l'IR) de la chaîne de départ, s'il y en a un (§ 2)
