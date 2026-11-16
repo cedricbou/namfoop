@@ -1717,8 +1717,9 @@ Un **set** est la liste ordonnée des morceaux d'un concert, chacun avec **ses s
 de ta bibliothèque, **référencés et non copiés** : modifier un preset le change dans tous les
 morceaux qui s'en servent.
 
-> Ce qui existe aujourd'hui : écrire un set à la main et le vérifier avec `namfoop sets`. Le jouer
-> au pied, l'écran de scène, le prompteur et la battue viennent ensuite (épique #215).
+> Ce qui existe aujourd'hui : écrire un set à la main, le vérifier avec `namfoop sets`, et le
+> **jouer au pied** avec `browse --set`. L'écran de scène, le prompteur et la battue viennent
+> ensuite (épique #215).
 
 ### Le fichier : `library/sets/<nom>.set.toml`
 
@@ -1794,6 +1795,42 @@ Deux sortes de problèmes, et la différence compte sur scène :
 
 Un morceau **sans son** ou **sans `pc`** est permis : on écrit un set par étapes, et un morceau
 peut ne se jouer qu'au pied.
+
+### Jouer un set : `browse --set`
+
+```sh
+namfoop browse --set concert        # identifiant, nom ou mots-clés
+```
+
+`PgDn` / `PgUp` suivent alors **le set** au lieu de la banque entière : son suivant, puis le premier
+son du morceau suivant. **Pas de bouclage** — sur le dernier son, `PgDn` ne fait rien et le dit
+(`fin du set`) : dépasser la fin d'un concert ne doit pas rejouer le premier morceau.
+
+Ce que chaque son apporte :
+
+- la **chaîne de son preset**, déjà préchargée : la bascule prend 20 ms, et la réverbe du son
+  quitté finit de sonner ;
+- le **volume du morceau**, qui s'**ajoute** à celui du preset ;
+- le **tempo du morceau**, qui **prime** sur celui du preset. Un tap (`*`) le recouvre ensuite,
+  comme toujours.
+
+Seuls les presets du set sont préparés, **une place par preset distinct** : un preset joué dans dix
+morceaux n'en occupe qu'une, et passer d'un morceau à l'autre sur le même preset ne rebâtit rien —
+seuls le volume et le tempo changent. Un son dont le preset est introuvable est **sauté** par
+`PgDn` / `PgUp`.
+
+Sans `--set`, rien ne change : la banque entière, en boucle, comme avant.
+
+Les touches de scène se règlent pour coller au pédalier qu'on a sous le pied :
+
+```toml
+[set]
+next_song = "Right"      # morceau suivant
+prev_song = "Left"       # morceau précédent
+```
+
+> Ces deux touches agiront dans l'espace Set, qui vient avec l'écran de scène ; `PgDn` / `PgUp`,
+> eux, suivent déjà le set.
 
 ## 12. Backends, carte et routage en ligne de commande
 

@@ -37,17 +37,24 @@ pub(super) enum Job {
 
 /// Les chaînes des presets telles qu'on les installerait : ce que le thread de construction
 /// précharge, dans l'ordre de la banque (`None` : preset illisible, rien à précharger).
+///
+/// **Un set actif** remplace la banque entière par la **sienne** (§ 4 de `docs/design/set.md`) :
+/// seuls ses presets sont préparés, **une place par preset distinct** et dans l'ordre du set. Le
+/// volume et le tempo étant des paramètres vivants (ADR 0007, 0008), ils n'entrent pas dans une
+/// demande de chaîne : un même preset joué dans dix morceaux n'occupe donc qu'une place, et c'est
+/// la comparaison des blocs résolus (`browse/mod.rs`) qui retrouve cette place.
 pub(super) fn bank_requests(st: &State, audition: &Path) -> Vec<Option<Request>> {
-    st.presets
-        .iter()
-        .map(|p| {
-            p.chain.as_ref().map(|c| Request {
-                blocks: plan_blocks(&c.blocks, st, audition),
-                input_db: 0.0,
-                preset: None,
-            })
+    let of = |p: &crate::browse::state::preset::PresetItem| {
+        p.chain.as_ref().map(|c| Request {
+            blocks: plan_blocks(&c.blocks, st, audition),
+            input_db: 0.0,
+            preset: None,
         })
-        .collect()
+    };
+    match st.set.as_ref() {
+        Some(set) => set.distinct_slots().iter().filter_map(|i| st.presets.get(*i)).map(of).collect(),
+        None => st.presets.iter().map(of).collect(),
+    }
 }
 
 /// Enregistre une nouvelle banque dans le thread de construction : sa taille, la description de

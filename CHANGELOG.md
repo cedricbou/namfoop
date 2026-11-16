@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#218)
+- **Un set se joue au pied** : `namfoop browse --set <id | mots-clés>`, puis `PgDn` / `PgUp` suivent
+  le set — son suivant, puis le premier son du morceau suivant. **Pas de bouclage** : sur le dernier
+  son, `PgDn` ne fait rien et dit `fin du set`, parce que dépasser la fin d'un concert ne doit pas
+  rejouer le premier morceau.
+- Chaque son apporte la chaîne de son preset (préchargée : bascule en 20 ms, queue de réverbe
+  gardée), le **volume du morceau** qui s'ajoute à celui du preset, et le **tempo du morceau** qui
+  prime sur le sien — un tap le recouvre ensuite.
+- **Seuls les presets du set sont préparés, une place par preset distinct.** Mesuré sur un set de
+  deux morceaux et quatre sons : trois places pour trois presets, toutes préchargées, et passer
+  d'un morceau à l'autre sur le **même** preset ne rebâtit rien (seuls le volume et le tempo
+  changent).
+- Un son dont le preset est introuvable est **sauté** : le set a été contrôlé, le son est marqué, et
+  le concert continue.
+- Touches de scène réglables dans `[set]` de la config (`next_song`, `prev_song`) pour coller au
+  pédalier ; elles agiront dans l'espace Set, qui vient avec l'écran.
+- **Sans set, rien ne change** : la banque entière en boucle, `P`, `S`, `n` exactement comme avant.
+
 ### Ajouté (#217)
 - **Les sets de concert existent sur disque** : `library/sets/<nom>.set.toml` liste les morceaux
   d'un concert dans l'ordre, chacun avec ses sons (des presets **référencés**, non copiés), son n°

@@ -210,6 +210,8 @@ pub struct Start<'a> {
     pub only: Option<&'a [String]>,
     /// Ouvre l'éditeur sur le premier modèle.
     pub edit: bool,
+    /// Set à ouvrir (`browse --set <id | mots-clés>`, US 2). Le choix à l'écran (`L`) est l'US 3.
+    pub set: Option<&'a str>,
 }
 
 pub fn run(
@@ -309,6 +311,31 @@ pub fn run(
     }
     // la banque de presets, prête à être cherchée et rechargée (#110)
     st.adopt_presets(scan_presets(library));
+    // les touches de scène, réglables (§ 9) : un nom illisible est dit au démarrage plutôt
+    // qu'ignoré en silence — sur scène, une touche qui ne répond pas ne se diagnostique pas
+    {
+        let keys = conf.config.set.clone().unwrap_or_default();
+        let read = |name: &str, default: crate::tui::Key| match crate::tui::Key::from_name(name) {
+            Some(k) => k,
+            None => {
+                log::warn!("[set] touche « {name} » inconnue : {default:?} gardée");
+                default
+            }
+        };
+        st.song_keys =
+            (read(&keys.next_song, crate::tui::Key::Right), read(&keys.prev_song, crate::tui::Key::Left));
+    }
+    // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
+    // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
+    if let Some(query) = start_with.set {
+        match open_set(library, query, &st) {
+            Ok(set) => {
+                st.message = Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
+                st.set = Some(set);
+            }
+            Err(e) => st.message = Some(format!("set « {query} » : {e:#}")),
+        }
+    }
     // le banc démarre sur le modèle (et l'IR) de la chaîne de départ, s'il y en a un (§ 2)
     st.start_bench_from_chain();
     // référence du « non enregistré » (q demande confirmation) : l'état avant la première touche
@@ -546,6 +573,26 @@ fn trace(line: &str) {
 
 fn stream_label(cfg: &Settings) -> String {
     format!("{:?} {}", cfg.backend, cfg.device.as_deref().unwrap_or("")).to_lowercase()
+}
+
+/// Ouvre un set de la bibliothèque et place ses sons dans la banque de `browse` (§ 4, US 2).
+/// Les presets sont retrouvés par identifiant **ou** par mots-clés, comme partout ailleurs.
+fn open_set(library: &Path, query: &str, st: &State) -> anyhow::Result<state::set::ActiveSet> {
+    let lib = Library::scan(library);
+    let path = lib.resolve_set(query)?;
+    let spec = lib.set(&path)?;
+    let id = lib.by_path(&path).map(|e| e.id.clone()).unwrap_or_default();
+    let stem = library::set::display_name(&path);
+    // un son du set désigne un preset : on retrouve sa place dans la banque de `browse`
+    let find = |q: &str| {
+        let p = lib.resolve_preset(q).ok()?;
+        st.presets.iter().position(|x| x.path == p)
+    };
+    let set = state::set::ActiveSet::new(id, stem, spec, &find);
+    for w in lib.set_warnings(&set.spec) {
+        log::warn!("set {} : {}", set.stem, w.text);
+    }
+    Ok(set)
 }
 
 #[cfg(test)]

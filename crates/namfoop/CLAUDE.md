@@ -39,6 +39,17 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : key
                 Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
                 effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2
                 changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
+                set/ LE SET ACTIF (#218, § 4 et § 5 de docs/design/set.md) : ActiveSet porte le
+                SetSpec lu par library::set et, pour chaque son, sa place dans State::presets
+                (None : preset introuvable, le son est SAUTÉ). flat() est la liste à plat du § 5,
+                step() / step_song() n'y BOUCLENT PAS (fin du set / début du set : on ne rejoue pas
+                le premier morceau par mégarde), distinct_slots() donne la banque du set — UNE
+                place par preset distinct, parce que le volume et le tempo sont vivants, donc hors
+                de l'identité d'une demande de chaîne : c'est ce qui fait qu'un preset joué dans dix
+                morceaux n'occupe qu'une place et ne rebâtit rien quand on passe d'un morceau à
+                l'autre (vérifié dans la trace : place=0/1/2, `préchargée`). play_set_sound ajoute
+                le volume du morceau à celui du preset et passe son tempo à l'arbitre comme le
+                ferait un preset. `browse --set <id>` l'ouvre (le choix `L` est l'US 3) ;
                 preset/ les PRESETS (#110) : conversion chaîne <-> dsp::preset::PresetSpec (index
                 de la bibliothèque <-> chemins relatifs + identifiant en filet), la banque `P`
                 (presets déjà convertis : charger ne lit aucun fichier), `S` (nom proposé, écrit par
