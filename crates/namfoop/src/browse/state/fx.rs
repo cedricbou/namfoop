@@ -468,7 +468,33 @@ impl State {
                     self.fx.focus = FxFocus::Chain;
                     return Some(Action::None);
                 }
-                _ => {}
+                // **Un panneau ne retombe pas** (#249) : la règle des modales de l'ADR 0009 vaut
+                // aussi pour lui. Ce qui suit est une liste **blanche**, comme celle de la scène,
+                // parce qu'une liste de refus échoue *ouverte* — une touche ajoutée demain à
+                // l'édition de la chaîne agirait de nouveau derrière ce panneau. C'était le cas de
+                // `Retour` et `x`, qui retiraient le bloc dont on réglait justement les paramètres
+                // en laissant le focus sur un bloc qui n'en a aucun ; et de `s`, `a`, `i`, `b`,
+                // `[`, `n`, qui éditaient la chaîne depuis un écran montrant une liste de valeurs.
+                //
+                // `1 2 3 q h * k` ne passent pas par ici : l'étage pédale les a déjà prises.
+                //
+                // **La règle de la liste** : le panneau refuse ce qui **édite** la chaîne, et
+                // laisse passer ce qui **écoute** ou **montre**, parce que c'est précisément ce
+                // qu'on fait en réglant un paramètre.
+                //
+                // le volume du preset (un paramètre vivant), l'A/B sans effets, les vumètres
+                Key::Char(',') | Key::Char('.') | Key::Char('r') | Key::Char('v') => {}
+                // `PgDn` / `PgUp` : le geste du **pédalier** (#158) ne se bloque jamais — la
+                // fiabilité live prime. Le preset remplace la chaîne entière, donc le panneau
+                // n'a plus de sujet : il se referme de lui-même.
+                Key::PageDown | Key::PageUp => self.fx.focus = FxFocus::Chain,
+                // `S` / `P` n'éditent pas la chaîne : ils descendent aux communes
+                Key::Char('S') | Key::Char('P') => return None,
+                _ => {
+                    self.message =
+                        Some("rien ne s'édite depuis les réglages : Échap revient à la chaîne".into());
+                    return Some(Action::None);
+                }
             }
         }
         // La **sortie** d'un parallèle (`◇`) ne sert qu'à ajouter autour de lui : tout le reste se

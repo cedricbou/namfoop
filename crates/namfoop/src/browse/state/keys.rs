@@ -653,6 +653,87 @@ mod tier_tests {
         assert!(s.set_picker.is_none());
     }
 
+    /// **Un panneau ne retombe pas non plus** (#249). Les réglages d'un effet laissaient passer
+    /// tout ce qu'ils ne traitaient pas : `Retour` et `x` retiraient le bloc dont on réglait
+    /// justement les paramètres — en laissant le focus sur un bloc qui n'en a aucun —, `s` le
+    /// mettait en parallèle, `a` ouvrait le catalogue, `n` vidait la chaîne. C'est #241 (agir sur
+    /// un écran qu'on ne regarde pas) appliqué à un quasi-modal.
+    ///
+    /// La garde est une liste **blanche** : une liste de refus échouerait *ouverte*, et la
+    /// prochaine touche d'édition agirait de nouveau derrière le panneau.
+    #[test]
+    fn the_params_panel_does_not_fall_back_to_the_chain() {
+        use crate::browse::state::fx::FxFocus;
+        let start = || {
+            let mut s = with_chain(vec![fx_block("reverb")]);
+            s.on_key(Key::Enter);
+            assert_eq!(s.fx.focus, FxFocus::Params, "les réglages sont ouverts");
+            s
+        };
+        let before = format!("{:?}", start().fx.chain);
+        for key in [
+            Key::Backspace,
+            Key::Char('x'),
+            Key::Char('s'),
+            Key::Char('+'),
+            Key::Char('a'),
+            Key::Char('i'),
+            Key::Char('b'),
+            Key::Char('['),
+            Key::Char('{'),
+            Key::Char('m'),
+            Key::Char('n'),
+            Key::Char('t'),
+            Key::Char('é'),
+        ] {
+            let mut s = start();
+            assert!(matches!(s.on_key(key), Action::None), "{key:?} a produit une action");
+            assert_eq!(before, format!("{:?}", s.fx.chain), "{key:?} a édité la chaîne");
+            assert_eq!(s.fx.focus, FxFocus::Params, "{key:?} a quitté les réglages");
+            assert!(s.fx.catalog.is_none(), "{key:?} a ouvert le catalogue");
+            assert!(!s.show_toml && s.show_meters, "{key:?} a changé l'écran derrière le panneau");
+            assert_eq!(s.unhandled, None, "{key:?} : le panneau la possède, elle n'est pas orpheline");
+        }
+        // la liste blanche, elle, passe : ce qui **écoute** ou **montre** traverse le panneau,
+        // parce que c'est ce qu'on fait en réglant un paramètre
+        let mut s = start();
+        s.on_key(Key::Char('.'));
+        assert!(s.fx.chain.volume_db > 0.0, "le volume du preset traverse le panneau");
+        assert_eq!(s.fx.focus, FxFocus::Params, "et on reste dans les réglages");
+        let mut s = start();
+        s.on_key(Key::Char('r'));
+        assert!(s.fx.bypass_all, "l'A/B sans effets traverse : on compare en réglant");
+        assert_eq!(s.fx.focus, FxFocus::Params);
+        let mut s = start();
+        s.on_key(Key::Char('v'));
+        assert!(!s.show_meters, "les vumètres traversent");
+        assert_eq!(s.fx.focus, FxFocus::Params);
+        // ...et `S` / `P` descendent aux communes
+        let mut s = start();
+        s.on_key(Key::Char('P'));
+        assert!(s.bank.is_some(), "P ouvre la banque");
+        // **le geste du pédalier ne se bloque jamais** : PgDn / PgUp changent de preset, et le
+        // panneau se referme parce que son sujet — le bloc qu'on réglait — a disparu avec la
+        // chaîne. Le refuser aurait été une régression live, et la fiabilité live prime.
+        let mut s = with_chain(vec![fx_block("reverb")]);
+        s.adopt_presets(vec![(
+            "p1".into(),
+            "Punk".into(),
+            "/x/a.preset.toml".into(),
+            with_chain(vec![fx_block("chorus")]).to_preset("Punk"),
+        )]);
+        s.mark_start();
+        s.on_key(Key::Enter);
+        assert_eq!(s.fx.focus, FxFocus::Params);
+        s.on_key(Key::PageDown);
+        assert_eq!(s.fx.focus, FxFocus::Chain, "le panneau se referme : son bloc n'est plus là");
+        assert!(s.preset.is_some(), "et le preset a bien été chargé");
+        // l'étage pédale, lui, n'a jamais traversé le panneau : il est au-dessus
+        let mut s = start();
+        s.on_key(Key::Char('1'));
+        assert_eq!(s.space, Space::Library, "1 change d'espace depuis les réglages");
+    }
+
     /// Une touche que **personne** ne possède est retenue pour la trace, et **rien** ne s'affiche :
     /// on n'apprend pas à l'utilisateur à ignorer la zone de message, celle où #238 mentait déjà.
     #[test]

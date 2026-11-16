@@ -841,7 +841,11 @@ Trois règles tiennent l'ensemble :
   `nam·(à choisir)` et ouvre aussitôt le sélecteur : Échap retire le bloc, rien n'est ajouté.
 
   Dans les réglages : ↑↓ choisit, ←→ change d'un pas, **Maj + ←→** d'un pas fin (un dixième),
-  Échap ou Entrée revient à la chaîne. Les coupures d'un crossover se règlent par **pas
+  Échap ou Entrée revient à la chaîne. **Rien ne s'y édite** : les touches qui ajoutent, retirent ou
+  déplacent un bloc sont refusées (elles retiraient le bloc qu'on réglait), et le panneau le dit.
+  Ce qui s'écoute ou se montre, lui, reste à portée — le volume du preset (`,` / `.`), l'A/B sans
+  effets (`r`), les vumètres (`v`), `S` / `P` — et **PgDn / PgUp** changent de preset depuis les
+  réglages, qui se referment : le geste du pédalier ne se bloque jamais. Les coupures d'un crossover se règlent par **pas
   multiplicatif** (×1,06, ou ×1,01 en pas fin) et restent écartées d'au moins ×1,25 l'une de l'autre.
 
   Un parallèle a **2 à 4 branches** et deux modes (réglage `mode`) : **copie** (chaque branche reçoit

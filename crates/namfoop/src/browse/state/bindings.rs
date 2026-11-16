@@ -395,8 +395,29 @@ const PARAMS: &[Binding] = &[
     Binding {
         keys: &[n(Key::Enter), n(Key::Esc)],
         label: "Entrée / Échap",
-        what: "revenir à la chaîne",
+        what: "revenir à la chaîne — rien ne s'édite depuis les réglages (#249)",
         bar: "Échap retour à la chaîne",
+    },
+    // La **liste blanche** du panneau (#249) : il refuse ce qui **édite** la chaîne et laisse
+    // passer ce qui **écoute** ou **montre** — c'est ce qu'on fait en réglant un paramètre.
+    Binding { keys: &[k(','), k('.')], label: ", / .", what: "volume du preset (1 dB)", bar: ", . volume" },
+    Binding {
+        keys: &[k('v'), k('r')],
+        label: "v / r",
+        what: "vumètres · avec ou sans les effets, pour comparer en réglant",
+        bar: "",
+    },
+    Binding {
+        keys: &[n(Key::PageDown), n(Key::PageUp)],
+        label: "PgDn / PgUp",
+        what: "preset suivant / précédent — le geste du pédalier referme les réglages",
+        bar: "",
+    },
+    Binding {
+        keys: &[k('S'), k('P')],
+        label: "S / P",
+        what: "enregistrer la chaîne en preset · ouvrir la banque",
+        bar: "",
     },
     Binding {
         keys: &[],
