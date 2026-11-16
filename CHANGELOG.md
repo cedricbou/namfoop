@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#238)
+- **`PgDn` / `PgUp` ne jouaient pas le set dans l'espace Set de `browse`** — l'espace où la touche
+  du pied compte le plus. Elles tombaient sur le défilement de la liste de la Bibliothèque, qui ne
+  joue rien et ne se voit pas, alors que la barre du bas annonçait « PgDn/PgUp son ». Les touches de
+  morceau suivant / précédent avaient le même trou. `run --set` n'était pas touché (sa liste de
+  touches verrouillée les liait explicitement). Les autres espaces ne changent pas.
+
 ### Ajouté (#221)
 - **`namfoop run --set <set>` : la scène verrouillée.** Le même écran de scène que `browse`, privé
   de tout ce qui édite : en-tête `namfoop run  🔒 SET  <nom>`, et seuls les gestes de scène

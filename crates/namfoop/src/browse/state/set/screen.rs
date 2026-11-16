@@ -73,6 +73,16 @@ impl State {
         match key {
             // `L` : choisir le set, depuis l'espace Set comme ailleurs
             Key::Char('L') => Some(self.open_set_picker()),
+            // **son suivant / précédent** : la touche du pied. Elle ne passait PAS par ici au
+            // premier jet (#219) — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que
+            // dans l'espace Chaîne — si bien que dans l'espace Set, celui où elle compte le plus,
+            // PgDn/PgUp tombaient sur le curseur de liste de la Bibliothèque et ne jouaient rien.
+            Key::PageDown => Some(self.step_preset(true)),
+            Key::PageUp => Some(self.step_preset(false)),
+            // les touches de morceau, pour la même raison : elles n'étaient liées nulle part dans
+            // l'espace Set (#218 les avait laissées en attente de cet écran)
+            k if k == self.song_keys.0 && songs > 0 => Some(self.step_set_song(true)),
+            k if k == self.song_keys.1 && songs > 0 => Some(self.step_set_song(false)),
             _ if songs == 0 => match key {
                 Key::Up | Key::Down | Key::Enter | Key::Char('i') => {
                     self.message = Some("aucun set : L pour en choisir un".into());
@@ -322,5 +332,90 @@ mod tests {
             s.on_key(key);
             assert!(s.message.as_deref().is_some_and(|m| m.contains("L pour")), "{key:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod foot_tests {
+    use super::*;
+    use crate::browse::state::set::ActiveSet;
+    use crate::browse::state::space::Space;
+    use crate::browse::state::tests::with_chain;
+    use library::set::{SetSpec, Song, Sound};
+
+    /// Deux morceaux, trois sons, trois presets distincts.
+    fn staged() -> State {
+        let mut s = with_chain(vec![]);
+        let sound = |p: &str| Sound { preset: p.into(), volume_db: 0.0 };
+        let spec = SetSpec {
+            name: "One More Time".into(),
+            songs: vec![
+                Song {
+                    title: Some("A".into()),
+                    sounds: vec![sound("p0"), sound("p1")],
+                    ..Default::default()
+                },
+                Song { title: Some("B".into()), sounds: vec![sound("p2")], ..Default::default() },
+            ],
+            ..Default::default()
+        };
+        let find = |q: &str| match q {
+            "p0" => Some(0),
+            "p1" => Some(1),
+            "p2" => Some(2),
+            _ => None,
+        };
+        s.set = Some(ActiveSet::new("s".into(), "omt".into(), spec, &find));
+        s.on_key(Key::Char('3'));
+        assert_eq!(s.space, Space::Set);
+        s
+    }
+
+    /// **La régression du pied** : dans l'espace Set, `PgDn` / `PgUp` doivent suivre le set. Au
+    /// premier jet de #219 elles n'y étaient liées nulle part — `step_preset` n'est atteint que par
+    /// `fx_key`, qui ne tourne que dans l'espace Chaîne —, si bien que dans l'espace Set, celui où
+    /// la touche du pied compte le plus, elles tombaient sur le curseur de liste de la Bibliothèque
+    /// et ne jouaient rien. Ça marchait dans `run --set` (liste blanche explicite), pas dans
+    /// `browse` : signalé par l'utilisateur, set « One More Time ».
+    #[test]
+    fn page_keys_follow_the_set_in_the_set_space() {
+        let mut s = staged();
+        s.play_set_sound((0, 0));
+        for (key, want) in
+            [(Key::PageDown, (0, 1)), (Key::PageDown, (1, 0)), (Key::PageUp, (0, 1)), (Key::PageUp, (0, 0))]
+        {
+            s.on_key(key);
+            assert_eq!(s.set.as_ref().unwrap().at, Some(want), "{key:?}");
+        }
+        // les bords ne bouclent pas (§ 5)
+        s.on_key(Key::PageUp);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)));
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("début du set")), "{:?}", s.message);
+    }
+
+    /// Les touches de **morceau** suivant / précédent, pour la même raison : elles n'agissaient
+    /// nulle part dans l'espace Set.
+    #[test]
+    fn song_keys_work_in_the_set_space() {
+        let mut s = staged();
+        s.play_set_sound((0, 0));
+        s.on_key(s.song_keys.0);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((1, 0)), "morceau suivant");
+        s.on_key(s.song_keys.1);
+        assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "morceau précédent");
+    }
+
+    /// **Et les autres espaces ne changent pas** : dans la Bibliothèque, `PgDn` reste le défilement
+    /// de la liste par dix, et `→` / `←` les onglets (§ 5 : la vue scène ne vole rien ailleurs).
+    #[test]
+    fn the_other_spaces_keep_their_page_keys() {
+        let mut s = staged();
+        s.on_key(Key::Char('1'));
+        let before = s.set.as_ref().unwrap().at;
+        s.on_key(Key::PageDown);
+        assert_eq!(s.set.as_ref().unwrap().at, before, "la Bibliothèque ne joue pas le set");
+        let tab = s.tab;
+        s.on_key(Key::Right);
+        assert_ne!(s.tab, tab, "→ change encore d'onglet");
     }
 }
