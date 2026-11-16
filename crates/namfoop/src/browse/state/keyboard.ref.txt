@@ -318,18 +318,10 @@
 
 ## set · fenêtre L (choisir le set)
   Échap    fenêtre L: true → false
-  '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '?'      aide: false → true
-  '1'      → Play   espace: Set → Library
-  '2'      → Play   espace: Set → Chain
-  '3'      « tu es déjà dans le Set »
   'h'      aide: false → true
-  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
   'L'      fenêtre L: true → false
-  'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   espace: Set → Chain   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
-  'P'      banque: false → true
-  'S'      nom: None → Some("800D Modern + 3 blocs")
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'i' 'm' 'o' 'p' 'q' 'Q' 'r' 's' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'v' 'x' 'z'
 
 ## banque de presets (P)
   Entrée   → Play   « preset « Chill verse » chargé (1/2) »   banque: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…   preset: None → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…

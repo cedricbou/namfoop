@@ -49,7 +49,11 @@ les **paramètres vivants** (réglables pendant que le son joue) : [ADR 0007](ad
 chaîne —, et le **tempo** : [ADR 0008](adr/0008-tempo-et-divisions.md) (épique #188) — trois sources
 (preset, tap, horloge MIDI), un arbitre dans `engine` qui les hiérarchise, une case, et des
 **divisions rythmiques** (`Unit::Division`) dont la première valeur « libre » rend la main aux
-millisecondes ; les presets (#6) seront
+millisecondes. Le **clavier de `browse`** : [ADR 0009](adr/0009-clavier-de-browse.md) (épique #240)
+— quatre étages (la pédale, l'espace, le commun, le dernier recours), un **propriétaire par
+touche**, une modale qui ne retombe jamais, et un **oracle** (`state/keyboard.rs`) qui mesure les
+52 touches dans les 21 contextes pour que l'ordre des étages soit vérifiable au lieu d'être relu.
+Les presets (#6) seront
 des fichiers de la bibliothèque lus par `library`, pas des types de `model`. À venir : effets (#5),
 presets (#6), MIDI (#7), service de scène (#46).
 

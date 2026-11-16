@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Modifié (#242)
+- **Le clavier de `browse` a quatre étages** ([ADR 0009](docs/adr/0009-clavier-de-browse.md)) : la
+  **pédale** (`1 2 3 q h * k`, qu'un espace ne peut pas éclipser — se retrouver coincé dans un
+  espace ou sans tap tempo est un risque en concert), **l'espace** où l'on est, le **commun**
+  (`S P n`, éclipsable par déclaration) et le **dernier recours** (`Échap`). L'ordre est écrit en
+  entier dans `on_key`, en un seul endroit.
+- L'espace passe maintenant **avant** les communes : c'est ce qui permettra à l'espace Set de
+  s'approprier `S` (« enregistrer le set ») en #220, sans brûler une des 8 lettres encore libres.
+
+### Corrigé (#242)
+- **Une fenêtre ouverte prend toutes les touches.** Avec la fenêtre `L` (choisir le set) ouverte,
+  `n` **effaçait la chaîne derrière elle**, et `P`, `S`, `1`, `2`, `3`, `*`, `k`, `q` agissaient
+  aussi : elle vivait dans le clavier de l'espace Set, donc **sous** les touches communes. Les
+  fenêtres se classent désormais par leur priorité propre, pas par l'espace qui les tient.
+- Une touche que **personne** ne possède est écrite dans `NAMFOOP_BROWSE_TRACE` (« touche sans
+  propriétaire ») et **rien ne s'affiche** : sur scène, « j'ai appuyé et rien ne s'est passé »
+  devient diagnosticable sans apprendre à l'utilisateur à ignorer la zone de message.
+
 ### Corrigé (#241)
 - **Les touches d'un espace n'agissent plus dans un autre.** La dernière couche du clavier était en
   réalité celle de la **Bibliothèque**, mais sans garde d'espace : toute touche qu'un espace ne
