@@ -248,7 +248,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         };
         Span::styled(format!("  {label}"), style)
     };
-    let tab_line = if lib {
+    let tab_line = if s.space == Space::Set {
+        // la vue scène n'a pas d'onglets : la maquette met les deux cadres juste sous l'en-tête
+        Line::raw("")
+    } else if lib {
         Line::from(
             vec![
                 tab(Tab::Models, format!("Modèles ({})", s.models.len())),
