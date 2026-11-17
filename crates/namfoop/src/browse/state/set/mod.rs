@@ -15,6 +15,9 @@ use library::set::SetSpec;
 
 pub mod screen;
 
+/// Le prompteur à l'écran : la position dans le texte du morceau joué (#222).
+pub mod prompt;
+
 /// Où l'on en est dans le set : un morceau et un son.
 pub type At = (usize, usize);
 
@@ -41,6 +44,11 @@ pub struct ActiveSet {
     /// Morceaux dont le **détail** est déplié (`i`) : PC, valeurs de CC 69, volumes, prompteur.
     /// Plusieurs peuvent rester ouverts (§ 6).
     pub expanded: Vec<usize>,
+    /// **Où l'on en est dans le texte** du morceau joué (§ 10) : la section, puis la ligne. La
+    /// ligne ne bougera d'elle-même qu'avec la battue (US 6b) ; ici, elle repart à zéro à chaque
+    /// section.
+    pub prompt_section: usize,
+    pub prompt_line: usize,
     /// Le set **tel qu'il est sur le disque**. C'est la référence du `●` « non enregistré » : la
     /// même idée que `start_fx` pour la chaîne (#110), et c'est ce qui fait que `unsaved()` voit
     /// l'édition sans code en plus (#220).
@@ -53,7 +61,18 @@ impl ActiveSet {
     pub fn new(id: String, stem: String, spec: SetSpec, find: &dyn Fn(&str) -> Option<usize>) -> Self {
         let slots =
             spec.songs.iter().map(|song| song.sounds.iter().map(|s| find(&s.preset)).collect()).collect();
-        Self { saved: spec.clone(), id, stem, spec, slots, at: None, cursor: 0, expanded: Vec::new() }
+        Self {
+            saved: spec.clone(),
+            id,
+            stem,
+            spec,
+            slots,
+            at: None,
+            cursor: 0,
+            expanded: Vec::new(),
+            prompt_section: 0,
+            prompt_line: 0,
+        }
     }
 
     /// **Après une édition**, recalculer la place de chaque son dans la banque : ajouter, retirer
@@ -243,6 +262,9 @@ impl State {
             return Action::None;
         };
         let (volume, tempo, label) = (s.volume_db(at), s.tempo_bpm(at), s.label(at));
+        // **le prompteur suit le son** (§ 10) : avant de bouger `at`, parce que la règle dépend de
+        // si l'on change de morceau ou seulement de son
+        self.follow_prompt(at);
         let action = self.switch_to(slot);
         // `switch_to` peut demander confirmation : la position ne bouge qu'une fois le son installé
         if let Some(s) = self.set.as_mut() {

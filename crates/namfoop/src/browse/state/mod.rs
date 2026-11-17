@@ -159,6 +159,9 @@ pub enum Action {
     OpenSet(String),
     /// **`S` en édition de set** : la boucle écrit `library/sets/<nom>.set.toml` (#220).
     SaveSet(String),
+    /// **`t`** : ouvrir le prompteur de ce morceau dans `$EDITOR` (#222). La boucle rend la main
+    /// au terminal, puis relit le fichier — l'état, lui, ne touche à aucun fichier.
+    EditPrompt(usize),
     /// Le set actif a changé (ou disparu) : la banque préchargée doit être refaite.
     SetChanged,
     Quit,
@@ -262,6 +265,12 @@ pub struct State {
     pub set_picker: Option<set::screen::Picker>,
     /// **L'édition du set** (`e`, § 8, #220). `None` : on regarde la set list, on ne la change pas.
     pub set_edit: Option<set::edit::Edit>,
+    /// Les **prompteurs** lus, par chemin de fichier (#222) : la boucle les lit, l'écran les
+    /// affiche. Indexés par chemin et non par numéro de morceau, pour qu'une édition du set
+    /// (ajouter, retirer, déplacer un morceau) ne les désaligne pas.
+    pub prompts: std::collections::HashMap<std::path::PathBuf, set::prompt::Loaded>,
+    /// Les touches **réglables** du prompteur (`[set] prompt_next` / `prompt_prev`, § 10).
+    pub prompt_keys: (Key, Key),
     /// La dernière touche que **personne** n'a possédée (ADR 0009, #242). La boucle l'écrit dans
     /// `NAMFOOP_BROWSE_TRACE` puis la remet à `None` : sur scène, « j'ai appuyé et rien ne s'est
     /// passé » devient diagnosticable, sans rien afficher à l'utilisateur.
@@ -337,6 +346,8 @@ impl State {
             song_keys: (Key::Right, Key::Left),
             set_picker: None,
             set_edit: None,
+            prompts: std::collections::HashMap::new(),
+            prompt_keys: (Key::End, Key::Home),
             unhandled: None,
             locked: false,
             metronome: false,

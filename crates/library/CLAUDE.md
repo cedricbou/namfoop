@@ -3,7 +3,13 @@
 **Responsabilité.** Tout ce qui concerne les fichiers de sons, sans jamais toucher la carte son :
 index de `library/` (identifiants courts `m…` modèles, `i…` IR, `c…` mélanges, `p…` **presets**
 (`presets/*.preset.toml`, #157), `s…` **sets** (`sets/*.set.toml`, #217), recherche, métadonnées
-.nam), les **sets de concert** (`set.rs`), import des packs
+.nam), les **sets de concert** (`set.rs`), le **prompteur ChordPro**
+(`prompt.rs`, #222 : lecture pure du sous-ensemble du § 10 de `docs/design/set.md` — sections,
+accords en ligne, cues, les quatre directives `x_namfoop_…` ; **tout le reste est ignoré sans
+erreur**, parce qu'un fichier écrit pour un autre logiciel doit s'afficher ici, et seule
+l'ouverture du fichier peut échouer. Ni écran ni tempo : le placement dans le temps est la battue
+(#223), l'affichage `namfoop`. namfoop n'écrit JAMAIS un `.cho`, sauf le squelette de `t`
+— `Prompt::skeleton` —, parce que ces fichiers viennent d'ailleurs), import des packs
 (`import/`), corrections de l'utilisateur (`overrides.rs`, `library/overrides.toml`, par
 empreinte du contenu), besoin d'IR et IR conseillées (`recommend.rs`), profils des IR
 (`profile.rs`) et des modèles avec la basse de l'utilisateur (`model_profile.rs`).

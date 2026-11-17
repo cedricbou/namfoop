@@ -6,6 +6,25 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#222)
+- **Le prompteur** : accords, paroles et cues du morceau joué, à côté de son son. Le texte est un
+  fichier **ChordPro** (`library/sets/prompts/<morceau>.cho`), le format de fait des logiciels de
+  set list — namfoop le **lit** et ne l'écrit pas : le texte d'un concert ne doit pas être
+  prisonnier d'un seul logiciel.
+- Sections étiquetées (la courante en vert avec `▸`, les passées en gris, les suivantes en gras,
+  avec leur durée en mesures et le son auquel elles sont liées), accords **au-dessus** des paroles
+  quand la largeur le permet, cues en jaune, ligne courante surlignée. Le texte part deux lignes
+  avant la position.
+- **Le texte suit le son** : `{x_namfoop_sound: <preset>}` lie une section à un son du morceau, et
+  jouer ce son amène le prompteur à la **prochaine** section qui lui est liée.
+- **`Fin` / `Début`** : section suivante / précédente, **sans toucher au son** — pour les morceaux
+  dont le texte et les sons ne suivent pas le même découpage. Réglables (`[set] prompt_next` /
+  `prompt_prev`), et permises sur scène (`run --set`) : elles ne changent rien.
+- **`t`** ouvre le `.cho` dans `$EDITOR` (en le créant avec son titre et en renseignant `prompt =`
+  dans le morceau), puis le relit au retour. Pas sur scène : rien ne s'y édite.
+- Tout ce que namfoop ne comprend pas d'un fichier ChordPro est **ignoré sans erreur**, et un
+  prompteur absent ou illisible est dit dans le cadre : un concert ne s'arrête pas pour un fichier.
+
 ### Ajouté (#220)
 - **Éditer un set à l'écran** (`e` dans l'espace Set) : le cadre passe en jaune `✎ ÉDITION` et prend
   toute la largeur — PC, tempos, sons et volumes de **tous** les morceaux à la fois. Un set se bâtit

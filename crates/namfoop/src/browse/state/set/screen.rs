@@ -96,6 +96,14 @@ impl State {
             // PgDn/PgUp tombaient sur le curseur de liste de la Bibliothèque et ne jouaient rien.
             Key::PageDown => Some(self.step_set(true)),
             Key::PageUp => Some(self.step_set(false)),
+            // **le prompteur au pied** (§ 10) : `Fin` / `Début` changent de section SANS toucher
+            // au son. Réglables comme les touches de morceau, parce que c'est le même pédalier.
+            k if k == self.prompt_keys.0 => Some(self.step_prompt(true)),
+            k if k == self.prompt_keys.1 => Some(self.step_prompt(false)),
+            // `t` : écrire le texte du morceau dans `$EDITOR` (§ 10). namfoop lit le ChordPro, il
+            // ne l'édite pas : c'est un éditeur de texte qui l'écrit, et d'autres logiciels
+            // demain. Absent de la scène (`locked_key`) : rien ne s'édite là-bas.
+            Key::Char('t') => Some(self.edit_prompt()),
             // les touches de morceau, pour la même raison : elles n'étaient liées nulle part dans
             // l'espace Set (#218 les avait laissées en attente de cet écran)
             k if k == self.song_keys.0 && songs > 0 => Some(self.step_set_song(true)),
@@ -109,6 +117,10 @@ impl State {
                     Some(Action::None)
                 }
                 k if k == self.song_keys.0 || k == self.song_keys.1 => {
+                    self.message = Some("aucun set : L pour en choisir un".into());
+                    Some(Action::None)
+                }
+                k if k == self.prompt_keys.0 || k == self.prompt_keys.1 || k == Key::Char('t') => {
                     self.message = Some("aucun set : L pour en choisir un".into());
                     Some(Action::None)
                 }

@@ -18,6 +18,9 @@ pub enum Key {
     ShiftRight,
     PageUp,
     PageDown,
+    /// Fin / Début : les sections du prompteur (§ 10 du mode Set).
+    End,
+    Home,
     Enter,
     Tab,
     /// Maj+Tab.
@@ -40,6 +43,8 @@ impl Key {
             "right" => Key::Right,
             "pageup" | "pgup" => Key::PageUp,
             "pagedown" | "pgdn" => Key::PageDown,
+            "end" | "fin" => Key::End,
+            "home" | "début" | "debut" => Key::Home,
             "enter" | "return" => Key::Enter,
             "tab" => Key::Tab,
             "backtab" => Key::BackTab,
@@ -65,6 +70,8 @@ pub fn map_key(code: KeyCode) -> Option<Key> {
         KeyCode::Right => Key::Right,
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
+        KeyCode::End => Key::End,
+        KeyCode::Home => Key::Home,
         KeyCode::Enter => Key::Enter,
         KeyCode::Tab => Key::Tab,
         KeyCode::BackTab => Key::BackTab,

@@ -383,12 +383,17 @@ impl State {
             self.help = false;
             return Action::None;
         }
-        let song = self.song_keys;
+        let (song, prompt) = (self.song_keys, self.prompt_keys);
         match key {
             Key::PageDown => self.step_set(true),
             Key::PageUp => self.step_set(false),
             k if k == song.0 => self.step_set_song(true),
             k if k == song.1 => self.step_set_song(false),
+            // le prompteur au pied **passe** le verrou : il ne change rien, ni au son ni au set,
+            // et suivre son texte est exactement ce qu'on fait sur scène (§ 10). `t`, lui, non :
+            // il écrit un fichier et rend la main au terminal.
+            k if k == prompt.0 => self.step_prompt(true),
+            k if k == prompt.1 => self.step_prompt(false),
             Key::Up | Key::Down | Key::Enter | Key::Char('i') => self.set_key(key).unwrap_or(Action::None),
             Key::Char('*') => self.tap_tempo(),
             Key::Char('k') => self.toggle_metronome(),
@@ -474,7 +479,7 @@ mod locked_tests {
         // avec les réglages par défaut c'est la même touche
         let allowed: Vec<Key> = bindings(Context::Stage)
             .iter()
-            .flat_map(|b| b.keys.iter().map(|k| k.resolve(s.song_keys)))
+            .flat_map(|b| b.keys.iter().map(|k| k.resolve(s.song_keys, s.prompt_keys)))
             .collect();
         let before = format!("{:?}", s.fx.chain);
         let mut tried = 0;
@@ -484,7 +489,7 @@ mod locked_tests {
             }
             for b in bindings(*ctx) {
                 for spec in b.keys {
-                    let key = spec.resolve(s.song_keys);
+                    let key = spec.resolve(s.song_keys, s.prompt_keys);
                     if allowed.contains(&key) {
                         continue;
                     }

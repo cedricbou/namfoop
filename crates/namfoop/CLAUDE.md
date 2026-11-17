@@ -98,7 +98,16 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 plan()). ActiveSet::saved est la référence du `●` (unsaved()), resync() refait la
                 correspondance son -> place de banque après chaque édition, et songs_using(slot)
                 compte les morceaux qui jouent un preset (le titre de la Chaîne : « preset utilisé
-                par N morceaux de ce set »). flat() est la liste à plat du § 5,
+                par N morceaux de ce set »). set/prompt.rs LE PROMPTEUR À L'ÉCRAN (#222,
+                § 10) : la lecture du ChordPro est dans library::prompt, ici il n'y a que la
+                POSITION (ActiveSet::prompt_section / prompt_line) et ce qui la déplace — le son
+                (follow_prompt, appelé par play_set_sound AVANT de bouger `at`, parce que la règle
+                dépend de si l'on change de morceau ou seulement de son) et `Fin` / `Début`
+                (step_prompt, réglables par [set] prompt_next / prompt_prev, PERMISES sur scène :
+                elles ne changent rien). Les prompteurs sont dans State::prompts, INDEXÉS PAR
+                CHEMIN et non par numéro de morceau — l'édition d'un set déplace les morceaux, une
+                liste parallèle se désalignerait au premier `[`. `t` rend Action::EditPrompt : la
+                boucle seule touche aux fichiers et au terminal. flat() est la liste à plat du § 5,
                 step() / step_song() n'y BOUCLENT PAS (fin du set / début du set : on ne rejoue pas
                 le premier morceau par mégarde), distinct_slots() donne la banque du set — UNE
                 place par preset distinct, parce que le volume et le tempo sont vivants, donc hors
@@ -309,6 +318,11 @@ concernée). Erreurs : `anyhow`.
   coller une assertion à droite d'un emoji (`🔒 SET` se lit `🔒  SET`) ; dans un écran à **deux
   colonnes**, un `lines().find(...)` attrape la ligne ENTIÈRE, les deux colonnes mêlées (chercher
   la dernière, ou découper la largeur de la colonne).
+  **`Terminal::clear` de ratatui demande au terminal où est le curseur** (`ESC [ 6 n`) et attend la
+  réponse : dans un pseudo-terminal qui ne répond pas, il échoue après deux secondes
+  (« The cursor position could not be read within a normal duration ») — c'est ce qui faisait
+  échouer le retour de `$EDITOR` de `t` (#222). `Terminal::resize(Rect)` remet le tampon à zéro
+  **sans rien demander** : c'est lui qu'on utilise pour « tout redessiner ».
   Il faut aussi poser la taille du pseudo-terminal (`TIOCSWINSZ`),
   sinon ratatui ne dessine rien du tout ; et **ne pas scruter l'écran pour une valeur qui change** —
   ratatui n'écrit que les cellules modifiées, si bien qu'un `♩ 92 (preset)` arrive en morceaux
