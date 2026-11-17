@@ -31,7 +31,7 @@
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   'S'      « chaîne vide : rien à enregistrer »
   'z'      « panneau Bandes affiché (z pour le masquer) »   bandes: None → Some(true)
-  inertes : ↑ ← Maj+← Maj+→ PgUp Retour ' ' '+' ',' '-' '.' '=' '[' ']' '{' '}' 'a' 'c' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 's' 't' 'v' 'x'
+  inertes : ↑ ← Maj+← Maj+→ PgUp Retour ' ' '+' ',' '-' '.' '=' '[' ']' '{' '}' 'a' 'c' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 's' 't' 'T' 'v' 'x' 'X'
 
 ## bibliothèque · onglet IR
   ↓        curseur: 0 → 1
@@ -57,7 +57,7 @@
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   'S'      « chaîne vide : rien à enregistrer »
   'z'      « panneau Bandes affiché (z pour le masquer) »   bandes: None → Some(true)
-  inertes : ↑ Maj+← Maj+→ PgUp Retour ' ' '+' ',' '-' '.' '=' '[' ']' '{' '}' 'a' 'c' 'e' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 's' 't' 'v' 'x'
+  inertes : ↑ Maj+← Maj+→ PgUp Retour ' ' '+' ',' '-' '.' '=' '[' ']' '{' '}' 'a' 'c' 'e' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 's' 't' 'T' 'v' 'x' 'X'
 
 ## bibliothèque · onglet Mélange
   ←        onglet: Blend → Irs
@@ -82,7 +82,7 @@
   's'      « mélange vide : espace sur une IR (onglet IR) pour l'ajouter »
   'S'      « chaîne vide : rien à enregistrer »
   'z'      « panneau Bandes affiché (z pour le masquer) »   bandes: None → Some(true)
-  inertes : ↑ ↓ Maj+← Maj+→ PgUp PgDn Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'c' 'e' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 't' 'v' 'x'
+  inertes : ↑ ↓ Maj+← Maj+→ PgUp PgDn Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'c' 'e' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 't' 'T' 'v' 'x' 'X'
 
 ## bibliothèque · saisie du filtre
   ↑        filtre: true/ → false/
@@ -127,8 +127,10 @@
   's'      filtre: true/ → true/s
   'S'      filtre: true/ → true/S
   't'      filtre: true/ → true/t
+  'T'      filtre: true/ → true/T
   'v'      filtre: true/ → true/v
   'x'      filtre: true/ → true/x
+  'X'      filtre: true/ → true/X
   'z'      filtre: true/ → true/z
   inertes : ← → Maj+← Maj+→ PgUp PgDn Retour
 
@@ -168,7 +170,7 @@
   't'      toml: false → true
   'v'      « vumètres masqués »   vumètres: true → false
   'x'      « chaîne vide »
-  inertes : ↑ ↓ ← → Maj+← Maj+→ ' ' '-' '/' '[' ']' 'c' 'e' 'é' 'L' 'Q' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ ' ' '-' '/' '[' ']' 'c' 'e' 'é' 'L' 'Q' 'T' 'X' 'z'
 
 ## chaîne · trois blocs
   →        curseur chaîne: Top(0) → Top(1)
@@ -208,7 +210,7 @@
   't'      toml: false → true
   'v'      « vumètres masqués »   vumètres: true → false
   'x'      « nam·800D Modern retiré »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Ir { ir: Item(2), on: true }), Leaf…
-  inertes : ↑ ↓ ← Maj+← Maj+→ ' ' '-' '/' '[' 'c' 'e' 'é' 'L' 'Q' 'z'
+  inertes : ↑ ↓ ← Maj+← Maj+→ ' ' '-' '/' '[' 'c' 'e' 'é' 'L' 'Q' 'T' 'X' 'z'
 
 ## chaîne · un set actif (les espaces sont indépendants)
   PgUp     → Play   « preset « Chill verse » chargé (1/2) »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
@@ -246,7 +248,7 @@
   't'      toml: false → true
   'v'      « vumètres masqués »   vumètres: true → false
   'x'      « nam·B7K Ultra retiré »   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
-  inertes : ↑ ↓ ← → Maj+← Maj+→ ' ' '-' '/' '[' ']' 'c' 'e' 'é' 'L' 'Q' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ ' ' '-' '/' '[' ']' 'c' 'e' 'é' 'L' 'Q' 'T' 'X' 'z'
 
 ## chaîne · réglages d'un effet
   ←        « reverb : decay = 1.4 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
@@ -296,22 +298,24 @@
   's'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'S'      nom: None → Some("800D Modern + 3 blocs")
   't'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'T'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'v'      « vumètres masqués »   vumètres: true → false
   'x'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  'X'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   'z'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   inertes : ↑ ↓
 
 ## chaîne · catalogue de blocs
   Entrée   sélecteur: false → true   catalogue: true → false   curseur chaîne: Top(0) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   Échap    « ajout annulé »   catalogue: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '?' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'h' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '?' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'h' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## bibliothèque · fenêtre « mettre dans la chaîne »
   Entrée   « nam·800D Modern remplacé par nam·B7K Ultra  ·  2 pour voir la chaîne »   send: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true }), …
   Échap    « rien n'est changé dans la chaîne »   send: true → false
   '?'      aide: false → true
   'h'      aide: false → true
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## chaîne · mode pose
   →        curseur chaîne: Top(0) → Top(1)
@@ -319,7 +323,7 @@
   Échap    → Play   « rien n'est changé dans la chaîne »   espace: Chain → Library   pose: true → false
   '?'      aide: false → true
   'h'      aide: false → true
-  inertes : ↑ ↓ ← Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## set · aucun set actif
   ↑        « aucun set : L pour en choisir un »
@@ -335,6 +339,7 @@
   '1'      → Play   espace: Set → Library
   '2'      → Play   espace: Set → Chain
   '3'      « tu es déjà dans le Set »
+  'e'      « aucun set à éditer : L pour en choisir un »
   'h'      aide: false → true
   'i'      « aucun set : L pour en choisir un »
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
@@ -343,7 +348,7 @@
   'P'      « aucun preset enregistré : S enregistre la chaîne »   banque: false → true
   'q'      → Quit
   'S'      « chaîne vide : rien à enregistrer »
-  inertes : Maj+← Maj+→ Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'm' 'o' 'p' 'Q' 'r' 's' 't' 'v' 'x' 'z'
+  inertes : Maj+← Maj+→ Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'é' 'm' 'o' 'p' 'Q' 'r' 's' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## set · un set joué
   ↓        set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 0)), 1, []))
@@ -358,6 +363,7 @@
   '1'      → Play   espace: Set → Library
   '2'      → Play   espace: Set → Chain
   '3'      « tu es déjà dans le Set »
+  'e'      « ✎ édition du set : a morceau · + son · S enregistrer · Échap sortir »   édition: None → Some((Sound((0, 0)), None, None, false))
   'h'      aide: false → true
   'i'      set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 0)), 0, [0]))
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
@@ -366,14 +372,168 @@
   'P'      banque: false → true
   'q'      → Quit
   'S'      nom: None → Some("Punk chorus")
-  inertes : ↑ Maj+← Maj+→ Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'm' 'o' 'p' 'Q' 'r' 's' 't' 'v' 'x' 'z'
+  inertes : ↑ Maj+← Maj+→ Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'é' 'm' 'o' 'p' 'Q' 'r' 's' 't' 'T' 'v' 'x' 'X' 'z'
+
+## set · en édition (e)
+  ↑        édition: Some((Sound((0, 0)), None, None, false)) → Some((Song(0), None, None, false))
+  ↓        édition: Some((Sound((0, 0)), None, None, false)) → Some((Song(1), None, None, false))
+  ←        édition: Some((Sound((0, 0)), None, None, false)) → Some((Song(0), None, None, false))
+  →        édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 1)), None, None, false))
+  PgUp     « début du set »
+  PgDn     → Play   « 1/2 · A · son 2/2 »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…   set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 1)), 0, []))
+  Entrée   → Play   « 1/2 · A · son 1/2 »   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 0)), None, Some(((0, 0), 1, false)), false))
+  Échap    « édition du set fermée »   édition: Some((Sound((0, 0)), None, None, false)) → None
+  '*'      « tempo 120.0 BPM — tape encore pour le donner »
+  '+'      → Play   « 1/2 · A · son 2/3 »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…   set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 1)), 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 1)), None, Some(((0, 1), 0, true)), false))
+  ','      → Play   « volume du son : -0.5 dB »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…
+  '.'      → Play   « volume du son : +0.5 dB »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…
+  '='      → Play   « 1/2 · A · son 2/3 »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…   set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 1)), 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 1)), None, Some(((0, 1), 0, true)), false))
+  '?'      aide: false → true
+  '['      « déjà le premier »
+  ']'      « morceau déplacé en 2 »   set: Some((Some((0, 0)), 0, [])) → Some((Some((1, 0)), 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("B"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, false)) → Some((Song(1), None, None, false))
+  '{'      « déjà le premier »
+  '}'      « son déplacé en 2 (CC 69 = 1) »   set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 1)), 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 1)), None, None, false))
+  '1'      → Play   espace: Set → Library
+  '2'      → Play   espace: Set → Chain
+  '3'      « tu es déjà dans le Set »
+  'a'      « morceau 2 (PC 1) : tape son titre »   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, false)) → Some((Song(1), Some((Title, "", false)), None, false))
+  'e'      « édition du set fermée »   édition: Some((Sound((0, 0)), None, None, false)) → None
+  'h'      aide: false → true
+  'i'      « en édition du set : Échap ou e pour en sortir »
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
+  'L'      « en édition du set : Échap ou e pour en sortir »
+  'n'      « en édition du set : Échap ou e pour en sortir »
+  'P'      « en édition du set : Échap ou e pour en sortir »
+  'p'      « n° de Program Change : tape puis Entrée (Échap annule) »   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 0)), Some((Pc, "", true)), None, false))
+  'q'      → Quit
+  'r'      « titre : tape puis Entrée (Échap annule) »   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 0)), Some((Title, "A", true)), None, false))
+  'S'      → SaveSet
+  'T'      « tempo (vide : celui des presets) : tape puis Entrée (Échap annule) »   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 0)), Some((Tempo, "", true)), None, false))
+  'x'      « son « Punk chorus » retiré »   set: Some((Some((0, 0)), 0, [])) → Some((None, 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…
+  'X'      « retirer ce morceau ? X confirmer · Échap annuler »   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 0)), None, None, true))
+  inertes : Maj+← Maj+→ Tab Maj+Tab Retour ' ' '-' '/' 'b' 'c' 'é' 'm' 'o' 'Q' 's' 't' 'v' 'z'
+
+## set · édition · saisie (r)
+  Entrée   « morceau « A » »   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), None, None, false))
+  Échap    « saisie annulée »   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), None, None, false))
+  Retour   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "", false)), None, false))
+  ' '      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, " ", false)), None, fal…
+  '*'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "*", false)), None, fal…
+  '+'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "+", false)), None, fal…
+  ','      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, ",", false)), None, fal…
+  '-'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "-", false)), None, fal…
+  '.'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, ".", false)), None, fal…
+  '/'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "/", false)), None, fal…
+  '='      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "=", false)), None, fal…
+  '?'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "?", false)), None, fal…
+  '['      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "[", false)), None, fal…
+  ']'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "]", false)), None, fal…
+  '{'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "{", false)), None, fal…
+  '}'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "}", false)), None, fal…
+  '1'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "1", false)), None, fal…
+  '2'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "2", false)), None, fal…
+  '3'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "3", false)), None, fal…
+  'a'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "a", false)), None, fal…
+  'b'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "b", false)), None, fal…
+  'c'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "c", false)), None, fal…
+  'e'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "e", false)), None, fal…
+  'é'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "é", false)), None, fal…
+  'h'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "h", false)), None, fal…
+  'i'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "i", false)), None, fal…
+  'k'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "k", false)), None, fal…
+  'L'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "L", false)), None, fal…
+  'm'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "m", false)), None, fal…
+  'n'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "n", false)), None, fal…
+  'o'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "o", false)), None, fal…
+  'P'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "P", false)), None, fal…
+  'p'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "p", false)), None, fal…
+  'q'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "q", false)), None, fal…
+  'Q'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "Q", false)), None, fal…
+  'r'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "r", false)), None, fal…
+  's'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "s", false)), None, fal…
+  'S'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "S", false)), None, fal…
+  't'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "t", false)), None, fal…
+  'T'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "T", false)), None, fal…
+  'v'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "v", false)), None, fal…
+  'x'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "x", false)), None, fal…
+  'X'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "X", false)), None, fal…
+  'z'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "z", false)), None, fal…
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab
+
+## set · édition · liste des presets (Entrée)
+  ↑        → Play   « 1/2 · A · son 2/2 »
+  ↓        → Play   « 1/2 · A · son 2/2 »   preset: Some(PresetRef { name: "Chill verse", path: "/x/b.preset.… → Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.…   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 1)), None, Some(((0, 1), 0, false)), false)) → Some((Sound((0, 1)), None, Some(((0, 1), 1, false)), false))
+  PgUp     → Play   « 1/2 · A · son 2/2 »
+  PgDn     → Play   « 1/2 · A · son 2/2 »   preset: Some(PresetRef { name: "Chill verse", path: "/x/b.preset.… → Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.…   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 1)), None, Some(((0, 1), 0, false)), false)) → Some((Sound((0, 1)), None, Some(((0, 1), 1, false)), false))
+  Entrée   « son 2 : « Chill verse » »   édition: Some((Sound((0, 1)), None, Some(((0, 1), 0, false)), false)) → Some((Sound((0, 1)), None, None, false))
+  Échap    → Play   « 1/2 · A · son 1/2 »   preset: Some(PresetRef { name: "Chill verse", path: "/x/b.preset.… → Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.…   set: Some((Some((0, 1)), 0, [])) → Some((Some((0, 0)), 0, []))   édition: Some((Sound((0, 1)), None, Some(((0, 1), 0, false)), false)) → Some((Sound((0, 1)), None, None, false))
+  '?'      aide: false → true
+  'h'      aide: false → true
+  inertes : ← → Maj+← Maj+→ Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+
+## set · édition · retirer un morceau (X)
+  ↑        « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  ↓        « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  ←        « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  →        « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Maj+←    « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Maj+→    « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  PgUp     « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  PgDn     « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Entrée   « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Tab      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Maj+Tab  « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Échap    « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Retour   « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  ' '      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '*'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '+'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  ','      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '-'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '.'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '/'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '='      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '?'      aide: false → true
+  '['      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  ']'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '{'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '}'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '1'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '2'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  '3'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'a'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'b'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'c'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'e'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'é'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'h'      aide: false → true
+  'i'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'k'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'L'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'm'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'n'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'o'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'P'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'p'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'q'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'Q'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'r'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  's'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'S'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  't'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'T'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'v'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'x'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  'X'      « morceau « A » retiré »   set: Some((Some((0, 0)), 0, [])) → Some((None, 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("B"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, true)) → Some((Song(0), None, None, false))
+  'z'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  inertes : 
 
 ## set · fenêtre L (choisir le set)
   Échap    fenêtre L: true → false
   '?'      aide: false → true
   'h'      aide: false → true
   'L'      fenêtre L: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## banque de presets (P)
   Entrée   → Play   « preset « Chill verse » chargé (1/2) »   banque: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…   preset: None → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
@@ -382,7 +542,7 @@
   'h'      aide: false → true
   'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   banque: true → false   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
   'P'      banque: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'o' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'o' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## chaîne · sélecteur sur place (Entrée sur un nam)
   ←        « valide (Entrée) ou annule (Échap) le choix d'abord »
@@ -429,8 +589,10 @@
   's'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'S'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   't'      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  'T'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'v'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'x'      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  'X'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'z'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   inertes : ↑ ↓ PgUp PgDn '/'
 
@@ -443,7 +605,7 @@
   'q'      quitter?: false → true
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   's'      → SaveMeta   « m001 enregistré »   éditeur: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'Q' 'S' 't' 'v' 'x' 'z'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'Q' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## confirmation « non enregistré » (bascule de preset)
   ↑        « on reste sur cette chaîne »   bascule?: true → false
@@ -495,8 +657,10 @@
   's'      « on reste sur cette chaîne »   bascule?: true → false
   'S'      nom: None → Some("800D Modern + 3 blocs")   bascule?: true → false
   't'      « on reste sur cette chaîne »   bascule?: true → false
+  'T'      « on reste sur cette chaîne »   bascule?: true → false
   'v'      « on reste sur cette chaîne »   bascule?: true → false
   'x'      « on reste sur cette chaîne »   bascule?: true → false
+  'X'      « on reste sur cette chaîne »   bascule?: true → false
   'z'      « on reste sur cette chaîne »   bascule?: true → false
   inertes : 
 
@@ -540,8 +704,10 @@
   's'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocss")
   'S'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocsS")
   't'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocst")
+  'T'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocsT")
   'v'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocsv")
   'x'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocsx")
+  'X'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocsX")
   'z'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocsz")
   inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab
 
@@ -595,8 +761,10 @@
   's'      « on reste : rien n'est perdu »   quitter?: true → false
   'S'      nom: None → Some("800D Modern + 3 blocs")   quitter?: true → false
   't'      « on reste : rien n'est perdu »   quitter?: true → false
+  'T'      « on reste : rien n'est perdu »   quitter?: true → false
   'v'      « on reste : rien n'est perdu »   quitter?: true → false
   'x'      « on reste : rien n'est perdu »   quitter?: true → false
+  'X'      « on reste : rien n'est perdu »   quitter?: true → false
   'z'      « on reste : rien n'est perdu »   quitter?: true → false
   inertes : 
 
@@ -650,8 +818,10 @@
   's'      aide: true → false
   'S'      aide: true → false
   't'      aide: true → false
+  'T'      aide: true → false
   'v'      aide: true → false
   'x'      aide: true → false
+  'X'      aide: true → false
   'z'      aide: true → false
   inertes : 
 
@@ -704,7 +874,9 @@
   's'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
   'S'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
   't'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
+  'T'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
   'v'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
   'x'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
+  'X'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
   'z'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · * tap · k clic · h aide · q quitter) »
   inertes : ↑

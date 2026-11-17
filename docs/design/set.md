@@ -238,6 +238,19 @@ les touches, comme le filtre et le nom aujourd'hui (keys.rs, #175).
 le titre de la Chaîne rappelle `preset utilisé par N morceaux de ce set` et `S` y enregistre le
 preset, donc partout.
 
+> Précisé à l'implémentation (17/11/2026, #220), trois points que cette section laissait ouverts :
+>
+> - **l'édition est un écran à elle** : les touches de la vue scène (`i`, `L`, `P`) y **dorment**.
+>   `L` y changeait de set en abandonnant les modifications sans rien demander — c'est la famille
+>   de #249. Seules `PgDn` / `PgUp` la traversent (on édite en écoutant), comme la pédale
+>   (`1 2 3`, `*`, `k`, `h`, `q`), qui est au-dessus des modes ;
+> - **`Échap` défait l'essai** : `↑↓` écrivent le preset essayé **dans** le son, puisque c'est ce
+>   qui le fait entendre ; annuler remet donc celui d'avant, sinon « preset inchangé » serait un
+>   mensonge. (Le sélecteur de la Chaîne n'a pas ce problème : son essai n'est posé que par
+>   `plan()`.) ;
+> - **le nom d'un set est le nom de son fichier**, comme pour un preset. `L` › `＋ nouveau set…` le
+>   demande avant tout le reste, et `Échap` abandonne le set : sans nom, il n'a pas de fichier.
+
 ## 9. `namfoop run --set <id | mots-clés>` : la scène verrouillée
 
 - Le même écran que l'espace 3, en-tête `namfoop run  🔒 SET  <nom>`, **sans** édition, choix de set,

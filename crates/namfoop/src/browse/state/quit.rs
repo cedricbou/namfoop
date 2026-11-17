@@ -23,6 +23,24 @@ impl State {
     /// Ce qui serait perdu en quittant maintenant, en clair (vide = rien à perdre). Comparaison
     /// d'états : défaire un changement fait disparaître la ligne correspondante.
     pub fn unsaved(&self) -> Vec<String> {
+        let mut v = self.chain_unsaved();
+        // le set édité (§ 8, #220) : `●` tant qu'il n'est pas écrit.
+        //
+        // ATTENTION : il est **hors** de `chain_unsaved`, qui répond à une autre question. Mis
+        // dans la même liste, il faisait demander « non enregistré » à chaque essai de preset
+        // pendant l'édition d'un set, et l'édition devenait impraticable (trouvé par l'oracle).
+        if let Some(set) = self.set.as_ref() {
+            if set.unsaved() {
+                v.push(format!("set {} : modifications pas enregistrées (S dans l'espace Set)", set.stem));
+            }
+        }
+        v
+    }
+
+    /// Ce qui n'est pas enregistré **dans la chaîne** : la question que pose un remplacement de
+    /// chaîne (`PgDn`, la banque, `n`), et elle seule. Le set, lui, survit à un changement de
+    /// preset — il n'a pas à être mentionné.
+    pub fn chain_unsaved(&self) -> Vec<String> {
         let mut v = Vec::new();
         if self.fx.chain != self.start_fx {
             v.push(format!("chaîne : {} bloc(s), changée depuis le lancement", self.fx.len()));

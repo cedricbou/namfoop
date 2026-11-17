@@ -410,6 +410,44 @@ pub fn run(
             match action {
                 Action::None => {}
                 Action::Quit => return Ok(()),
+                // `S` en édition de set : la boucle écrit le fichier (§ 8, #220)
+                Action::SaveSet(stem) => {
+                    let Some(set) = st.set.as_ref() else { continue };
+                    let file = Library::scan(library).set_path(&stem);
+                    match set.spec.save(&file) {
+                        Ok(()) => {
+                            st.message = Some(format!("set « {stem} » enregistré ({})", file.display()));
+                            if let Some(set) = st.set.as_mut() {
+                                set.saved = set.spec.clone();
+                            }
+                            // un set tout juste créé (`L` › « ＋ nouveau set… ») n'avait pas
+                            // d'identifiant : le fichier existe maintenant, donc il en a un, et
+                            // c'est à partir de là qu'on peut le retenir dans `[set] default`
+                            // (§ 4) — et que `run --set` sans argument le reprendra (§ 9)
+                            if st.set.as_ref().is_some_and(|x| x.id.is_empty()) {
+                                let id = Library::scan(library)
+                                    .by_path(&file)
+                                    .map(|e| e.id.clone())
+                                    .unwrap_or_default();
+                                if !id.is_empty() {
+                                    if let Some(set) = st.set.as_mut() {
+                                        set.id = id.clone();
+                                    }
+                                    remember_set(conf, Some(&id));
+                                }
+                            }
+                            // le set a pu gagner ou perdre des presets : sa banque est à refaire
+                            bank_reqs = bank_requests(&st, &audition);
+                            let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
+                            status.bank = Some((0, bank_reqs.len()));
+                            // `S` depuis la fenêtre de `q` : on quitte maintenant que c'est écrit
+                            if std::mem::take(&mut st.quit_after_save) {
+                                return Ok(());
+                            }
+                        }
+                        Err(e) => st.message = Some(format!("set « {stem} » non enregistré : {e:#}")),
+                    }
+                }
                 // `L` : la liste des sets de la bibliothèque, que seule la boucle voit (§ 7)
                 Action::ListSets => st.adopt_sets(list_sets(library)),
                 Action::OpenSet(id) => match open_set(library, &id, &st) {

@@ -155,6 +155,14 @@ impl State {
         if let Some(a) = self.set_picker_key(key) {
             return Some(a);
         }
+        // les **sous-modes de l'édition d'un set** (§ 8, #220) : la saisie d'un titre, d'un tempo
+        // ou d'un PC, la liste des presets, la confirmation de `X`. Ce sont des modes, donc ils
+        // passent avant la pédale — sans quoi taper `1` dans un titre changerait d'espace et `q`
+        // quitterait au milieu d'un nom (mesuré par l'oracle avant de monter ces trois-là ici).
+        // La **table** de l'édition, elle, reste à l'étage de l'espace : la pédale doit y répondre.
+        if let Some(a) = self.set_edit_mode_key(key) {
+            return Some(a);
+        }
         None
     }
 

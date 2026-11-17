@@ -5,13 +5,19 @@
 //! Trois largeurs (§ 6) : au-delà de 100 colonnes la set list fait 44 colonnes ; en dessous elle
 //! se réduit à 30 ; sous 70 elle disparaît au profit d'une seule ligne au-dessus du cadre, qui
 //! prend alors toute la largeur. Sur scène, un écran étroit ne doit pas cacher ce qu'on joue.
+//!
+//! **L'édition** (`e`, § 8, #220) remplace les deux colonnes par **une** table pleine largeur :
+//! on y voit les PC, les tempos, les sons et leurs volumes de **tous** les morceaux à la fois,
+//! parce que bâtir une set list, c'est comparer des lignes entre elles. Le prompteur est masqué.
 
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
+use super::super::state::bindings;
+use super::super::state::set::edit::Edit;
 use super::super::state::set::ActiveSet;
 use super::super::state::State;
 
@@ -40,6 +46,11 @@ pub fn render(s: &State, f: &mut Frame, area: Rect) {
         f.render_widget(Paragraph::new(lines).block(frame_block(" ♪ Set ")), area);
         return;
     };
+    // l'édition prend toute la largeur : c'est un autre écran, pas une décoration (§ 8)
+    if let Some(edit) = s.set_edit.as_ref() {
+        render_edit(set, edit, f, area);
+        return;
+    }
     if area.width < NARROW {
         // trop étroit pour deux colonnes : une ligne dit l'essentiel, le cadre prend le reste
         let [line, rest] = Layout::vertical([Constraint::Length(1), Constraint::Min(3)]).areas(area);
@@ -270,4 +281,232 @@ fn clip(s: &str, w: usize) -> String {
         return s.to_string();
     }
     s.chars().take(w.saturating_sub(1)).collect::<String>() + "…"
+}
+
+// ------------------------------------------------------------- l'édition (`e`, § 8, #220)
+
+/// La couleur de l'édition : **jaune**, comme tout ce qui n'est pas enregistré dans `browse`.
+const EDIT: Color = Color::Yellow;
+
+/// La table d'édition, **pleine largeur** : PC, tempo, sons et volumes de **tous** les morceaux
+/// (§ 8). Le prompteur est masqué — on ne lit pas un texte pendant qu'on bâtit une set list, et
+/// c'est cette largeur-là qui permet de voir les sons d'un morceau sur une ligne.
+fn render_edit(set: &ActiveSet, edit: &Edit, f: &mut Frame, area: Rect) {
+    let w = area.width.saturating_sub(2) as usize;
+    let untitled = set.spec.songs.len() == 1 && set.spec.songs[0].title.is_none();
+    let title_w = if untitled { 0 } else { (w / 5).clamp(10, 24) };
+    let mut lines: Vec<Line> = Vec::new();
+    if set.spec.songs.is_empty() {
+        lines.push(Line::raw(""));
+        lines.push(Line::styled("   Set vide : a ajoute un premier morceau.", Style::new().fg(EDIT)));
+    }
+    for (i, song) in set.spec.songs.iter().enumerate() {
+        lines.push(edit_row(set, edit, i, song, title_w, untitled));
+    }
+    // le rappel des touches, groupé comme l'écran : ce qui agit sur le morceau, puis sur le son.
+    // Le texte vient de la table (#243) : la barre du bas, l'aide `h` et ces deux lignes ne
+    // peuvent pas se contredire.
+    let room = area.height as usize;
+    if lines.len() + 4 <= room {
+        lines.push(Line::raw(""));
+        for part in [bindings::set_edit::SONG, bindings::set_edit::SOUND] {
+            let text: Vec<&str> = part.iter().map(|b| b.bar).filter(|b| !b.is_empty()).collect();
+            // coupé à la largeur, avec son « … » : un rappel tronqué au milieu d'un mot ferait
+            // croire à une touche qui n'existe pas (l'aide `h` donne la liste entière)
+            let text = clip(&format!("   {}", text.join("   ")), w);
+            lines.push(Line::styled(text, Style::new().fg(Color::DarkGray)));
+        }
+    }
+    let songs = set.spec.songs.len();
+    let sounds: usize = set.spec.songs.iter().map(|x| x.sounds.len()).sum();
+    let dirty = if set.unsaved() { "  ● non enregistré (S)" } else { "" };
+    let title = format!(
+        " ✎ ÉDITION — {} · {songs} morceau{} · {sounds} son{}{dirty} ",
+        set_title(set),
+        if songs > 1 { "x" } else { "" },
+        if sounds > 1 { "s" } else { "" },
+    );
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::bordered()
+                .border_style(Style::new().fg(EDIT))
+                .title(Span::styled(clip(&title, w), Style::new().fg(EDIT).add_modifier(Modifier::BOLD))),
+        ),
+        area,
+    );
+}
+
+/// Une ligne de la table : `▶ 2  Le Phare   PC 12  ♩ 92  ≡  [Fuzz] +0.5 dB · Néon`.
+///
+/// Trois marques, et elles ne disent pas la même chose : `▶` le son **joué** (ce qu'on entend),
+/// le fond jaune ce qui est **visé** (ce que la prochaine touche changera), et `●` du titre le
+/// fait que rien n'est encore écrit.
+fn edit_row(
+    set: &ActiveSet,
+    edit: &Edit,
+    i: usize,
+    song: &library::set::Song,
+    title_w: usize,
+    untitled: bool,
+) -> Line<'static> {
+    let aimed_song = edit.aim.song() == i;
+    let aimed_sound = if aimed_song { edit.aim.sound() } else { None };
+    let playing = set.at.map(|(j, _)| j) == Some(i);
+    let mut spans = vec![Span::styled(
+        format!(" {} ", if playing { "▶" } else { " " }),
+        Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+    )];
+    // la tête du morceau : n°, titre, PC, tempo, prompteur. Visée (et pas au niveau d'un son) :
+    // elle est en vidéo inverse, parce que c'est elle que `r`, `T`, `p`, `X` changent
+    let head = if untitled {
+        String::new()
+    } else {
+        format!("{:>2}  {:<title_w$} ", i + 1, clip(song.label(), title_w), title_w = title_w)
+    };
+    spans.push(Span::styled(
+        head,
+        match (aimed_song && aimed_sound.is_none(), playing) {
+            (true, _) => Style::new().fg(Color::Black).bg(EDIT).add_modifier(Modifier::BOLD),
+            (_, true) => Style::new().add_modifier(Modifier::BOLD),
+            _ => Style::new(),
+        },
+    ));
+    // le PC : sans lui, le morceau n'est pas joignable au pied (§ 7), donc son absence est jaune
+    spans.push(match song.pc {
+        Some(pc) => Span::styled(format!("PC {pc:<3} "), Style::new().fg(Color::Cyan)),
+        None => Span::styled("PC —   ", Style::new().fg(EDIT)),
+    });
+    spans.push(match song.tempo_bpm {
+        Some(b) => Span::styled(format!("♩{b:<4.0}"), Style::new().fg(Color::Cyan)),
+        // `♩---` : le morceau suit le tempo de ses presets (§ 8), ce n'est pas un trou
+        None => Span::styled("♩--- ", Style::new().fg(Color::DarkGray)),
+    });
+    spans.push(Span::styled(
+        if song.prompt.is_some() { "≡ " } else { "  " },
+        Style::new().fg(Color::DarkGray),
+    ));
+    if song.sounds.is_empty() {
+        spans.push(Span::styled("(aucun son : + pour en ajouter)", Style::new().fg(EDIT)));
+        return Line::from(spans);
+    }
+    for (k, sound) in song.sounds.iter().enumerate() {
+        if k > 0 {
+            spans.push(Span::styled(" · ", Style::new().fg(Color::DarkGray)));
+        }
+        let here = set.at == Some((i, k));
+        let missing = set.slot((i, k)).is_none();
+        let name = if sound.preset.is_empty() { "(à choisir)".to_string() } else { sound.preset.clone() };
+        // le son **joué** est entre crochets : la couleur le dit déjà, mais pas sur une capture
+        // d'écran ni pour un œil qui la distingue mal — et c'est l'information la plus importante
+        let name = if here { format!("[{name}]") } else { name };
+        spans.push(Span::styled(
+            name,
+            match (aimed_sound == Some(k), here, missing) {
+                (true, _, _) => Style::new().fg(Color::Black).bg(EDIT).add_modifier(Modifier::BOLD),
+                (_, _, true) => Style::new().fg(Color::Red),
+                (_, true, _) => Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+                _ => Style::new().fg(Color::Gray),
+            },
+        ));
+        if sound.volume_db != 0.0 {
+            spans
+                .push(Span::styled(format!(" {:+.1} dB", sound.volume_db), Style::new().fg(Color::DarkGray)));
+        }
+    }
+    Line::from(spans)
+}
+
+/// La **saisie** d'un titre, d'un tempo ou d'un PC : une petite fenêtre jaune, parce qu'elle prend
+/// le clavier entier (#175) et que cela doit se voir.
+pub(super) fn render_typing(s: &State, f: &mut Frame, area: Rect) {
+    let Some(t) = s.set_edit.as_ref().and_then(|e| e.typing.as_ref()) else { return };
+    let lines = vec![
+        Line::from(vec![
+            Span::styled(format!(" {} : ", t.field.label()), Style::new().fg(Color::Gray)),
+            Span::styled(t.text.clone(), Style::new().add_modifier(Modifier::BOLD)),
+            Span::styled("▏", Style::new().fg(ACCENT)),
+        ]),
+        Line::raw(""),
+        Line::styled(" Entrée valider · Échap annuler", Style::new().fg(Color::DarkGray)),
+    ];
+    window(f, area, " ✎ saisie ", lines, 54);
+}
+
+/// La **liste des presets** de `+` et d'`Entrée` : `↑↓` **essaie** (on l'entend), Échap rend le son
+/// qu'on jouait. C'est le patron du sélecteur de la Chaîne (§ 5 de `browse-espaces.md`).
+pub(super) fn render_picking(s: &State, f: &mut Frame, area: Rect) {
+    let Some(p) = s.set_edit.as_ref().and_then(|e| e.picking.as_ref()) else { return };
+    let room = (area.height.saturating_sub(6) as usize).max(3);
+    let from = p.cursor.saturating_sub(room.saturating_sub(1));
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, preset) in s.presets.iter().enumerate().skip(from).take(room) {
+        let on = i == p.cursor;
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!(" {} {:<24}", if on { "▶" } else { " " }, clip(&preset.name, 24)),
+                if on {
+                    Style::new().fg(Color::Black).bg(EDIT).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::new()
+                },
+            ),
+            Span::styled(
+                format!("  {}", preset.broken.clone().unwrap_or_default()),
+                Style::new().fg(Color::Red),
+            ),
+        ]));
+    }
+    if s.presets.len() > room {
+        lines.push(Line::styled(
+            format!("   … {} presets de plus", s.presets.len() - room),
+            Style::new().fg(Color::DarkGray),
+        ));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        " ↑↓ essayer (on l'entend) · Entrée garder · Échap annuler",
+        Style::new().fg(Color::DarkGray),
+    ));
+    let what = if p.is_new { "ajouter un son" } else { "remplacer le preset du son" };
+    window(f, area, &format!(" {what} — morceau {} ", p.at.0 + 1), lines, 60);
+}
+
+/// `X` : la confirmation de retrait d'un morceau. Un morceau retiré emmène ses sons et son
+/// prompteur, donc on demande (§ 8).
+pub(super) fn render_confirm_remove(s: &State, f: &mut Frame, area: Rect) {
+    let Some(e) = s.set_edit.as_ref().filter(|e| e.confirm_remove) else { return };
+    let who = s
+        .set
+        .as_ref()
+        .and_then(|x| x.spec.songs.get(e.aim.song()))
+        .map(|x| x.label().to_string())
+        .unwrap_or_default();
+    let lines = vec![
+        Line::from(Span::styled(format!(" Retirer « {who} » du set ?"), Style::new().fg(EDIT))),
+        Line::raw(""),
+        Line::styled(" X confirmer · Échap le garder", Style::new().fg(Color::DarkGray)),
+    ];
+    window(f, area, " ✎ retirer un morceau ", lines, 50);
+}
+
+/// Une fenêtre jaune centrée, de la largeur du texte.
+fn window(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line<'static>>, min_w: u16) {
+    let w = (lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16 + 4).max(min_w).min(area.width);
+    let h = (lines.len() as u16 + 2).min(area.height);
+    let win = Rect {
+        x: area.x + (area.width.saturating_sub(w)) / 2,
+        y: area.y + (area.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    };
+    f.render_widget(Clear, win);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::bordered()
+                .border_style(Style::new().fg(EDIT))
+                .title(Span::styled(title.to_string(), Style::new().fg(EDIT).add_modifier(Modifier::BOLD)))
+                .style(Style::new().bg(Color::Black)),
+        ),
+        win,
+    );
 }

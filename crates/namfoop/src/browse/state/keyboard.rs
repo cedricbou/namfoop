@@ -160,6 +160,54 @@ fn contexts() -> Vec<Ctx> {
             check: |s| s.space == Space::Set && s.set.as_ref().is_some_and(|x| x.at.is_some()),
         },
         Ctx {
+            name: "set · en édition (e)",
+            build: || {
+                let mut s = staged_set();
+                s.play_set_sound((0, 0));
+                s.on_key(Key::Char('e'));
+                s.message = None;
+                s
+            },
+            check: |s| s.set_edit.is_some(),
+        },
+        Ctx {
+            name: "set · édition · saisie (r)",
+            build: || {
+                let mut s = staged_set();
+                s.play_set_sound((0, 0));
+                s.on_key(Key::Char('e'));
+                s.on_key(Key::Char('r')); // renommer : la saisie prend TOUT le clavier (#175)
+                s.message = None;
+                s
+            },
+            check: |s| s.set_edit.as_ref().is_some_and(|e| e.typing.is_some()),
+        },
+        Ctx {
+            name: "set · édition · liste des presets (Entrée)",
+            build: || {
+                let mut s = staged_set();
+                s.play_set_sound((0, 0));
+                s.on_key(Key::Char('e'));
+                s.on_key(Key::Right); // viser un son, puis Entrée ouvre la liste
+                s.on_key(Key::Enter);
+                s.message = None;
+                s
+            },
+            check: |s| s.set_edit.as_ref().is_some_and(|e| e.picking.is_some()),
+        },
+        Ctx {
+            name: "set · édition · retirer un morceau (X)",
+            build: || {
+                let mut s = staged_set();
+                s.play_set_sound((0, 0));
+                s.on_key(Key::Char('e'));
+                s.on_key(Key::Char('X'));
+                s.message = None;
+                s
+            },
+            check: |s| s.set_edit.as_ref().is_some_and(|e| e.confirm_remove),
+        },
+        Ctx {
             name: "set · fenêtre L (choisir le set)",
             build: || {
                 let mut s = staged_set();
@@ -333,7 +381,9 @@ fn all_keys() -> Vec<(String, Key)> {
     .iter()
     .map(|(n, k)| (n.to_string(), *k))
     .collect();
-    for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStvxz".chars() {
+    // `T` et `X` sont arrivées avec l'édition d'un set (#220) : une touche qu'on n'énumère pas
+    // ici n'est mesurée nulle part, et c'est exactement le trou d'où sortait #238.
+    for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStTvxXz".chars() {
         // `é` n'est lié nulle part : il est là comme témoin, pour qu'une lettre inconnue montre
         // bien ce que fait le clavier d'une touche qui ne veut rien dire.
         v.push((format!("'{c}'"), Key::Char(c)));
@@ -374,6 +424,22 @@ fn fingerprint(s: &State) -> Vec<(&'static str, String)> {
         ("mélange", format!("{:?}", s.blend)),
         ("preset", format!("{:?}", s.preset)),
         ("set", format!("{:?}", s.set.as_ref().map(|x| (x.at, x.cursor, x.expanded.clone())))),
+        // la set list elle-même : sans elle, `a`, `r`, `X`, `x`, `{ }`, `, .` paraîtraient inertes
+        ("set list", format!("{:?}", s.set.as_ref().map(|x| x.spec.songs.clone()))),
+        // l'édition : ce qu'on vise, le texte en train d'être tapé (sinon une lettre tapée dans un
+        // titre serait mesurée « inerte »), la place dans la liste des presets, la confirmation
+        (
+            "édition",
+            format!(
+                "{:?}",
+                s.set_edit.as_ref().map(|e| (
+                    e.aim,
+                    e.typing.as_ref().map(|t| (t.field, t.text.clone(), t.fresh)),
+                    e.picking.as_ref().map(|p| (p.at, p.cursor, p.is_new)),
+                    e.confirm_remove,
+                ))
+            ),
+        ),
         ("tempo entendu", format!("{:.1}", s.heard_tempo_bpm())),
         ("clic", s.metronome.to_string()),
     ]
@@ -420,6 +486,7 @@ fn short_action(a: &Action) -> &'static str {
         Action::ListSets => "ListSets",
         Action::OpenSet(_) => "OpenSet",
         Action::SetChanged => "SetChanged",
+        Action::SaveSet(_) => "SaveSet",
         Action::Quit => "Quit",
     }
 }
@@ -565,6 +632,10 @@ fn every_measured_context_is_named_correctly() {
         ("chaîne · mode pose", Context::Place),
         ("set · aucun set actif", Context::Set),
         ("set · un set joué", Context::Set),
+        ("set · en édition (e)", Context::SetEdit),
+        ("set · édition · saisie (r)", Context::SetEditTyping),
+        ("set · édition · liste des presets (Entrée)", Context::SetEditPicking),
+        ("set · édition · retirer un morceau (X)", Context::SetEditRemove),
         ("set · fenêtre L (choisir le set)", Context::SetPicker),
         ("banque de presets (P)", Context::Bank),
         ("chaîne · sélecteur sur place (Entrée sur un nam)", Context::Picker),

@@ -19,6 +19,9 @@
 use super::context::Context;
 use crate::tui::Key;
 
+/// Les touches de l'édition d'un set (`e`, § 8) : nombreuses, et groupées par ce qu'elles visent.
+pub mod set_edit;
+
 /// Une touche de la table : fixe, ou **réglable** par la config.
 ///
 /// Les deux réglables le sont parce qu'un footswitch les envoie (`[set] next_song` / `prev_song`),
@@ -56,17 +59,17 @@ pub struct Binding {
 }
 
 /// Raccourcis d'écriture de la table.
-const fn k(c: char) -> KeySpec {
+pub(super) const fn k(c: char) -> KeySpec {
     KeySpec::Fixed(Key::Char(c))
 }
-const fn n(key: Key) -> KeySpec {
+pub(super) const fn n(key: Key) -> KeySpec {
     KeySpec::Fixed(key)
 }
 
-const UP_DOWN: &[KeySpec] = &[n(Key::Up), n(Key::Down)];
+pub(super) const UP_DOWN: &[KeySpec] = &[n(Key::Up), n(Key::Down)];
 const ARROWS: &[KeySpec] = &[n(Key::Up), n(Key::Down), n(Key::Left), n(Key::Right)];
-const ENTER: &[KeySpec] = &[n(Key::Enter)];
-const ESC: &[KeySpec] = &[n(Key::Esc)];
+pub(super) const ENTER: &[KeySpec] = &[n(Key::Enter)];
+pub(super) const ESC: &[KeySpec] = &[n(Key::Esc)];
 
 /// **Ce que ce contexte possède.** L'ordre est celui de l'aide `h` : du geste principal aux
 /// sorties, parce que c'est l'ordre dans lequel on en a besoin (#150).
@@ -622,6 +625,10 @@ pub fn bindings(ctx: Context) -> &'static [Binding] {
         C::Place => PLACE,
         C::Picker => PICKER,
         C::SetPicker => SET_PICKER,
+        C::SetEdit => set_edit::table(),
+        C::SetEditTyping => set_edit::TYPING,
+        C::SetEditPicking => set_edit::PICKING,
+        C::SetEditRemove => set_edit::REMOVE,
         C::Set => SET,
         C::Params => PARAMS,
         C::ChainMerge => CHAIN_MERGE,

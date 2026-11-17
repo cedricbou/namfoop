@@ -6,6 +6,29 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#220)
+- **Éditer un set à l'écran** (`e` dans l'espace Set) : le cadre passe en jaune `✎ ÉDITION` et prend
+  toute la largeur — PC, tempos, sons et volumes de **tous** les morceaux à la fois. Un set se bâtit
+  en écoutant : on met un preset dans un morceau, on l'entend, on le remplace.
+- Les touches du § 8 : `a` ajouter un morceau (titre tapé tout de suite, **premier PC libre**
+  proposé), `r` renommer, `T` tempo (vide : celui de ses presets), `p` n° de Program Change (refusé
+  s'il est pris, **en nommant** le morceau qui l'a), `X` retirer (confirmation), `[` `]` déplacer ;
+  `+` ajouter un son et `Entrée` remplacer son preset (la liste de la banque, `↑↓` l'**essaient** et
+  on l'entend, `Échap` défait l'essai et rend le son joué), `x` retirer, `{` `}` déplacer (change sa
+  valeur de CC 69), `,` `.` son volume propre (±0,5 dB, entendu tout de suite).
+- **Viser n'écoute pas** : les flèches déplacent le cadre jaune sans rien changer à l'oreille. Et
+  une saisie passe avant toutes les touches : dans un titre, `a`, `q` et `1` sont des caractères.
+- **`S` enregistre le set** (`library/sets/<nom>.set.toml`) : il éclipse le `S` du preset, ici
+  seulement. Le `●` reste tant que ce n'est pas écrit, `q` passe par la fenêtre « non enregistré »,
+  et un set vide, un morceau sans son ou un set sans nom sont refusés — ils ne se joueraient pas.
+- **`L` › `＋ nouveau set…`** crée un set vide : il demande son nom (celui du fichier) et ouvre
+  l'édition dessus. Enregistré, il devient le set retenu (`[set] default`).
+- **`2` depuis l'espace Set** mène à la Chaîne du son joué, et son titre rappelle `preset utilisé
+  par N morceaux de ce set` : `S` y enregistre le preset, donc partout où il est joué.
+- L'édition est **un écran à elle** : `i`, `L` et `P` y dorment (`L` changeait de set en abandonnant
+  les modifications sans rien demander, même famille que #249). `PgDn` / `PgUp` répondent toujours —
+  on édite en écoutant — comme `1 2 3`, `*`, `k`, `h` et `q`.
+
 ### Corrigé (#250)
 - **`n` ne vide plus la chaîne depuis l'espace Set.** Touche commune, elle y vidait la chaîne,
   détachait le preset **et quittait l'écran de concert** — sans rien demander, puisqu'il n'y avait

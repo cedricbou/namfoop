@@ -581,6 +581,16 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     if s.set_picker.is_some() {
         windows::render_set_picker(s, f, f.area());
     }
+    // les trois fenêtres de l'édition d'un set (§ 8) : saisie, liste des presets, confirmation
+    if let Some(e) = s.set_edit.as_ref() {
+        if e.typing.is_some() {
+            set::render_typing(s, f, body);
+        } else if e.picking.is_some() {
+            set::render_picking(s, f, body);
+        } else if e.confirm_remove {
+            set::render_confirm_remove(s, f, body);
+        }
+    }
     // l'aide passe par-dessus tout (y compris le catalogue et le sélecteur)
     if s.help {
         windows::render_help(s, f.area(), f);
