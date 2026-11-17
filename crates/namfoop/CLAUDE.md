@@ -82,7 +82,23 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 travailler à la maille preset dans la Chaîne. Même règle dans l'autre sens (#250) :
                 l'espace Set ÉCLIPSE `n`, qui y vidait la chaîne, détachait le preset et quittait
                 l'écran de concert sans rien demander — une touche d'un espace n'agit pas sur
-                l'objet d'un autre. `S` suivra avec #220 (enregistrer LE SET). flat() est la liste à plat du § 5,
+                l'objet d'un autre. set/edit.rs L'ÉDITION DU SET (#220,
+                § 8) : `e` l'ouvre, `S` y ÉCLIPSE le `S` du preset (l'éclipse déclarée de l'ADR
+                0009) et rend Action::SaveSet(stem) que la boucle écrit. TROIS CHOSES À NE PAS
+                CASSER : (1) ses SOUS-MODES (saisie, liste des presets, confirmation de X) sont
+                appelés à l'étage des MODES dans keys.rs, donc AVANT la pédale — sinon taper `1`
+                dans un titre change d'espace et `q` quitte au milieu d'un nom (#175, mesuré par
+                l'oracle) ; (2) la TABLE de l'édition, elle, reste à l'étage de l'espace et ne
+                laisse RIEN tomber sur les touches de la vue scène (`L` y changeait de set en
+                abandonnant les modifications sans rien demander, même famille que #249) — seules
+                `PgDn` / `PgUp` passent, le geste du pied ne se bloque jamais ; (3) `↑↓` dans la
+                liste des presets ÉCRIVENT l'essai dans le son (c'est ce qui le fait entendre),
+                donc Échap a quelque chose à défaire : Picking::was garde le preset d'avant — le
+                sélecteur de la Chaîne, lui, n'a pas ce problème (son essai n'est posé que par
+                plan()). ActiveSet::saved est la référence du `●` (unsaved()), resync() refait la
+                correspondance son -> place de banque après chaque édition, et songs_using(slot)
+                compte les morceaux qui jouent un preset (le titre de la Chaîne : « preset utilisé
+                par N morceaux de ce set »). flat() est la liste à plat du § 5,
                 step() / step_song() n'y BOUCLENT PAS (fin du set / début du set : on ne rejoue pas
                 le premier morceau par mégarde), distinct_slots() donne la banque du set — UNE
                 place par preset distinct, parce que le volume et le tempo sont vivants, donc hors
@@ -139,7 +155,12 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 browse-espaces.md : Entrée ouvre la liste sous le synoptique, ↑↓ essaie DANS la
                 chaîne sans l'écrire — l'essai n'est posé que par plan() / shown_chain(), donc
                 unsaved() l'ignore et Échap n'a rien à défaire ; o isole le bloc et son voisin,
-                c bascule actuel / essai) ; meters.rs balistique des vumètres ; quit.rs : Échap ne quitte jamais (il remonte d'un niveau, dans
+                c bascule actuel / essai) ; meters.rs balistique des vumètres ; quit.rs : unsaved() (TOUT, y compris le set
+                édité — la question de `q`) est séparée de chain_unsaved() (la CHAÎNE SEULE — la
+                question d'un remplacement de chaîne : PgDn, la banque, `n`) : dans le même sac,
+                chaque essai de preset pendant l'édition d'un set ouvrait la fenêtre « non
+                enregistré » et l'édition devenait impraticable (#220, trouvé par l'oracle).
+                Échap ne quitte jamais (il remonte d'un niveau, dans
                 `on_key`), `q` ouvre la fenêtre de confirmation (`confirm_quit`, `Q` seul quitte)
                 quand `unsaved()` n'est pas vide, ou quand la chaîne est vide alors que le banc
                 joue un son (`empty_chain_warning`, § 9 : Entrée le met dans la chaîne et reste,

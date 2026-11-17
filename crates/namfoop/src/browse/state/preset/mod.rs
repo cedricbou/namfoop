@@ -454,7 +454,8 @@ impl State {
     /// Mettre `what` à la place de la chaîne en cours : tout de suite s'il n'y a rien à perdre,
     /// après la fenêtre « la chaîne n'est pas enregistrée » sinon.
     fn replace_chain(&mut self, what: Pending) -> Action {
-        if self.unsaved().is_empty() {
+        // la CHAÎNE seulement : un set édité n'empêche pas de changer de preset (#220)
+        if self.chain_unsaved().is_empty() {
             return self.apply_pending(what);
         }
         self.pending_switch = Some(what);

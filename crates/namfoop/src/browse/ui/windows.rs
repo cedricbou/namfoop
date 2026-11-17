@@ -271,6 +271,9 @@ fn help_title(s: &State, ctx: Context) -> String {
         }
         Context::SetPicker => "Choisir le set".into(),
         Context::Set => "Set — la vue scène".into(),
+        Context::SetEdit | Context::SetEditTyping | Context::SetEditPicking | Context::SetEditRemove => {
+            format!("✎ Éditer le set — {}", s.set.as_ref().map(|x| x.stem.as_str()).unwrap_or(""))
+        }
         Context::ChainMerge => "Chaîne · sortie du parallèle (◇)".into(),
         Context::Params => "Chaîne · réglages".into(),
         Context::Chain => "Chaîne · le synoptique est l'éditeur".into(),

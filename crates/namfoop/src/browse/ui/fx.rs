@@ -61,6 +61,12 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
         (None, true) => "♪ CHAÎNE — SANS EFFETS (r)".to_string(),
         (None, false) => head,
     };
+    // on arrive ici depuis l'espace Set (`2`) : modifier ce son, c'est modifier son preset, donc
+    // **tous** les morceaux du set qui s'en servent. `S` enregistre partout (§ 8, #220).
+    let head = match s.set_preset_note() {
+        Some(note) if s.place.is_none() => format!("{head} · {note}"),
+        _ => head,
+    };
     let warn = if s.place.is_some() { None } else { warn };
     let mut block = Block::bordered().title(title(&head, s.fx.focus == FxFocus::Chain));
     if let Some(w) = warn.filter(|_| !s.fx.bypass_all) {

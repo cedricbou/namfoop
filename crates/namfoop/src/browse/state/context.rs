@@ -45,6 +45,11 @@ pub enum Context {
     SetPicker,
     /// Les réglages d'un élément de la chaîne (`Entrée` sur un effet).
     Params,
+    /// **L'édition d'un set** (`e`, § 8) : ses saisies et sa liste de presets prennent tout.
+    SetEditTyping,
+    SetEditPicking,
+    SetEditRemove,
+    SetEdit,
     /// Les trois espaces. La Bibliothèque est **par onglet** : c'est la seule façon de dire
     /// « `a` / `s` / `x` sont à moi, en Mélange seulement ».
     Set,
@@ -111,6 +116,17 @@ impl State {
         if self.set_picker.is_some() {
             return Context::SetPicker;
         }
+        if let Some(e) = self.set_edit.as_ref() {
+            return if e.typing.is_some() {
+                Context::SetEditTyping
+            } else if e.picking.is_some() {
+                Context::SetEditPicking
+            } else if e.confirm_remove {
+                Context::SetEditRemove
+            } else {
+                Context::SetEdit
+            };
+        }
         if self.filtering {
             return Context::Filtering;
         }
@@ -158,6 +174,10 @@ impl Context {
         Context::Catalog,
         Context::SetPicker,
         Context::Params,
+        Context::SetEditTyping,
+        Context::SetEditPicking,
+        Context::SetEditRemove,
+        Context::SetEdit,
         Context::Set,
         Context::ChainMerge,
         Context::Chain,

@@ -18,6 +18,9 @@ pub mod screen;
 /// Où l'on en est dans le set : un morceau et un son.
 pub type At = (usize, usize);
 
+/// L'édition du set à l'écran (`e`, § 8).
+pub mod edit;
+
 /// Le set chargé, et la place de chacun de ses sons dans la bibliothèque.
 #[derive(Clone, Debug)]
 pub struct ActiveSet {
@@ -38,6 +41,10 @@ pub struct ActiveSet {
     /// Morceaux dont le **détail** est déplié (`i`) : PC, valeurs de CC 69, volumes, prompteur.
     /// Plusieurs peuvent rester ouverts (§ 6).
     pub expanded: Vec<usize>,
+    /// Le set **tel qu'il est sur le disque**. C'est la référence du `●` « non enregistré » : la
+    /// même idée que `start_fx` pour la chaîne (#110), et c'est ce qui fait que `unsaved()` voit
+    /// l'édition sans code en plus (#220).
+    pub saved: SetSpec,
 }
 
 impl ActiveSet {
@@ -46,7 +53,19 @@ impl ActiveSet {
     pub fn new(id: String, stem: String, spec: SetSpec, find: &dyn Fn(&str) -> Option<usize>) -> Self {
         let slots =
             spec.songs.iter().map(|song| song.sounds.iter().map(|s| find(&s.preset)).collect()).collect();
-        Self { id, stem, spec, slots, at: None, cursor: 0, expanded: Vec::new() }
+        Self { saved: spec.clone(), id, stem, spec, slots, at: None, cursor: 0, expanded: Vec::new() }
+    }
+
+    /// **Après une édition**, recalculer la place de chaque son dans la banque : ajouter, retirer
+    /// ou déplacer un son change toute la correspondance, et `flat()` s'en sert pour savoir ce qui
+    /// est jouable.
+    pub fn resync(&mut self, find: impl Fn(&str) -> Option<usize>) {
+        self.slots = self
+            .spec
+            .songs
+            .iter()
+            .map(|song| song.sounds.iter().map(|s| find(&s.preset)).collect())
+            .collect();
     }
 
     /// Tous les sons **jouables**, dans l'ordre du set : c'est la liste à plat du § 5. Un son dont
@@ -131,6 +150,19 @@ impl ActiveSet {
         out
     }
 
+    /// Combien de **morceaux** du set jouent ce preset (sa place dans `State::presets`). Sert au
+    /// titre de la Chaîne quand on y arrive depuis l'espace Set (`2`, § 8) : modifier un son,
+    /// c'est modifier son preset, donc **tous** les morceaux qui s'en servent — il faut le savoir
+    /// avant d'enregistrer.
+    ///
+    /// On compte des **places** et non des noms : un son peut désigner son preset par son
+    /// identifiant ou par des mots-clés, et c'est `slots` qui a déjà fait la résolution. Et on
+    /// compte des morceaux, pas des sons : deux sons du même morceau sur le même preset, c'est le
+    /// même endroit du concert.
+    pub fn songs_using(&self, slot: usize) -> usize {
+        self.slots.iter().filter(|sounds| sounds.contains(&Some(slot))).count()
+    }
+
     /// Ce que l'écran et les messages disent du son `at` : « 2/4 · Le Phare · son 2/2 ».
     pub fn label(&self, at: At) -> String {
         let songs = self.spec.songs.len();
@@ -194,6 +226,16 @@ impl State {
 
     /// Joue un son du set : la chaîne de son preset, **plus** ce que le morceau lui ajoute — son
     /// volume et son tempo, deux paramètres vivants, donc posés sans rebâtir la chaîne (§ 4).
+    /// Ce que le titre de la Chaîne ajoute quand elle vient d'un son du set (`2` depuis
+    /// l'espace Set, § 8). `None` : la chaîne n'est pas celle d'un preset du set.
+    pub fn set_preset_note(&self) -> Option<String> {
+        let set = self.set.as_ref()?;
+        let path = self.preset.as_ref().map(|p| p.path.clone())?;
+        let slot = self.presets.iter().position(|p| p.path == path)?;
+        let n = set.songs_using(slot);
+        (n > 0).then(|| format!("preset utilisé par {n} morceau{} de ce set", if n > 1 { "x" } else { "" }))
+    }
+
     pub fn play_set_sound(&mut self, at: At) -> Action {
         let Some(s) = self.set.as_ref() else { return Action::None };
         let Some(slot) = s.slot(at) else {
@@ -561,5 +603,17 @@ mod independence_tests {
         s.on_key(Key::Char('3'));
         s.on_key(Key::PageDown);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("L pour")), "{:?}", s.message);
+    }
+}
+
+impl State {
+    /// Recalculer les places des presets du set après une édition. La vérité, c'est
+    /// `State::presets` : un son désigne son preset par **nom** (ou identifiant), comme dans le
+    /// fichier, et c'est là qu'on le retrouve.
+    pub(in crate::browse::state) fn resync_set(&mut self) {
+        let by: Vec<(String, String)> = self.presets.iter().map(|p| (p.name.clone(), p.id.clone())).collect();
+        if let Some(set) = self.set.as_mut() {
+            set.resync(|q| by.iter().position(|(n, i)| n == q || i == q));
+        }
     }
 }

@@ -157,6 +157,8 @@ pub enum Action {
     ListSets,
     /// Ouvre ce set (son identifiant court) : la boucle le lit et précharge sa banque.
     OpenSet(String),
+    /// **`S` en édition de set** : la boucle écrit `library/sets/<nom>.set.toml` (#220).
+    SaveSet(String),
     /// Le set actif a changé (ou disparu) : la banque préchargée doit être refaite.
     SetChanged,
     Quit,
@@ -258,6 +260,8 @@ pub struct State {
     pub song_keys: (Key, Key),
     /// La fenêtre **`L` : choisir le set** (§ 7). `None` : fermée.
     pub set_picker: Option<set::screen::Picker>,
+    /// **L'édition du set** (`e`, § 8, #220). `None` : on regarde la set list, on ne la change pas.
+    pub set_edit: Option<set::edit::Edit>,
     /// La dernière touche que **personne** n'a possédée (ADR 0009, #242). La boucle l'écrit dans
     /// `NAMFOOP_BROWSE_TRACE` puis la remet à `None` : sur scène, « j'ai appuyé et rien ne s'est
     /// passé » devient diagnosticable, sans rien afficher à l'utilisateur.
@@ -332,6 +336,7 @@ impl State {
             set: None,
             song_keys: (Key::Right, Key::Left),
             set_picker: None,
+            set_edit: None,
             unhandled: None,
             locked: false,
             metronome: false,
@@ -542,12 +547,13 @@ impl State {
 
     /// Une saisie de texte est en cours : les lettres s'y écrivent, elles ne sont pas des
     /// commandes (filtre d'un onglet ou du sélecteur, nom d'un mélange, texte de l'éditeur,
-    /// filtre du catalogue).
+    /// filtre du catalogue, titre / tempo / PC d'un morceau du set).
     pub fn typing(&self) -> bool {
         self.filtering
             || self.naming.is_some()
             || self.fx.catalog.is_some()
             || self.editor.as_ref().is_some_and(|e| e.typing.is_some())
+            || self.set_edit.as_ref().is_some_and(|e| e.typing.is_some())
             || self.picker.as_ref().is_some_and(|p| p.filtering)
     }
 }

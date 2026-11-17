@@ -278,3 +278,101 @@ fn the_locked_help_says_where_to_go_to_edit() {
     assert!(out.contains("Rien ne s'édite ici"), "{out}");
     assert!(out.contains("namfoop browse"), "{out}");
 }
+
+// ----------------------------------------------- l'édition (`e`, § 8, #220)
+
+/// Le même état, en édition, le son `at` joué et visé.
+fn edited(at: (usize, usize)) -> State {
+    let mut s = staged(concert(), Some(at));
+    s.on_key(Key::Char('e'));
+    s
+}
+
+/// **La table pleine largeur** (§ 8) : PC, tempo, sons et volumes de **tous** les morceaux à la
+/// fois — c'est ce qui permet de comparer les lignes entre elles. Le prompteur disparaît : on ne
+/// lit pas un texte pendant qu'on bâtit une set list.
+#[test]
+fn the_edition_table_shows_every_song_on_the_whole_width() {
+    let s = edited((1, 0));
+    let out = shot(&s, 160, 50);
+    assert!(out.contains("✎ ÉDITION"), "{out}");
+    assert!(out.contains("6 morceaux · 8 sons"), "{out}");
+    // les six morceaux, pas seulement celui qu'on joue
+    for title in ["Ouverture", "Le Phare", "Néon", "Marée basse", "Sur le fil", "Rappel"] {
+        assert!(out.contains(title), "{title} manque : {out}");
+    }
+    // le PC et le tempo de chaque morceau, les sons et leurs volumes propres
+    assert!(out.contains("PC 2") && out.contains("♩124"), "{out}");
+    assert!(out.contains("fuzz") && out.contains("clean"), "{out}");
+    // le son joué est entre crochets : la couleur ne suffit pas à le dire
+    assert!(out.contains("[fuzz]"), "{out}");
+    assert!(out.contains("-1.5 dB"), "le volume propre d'un son : {out}");
+    assert!(out.contains("+2.0 dB"), "{out}");
+    // le rappel des touches, groupé comme l'écran (morceau, puis son) — il vient de la table
+    assert!(out.contains("a ajouter") && out.contains("[ ] déplacer"), "{out}");
+    assert!(out.contains("Entrée remplacer") && out.contains(", . volume"), "{out}");
+    // le prompteur n'est plus là
+    assert!(!out.contains("prompteur"), "{out}");
+    // rien n'est modifié : pas de ●
+    assert!(!out.contains("● non enregistré"), "{out}");
+}
+
+/// Sur un **écran de scène étroit** (80×25), la table reste lisible : elle garde ses colonnes et
+/// coupe les titres, plutôt que de cacher des morceaux.
+#[test]
+fn the_edition_table_still_fits_a_narrow_terminal() {
+    let mut s = edited((1, 0));
+    let out = shot(&s, 80, 25);
+    assert!(out.contains("✎ ÉDITION"), "{out}");
+    assert!(out.contains("Le Phare") && out.contains("Rappel"), "{out}");
+    assert!(out.contains("PC 6"), "{out}");
+    // une modification allume le ● : il dit que le fichier n'a pas encore la vérité
+    s.on_key(Key::Char('.'));
+    let out = shot(&s, 80, 25);
+    assert!(out.contains("● non enregistré"), "{out}");
+    assert!(out.contains("+0.5 dB"), "{out}");
+}
+
+/// Les **trois fenêtres** de l'édition : la saisie, la liste des presets, la confirmation de `X`.
+/// Chacune dit ce que valident et annulent ses deux touches.
+#[test]
+fn the_three_edition_windows_say_what_they_do() {
+    // une saisie (`r` renomme), pré-remplie
+    let mut s = edited((1, 0));
+    s.on_key(Key::Char('r'));
+    let out = shot(&s, 120, 30);
+    assert!(out.contains("✎ saisie") && out.contains("titre"), "{out}");
+    assert!(out.contains("Le Phare"), "la valeur actuelle est proposée : {out}");
+    assert!(out.contains("Entrée valider") && out.contains("Échap annuler"), "{out}");
+
+    // la liste des presets (`Entrée` remplace) : ↑↓ y **essaient**
+    let mut s = edited((1, 0));
+    s.on_key(Key::Enter);
+    let out = shot(&s, 120, 30);
+    assert!(out.contains("remplacer le preset du son"), "{out}");
+    assert!(out.contains("↑↓ essayer (on l'entend)"), "{out}");
+    assert!(out.contains("Entrée garder"), "{out}");
+
+    // la confirmation de `X` : elle nomme le morceau qu'on va perdre
+    let mut s = edited((1, 0));
+    s.on_key(Key::Char('X'));
+    let out = shot(&s, 120, 30);
+    assert!(out.contains("Retirer « Le Phare » du set ?"), "{out}");
+    assert!(out.contains("X confirmer"), "{out}");
+}
+
+/// Un set **tout juste créé** (`L` › « ＋ nouveau set… ») : la table dit quoi faire au lieu de
+/// montrer un cadre vide, et la saisie du nom est ouverte.
+#[test]
+fn a_brand_new_set_asks_for_its_name_then_shows_an_empty_table() {
+    let mut s = staged(concert(), Some((0, 0)));
+    s.new_set();
+    let out = shot(&s, 120, 30);
+    assert!(out.contains("nom du set"), "{out}");
+    s.on_key(Key::Char('T'));
+    s.on_key(Key::Enter);
+    let out = shot(&s, 120, 30);
+    assert!(out.contains("✎ ÉDITION — T"), "{out}");
+    assert!(out.contains("0 morceau"), "{out}");
+    assert!(out.contains("a ajoute un premier morceau"), "{out}");
+}

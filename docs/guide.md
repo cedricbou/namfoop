@@ -1721,9 +1721,9 @@ Un **set** est la liste ordonnée des morceaux d'un concert, chacun avec **ses s
 de ta bibliothèque, **référencés et non copiés** : modifier un preset le change dans tous les
 morceaux qui s'en servent.
 
-> Ce qui existe aujourd'hui : écrire un set à la main, le vérifier avec `namfoop sets`, et le
-> **jouer au pied** avec `browse --set`. L'écran de scène, le prompteur et la battue viennent
-> ensuite (épique #215).
+> Ce qui existe aujourd'hui : **construire un set à l'écran** (`e` dans l'espace Set), l'écrire à
+> la main si on préfère, le vérifier avec `namfoop sets`, le jouer au pied dans `browse` et le
+> jouer sur scène avec `run --set`. Le prompteur et la battue viennent ensuite (épique #215).
 
 ### Le fichier : `library/sets/<nom>.set.toml`
 
@@ -1857,7 +1857,8 @@ sons.
 | `↑` `↓` | **viser** un morceau — rien ne change à l'oreille |
 | `Entrée` | jouer le morceau visé, sur son premier son |
 | `i` | déplier le détail du morceau visé : son PC, la valeur de CC 69 de chaque son, son volume propre, son prompteur. Plusieurs morceaux peuvent rester dépliés |
-| `L` | choisir le set — ou `aucun set`, qui rend la banque entière |
+| `e` | **éditer le set** (ci-dessous) |
+| `L` | choisir le set — ou `aucun set`, qui rend la banque entière, ou `＋ nouveau set…` pour en créer un |
 
 **Viser n'est pas jouer** : parcourir sa set list pendant un morceau ne produit aucun son, c'est
 `Entrée` qui change le son. Sur scène, c'est ce qui permet de préparer le morceau suivant sans
@@ -1867,6 +1868,72 @@ toucher à ce qu'on entend.
 réciproquement. `n` (repartir d'une chaîne vierge) est donc **refusée** et renvoie à la Chaîne
 (`2`) — elle vidait la chaîne et quittait l'écran de concert, sans rien demander. `S` et `P`
 restent : enregistrer le preset joué et ouvrir la banque ne font rien perdre.
+
+### Construire un set à l'écran : `e`
+
+Un set se bâtit **en écoutant** : on met un preset dans un morceau, on l'entend, on le remplace. Le
+fichier reste lisible et modifiable à la main, mais ce n'est pas là qu'on travaille.
+
+```sh
+namfoop browse            # 3 pour l'espace Set, puis e
+```
+
+Le cadre passe en **jaune** `✎ ÉDITION — …` et prend **toute la largeur** : les PC, les tempos, les
+sons et leurs volumes de **tous** les morceaux, à la fois — bâtir une set list, c'est comparer des
+lignes entre elles. Le prompteur est masqué le temps de l'édition.
+
+```
+┌ ✎ ÉDITION — Groupe 1 · Live Mairie · 6 morceaux · 8 sons  ● non enregistré ──┐
+│    1  Ouverture       PC 1   ♩96    fuzz                                     │
+│ ▶  2  Le Phare        PC 2   ♩124   [fuzz] · clean -1.5 dB                   │
+│    3  Néon            PC 3   ♩100   drive                                    │
+```
+
+`▶` est le morceau **joué**, les crochets le son qu'on **entend**, le cadre jaune ce qu'on **vise**.
+
+| touche | sur le morceau visé | sur le son visé |
+|---|---|---|
+| `↑` `↓` | viser un morceau | |
+| `←` `→` | | viser un son du morceau |
+| `a` | ajouter un morceau après (son titre se tape tout de suite, le **premier PC libre** est proposé) | |
+| `r` | renommer | |
+| `T` | tempo (**vide** : celui de ses presets) | |
+| `p` | n° de Program Change — refusé s'il est déjà pris, et le message **dit par quel morceau** | |
+| `X` | retirer (confirmation) | |
+| `[` `]` | déplacer dans le set | |
+| `+` | | ajouter un son après : la liste des presets s'ouvre, `↑↓` les **essaient** (on les entend) |
+| `Entrée` | | remplacer le preset du son, même liste |
+| `x` | | retirer le son — sans confirmation, son preset reste dans la banque |
+| `{` `}` | | déplacer dans le morceau : **sa valeur de CC 69 change**, c'est sa place qui le désigne |
+| `,` `.` | | volume propre au morceau, ±0,5 dB, entendu tout de suite |
+| `S` | enregistrer le set | |
+| `Échap` ou `e` | sortir de l'édition | |
+
+Deux règles tiennent tout le reste :
+
+- **viser n'écoute pas.** Les flèches déplacent le cadre jaune sans rien changer à l'oreille ; seuls
+  `+` et `Entrée` ouvrent une liste où `↑↓` essaient un preset — et `Échap` **défait l'essai** et
+  rend le son qu'on jouait. Sur scène, toucher une flèche ne doit pas couper le son ;
+- **une saisie passe avant toutes les touches.** Tant qu'on tape un titre, un tempo ou un PC, `a`,
+  `q` et `1` sont des caractères, pas des commandes. Une valeur pré-remplie est remplacée par la
+  première frappe.
+
+`S` écrit `library/sets/<nom>.set.toml` ; le `●` de l'en-tête reste tant que ce n'est pas fait, et
+`q` passe par la fenêtre « non enregistré ». Un set **vide**, un morceau **sans son** ou un set
+**sans nom** sont refusés : ils ne se joueraient pas.
+
+L'édition est **un écran à elle** : `i`, `L` et `P` y dorment (sinon `L` changerait de set en
+abandonnant les modifications sans rien demander). `PgDn` / `PgUp`, eux, répondent toujours — on
+édite en écoutant — comme `1 2 3`, `*`, `k`, `h` et `q`.
+
+**Modifier un son, c'est modifier son preset.** Depuis l'espace Set, `2` mène à la Chaîne du son
+joué, et son titre rappelle `preset utilisé par 2 morceaux de ce set` : `S` y enregistre le preset,
+donc **partout** où il est joué. Pour qu'un seul morceau sonne autrement, il lui faut son propre
+preset (`S` dans la Chaîne sous un autre nom), ou son volume de morceau (`,` / `.`).
+
+**Créer un set** : `L`, puis `＋ nouveau set…`. Il demande son nom — qui est aussi celui du fichier
+— et l'édition s'ouvre dessus, vide. `Échap` sur le nom l'abandonne : un set sans nom n'aurait pas
+de fichier.
 
 Le **set actif est retenu** d'une session à l'autre (`[set] default` de la config) : `browse`
 rouvre le dernier set choisi. `--set` passe outre pour une session.

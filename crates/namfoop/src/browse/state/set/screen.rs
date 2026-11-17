@@ -66,8 +66,16 @@ impl State {
         if self.space != space::Space::Set {
             return None;
         }
+        // **l'édition prend la main sur la vue scène** (§ 8) : ses touches sont celles d'un éditeur,
+        // pas celles d'un joueur. `e` entre et sort.
+        if let Some(a) = self.set_edit_key(key) {
+            return Some(a);
+        }
         let songs = self.set.as_ref().map(|s| s.spec.songs.len()).unwrap_or(0);
         match key {
+            // `e` : éditer le set (§ 8). Depuis la vue scène seulement : l'éditeur de modèle de la
+            // Bibliothèque garde son `e`, chaque espace possède ses touches (#247).
+            Key::Char('e') => Some(self.toggle_set_edit()),
             // `L` : choisir le set. **Dans l'espace Set seulement** — le garde plus haut l'y
             // enferme, et le commentaire d'origine prétendait le contraire (#243).
             Key::Char('L') => Some(self.open_set_picker()),
@@ -200,10 +208,8 @@ impl State {
                         // la banque redevient celle de la bibliothèque : il faut la rebâtir
                         Action::SetChanged
                     }
-                    Entry::New => {
-                        self.message = Some("nouveau set : l'édition vient avec la suite (#220)".into());
-                        Action::None
-                    }
+                    // la fin du geste du § 7 : un set vide, nommé, et l'édition ouverte dessus
+                    Entry::New => self.new_set(),
                 })
             }
             _ => Some(Action::None),
