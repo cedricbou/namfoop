@@ -377,6 +377,9 @@ fn all_keys() -> Vec<(String, Key)> {
         ("Maj+Tab", Key::BackTab),
         ("Échap", Key::Esc),
         ("Retour", Key::Backspace),
+        // Fin / Début : les sections du prompteur (#222), réglables comme les touches de morceau
+        ("Fin", Key::End),
+        ("Début", Key::Home),
     ]
     .iter()
     .map(|(n, k)| (n.to_string(), *k))
@@ -487,6 +490,7 @@ fn short_action(a: &Action) -> &'static str {
         Action::OpenSet(_) => "OpenSet",
         Action::SetChanged => "SetChanged",
         Action::SaveSet(_) => "SaveSet",
+        Action::EditPrompt(_) => "EditPrompt",
         Action::Quit => "Quit",
     }
 }
@@ -670,7 +674,7 @@ fn everything_declared_is_actually_owned() {
         for b in bindings(ctx) {
             for spec in b.keys {
                 let mut s = (case.build)();
-                let key = spec.resolve(s.song_keys);
+                let key = spec.resolve(s.song_keys, s.prompt_keys);
                 s.unhandled = None;
                 s.on_key(key);
                 if s.unhandled.is_some() {

@@ -104,11 +104,22 @@ pub struct Set {
     pub next_song: String,
     /// Morceau précédent (défaut `Left`).
     pub prev_song: String,
+    /// **Section suivante du prompteur** (défaut `End`) : le § 10 veut suivre son texte au pied,
+    /// sans toucher au son qu'on joue.
+    pub prompt_next: String,
+    /// Section précédente du prompteur (défaut `Home`).
+    pub prompt_prev: String,
 }
 
 impl Default for Set {
     fn default() -> Self {
-        Self { default: None, next_song: "Right".into(), prev_song: "Left".into() }
+        Self {
+            default: None,
+            next_song: "Right".into(),
+            prev_song: "Left".into(),
+            prompt_next: "End".into(),
+            prompt_prev: "Home".into(),
+        }
     }
 }
 

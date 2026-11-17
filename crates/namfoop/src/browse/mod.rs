@@ -11,7 +11,7 @@ mod plan;
 mod state;
 mod ui;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU32;
@@ -328,6 +328,8 @@ pub fn run(
         };
         st.song_keys =
             (read(&keys.next_song, crate::tui::Key::Right), read(&keys.prev_song, crate::tui::Key::Left));
+        st.prompt_keys =
+            (read(&keys.prompt_next, crate::tui::Key::End), read(&keys.prompt_prev, crate::tui::Key::Home));
     }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
@@ -340,6 +342,7 @@ pub fn run(
         match open_set(library, query, &st) {
             Ok(set) => {
                 st.message = Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
+                st.adopt_prompts(read_prompts(&set.spec));
                 st.set = Some(set);
             }
             // `run --set` ne tolère pas un set illisible : on le dit et on sort (code d'erreur)
@@ -448,12 +451,37 @@ pub fn run(
                         Err(e) => st.message = Some(format!("set « {stem} » non enregistré : {e:#}")),
                     }
                 }
+                // `t` : le prompteur du morceau dans `$EDITOR` (§ 10, #222). C'est la boucle qui
+                // rend la main au terminal : l'état ne touche à aucun fichier.
+                Action::EditPrompt(song) => {
+                    let what = st.set.as_ref().and_then(|set| {
+                        let s = set.spec.songs.get(song)?;
+                        Some((set.spec.base.join(s.prompt.as_deref()?), s.label().to_string()))
+                    });
+                    let Some((file, title)) = what else { continue };
+                    match edit_prompt(&mut session, &file, &title) {
+                        Ok(()) => {
+                            st.adopt_prompts(read_prompt(&file));
+                            let lines = st
+                                .prompt_of(song)
+                                .and_then(|l| l.prompt())
+                                .map(|p| p.line_count())
+                                .unwrap_or(0);
+                            st.message = Some(format!(
+                                "prompteur « {title} » : {lines} ligne(s) — {}",
+                                file.display()
+                            ));
+                        }
+                        Err(e) => st.message = Some(format!("prompteur « {title} » : {e:#}")),
+                    }
+                }
                 // `L` : la liste des sets de la bibliothèque, que seule la boucle voit (§ 7)
                 Action::ListSets => st.adopt_sets(list_sets(library)),
                 Action::OpenSet(id) => match open_set(library, &id, &st) {
                     Ok(set) => {
                         st.message =
                             Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
+                        st.adopt_prompts(read_prompts(&set.spec));
                         st.set = Some(set);
                         remember_set(conf, Some(&id));
                         // sa banque remplace la banque entière (§ 4)
@@ -468,6 +496,11 @@ pub fn run(
                     Err(e) => st.message = Some(format!("set « {id} » : {e:#}")),
                 },
                 Action::SetChanged => {
+                    // un set tout neuf (#220) n'a pas de dossier : ses prompteurs se résolvent
+                    // dans `library/sets/`, comme ceux d'un set lu sur le disque
+                    if let Some(set) = st.set.as_mut().filter(|s| s.spec.base.as_os_str().is_empty()) {
+                        set.spec.base = Library::scan(library).sets_dir();
+                    }
                     remember_set(conf, None);
                     bank_reqs = bank_requests(&st, &audition);
                     let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
@@ -693,6 +726,68 @@ fn list_sets(library: &Path) -> Vec<state::set::screen::Entry> {
             }
         })
         .collect()
+}
+
+/// Les **prompteurs** d'un set, lus d'un coup à son ouverture : des fichiers texte de quelques
+/// kilo-octets, et les lire ici évite toute lecture de fichier pendant un concert (§ 10).
+fn read_prompts(spec: &library::set::SetSpec) -> Vec<(PathBuf, state::set::prompt::Loaded)> {
+    spec.songs
+        .iter()
+        .filter_map(|s| s.prompt.as_deref())
+        .flat_map(|rel| read_prompt(&spec.base.join(rel)))
+        .collect()
+}
+
+/// Un prompteur. Un fichier absent ou illisible **n'est pas une erreur** : il est retenu comme tel,
+/// le cadre le dit, et le concert continue (§ 10).
+fn read_prompt(path: &Path) -> Vec<(PathBuf, state::set::prompt::Loaded)> {
+    use state::set::prompt::Loaded;
+    let loaded = match library::prompt::Prompt::load(path) {
+        Ok(p) => Loaded::Ok(p),
+        Err(e) => Loaded::Failed(format!("{e:#}")),
+    };
+    vec![(path.to_path_buf(), loaded)]
+}
+
+/// **`t`** : rend la main au terminal, ouvre `$EDITOR` sur le `.cho` (en le **créant** avec son
+/// titre s'il n'existe pas), puis reprend l'écran. namfoop n'est pas l'éditeur du prompteur (§ 10) :
+/// le texte vient d'un éditeur de texte, et viendra à terme d'autres logiciels.
+fn edit_prompt(session: &mut tui::Session, file: &Path, title: &str) -> Result<()> {
+    if !file.exists() {
+        if let Some(dir) = file.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        std::fs::write(file, library::prompt::Prompt::skeleton(title))?;
+    }
+    let editor =
+        std::env::var("VISUAL").or_else(|_| std::env::var("EDITOR")).unwrap_or_else(|_| "vi".to_string());
+    let mut parts = editor.split_whitespace();
+    let prog = parts.next().unwrap_or("vi").to_string();
+    let args: Vec<String> = parts.map(str::to_string).collect();
+    // l'éditeur a besoin du terminal **entier** : on quitte l'écran plein et le mode brut, puis
+    // on y revient. On garde **le même** terminal : le recréer (`ratatui::init`) interroge le
+    // terminal sur la position du curseur, et un terminal qui ne répond pas — un pseudo-terminal
+    // de test, une console inhabituelle — ferait échouer le retour alors que tout va bien.
+    use ratatui::crossterm::{execute, terminal};
+    terminal::disable_raw_mode().context("sortie du mode brut")?;
+    execute!(std::io::stdout(), terminal::LeaveAlternateScreen).context("sortie de l'écran plein")?;
+    let status = std::process::Command::new(&prog).args(&args).arg(file).status();
+    execute!(std::io::stdout(), terminal::EnterAlternateScreen).context("retour à l'écran plein")?;
+    terminal::enable_raw_mode().context("retour au mode brut")?;
+    // tout est à redessiner (l'écran plein a été quitté). **Pas** `Terminal::clear` : il demande
+    // au terminal où est le curseur (`ESC [ 6 n`) et attend la réponse — un terminal qui ne
+    // répond pas (un pseudo-terminal de test, une console inhabituelle) ferait échouer le retour
+    // de l'éditeur alors que tout va bien. `resize` remet le tampon à zéro sans rien demander.
+    let size = session.terminal.size().context("taille du terminal")?;
+    session
+        .terminal
+        .resize(ratatui::layout::Rect::new(0, 0, size.width, size.height))
+        .context("écran à redessiner")?;
+    match status {
+        Ok(s) if s.success() => Ok(()),
+        Ok(s) => bail!("{prog} a quitté sans enregistrer ({s})"),
+        Err(e) => bail!("{prog} : {e} (règle $EDITOR)"),
+    }
 }
 
 /// Retient le set actif d'une session à l'autre (§ 4) : `[set] default` de la config, qui sert

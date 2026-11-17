@@ -1722,8 +1722,9 @@ de ta bibliothèque, **référencés et non copiés** : modifier un preset le ch
 morceaux qui s'en servent.
 
 > Ce qui existe aujourd'hui : **construire un set à l'écran** (`e` dans l'espace Set), l'écrire à
-> la main si on préfère, le vérifier avec `namfoop sets`, le jouer au pied dans `browse` et le
-> jouer sur scène avec `run --set`. Le prompteur et la battue viennent ensuite (épique #215).
+> la main si on préfère, le vérifier avec `namfoop sets`, **lire le prompteur** de chaque morceau
+> (ChordPro), le jouer au pied dans `browse` et sur scène avec `run --set`. La battue et le
+> défilement au tempo viennent ensuite (épique #215).
 
 ### Le fichier : `library/sets/<nom>.set.toml`
 
@@ -1765,7 +1766,7 @@ pc = 1
 | `pc` | le **Program Change** qui appelle ce morceau, de 1 à 128, **unique dans le set**. Absent : le morceau ne se joue qu'au pied |
 | `tempo_bpm` | le tempo du morceau (à la noire), de 30 à 300. Il **prime** sur celui des presets qu'il joue |
 | `time` | la mesure par défaut (`4/4`, `6/8`, `7/8`…) ; les changements en cours de morceau viendront du prompteur |
-| `prompt` | le prompteur ChordPro du morceau, relatif à `library/sets/` |
+| `prompt` | le prompteur ChordPro du morceau, relatif à `library/sets/` (ci-dessous ; `t` le crée) |
 | `preset` | l'identifiant d'un preset, celui que donne `namfoop presets` |
 | `volume_db` | ce que **ce morceau** ajoute au volume du preset |
 
@@ -1831,16 +1832,19 @@ Les touches de scène se règlent pour coller au pédalier qu'on a sous le pied 
 [set]
 next_song = "Right"      # morceau suivant
 prev_song = "Left"       # morceau précédent
+prompt_next = "End"      # section suivante du prompteur
+prompt_prev = "Home"     # section précédente
 ```
 
-> Le morceau suivant / précédent viendra avec le reste des touches de scène ; `PgDn` / `PgUp`,
-> eux, suivent déjà le set.
+Les noms sont ceux de crossterm (`Right`, `Left`, `Space`, `End`, `Home`, `PageDown`…) ; un
+caractère seul se donne tel quel (`k`, `*`). Un nom inconnu est signalé au démarrage et la touche
+par défaut est gardée : sur scène, une touche qui ne répond pas ne se diagnostique pas.
 
 ### L'espace Set : la vue scène
 
 `3` ouvre un **troisième espace** (après `1` Bibliothèque et `2` Chaîne), en vert : la **set list à
 gauche**, le **cadre du morceau à droite**. La hauteur sert à voir venir, la largeur au texte du
-prompteur (qui arrive ensuite).
+prompteur (ci-dessous).
 
 La colonne de gauche donne, par morceau, l'essentiel : son numéro, son titre, son tempo (`♩---`
 s'il suit les presets), sa mesure **si elle n'est pas 4/4**, et `≡` s'il a un prompteur. Le morceau
@@ -1857,6 +1861,8 @@ sons.
 | `↑` `↓` | **viser** un morceau — rien ne change à l'oreille |
 | `Entrée` | jouer le morceau visé, sur son premier son |
 | `i` | déplier le détail du morceau visé : son PC, la valeur de CC 69 de chaque son, son volume propre, son prompteur. Plusieurs morceaux peuvent rester dépliés |
+| `Fin` / `Début` | section suivante / précédente du **prompteur** — le son ne change pas |
+| `t` | écrire le texte du morceau dans `$EDITOR` (ChordPro) |
 | `e` | **éditer le set** (ci-dessous) |
 | `L` | choisir le set — ou `aucun set`, qui rend la banque entière, ou `＋ nouveau set…` pour en créer un |
 
@@ -1868,6 +1874,69 @@ toucher à ce qu'on entend.
 réciproquement. `n` (repartir d'une chaîne vierge) est donc **refusée** et renvoie à la Chaîne
 (`2`) — elle vidait la chaîne et quittait l'écran de concert, sans rien demander. `S` et `P`
 restent : enregistrer le preset joué et ouvrir la banque ne font rien perdre.
+
+### Le prompteur : accords, paroles et cues (ChordPro)
+
+Le texte d'un morceau vit dans un fichier **ChordPro** à côté du set
+(`library/sets/prompts/<morceau>.cho`). C'est le format de fait des logiciels de set list : le texte
+d'un concert ne doit pas être prisonnier de namfoop, qui le **lit** sans jamais l'écrire — `t`
+ouvre ton éditeur, et d'autres logiciels produiront ces fichiers.
+
+```sh
+namfoop browse --set concert      # 3, puis t sur le morceau visé
+```
+
+`t` crée le fichier avec son titre s'il n'existe pas, renseigne `prompt =` dans le morceau (`e`
+puis `S` pour l'enregistrer dans le set) et le **relit** au retour de l'éditeur. Il n'existe pas
+dans `run --set` : rien ne s'édite sur scène.
+
+```
+{title: Le Phare}
+{duration: 3:45}
+{tempo: 124}
+{time: 4/4}
+
+{start_of_verse: Couplet 1}
+{x_namfoop_sound: clean-svt}        # ce couplet se joue sur ce preset du morceau
+{x_namfoop_bars: 8}                 # sa durée, en mesures
+[Am]Le phare tourne [F]encore
+Et la [C]mer se tait
+{end_of_verse}
+
+{start_of_chorus: Refrain}
+{x_namfoop_sound: fuzz-face}
+{comment: monte le son}             # une cue, en jaune
+[G]Tout casse
+{end_of_chorus}
+```
+
+| directive | |
+|---|---|
+| `{title}`, `{duration}` | le titre, la durée (`3:45` ou des secondes) |
+| `{tempo: 124}`, `{time: 7/8}` | valent **à partir de là** ; le premier sert si le `.set.toml` ne donne rien |
+| `{start_of_verse: Couplet 1}` … `{end_of_verse}` | une **section** étiquetée (`chorus`, `bridge`, un nom libre, et les formes courtes `sov` / `soc` / `sob`) |
+| `[Am]paroles` | un accord, affiché **au-dessus** du texte quand la largeur le permet |
+| `{comment: …}` / `{c: …}` | une **cue**, en jaune |
+| `{x_namfoop_sound: <preset>}` | **lie la section à un son du morceau** : jouer ce son amène le prompteur ici |
+| `{x_namfoop_bars: 8}` | la durée de la section, en mesures |
+| `{x_namfoop_beats: 2+2+3}` | le regroupement des temps d'une mesure impaire (lu, il servira à la battue) |
+
+**Tout le reste est ignoré sans erreur** : un fichier écrit pour un autre logiciel s'affiche ici,
+même s'il contient des directives qu'on ne connaît pas. Et un prompteur **absent ou illisible** est
+dit dans le cadre, jamais une erreur bloquante — un concert ne s'arrête pas pour un fichier.
+
+À l'écran, la section **courante** est en vert avec `▸`, les passées en gris, les suivantes en
+gras ; chacune montre sa durée en mesures et le son auquel elle est liée. La ligne courante porte
+`›`. Le texte part **deux lignes avant** la position : on a besoin de voir d'où l'on vient.
+
+| touche | |
+|---|---|
+| `Fin` / `Début` | section suivante / précédente — **le son ne change pas** (réglables, `[set] prompt_next`) |
+| `t` | écrire le texte dans `$EDITOR` (pas sur scène) |
+
+Changer de son amène à la **prochaine** section liée à ce son : c'est ce qui fait que le texte suit
+le pied sans qu'on ait à le piloter. `Fin` / `Début` servent quand le texte et les sons ne suivent
+pas le même découpage. Le défilement **au tempo** (la battue) vient ensuite.
 
 ### Construire un set à l'écran : `e`
 
@@ -1960,6 +2029,7 @@ ouvrir. Ne répondent que les **gestes de scène** :
 | `PgDn` / `PgUp` | son suivant / précédent du set |
 | `↑` `↓` `Entrée` | viser puis jouer un morceau |
 | `i` | déplier le détail du morceau visé |
+| `Fin` / `Début` | section suivante / précédente du prompteur |
 | `*` | tap tempo · `k` : clic du métronome |
 | `h` | l'aide · `q` puis `Q` : quitter la scène |
 

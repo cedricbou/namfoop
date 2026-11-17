@@ -243,15 +243,10 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
         Style::new().fg(Color::DarkGray),
     ));
     lines.push(Line::raw(""));
-    match set.spec.songs[at.0].prompt.as_deref() {
-        Some(p) => lines.push(Line::styled(
-            format!("  ≡ {} — le texte s'affichera ici (#222)", p.display()),
-            Style::new().fg(Color::DarkGray),
-        )),
-        None => {
-            lines.push(Line::styled("  (aucun prompteur pour ce morceau)", Style::new().fg(Color::DarkGray)))
-        }
-    }
+    // le texte du morceau (§ 10, #222) : ce qui reste de hauteur lui revient, moins la place du
+    // morceau suivant (4 lignes) qu'on garde pour voir venir
+    let room = (area.height as usize).saturating_sub(7);
+    lines.extend(prompt_lines(s, set, at, area.width.saturating_sub(4) as usize, room));
     // le morceau suivant, pour voir venir (§ 6)
     if let Some(n) = (at.0 + 1 < songs).then(|| at.0 + 1) {
         let song = &set.spec.songs[n];
@@ -509,4 +504,180 @@ fn window(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line<'static>>, min
         ),
         win,
     );
+}
+
+// -------------------------------------------------- le prompteur (§ 10, #222)
+
+/// Le **texte du morceau joué** : sections étiquetées, accords, cues, et la position.
+///
+/// Trois états de section, et c'est ce qui permet de se repérer d'un coup d'œil sur scène : la
+/// **courante** en vert avec `▸`, les **passées** en gris, les **suivantes** en gras. La ligne
+/// courante porte `›`. Le texte part **deux lignes avant** la position : on ne lit pas la première
+/// ligne de l'écran, on a besoin de voir d'où l'on vient.
+fn prompt_lines(s: &State, set: &ActiveSet, at: (usize, usize), w: usize, room: usize) -> Vec<Line<'static>> {
+    use crate::browse::state::set::prompt::Loaded;
+    let song = &set.spec.songs[at.0];
+    let Some(loaded) = s.prompt_of(at.0) else {
+        // pas de `prompt =` dans le set : on dit **comment** en avoir un, pas « rien »
+        let mut v =
+            vec![Line::styled("  pas de prompteur pour ce morceau", Style::new().fg(Color::DarkGray))];
+        if !s.locked {
+            let file = crate::browse::state::set::prompt::prompt_file_name(song.label());
+            v.push(Line::styled(
+                format!("  t l'écrit dans ton éditeur (ChordPro : prompts/{file})"),
+                Style::new().fg(Color::DarkGray),
+            ));
+        }
+        return v;
+    };
+    let prompt = match loaded {
+        Loaded::Ok(p) => p,
+        // fichier absent ou illisible : **jamais** d'erreur bloquante, un message dans le cadre
+        Loaded::Failed(why) => {
+            return vec![Line::styled(format!("  ⚠ {why}"), Style::new().fg(Color::Yellow))];
+        }
+    };
+    if prompt.sections.is_empty() {
+        return vec![Line::styled(
+            format!("  prompteur vide{}", if s.locked { "" } else { " : t pour l'écrire" }),
+            Style::new().fg(Color::DarkGray),
+        )];
+    }
+    // on met tout à plat une fois : c'est la seule façon de faire défiler le texte **et** ses
+    // en-têtes de section ensemble
+    let mut flat: Vec<Line<'static>> = Vec::new();
+    let mut here = 0usize;
+    for (i, sec) in prompt.sections.iter().enumerate() {
+        let state = match i.cmp(&set.prompt_section) {
+            std::cmp::Ordering::Less => Was::Past,
+            std::cmp::Ordering::Equal => Was::Now,
+            std::cmp::Ordering::Greater => Was::Next,
+        };
+        if !sec.label.is_empty() {
+            flat.push(section_head(sec, state, prompt));
+        }
+        for (k, line) in sec.lines.iter().enumerate() {
+            let cur = state == Was::Now && k == set.prompt_line;
+            if cur {
+                here = flat.len();
+            }
+            flat.extend(lyric_lines(line, w, cur, state == Was::Past));
+        }
+        if i + 1 < prompt.sections.len() {
+            flat.push(Line::raw(""));
+        }
+    }
+    // la fenêtre : deux lignes avant la position (§ 10)
+    let from = here.saturating_sub(2).min(flat.len().saturating_sub(room.max(1)));
+    flat.into_iter().skip(from).take(room.max(1)).collect()
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Was {
+    Past,
+    Now,
+    Next,
+}
+
+/// L'en-tête d'une section : son étiquette, sa durée en mesures, ce qu'elle change (mesure,
+/// tempo), et **le son auquel elle est liée** — c'est ce qui fait le lien avec la set list.
+fn section_head(
+    sec: &library::prompt::Section,
+    state: Was,
+    prompt: &library::prompt::Prompt,
+) -> Line<'static> {
+    let mark = if state == Was::Now { "▸" } else { " " };
+    let bars = match sec.bars {
+        Some(b) => format!("{b} mes."),
+        None => String::new(),
+    };
+    let mut extra = String::new();
+    // une mesure ou un tempo ne se dit que s'il **change** : l'écrire partout serait du bruit
+    if sec.time != prompt.time {
+        if let Some(t) = sec.time.as_deref() {
+            extra.push_str(&format!(" {t}"));
+        }
+    }
+    if sec.tempo_bpm != prompt.tempo_bpm {
+        if let Some(t) = sec.tempo_bpm {
+            extra.push_str(&format!(" ♩{t:.0}"));
+        }
+    }
+    let mut spans = vec![Span::styled(
+        format!(" {mark} {:<14}{:<8}{extra}", sec.label.to_uppercase(), bars),
+        match state {
+            Was::Now => Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Was::Past => Style::new().fg(Color::DarkGray),
+            Was::Next => Style::new().add_modifier(Modifier::BOLD),
+        },
+    )];
+    if let Some(sound) = sec.sound.as_deref() {
+        spans.push(Span::styled(
+            format!("  → {sound}"),
+            Style::new().fg(if state == Was::Now { ACCENT } else { Color::DarkGray }),
+        ));
+    }
+    Line::from(spans)
+}
+
+/// Une ligne de paroles : les accords **au-dessus** quand la largeur le permet (§ 10), sinon
+/// entre crochets dans le texte, comme dans le fichier.
+fn lyric_lines(line: &library::prompt::Line, w: usize, cur: bool, past: bool) -> Vec<Line<'static>> {
+    let text_style = match (cur, past, line.cue) {
+        // une cue n'est pas du texte à chanter : elle est en jaune (§ 10)
+        (_, _, true) => Style::new().fg(Color::Yellow),
+        (true, _, _) => Style::new().fg(Color::Black).bg(ACCENT).add_modifier(Modifier::BOLD),
+        (_, true, _) => Style::new().fg(Color::DarkGray),
+        _ => Style::new(),
+    };
+    let mark = if cur { "›" } else { " " };
+    if line.chords.is_empty() {
+        return vec![Line::from(Span::styled(format!("   {mark} {}", clip(&line.text, w)), text_style))];
+    }
+    let chord_line = chord_row(line);
+    // les accords ne tiennent pas au-dessus : on les remet dans le texte, lisible à coup sûr
+    if chord_line.chars().count() + 5 > w {
+        return vec![Line::from(Span::styled(format!("   {mark} {}", clip(&inline(line), w)), text_style))];
+    }
+    vec![
+        Line::from(Span::styled(
+            format!("     {chord_line}"),
+            Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(format!("   {mark} {}", clip(&line.text, w)), text_style)),
+    ]
+}
+
+/// Les accords placés **au-dessus** de leur syllabe.
+fn chord_row(line: &library::prompt::Line) -> String {
+    let mut out = String::new();
+    for c in &line.chords {
+        // deux accords trop proches : on garde un espace, plutôt que de les coller
+        while out.chars().count() < c.at {
+            out.push(' ');
+        }
+        if !out.is_empty() && !out.ends_with(' ') {
+            out.push(' ');
+        }
+        out.push_str(&c.name);
+    }
+    out
+}
+
+/// La ligne telle qu'elle est écrite dans le fichier : `[Am]paroles`.
+fn inline(line: &library::prompt::Line) -> String {
+    let mut out = String::new();
+    let chars: Vec<char> = line.text.chars().collect();
+    let mut k = 0usize;
+    for c in &line.chords {
+        while k < c.at.min(chars.len()) {
+            out.push(chars[k]);
+            k += 1;
+        }
+        out.push('[');
+        out.push_str(&c.name);
+        out.push(']');
+    }
+    out.extend(chars[k.min(chars.len())..].iter());
+    out
 }

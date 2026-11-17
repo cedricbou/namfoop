@@ -24,14 +24,17 @@ pub mod set_edit;
 
 /// Une touche de la table : fixe, ou **réglable** par la config.
 ///
-/// Les deux réglables le sont parce qu'un footswitch les envoie (`[set] next_song` / `prev_song`),
-/// et c'est pour ça qu'elles ne peuvent pas être de simples `Key` `'static`. Le prompteur en
-/// ajoutera deux (#222) : ce sera deux variantes, pas un système.
+/// Les réglables le sont parce qu'un footswitch les envoie (`[set] next_song` / `prev_song` pour le
+/// morceau, `prompt_next` / `prompt_prev` pour les sections du prompteur), et c'est pour ça
+/// qu'elles ne peuvent pas être de simples `Key` `'static`. Quatre variantes nommées, et non un
+/// système de configuration : c'est ce que #222 a ajouté, comme annoncé.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeySpec {
     Fixed(Key),
     NextSong,
     PrevSong,
+    PromptNext,
+    PromptPrev,
 }
 
 /// Ce qu'un contexte déclare : des touches, leur étiquette, et ce qu'elles font.
@@ -99,6 +102,12 @@ const STAGE: &[Binding] = &[
         label: "i",
         what: "déplier le détail du morceau : PC, CC 69, volumes, prompteur",
         bar: "i détail",
+    },
+    Binding {
+        keys: &[KeySpec::PromptNext, KeySpec::PromptPrev],
+        label: "Fin / Début",
+        what: "section suivante / précédente du prompteur — le son ne change pas ([set] prompt_next)",
+        bar: "Fin/Début section",
     },
     Binding { keys: &[k('*')], label: "*", what: "tap tempo", bar: "* tap" },
     Binding { keys: &[k('k')], label: "k", what: "clic du métronome", bar: "k clic" },
@@ -373,6 +382,21 @@ const SET: &[Binding] = &[
         label: "i",
         what: "déplier le détail du morceau : PC, CC 69, volumes, prompteur",
         bar: "i détail",
+    },
+    Binding {
+        keys: &[KeySpec::PromptNext, KeySpec::PromptPrev],
+        label: "Fin / Début",
+        what: "section suivante / précédente du prompteur — le son ne change pas ([set] prompt_next)",
+        bar: "Fin/Début section",
+    },
+    Binding {
+        keys: &[k('t')],
+        label: "t",
+        what: "écrire le texte du morceau dans $EDITOR (ChordPro ; créé s'il n'existe pas)",
+        bar: "t prompteur",
+    },
+    Binding {
+        keys: &[k('e')], label: "e", what: "éditer le set (la table de l'édition)", bar: "e éditer"
     },
     Binding { keys: &[k('L')], label: "L", what: "choisir le set de concert (ou aucun set)", bar: "L sets" },
     // `n` **éclipsée** (#250) : commune ailleurs, elle vidait la chaîne et quittait cet espace.
@@ -808,11 +832,13 @@ impl KeySpec {
     /// La touche réelle : les réglables sont résolues contre la config lue au démarrage. Comme
     /// `Binding::keys`, lu par la jointure seulement.
     #[allow(dead_code, reason = "lu par la jointure annoncé ↔ possédé, dans keyboard.rs")]
-    pub fn resolve(self, song_keys: (Key, Key)) -> Key {
+    pub fn resolve(self, song_keys: (Key, Key), prompt_keys: (Key, Key)) -> Key {
         match self {
             KeySpec::Fixed(k) => k,
             KeySpec::NextSong => song_keys.0,
             KeySpec::PrevSong => song_keys.1,
+            KeySpec::PromptNext => prompt_keys.0,
+            KeySpec::PromptPrev => prompt_keys.1,
         }
     }
 }

@@ -376,3 +376,112 @@ fn a_brand_new_set_asks_for_its_name_then_shows_an_empty_table() {
     assert!(out.contains("0 morceau"), "{out}");
     assert!(out.contains("a ajoute un premier morceau"), "{out}");
 }
+
+// ------------------------------------------------- le prompteur (§ 10, #222)
+
+/// Le texte de « Le Phare » : trois sections, des accords, une cue, et deux sections liées à un son.
+const CHO: &str = "{title: Le Phare}\n{tempo: 124}\n{time: 4/4}\n\
+    {start_of_verse: Couplet 1}\n{x_namfoop_sound: fuzz}\n{x_namfoop_bars: 8}\n\
+    [Am]Le phare tourne [F]encore\nEt la mer se tait\n{end_of_verse}\n\
+    {start_of_chorus: Refrain}\n{x_namfoop_sound: clean}\n{x_namfoop_bars: 16}\n{time: 6/8}\n\
+    {comment: monte le son}\n[G]Tout casse\n{end_of_chorus}\n\
+    {start_of_verse: Couplet 2}\n{x_namfoop_sound: fuzz}\nAu loin\n{end_of_verse}\n";
+
+/// Le même état, le prompteur du morceau joué lu.
+fn with_prompt(at: (usize, usize)) -> State {
+    use crate::browse::state::set::prompt::Loaded;
+    let mut spec = concert();
+    spec.base = std::path::PathBuf::from("/x/sets");
+    spec.songs[1].prompt = Some(std::path::PathBuf::from("prompts/le-phare.cho"));
+    let mut s = staged(spec, None);
+    s.adopt_prompts(vec![(
+        std::path::PathBuf::from("/x/sets/prompts/le-phare.cho"),
+        Loaded::Ok(library::prompt::Prompt::parse(CHO)),
+    )]);
+    s.play_set_sound(at);
+    s
+}
+
+/// **Le texte à côté du son** : sections étiquetées, accords au-dessus des paroles, cue en jaune,
+/// et la section liée au son joué est celle qui est marquée.
+#[test]
+fn the_prompter_shows_the_text_of_the_song_being_played() {
+    // le son 1 est « fuzz » : la section qui lui est liée est le Couplet 1
+    let s = with_prompt((1, 0));
+    let out = shot(&s, 160, 40);
+    assert!(out.contains("▸ COUPLET 1"), "la section courante est marquée : {out}");
+    assert!(out.contains("8 mes."), "sa durée en mesures : {out}");
+    assert!(out.contains("→ fuzz"), "le son auquel elle est liée : {out}");
+    assert!(out.contains("Am"), "les accords : {out}");
+    assert!(out.contains("Le phare tourne encore"), "les paroles, sans leurs accords : {out}");
+    assert!(out.contains("monte le son"), "la cue du refrain : {out}");
+    assert!(out.contains("REFRAIN") && out.contains("COUPLET 2"), "les sections suivantes : {out}");
+    // la mesure ne se dit que là où elle CHANGE : 6/8 au refrain, rien aux couplets
+    assert!(out.contains("6/8"), "{out}");
+
+    // sur le son « clean », c'est le refrain qui est marqué — sans que rien ne soit retapé
+    let s = with_prompt((1, 1));
+    let out = shot(&s, 160, 40);
+    assert!(out.contains("▸ REFRAIN"), "{out}");
+    assert!(!out.contains("▸ COUPLET 1"), "{out}");
+}
+
+/// Sur un **écran de scène étroit** (80×25), le prompteur garde ses sections et ses paroles : les
+/// accords repassent dans le texte s'ils ne tiennent pas au-dessus.
+#[test]
+fn the_prompter_fits_a_narrow_terminal() {
+    let s = with_prompt((1, 0));
+    let out = shot(&s, 80, 25);
+    assert!(out.contains("▸ COUPLET 1"), "{out}");
+    assert!(out.contains("Le phare tourne") || out.contains("[Am]Le phare"), "{out}");
+}
+
+/// **Un morceau sans prompteur** ne laisse pas un cadre vide : il dit comment en avoir un — et
+/// jamais sur scène, où `t` est refusée.
+#[test]
+fn a_song_without_a_prompt_says_what_to_do() {
+    let mut s = staged(concert(), Some((0, 0)));
+    let out = shot(&s, 120, 24);
+    assert!(out.contains("pas de prompteur pour ce morceau"), "{out}");
+    assert!(out.contains("prompts/ouverture.cho"), "le nom du fichier que t créerait : {out}");
+    s.locked = true;
+    let out = shot(&s, 120, 24);
+    assert!(out.contains("pas de prompteur pour ce morceau"), "{out}");
+    assert!(!out.contains("ton éditeur"), "sur scène, on ne propose pas d'éditer : {out}");
+}
+
+/// Un prompteur **illisible** le dit dans le cadre, en jaune, et le concert continue : jamais
+/// d'erreur bloquante (§ 10).
+#[test]
+fn an_unreadable_prompt_is_said_in_the_frame() {
+    use crate::browse::state::set::prompt::Loaded;
+    let mut spec = concert();
+    spec.base = std::path::PathBuf::from("/x/sets");
+    spec.songs[1].prompt = Some(std::path::PathBuf::from("prompts/le-phare.cho"));
+    let mut s = staged(spec, None);
+    s.adopt_prompts(vec![(
+        std::path::PathBuf::from("/x/sets/prompts/le-phare.cho"),
+        Loaded::Failed("prompteur /x/sets/prompts/le-phare.cho : No such file".into()),
+    )]);
+    s.play_set_sound((1, 0));
+    let out = shot(&s, 120, 24);
+    assert!(out.contains("No such file"), "{out}");
+    assert!(out.contains("▶ 2 Le Phare"), "le reste de l'écran est intact : {out}");
+}
+
+/// La barre du bas de l'espace Set annonce les touches du prompteur, et la scène aussi — `t`,
+/// elle, n'est que dans `browse`.
+#[test]
+fn the_prompt_keys_are_announced() {
+    let s = with_prompt((1, 0));
+    let out = shot(&s, 160, 24);
+    let bar = out.lines().rfind(|l| l.contains("PgDn")).expect("la barre du bas");
+    assert!(bar.contains("Fin/Début section"), "{bar}");
+    assert!(bar.contains("t prompteur"), "{bar}");
+    let mut s = with_prompt((1, 0));
+    s.locked = true;
+    let out = shot(&s, 160, 24);
+    let bar = out.lines().rfind(|l| l.contains("PgDn")).expect("la barre du bas");
+    assert!(bar.contains("Fin/Début section"), "{bar}");
+    assert!(!bar.contains("t prompteur"), "rien ne s'édite sur scène : {bar}");
+}

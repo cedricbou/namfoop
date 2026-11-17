@@ -9,6 +9,8 @@ pub mod import;
 pub mod model_profile;
 pub mod overrides;
 pub mod profile;
+/// Le prompteur d'un morceau : un fichier ChordPro lu, pas écrit (#222).
+pub mod prompt;
 pub mod recommend;
 pub mod set;
 
@@ -279,6 +281,12 @@ impl Library {
     /// ou un prompteur absent n'empêche pas le set de jouer, il marque le son (§ 3).
     pub fn set_warnings(&self, spec: &crate::set::SetSpec) -> Vec<crate::set::Warning> {
         spec.warnings(&|id| self.resolve_preset(id).is_ok(), &|p| p.is_file())
+    }
+
+    /// Le dossier des sets : `library/sets/`. C'est là que se résolvent les chemins de prompteur
+    /// d'un set tout juste créé, qui n'a pas encore de fichier (#220, #222).
+    pub fn sets_dir(&self) -> PathBuf {
+        self.root.join("sets")
     }
 
     /// Où enregistrer un set : `library/sets/<nom>.set.toml`.
