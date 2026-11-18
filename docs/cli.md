@@ -54,12 +54,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -145,21 +140,19 @@ Options:
           - raw:       Sortie brute du modèle
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-limiter
           Désactive le limiteur de sortie
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -170,9 +163,6 @@ Options:
           Longueur max de l'IR (ms)
           
           [default: 200]
-
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --master-db <MASTER_DB>
           Volume final (dB)
@@ -295,21 +285,19 @@ Options:
           - raw:       Sortie brute du modèle
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-limiter
           Désactive le limiteur de sortie
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -320,9 +308,6 @@ Options:
           Longueur max de l'IR (ms)
           
           [default: 200]
-
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --master-db <MASTER_DB>
           Volume final (dB)
@@ -430,12 +415,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -499,12 +479,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -576,23 +551,18 @@ Options:
           IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --reset
           Efface toutes les corrections de ce(s) modèle(s)
 
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --library <LIBRARY>
           Dossier de la bibliothèque
           
           [default: library]
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
@@ -636,12 +606,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -690,12 +655,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -744,12 +704,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -798,12 +753,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -862,12 +812,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -935,18 +880,13 @@ Options:
           Entrée du micro [défaut : config]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
-
-      --route <N=SOURCE>
-          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --route <N=SOURCE>
+          Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
@@ -991,12 +931,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -1054,12 +989,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]

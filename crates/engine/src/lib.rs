@@ -211,8 +211,8 @@ pub struct Engine {
 impl Engine {
     /// Ouvre la carte, vérifie le routage contre ses canaux, et démarre avec `initial`
     /// (préparée pour `cfg.audio.rate` et `cfg.max_block`). La fréquence réelle de la carte
-    /// ([`Engine::sample_rate`]) est à vérifier par l'appelant : avec JACK, c'est le serveur qui
-    /// décide, et une chaîne vide (calibration) s'en accommode.
+    /// ([`Engine::sample_rate`]) est à vérifier par l'appelant : la carte peut en imposer une
+    /// autre, et une chaîne vide (calibration) s'en accommode.
     pub fn start(cfg: EngineConfig, mut initial: dsp::Chain) -> Result<Engine> {
         rt::prepare_process(cfg.audio.cpu);
         rt::prewarm(&mut initial, cfg.audio.buffer as usize, cfg.audio.rate);

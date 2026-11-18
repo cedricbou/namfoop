@@ -63,12 +63,9 @@ pub struct AudioArgs {
     /// [défaut : config, sinon aucun]
     #[arg(long, global = true)]
     pub cpu: Option<usize>,
-    /// Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
+    /// Fréquence d'échantillonnage [défaut : 48000]
     #[arg(long, global = true)]
     pub rate: Option<u32>,
-    /// Nom du client JACK
-    #[arg(long, default_value = "namfoop", global = true)]
-    pub client_name: String,
 }
 
 impl AudioArgs {
@@ -78,8 +75,8 @@ impl AudioArgs {
     }
 
     /// CLI > config > profil de carte > défaut. Le profil (device, buffer, périodes, fréquence,
-    /// contrôles mixer) ne s'applique qu'au backend ALSA : JACK a ses propres noms de carte et
-    /// n'accepte que des buffers en puissance de 2.
+    /// contrôles mixer) ne s'applique qu'au backend ALSA : la carte simulée n'a pas de device
+    /// matériel.
     pub fn resolve_with(&self, file: &FileConfig, profile: Option<&CardProfile>) -> Settings {
         let a = &file.audio;
         let d = Settings::default();
@@ -100,7 +97,6 @@ impl AudioArgs {
             periods: self.periods.or(a.periods).or(p.and_then(|p| p.periods)).unwrap_or(d.periods),
             rate: self.rate.or(a.rate).or(p.and_then(|p| p.rate)).unwrap_or(d.rate),
             cpu: self.cpu.or(a.cpu),
-            client_name: self.client_name.clone(),
         }
     }
 
@@ -162,12 +158,11 @@ mod tests {
     /// Sans option ni config : mêmes valeurs que `Settings::default()` (64 frames, 3 périodes...).
     #[test]
     fn defaults_match_settings_default() {
-        let s =
-            AudioArgs { client_name: "namfoop".into(), ..Default::default() }.resolve(&FileConfig::default());
+        let s = AudioArgs { ..Default::default() }.resolve(&FileConfig::default());
         let d = Settings::default();
         assert_eq!(
-            (s.backend, s.device, s.buffer, s.periods, s.rate, s.client_name),
-            (d.backend, d.device, d.buffer, d.periods, d.rate, d.client_name)
+            (s.backend, s.device, s.buffer, s.periods, s.rate),
+            (d.backend, d.device, d.buffer, d.periods, d.rate)
         );
         assert_eq!((d.backend, d.buffer, d.periods, d.rate), (Kind::Alsa, 64, 3, 48000));
     }
@@ -191,7 +186,7 @@ mod tests {
         let p = profile();
         let mut file = FileConfig::default();
         file.audio.backend = Some(BackendKind::Alsa);
-        let args = AudioArgs { client_name: "namfoop".into(), ..Default::default() };
+        let args = AudioArgs { ..Default::default() };
         let s = args.resolve_with(&file, Some(&p));
         assert_eq!((s.device.as_deref(), s.buffer, s.periods, s.rate), (Some("hw:Carte"), 48, 2, 48000));
         assert_eq!(s.mixer, vec![("Capture".to_string(), "80%".to_string())]);

@@ -12,6 +12,7 @@ section prend le numéro de version.
   cross-compilation vers le Raspberry Pi. Restent **ALSA direct** (la scène) et la **carte simulée**
   (démo et tests sans matériel). Le backend par défaut devient donc `alsa`.
 - **`namfoop ports` disparaît** : cette commande ne listait que des ports JACK.
+- **`--client-name` disparaît** : elle ne nommait que le client JACK, et plus personne ne la lisait.
 - Une config qui porte encore `backend = "jack"` n'est pas un plantage : elle dit la ligne en cause
   et quoi mettre à la place.
 

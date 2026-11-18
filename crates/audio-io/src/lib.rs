@@ -94,12 +94,11 @@ pub struct Settings {
     /// Contrôles mixer ALSA (nom, valeur) réglés à l'ouverture (ALSA seulement), ex.
     /// (« Capture », « 80% ») : voir `alsa::mixer::parse_value`.
     pub mixer: Vec<(String, String)>,
-    /// Cœur sur lequel épingler le thread audio (ALSA, sim ; avec JACK c'est le serveur qui décide).
+    /// Cœur sur lequel épingler le thread audio.
     pub cpu: Option<usize>,
     pub buffer: u32,
     pub periods: u32,
     pub rate: u32,
-    pub client_name: String,
 }
 
 impl Default for Settings {
@@ -114,7 +113,6 @@ impl Default for Settings {
             buffer: 64,
             periods: 3,
             rate: 48000,
-            client_name: "namfoop".into(),
         }
     }
 }
