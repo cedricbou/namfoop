@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#262)
+- **La documentation annonçait des fonctions absentes alors qu'elles sont livrées** : le guide
+  (§ 17 « Limites actuelles », § 10, § 11) et le README présentaient namfoop comme un prototype
+  « sans presets », que le guide documente pourtant depuis deux versions. Ce qui manque vraiment
+  est maintenant seul cité : MIDI, micro, démarrage automatique, Raspberry Pi.
+- Le guide annonçait **12 effets** au catalogue (il y en a onze) et l'architecture **52 touches dans
+  21 contextes** (56 et 26). Les comptes recopiés à la main sont remplacés par ce qui reste vrai :
+  l'oracle mesure **chaque** touche dans **chaque** contexte, et le § 10 détaille les effets un par un.
+- Chemins périmés dans les documents de référence : `preset.rs`, `send.rs`, `space.rs`, `chain.rs`,
+  `state.rs` et `ui.rs` sont devenus des répertoires ; `card.rs` manquait à la carte de `model`.
+
 ## 0.6.0 — 2026-11-19
 
 **Le mode Set.** Une set list de concert : des morceaux dans l'ordre, un à plusieurs sons par
@@ -498,7 +509,7 @@ ensuite (épique #188, [ADR 0008](docs/adr/0008-tempo-et-divisions.md)).
 _Les tags `v0.2.0` (10/11), `v0.3.0` (11/11) et `v0.4.0` (14/11) ont été posés sans rouler la
 section « Non publié » : leurs entrées sont donc rassemblées ici, dans l'ordre d'arrivée, sans être
 réparties entre les trois versions — les replacer aurait demandé de deviner. Elles couvrent le
-découpage en crates (#47), le temps réel (#3), les neuf effets (#5), l'éditeur de chaîne en blocs
+découpage en crates (#47), le temps réel (#3), les effets (#5), l'éditeur de chaîne en blocs
 (#103) et les presets (#157, #110, #158, #159)._
 
 ### Ajouté (#159)

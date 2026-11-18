@@ -57,7 +57,7 @@ plus la table des vumètres (`meter.rs`), seule à poser des sondes ; `describe(
 les options CLI, qui **produisent** une `ChainSpec` via `to_chain_spec()` — `--crossover HZ` = bandes
 [HZ], grave = son direct),
 `wav.rs`, `blend.rs` (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au
-chargement), `preset.rs` (**presets** `.preset.toml` : la chaîne enregistrée, son `volume_db` (#179, déclaré
+chargement), `preset/mod.rs` (**presets** `.preset.toml` : la chaîne enregistrée, son `volume_db` (#179, déclaré
 **avant** `blocks` : en TOML une valeur ne s'écrit pas après un tableau de tables) — blocs, parallèles,
 branches ; chemins **relatifs** à la bibliothèque avec l'identifiant court en filet ; effets écrits
 au complet par serde pour que le son soit figé ; `to_blocks()` donne les `BlockSpec` du temps réel), `profile.rs` (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB,
@@ -312,7 +312,7 @@ si pertinent, à `chain.rs` (indépendance au bloc).
 
 ## Dette connue
 
-- `ChainSpec` n'a pas de format TOML **et n'en aura pas** : c'est `preset.rs` qui porte la forme
+- `ChainSpec` n'a pas de format TOML **et n'en aura pas** : c'est `preset/mod.rs` qui porte la forme
   enregistrée (`PresetSpec`, § 9 de `docs/design/browse-chaine.md`, fixé par #157), avec des
   chemins **relatifs** à la bibliothèque et l'identifiant court en filet ; `ChainSpec` reste la
   forme du temps réel (chemins absolus, réglages résolus). `PresetSpec::to_blocks` fait le pont.
@@ -342,7 +342,7 @@ crates/dsp/       étages audio mono (trait Stage) : nam.rs, ir.rs (fft-convolve
                   tempo.rs (tempo et divisions rythmiques : DIVISIONS, Tempo figé / vivant),
                   chain.rs (AmpSpec : trim -> NAM -> IR -> niveau -> master -> limiteur), wav.rs,
                   blend.rs (mélanges d'IR .cab.toml : alignement, gain, polarité, calcul au chargement),
-                  preset.rs (presets .preset.toml : la chaîne enregistrée, chemins relatifs + identifiant
+                  preset/mod.rs (presets .preset.toml : la chaîne enregistrée, chemins relatifs + identifiant
                   de secours, tous les paramètres d'effet écrits -> to_blocks pour le temps réel),
                   profile.rs (réponse d'une IR par tiers d'octave, étendue grave/aiguë à -12 dB),
                   swap.rs (changement de chaîne à chaud : SwapHandle envoie une Chain construite,
