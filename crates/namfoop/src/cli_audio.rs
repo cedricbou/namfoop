@@ -9,8 +9,6 @@ use model::{BackendKind, CardProfile};
 /// Backend audio choisi en ligne de commande.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
 pub enum BackendArg {
-    /// JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
-    Jack,
     /// ALSA direct : latence minimale et stable, accès exclusif à la carte
     Alsa,
     /// Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
@@ -26,7 +24,6 @@ impl From<BackendArg> for Kind {
 impl From<BackendArg> for BackendKind {
     fn from(b: BackendArg) -> Self {
         match b {
-            BackendArg::Jack => BackendKind::Jack,
             BackendArg::Alsa => BackendKind::Alsa,
             BackendArg::Sim => BackendKind::Sim,
         }
@@ -36,7 +33,6 @@ impl From<BackendArg> for BackendKind {
 /// Backend de la config (`model`) -> backend d'`audio-io`.
 pub fn to_audio(b: BackendKind) -> Kind {
     match b {
-        BackendKind::Jack => Kind::Jack,
         BackendKind::Alsa => Kind::Alsa,
         BackendKind::Sim => Kind::Sim,
     }
@@ -46,11 +42,11 @@ pub fn to_audio(b: BackendKind) -> Kind {
 /// (`namfoop setup`), sinon valeur par défaut.
 #[derive(Clone, Debug, Default, clap::Args)]
 pub struct AudioArgs {
-    /// Backend audio [défaut : config, sinon jack]
+    /// Backend audio [défaut : config, sinon alsa]
     #[arg(long, value_enum, global = true)]
     pub backend: Option<BackendArg>,
-    /// Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou
-    /// canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+    /// Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6")
+    /// [défaut : config, sinon 1ère carte / hw:iTwo]
     #[arg(long, global = true)]
     pub device: Option<String>,
     /// Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la
@@ -173,7 +169,7 @@ mod tests {
             (s.backend, s.device, s.buffer, s.periods, s.rate, s.client_name),
             (d.backend, d.device, d.buffer, d.periods, d.rate, d.client_name)
         );
-        assert_eq!((d.backend, d.buffer, d.periods, d.rate), (Kind::Jack, 64, 3, 48000));
+        assert_eq!((d.backend, d.buffer, d.periods, d.rate), (Kind::Alsa, 64, 3, 48000));
     }
 
     fn profile() -> CardProfile {
@@ -203,9 +199,9 @@ mod tests {
         assert_eq!(args.resolve_with(&file, Some(&p)).buffer, 128, "la config prime sur le profil");
         let cli = AudioArgs { buffer: Some(32), ..args.clone() };
         assert_eq!(cli.resolve_with(&file, Some(&p)).buffer, 32, "la CLI prime sur tout");
-        let jack = AudioArgs { backend: Some(BackendArg::Jack), ..args.clone() };
-        let s = jack.resolve_with(&FileConfig::default(), Some(&p));
-        assert_eq!((s.device, s.buffer, s.mixer.len()), (None, 64, 0), "JACK : profil ignoré");
+        let sim = AudioArgs { backend: Some(BackendArg::Sim), ..args.clone() };
+        let s = sim.resolve_with(&FileConfig::default(), Some(&p));
+        assert_eq!((s.device, s.buffer, s.mixer.len()), (None, 64, 0), "hors ALSA : profil ignoré");
     }
 
     #[test]

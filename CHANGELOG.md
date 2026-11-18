@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Supprimé (#263)
+- **Le backend JACK est retiré.** Il n'était ni utilisé ni testé, et il imposait les en-têtes
+  `libjack` à la compilation de **tout** le projet — sur chaque poste, en CI, et pour la future
+  cross-compilation vers le Raspberry Pi. Restent **ALSA direct** (la scène) et la **carte simulée**
+  (démo et tests sans matériel). Le backend par défaut devient donc `alsa`.
+- **`namfoop ports` disparaît** : cette commande ne listait que des ports JACK.
+- Une config qui porte encore `backend = "jack"` n'est pas un plantage : elle dit la ligne en cause
+  et quoi mettre à la place.
+
+### Interne (#263)
+- `audio_io::Kind` dérivait `Serialize` / `Deserialize` pour personne : le derive et la dépendance
+  `serde` quittent `audio-io`, qui ne dépend plus que d'`alsa`, `libc`, `log` et `thiserror`. La
+  règle « `audio-io` ne connaît pas la config » devient vérifiée par `scripts/check-arch.sh` au lieu
+  d'être seulement écrite.
+
 ### Corrigé (#262)
 - **La documentation annonçait des fonctions absentes alors qu'elles sont livrées** : le guide
   (§ 17 « Limites actuelles », § 10, § 11) et le README présentaient namfoop comme un prototype

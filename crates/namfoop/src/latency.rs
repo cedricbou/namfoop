@@ -110,8 +110,8 @@ pub fn run(cfg: &audio_io::Settings, out_ch: usize, in_ch: usize, count: u32) ->
     let (oc, ic) = (out_ch - 1, in_ch - 1);
     let (mut tx, mut rx) = rtrb::RingBuffer::<Event>::new(64);
 
-    // Délais exprimés en frames à 48 kHz ; légèrement faux si le serveur JACK tourne à
-    // une autre fréquence, mais la mesure elle-même reste exacte.
+    // Délais exprimés en frames à 48 kHz ; légèrement faux si la carte tourne à une autre
+    // fréquence, mais la mesure elle-même reste exacte.
     let sr = cfg.rate as u64;
     let mut det = Detector::new(sr / 4, sr / 2, sr); // écoute 250 ms, une impulsion toutes les 500 ms, après 1 s de stabilisation
     let mut frame: u64 = 0;

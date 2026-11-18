@@ -114,16 +114,11 @@ pub enum Action {
     Quit,
 }
 
-pub const BACKENDS: [(Kind, &str, &str); 3] = [
+pub const BACKENDS: [(Kind, &str, &str); 2] = [
     (
         Kind::Alsa,
         "ALSA direct",
         "latence la plus basse et stable (~5 ms avec l'iTwo), carte réservée à namfoop. Conseillé en live.",
-    ),
-    (
-        Kind::Jack,
-        "JACK / PipeWire",
-        "carte partagée avec les autres applis (navigateur, Ableton), latence un peu plus haute (~6,5 ms).",
     ),
     (
         Kind::Sim,
@@ -135,7 +130,7 @@ pub const BACKENDS: [(Kind, &str, &str); 3] = [
 pub fn candidates(kind: Kind) -> Vec<u32> {
     match kind {
         Kind::Alsa => vec![32, 48, 64, 128],
-        Kind::Jack | Kind::Sim => vec![32, 64, 128],
+        Kind::Sim => vec![32, 64, 128],
     }
 }
 

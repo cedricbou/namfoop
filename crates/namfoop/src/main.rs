@@ -30,7 +30,7 @@ use crate::config::LoadedConfig;
 #[command(
     name = "namfoop",
     version,
-    about = "Multi-effet basse temps réel (NAM + IR) — JACK, ALSA direct ou carte simulée",
+    about = "Multi-effet basse temps réel (NAM + IR) — ALSA direct ou carte simulée",
     after_help = "Exemples :\n  \
         namfoop setup              (une fois : carte, entrées, sorties, buffer)\n  \
         namfoop calibrate          (une fois : règle le niveau de ta basse)\n  \
@@ -197,8 +197,6 @@ enum Cmd {
         #[arg(long, default_value = "library")]
         library: PathBuf,
     },
-    /// Liste les ports JACK (audio + MIDI)
-    Ports,
     /// Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
     Latency {
         /// Canal de sortie qui émet l'impulsion
@@ -315,7 +313,6 @@ fn main() -> Result<()> {
             browse::run(&audio, &conf, &library, &routing, size, !no_trails, start)
         }
         Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),
-        Cmd::Ports => Ok(audio_io::jack::list_ports(&cli.audio.client_name)?),
         Cmd::Latency { out_ch, in_ch, count } => latency::run(&audio()?.0, out_ch, in_ch, count),
     }
 }

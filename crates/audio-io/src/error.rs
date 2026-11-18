@@ -6,7 +6,7 @@ pub enum Error {
     /// Message seul (paramètres refusés, device introuvable...).
     #[error("{0}")]
     Msg(String),
-    /// Message avec sa cause (ouverture de la carte, carte occupée, connexion JACK...).
+    /// Message avec sa cause (ouverture de la carte, carte occupée, paramètres refusés...).
     #[error("{context}")]
     Context {
         context: String,
@@ -15,8 +15,6 @@ pub enum Error {
     },
     #[error(transparent)]
     Alsa(#[from] alsa::Error),
-    #[error(transparent)]
-    Jack(#[from] jack::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

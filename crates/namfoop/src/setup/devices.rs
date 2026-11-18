@@ -6,22 +6,9 @@ use super::state::DeviceInfo;
 use audio_io::alsa::{self, ProbeError};
 use model::BackendKind as Kind; // backend de la config ; audio_io::Kind à l'ouverture
 
-pub fn list(kind: Kind, client_name: &str) -> Result<Vec<DeviceInfo>> {
+pub fn list(kind: Kind) -> Result<Vec<DeviceInfo>> {
     Ok(match kind {
         Kind::Alsa => alsa_devices(),
-        Kind::Jack => {
-            let client = audio_io::jack::open_client(&format!("{client_name}-setup"))?;
-            audio_io::jack::devices(&client)
-                .into_iter()
-                .map(|(name, n_in, n_out)| DeviceInfo {
-                    id: name.clone(),
-                    label: name,
-                    n_in: Some(n_in),
-                    n_out: Some(n_out),
-                    note: None,
-                })
-                .collect()
-        }
         Kind::Sim => ["2x2", "14x12"]
             .iter()
             .map(|d| {

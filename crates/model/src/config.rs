@@ -23,12 +23,28 @@ pub enum LevelMode {
 }
 
 /// Backend audio enregistré dans [audio] (converti en `audio_io::Kind` par le binaire).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BackendKind {
-    Jack,
     Alsa,
     Sim,
+}
+
+/// Lecture à la main plutôt que par `derive` : une config écrite avant le retrait de JACK
+/// (ADR 0010) porte `backend = "jack"`, et le message par défaut de serde (« unknown variant »)
+/// ne dirait pas quoi mettre à la place.
+impl<'de> Deserialize<'de> for BackendKind {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        match String::deserialize(d)?.as_str() {
+            "alsa" => Ok(BackendKind::Alsa),
+            "sim" => Ok(BackendKind::Sim),
+            "jack" => Err(serde::de::Error::custom(
+                "le backend « jack » n'existe plus : mettre backend = \"alsa\" dans [audio] \
+                 (ou relancer « namfoop setup »)",
+            )),
+            other => Err(serde::de::Error::custom(format!("backend « {other} » inconnu : alsa ou sim"))),
+        }
+    }
 }
 
 /// Réglages audio enregistrés par `namfoop setup` (tous optionnels).
@@ -298,6 +314,30 @@ mod tests {
         let back = Config::load(&p).unwrap();
         assert_eq!(back.audio, c.audio);
         assert_eq!(back.routing, c.routing);
+        let _ = std::fs::remove_file(p);
+    }
+
+    /// Une config écrite avant le retrait de JACK dit quoi mettre à la place, au lieu de planter
+    /// sur « unknown variant ». Le message est dans la CAUSE : `Error::Parse` ne porte que le
+    /// chemin, et c'est la chaîne des causes que le binaire affiche (anyhow).
+    #[test]
+    fn a_retired_backend_says_what_to_put_instead() {
+        let p = std::env::temp_dir().join(format!("namfoop-cfg-jack-{}.toml", std::process::id()));
+        let cause = |e: &crate::Error| {
+            let mut s = e.to_string();
+            let mut src = std::error::Error::source(e);
+            while let Some(e) = src {
+                s.push_str(&format!(" / {e}"));
+                src = e.source();
+            }
+            s
+        };
+        std::fs::write(&p, "[audio]\nbackend = \"jack\"\n").unwrap();
+        let err = cause(&Config::load(&p).unwrap_err());
+        assert!(err.contains("n'existe plus") && err.contains("alsa"), "{err}");
+        std::fs::write(&p, "[audio]\nbackend = \"pulse\"\n").unwrap();
+        let err = cause(&Config::load(&p).unwrap_err());
+        assert!(err.contains("inconnu") && err.contains("alsa ou sim"), "{err}");
         let _ = std::fs::remove_file(p);
     }
 }

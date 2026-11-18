@@ -10,7 +10,7 @@ commande : `namfoop --backend alsa --buffer 48 run -m b7k`.
 ## namfoop
 
 ```text
-Multi-effet basse temps réel (NAM + IR) — JACK, ALSA direct ou carte simulée
+Multi-effet basse temps réel (NAM + IR) — ALSA direct ou carte simulée
 
 Usage: namfoop [OPTIONS] <COMMAND>
 
@@ -27,21 +27,19 @@ Commands:
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
   browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
   setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
-  ports      Liste les ports JACK (audio + MIDI)
   latency    Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
   help       Print this message or the help of the given subcommand(s)
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -98,10 +96,9 @@ Usage: namfoop run [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -109,7 +106,7 @@ Options:
           Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
@@ -249,10 +246,9 @@ Usage: namfoop render [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -260,7 +256,7 @@ Options:
           Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
@@ -391,10 +387,9 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -404,7 +399,7 @@ Options:
           [default: 64]
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --seconds <SECONDS>
           Secondes d'audio simulées par modèle
@@ -465,10 +460,9 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -476,7 +470,7 @@ Options:
           Nom du pack (dossier dans la bibliothèque) [défaut : nom du zip ou du dossier]
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --dry-run
           Vérifie et affiche le résultat sans rien écrire
@@ -538,15 +532,14 @@ Options:
           Applique à tous les modèles qui contiennent les mots-clés (ex: "fullrig")
 
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --type <GEAR_TYPE>
           Type de capture (décide s'il faut une IR)
@@ -621,15 +614,14 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -676,15 +668,14 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -731,15 +722,14 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -786,15 +776,14 @@ Arguments:
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -835,10 +824,9 @@ Usage: namfoop calibrate [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -848,7 +836,7 @@ Options:
           [default: 15]
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --target <TARGET>
           Crête robuste visée à l'entrée des modèles (dBFS)
@@ -900,10 +888,9 @@ Usage: namfoop browse [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -913,7 +900,7 @@ Options:
           [default: library]
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -977,10 +964,9 @@ Usage: namfoop setup [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -990,56 +976,7 @@ Options:
           [default: library]
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
-
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
-
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
-
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
-
-      --cpu <CPU>
-          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
-
-      --rate <RATE>
-          Fréquence d'échantillonnage (ALSA ; avec JACK c'est le serveur qui décide) [défaut : 48000]
-
-      --client-name <CLIENT_NAME>
-          Nom du client JACK
-          
-          [default: namfoop]
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
-
-  -h, --help
-          Print help (see a summary with '-h')
-```
-
-## namfoop ports
-
-```text
-Liste les ports JACK (audio + MIDI)
-
-Usage: namfoop ports [OPTIONS]
-
-Options:
-      --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
-
-          Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
-          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
-          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
-
-      --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -1080,10 +1017,9 @@ Usage: namfoop latency [OPTIONS]
 
 Options:
       --backend <BACKEND>
-          Backend audio [défaut : config, sinon jack]
+          Backend audio [défaut : config, sinon alsa]
 
           Possible values:
-          - jack: JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
@@ -1093,7 +1029,7 @@ Options:
           [default: 1]
 
       --device <DEVICE>
-          Carte : nom de périphérique JACK (ex: "iTwo"), device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
 
       --in-ch <IN_CH>
           Canal d'entrée où revient le signal

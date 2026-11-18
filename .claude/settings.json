@@ -9,8 +9,7 @@
       "Bash(./target/release/namfoop render:*)",
       "Bash(./target/release/namfoop bench:*)",
       "Bash(./target/release/namfoop models:*)",
-      "Bash(./target/release/namfoop --help)",
-      "Bash(pw-jack ./target/release/namfoop ports)"
+      "Bash(./target/release/namfoop --help)"
     ]
   }
 }

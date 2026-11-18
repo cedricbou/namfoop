@@ -4,7 +4,6 @@
 #  2. chaque sous-commande est présentée dans docs/guide.md et citée dans README.md
 #  3. chaque option longue de la CLI est expliquée dans docs/guide.md
 #  4. chaque exemple « namfoop ... » des blocs ```sh des docs est une ligne de commande valide
-#     (et n'utilise pas pw-jack, inutile)
 #     (et ses mots-clés -m / -i désignent un fichier unique si library/ existe)
 #  5. aucun modèle / IR / zip n'est versionné (droits incertains)
 #  6. rappel CHANGELOG.md si du code a changé sans entrée de changelog (avertissement)
@@ -57,10 +56,9 @@ check_examples() {
     fi
     (( in_code == 1 )) || continue
     [[ $line =~ ^[[:space:]]*# ]] && continue
-    if [[ $line == *pw-jack* ]]; then err "$file : exemple avec pw-jack (inutile, voir CLAUDE.md) : $line"; continue; fi
     [[ $line =~ (^|[[:space:]/])namfoop[[:space:]] ]] || continue
     [[ $line == *"<"*">"* ]] && continue          # gabarits <...>
-    rest=${line#*namfoop }                        # retire pw-jack, ./target/release/, VAR=...
+    rest=${line#*namfoop }                        # retire ./target/release/, VAR=...
     rest=${rest%%  #*}                            # commentaire en fin de ligne
     rest=${rest%% #*}
     n=$((n + 1))
