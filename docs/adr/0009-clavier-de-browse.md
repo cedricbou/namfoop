@@ -121,8 +121,8 @@ ailleurs ; maintenant la touche reste à son propriétaire, qui explique.
 
 ## Ce qui garantit tout ça
 
-**L'oracle du clavier** (#241, `crates/namfoop/src/browse/state/keyboard.rs`) mesure les 52 touches
-dans les 21 contextes et fige le résultat dans `keyboard.ref.txt`. Il compare par **(contexte,
+**L'oracle du clavier** (`crates/namfoop/src/browse/state/keyboard.rs`) mesure **chaque touche
+dans chaque contexte** et fige le résultat dans `keyboard.ref.txt`. Il compare par **(contexte,
 touche)** et jamais par ligne. C'est lui qui a permis de faire cette restructuration en sachant
 qu'elle ne changeait **que** ce qu'on voulait : l'inversion des communes et des espaces a été prouvée
 gratuite (aucun espace ne liait `1 2 3 S P n * k`), et les 8 seuls changements de comportement sont

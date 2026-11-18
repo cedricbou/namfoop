@@ -855,11 +855,11 @@ Trois règles tiennent l'ensemble :
 
   **`r`** bascule **avec / sans effets** (A/B) ; la ligne de commande garde la chaîne réglée. Chaque
   changement s'écoute 150 ms après la dernière touche, avec le fondu habituel. Pas, plages et unités
-  viennent de la table de chaque effet ([Effets](#10-effets)). En prototype,
-  chaque réglage reconstruit la chaîne : les queues de delay et de réverbe sont coupées. Tant que la
+  viennent de la table de chaque effet ([Effets](#10-effets)). Chaque réglage
+  reconstruit la chaîne : les queues de delay et de réverbe sont coupées. Tant que la
   chaîne s'exprime en options (`-m`, `-i`, `--pre`, `--post`), le panneau du bas donne la ligne de
-  commande ; dès qu'il y a un parallèle, il faut un **preset** — l'enregistrement viendra avec
-  eux (#6).
+  commande ; dès qu'il y a un parallèle, la chaîne ne s'écrit plus en options et se garde en
+  **preset** (`S`).
 - **Mettre le son du banc dans la chaîne : Entrée.** Quand la chaîne est **vide**, elle devient
   **ce que tu entends** — `nam › ir`, le modèle seul si son baffle est inclus (ou si `b` coupe
   l'IR), l'IR seule si le banc ne joue pas de modèle —, et depuis n'importe lequel des trois
@@ -1350,7 +1350,8 @@ premier pour ne pas couper les queues des effets ; la réverbe en dernier pour r
 1. **Choisir le son de base** : `namfoop browse`, espace **Bibliothèque** : ↑↓ écoute au banc
    d'essai, **Entrée** met le son dans la chaîne
    ([§ 6](#choisir-son-son-en-jouant--namfoop-browse)).
-2. **Ajouter les effets** : `2` pour l'espace **Chaîne** (12 effets au catalogue). `a` ouvre le
+2. **Ajouter les effets** : `2` pour l'espace **Chaîne**, dont le catalogue est détaillé au
+   [§ 10](#10-effets). `a` ouvre le
    catalogue et ajoute **après** le curseur, `i` **avant** ; Entrée sur un effet ouvre ses réglages :
    ↑↓ choisit le paramètre, ←→ change la valeur (Maj + ←→ : pas fin). Chaque changement s'entend
    150 ms après la dernière touche.
@@ -1381,11 +1382,11 @@ namfoop fx reverb
 namfoop render -m b7k -i "dg212 sm57" --post reverb:decay=2,mix=20 -o reverb.wav
 ```
 
-Pour l'instant (prototype) :
-- **pas encore de presets** : garde la commande (dans un fichier texte ou un script) ; les presets
-  TOML et le changement de son par MIDI viendront ensuite ;
+À savoir :
 - changer un réglage **reconstruit la chaîne** : les répétitions du delay et la queue de la
-  réverbe en cours sont coupées.
+  réverbe en cours sont coupées ;
+- une chaîne qui te plaît s'enregistre en **preset** (`S` dans l'espace Chaîne de `browse`,
+  [§ 6](#choisir-son-son-en-jouant--namfoop-browse)), ce qui évite de la garder sous forme de ligne de commande.
 
 ### En ligne de commande : `--pre`, `--post`, `namfoop fx`
 
@@ -1620,9 +1621,9 @@ précédente et ne brouille pas le grave.
 - `mix` : niveau des répétitions ; le son direct reste toujours à 100 %.
 - `lowcut` (80 Hz par défaut) : à monter vers 200–300 Hz pour que les répétitions laissent la place
   à la fondamentale.
-- Piège : changer un paramètre reconstruit la chaîne et coupe les répétitions en cours (prototype ;
-  le maintien des queues viendra avec les presets). Le **tempo**, lui, est déjà vivant : en changer
-  ne rebâtit rien et ne coupe aucune répétition.
+- Piège : changer un paramètre reconstruit la chaîne et coupe les répétitions en cours. Le
+  **tempo**, lui, est vivant : en changer ne rebâtit rien et ne coupe aucune répétition. Entre
+  deux **presets**, en revanche, la queue du preset quitté finit de sonner.
 
 ```sh
 namfoop run -m b7k -i "dg212 sm57" --post delay:time=375,feedback=40,lowcut=200,mix=25
@@ -2306,7 +2307,9 @@ une issue avec le nom du pack.
 
 ## 17. Limites actuelles
 
-namfoop est un prototype. Les effets sont là (gate, compresseur, EQ, crossover, chorus, delay,
-réverbe : [§ 10](#10-effets)), mais changer un réglage coupe les queues de delay et de réverbe.
-Pas encore disponibles : presets (une chaîne se garde sous forme de commande), changement de son
-par MIDI, traitement du micro, démarrage automatique, version Raspberry Pi. Voir le [CHANGELOG](../CHANGELOG.md) pour suivre les versions.
+Changer le réglage d'un effet **reconstruit la chaîne** : les queues de delay et de réverbe en
+cours sont coupées. Le volume du preset et le tempo, eux, sont vivants — en changer ne coupe rien.
+
+Pas encore disponibles : changement de son **par MIDI**, traitement du **micro**, démarrage
+automatique et version **Raspberry Pi**. Voir le [CHANGELOG](../CHANGELOG.md) pour suivre les
+versions.

@@ -18,8 +18,8 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 ui/windows.rs::help_lines en DÉRIVENT leur texte ; ajouter une touche = une ligne
                 ici. context.rs dit QUI A LE CLAVIER (State::context(), et context_under_help()
                 parce que `h` explique le contexte du DESSOUS). keyboard.rs L'ORACLE DU
-                CLAVIER (#241, épique #240) — un test qui mesure, pour chacun des 21 contextes et
-                des 52 touches, ce qui se passe VRAIMENT (couche qui consomme, action, message,
+                CLAVIER — un test qui mesure, pour CHAQUE contexte et CHAQUE touche
+                (all_keys()), ce qui se passe VRAIMENT (couche qui consomme, action, message,
                 champs d'état changés) et le fige dans keyboard.ref.txt. C'est LUI qu'on lit pour
                 savoir ce que fait une touche : `on_key` est une cascade de 14 fonctions sur 9
                 fichiers, la lire ne suffit pas. Régénérer après avoir VOULU le diff :
@@ -51,7 +51,7 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 des listes, filtre du catalogue de blocs) passe AVANT les touches communes
                 (1 / 2 / S / P / n), sinon une lettre commune est volée au filtre et agit deux fois
                 (#175 : le « n » de nam et de gain effaçait la chaîne) ; mod.rs état et
-                navigation ; lists.rs listes des onglets Modèles / IR ; chain.rs la chaîne en blocs
+                navigation ; lists.rs listes des onglets Modèles / IR ; chain/ la chaîne en blocs
                 éditée (Leaf / Split / Branch, curseur 2D Cursor / Spot, dont Cursor::Merge : la
                 SORTIE d'un parallèle, le ◇ de son bord droit, d'où `a` ajoute après lui — #152,
                 inspiré du bloc Merge / Mixer du marché ; tout le reste du parallèle se règle depuis
@@ -69,9 +69,10 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 tout bloc `gain`, donc ui/synoptic.rs le montre grisé en bout de chaîne, le panneau
                 de réglages prévient sur un `gain` (State::gain_cancelled_by_alignment) et l'ajout
                 d'un `gain` le dit ; State::level_match vient de la config (level = "match")) ;
-                space.rs les DEUX ESPACES (§ 2 de browse-espaces.md) : Space::Library (onglets
-                Modèles / IR / Mélange, on entend le banc d'essai basse › modèle › IR SANS AUCUN
-                effet) et Space::Chain (l'ancien onglet Effets, on entend la chaîne) ; 1 / 2
+                space/ les TROIS ESPACES (§ 2 de browse-espaces.md, § 3 de set.md) :
+                Space::Library (onglets Modèles / IR / Mélange, on entend le banc d'essai
+                basse › modèle › IR SANS AUCUN effet), Space::Chain (on entend la chaîne) et
+                Space::Set (la vue scène) ; 1 / 2 / 3
                 changent d'espace et l'écoute suit, Tab et →← restent dans la Bibliothèque ;
                 set/ LE SET ACTIF (#218, #219, § 4 et § 5 de docs/design/set.md) : ActiveSet porte le
                 SetSpec lu par library::set et, pour chaque son, sa place dans State::presets
@@ -156,7 +157,7 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 qu'une horloge MIDI tournera (#7), et c'est l'entendu qui va dans la case et dans
                 l'affichage. `*` = tap (`State::tap_tempo`, keys.rs), `tick()` appelle
                 `Arbiter::poll` pour voir une horloge qui se tait ;
-                send.rs Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
+                send/ Entrée y met le son du banc dans la chaîne (§ 4 : chaîne vide -> nam › ir,
                 sinon la fenêtre « quel bloc remplacer », case « avec son IR », ou mode pose dans
                 la Chaîne) ; heard_bench / chain_text pour la
                 ligne d'écoute ; target.rs la chaîne telle qu'on l'écoute selon l'espace (plan :
@@ -180,7 +181,7 @@ browse/         `browse` : state/ (logique pure + horloge fournie, testée : bin
                 du bas, sinon elle disparaît sur un bloc nam / ir (#148) —, réglages de l'élément sous le curseur — effet,
                 parallèle ou branche —, écoute différée, v vumètres) ; navigation :
                 Tab / Maj+Tab en boucle sur les TROIS onglets, → / ← de proche en proche
-                (space.rs : switch_tab, testée dans les deux sens) ; l'affichage d'une valeur de
+                (space/ : switch_tab, testée dans les deux sens) ; l'affichage d'une valeur de
                 réglage passe par dsp::fx::Unit::format (et non chain::num + symbol()) : une
                 division se montre par son nom de note (`1/8.`, #195),
                 tests.rs), ui/ (ratatui, TestBackend : mod.rs listes et barre d'état, spectrum.rs
@@ -509,6 +510,6 @@ Suivies dans les issues GitHub (label `dette technique`) ; résumé :
   gouverneur CPU `performance`, préchauffage des modèles.
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
   un lookahead de ~1 ms serait plus propre mais ajoute de la latence.
-- Crépitements signalés en JACK avec un modèle saturé : origine non confirmée (xruns ou grain).
-- Pas encore de lissage des paramètres ni de changement de chaîne à chaud (prévu avec les presets).
+- Les paramètres d'effet reconstruisent la chaîne à chaque appui : seuls le volume du preset et le
+  tempo sont vivants (ADR 0007, ADR 0008). Voir #189.
 - Le C++ NAM n'est pas couvert par `assert_no_alloc` (allocateur Rust seulement).

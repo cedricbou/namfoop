@@ -5,7 +5,8 @@
 défaut `~/.config/namfoop/config.toml` ou `$XDG_CONFIG_HOME`), routage (`routing.rs` : `Routing`,
 `OutputRoute`, `Source`), profils de carte (`card.rs` : `CardProfile`, `MixerSetting`, profils livrés
 `profiles/*.toml` du dépôt inclus par `include_str!`, `all_profiles`, `find`, `user_dir`).
-Plus tard : presets (#6).
+Les presets ne sont **pas** ici : ce sont des fichiers de la bibliothèque, lus par `library`
+(`docs/architecture.md`).
 
 **Pas de logique ici.** Des types, leurs valeurs par défaut, leur nom texte (`Source::name`,
 `label`, `FromStr`) et la lecture / écriture TOML. Tout calcul (repères de calibration, routeur
@@ -27,8 +28,9 @@ l'octet près : un échec veut dire que le format a changé.
 ## Carte détaillée (reprise du `CLAUDE.md` racine)
 
 ```
-crates/model/     types sérialisables, aucune logique (voir crates/model/CLAUDE.md) : config.rs
+crates/model/     types sérialisables, aucune logique : config.rs
                   (~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
                   [audio] backend / device / buffer..., [routing]), routing.rs (Routing, OutputRoute,
-                  Source) ; tests/ : fichiers de config versionnés relus à l'octet près
+                  Source), card.rs (CardProfile, MixerSetting, profils livrés de profiles/*.toml) ;
+                  tests/ : fichiers de config versionnés relus à l'octet près
 ```

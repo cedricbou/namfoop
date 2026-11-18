@@ -2,9 +2,10 @@
 //! (filtre, IR conseillées en tête), le son change sans coupure (`dsp::swap`), et on compose des
 //! mélanges d'IR à l'oreille, sauvés dans `library/cabs/`.
 //!
-//! - `state.rs` logique pure (testée), horloge fournie par la boucle
-//! - `ui.rs`    rendu ratatui (testé avec TestBackend)
-//! - ici        index de la bibliothèque, audio (routeur + SwapChain), thread de construction
+//! - `state/`  logique pure (testée), horloge fournie par la boucle
+//! - `ui/`     rendu ratatui (testé avec TestBackend)
+//! - `build.rs` thread de construction des chaînes, `plan.rs` ce qu'il reste à préchauffer
+//! - ici        index de la bibliothèque, audio (routeur + SwapChain), la boucle d'événements
 
 mod build;
 mod plan;
