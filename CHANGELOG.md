@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+## 0.6.0 — 2026-11-19
+
+**Le mode Set.** Une set list de concert : des morceaux dans l'ordre, un à plusieurs sons par
+morceau, changés au pied avec `PgDn` / `PgUp`. Un troisième espace de `browse` montre la scène,
+s'édite en place (`e`) et affiche le **prompteur** du morceau joué — accords, paroles et cues lus
+d'un fichier ChordPro, dont le texte suit le son. `run --set` joue tout cela verrouillé : rien ne
+s'y édite. Dessous, le clavier de `browse` tient sur **quatre étages avec un propriétaire par
+touche** (ADR 0009), mesurés par un oracle.
+
 ### Ajouté (#222)
 - **Le prompteur** : accords, paroles et cues du morceau joué, à côté de son son. Le texte est un
   fichier **ChordPro** (`library/sets/prompts/<morceau>.cho`), le format de fait des logiciels de

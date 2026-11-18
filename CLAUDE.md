@@ -84,7 +84,7 @@ avertissement, > 1 000 : échec).
 
 1. ✅ Base : backends JACK + ALSA (+ sim), `setup`, `ports`, `latency`.
 2. ✅ NAM + IR, calibration, niveau « match », limiteur.
-3. Effets : gate, compresseur, EQ, crossover LR4, chorus, delay, reverb.
-4. Presets TOML + banque préchargée + changement de chaîne sans glitch.
+3. ✅ Effets : gate, compresseur, EQ, crossover LR4, chorus, delay, reverb.
+4. ✅ Presets TOML + banque préchargée + changement de chaîne sans glitch.
 5. MIDI : Program Change -> preset, CC -> paramètres ; entrée micro.
 6. Live / Pi 5 : service systemd, démarrage auto, cross-compilation aarch64.
