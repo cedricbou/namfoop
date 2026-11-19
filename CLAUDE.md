@@ -70,11 +70,18 @@ avertissement, > 1 000 : échec) et les règles mécanisables de `docs/style-doc
 commit** : numéro d'issue dans un commentaire ou une chaîne, mot-signal temporel, chemin cité qui
 n'existe plus.
 
-**Publier une version**, dans cet ordre : rouler « Non publié » dans une section
-`## X.Y.Z — AAAA-MM-JJ`, aligner `version` de `[workspace.package]` — sans quoi `namfoop --version`
-ment —, puis poser un tag **annoté** `vX.Y.Z` dont le message dit ce que la version apporte
-(`git tag -a v0.6.0 -m "namfoop 0.6.0 — …"`). Sauter l'une des deux premières étapes rend les
-entrées du changelog irrattribuables : on ne peut plus les replacer sans deviner.
+**Publier une version**, dans cet ordre : **relire une zone du corpus** (voir ci-dessous), rouler
+« Non publié » dans une section `## X.Y.Z — AAAA-MM-JJ`, aligner `version` de
+`[workspace.package]` — sans quoi `namfoop --version` ment —, puis poser un tag **annoté** `vX.Y.Z`
+dont le message dit ce que la version apporte (`git tag -a v0.6.0 -m "namfoop 0.6.0 — …"`). Sauter
+l'une des deux étapes du milieu rend les entrées du changelog irrattribuables : on ne peut plus les
+replacer sans deviner.
+
+**Une zone relue par version**, en tournant, avec la skill `relire-docs` (`.claude/skills/`) :
+les `CLAUDE.md` de crate → `docs/architecture.md` et les ADR → `docs/guide.md` et le README →
+`docs/design/` → les commentaires d'une crate → et on recommence. `check-docs.sh` refuse au commit
+ce qui s'écrit en expression régulière ; cette relecture attrape le reste — la duplication, la mesure
+qui s'empile, le récit, l'état d'avancement, le fait devenu faux sans que son chemin change.
 
 ## Conventions
 

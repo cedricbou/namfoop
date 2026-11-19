@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test HORS-LIGNE de scripts/feature.sh (#128) : rejoue les scénarios dangereux du cycle
+# Test HORS-LIGNE de scripts/feature.sh : rejoue les scénarios dangereux du cycle
 # (branche réutilisée, PR déjà fusionnée, fusion qui n'a pas eu lieu) sur un dépôt jetable, avec un
 # faux `gh`. Aucun accès réseau, aucune issue ni PR réelle.
 #
@@ -152,7 +152,7 @@ git push -q -u origin HEAD
 git checkout -q main && git branch -qD feat/128-titre-de-l-issue-2
 run_ok "feat/128-titre-de-l-issue-3" "branche distante déjà prise -> suffixe" scripts/feature.sh start 128
 
-# 2. pr ne reprend jamais une PR déjà fusionnée (le cœur de #128)
+# 2. pr ne reprend jamais une PR déjà fusionnée (le scénario qui a fait croire à un commit livré)
 echo "== pr : une PR fusionnée n'est pas reprise"
 setup
 scripts/feature.sh start 128 >/dev/null
