@@ -313,21 +313,13 @@ concernée). Erreurs : `anyhow`.
   l'aide du réglage sous le curseur, **dynamique** pour une division (`1/4 = une noire, soit un
   temps (500 ms à 120 BPM)`) : la colonne de valeur du panneau ne fait que **9 caractères**, donc
   tout ce qui doit s'expliquer va dans cette ligne, pas dans la valeur.
-  **Pièges pour écrire ces tests** : `os.kill(pid, 0)` **réussit sur un zombie**, donc il ne dit
-  pas si le processus a fini — seul `waitpid(pid, WNOHANG)` le dit (j'ai cru à tort que `browse` ne
-  quittait pas sur `q`/`Q`) ; un **emoji occupe deux cellules** du tampon ratatui, donc ne jamais
-  coller une assertion à droite d'un emoji (`🔒 SET` se lit `🔒  SET`) ; dans un écran à **deux
-  colonnes**, un `lines().find(...)` attrape la ligne ENTIÈRE, les deux colonnes mêlées (chercher
-  la dernière, ou découper la largeur de la colonne).
-  **`Terminal::clear` de ratatui demande au terminal où est le curseur** (`ESC [ 6 n`) et attend la
-  réponse : dans un pseudo-terminal qui ne répond pas, il échoue après deux secondes
-  (« The cursor position could not be read within a normal duration ») — c'est ce qui faisait
-  échouer le retour de `$EDITOR` de `t` (#222). `Terminal::resize(Rect)` remet le tampon à zéro
-  **sans rien demander** : c'est lui qu'on utilise pour « tout redessiner ».
-  Il faut aussi poser la taille du pseudo-terminal (`TIOCSWINSZ`),
-  sinon ratatui ne dessine rien du tout ; et **ne pas scruter l'écran pour une valeur qui change** —
-  ratatui n'écrit que les cellules modifiées, si bien qu'un `♩ 92 (preset)` arrive en morceaux
-  épars et qu'une recherche de texte retrouve l'ancienne valeur. La trace est la source de vérité.
+  **Deux pièges côté namfoop**, que le harnais ne peut pas absorber : `Terminal::clear` de ratatui
+  demande au terminal où est le curseur (`ESC [ 6 n`) et **attend** la réponse, donc il échoue
+  au bout de deux secondes devant un terminal muet — `Terminal::resize(Rect)` remet le tampon à zéro
+  **sans rien demander**, c'est lui qu'on utilise pour « tout redessiner ». Et ratatui n'écrit que
+  les cellules **modifiées** : une valeur qui change arrive en morceaux épars, si bien que chercher
+  un texte à l'écran retrouve l'ancienne valeur. Pour ce qu'on **entend**, la trace fait foi.
+  Les pièges du pilotage, eux, sont implémentés dans `scripts/check-e2e.py`.
 
 - **Le tempo du preset arrive bien jusqu'au son** (#195, ADR 0008). Mesuré (`render --preset` sur
   une impulsion, `--no-limiter`, preset `tempo_bpm = 92` + `delay:division=1/8.`) : échos à
