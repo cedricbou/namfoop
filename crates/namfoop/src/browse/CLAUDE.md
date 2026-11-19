@@ -38,14 +38,16 @@ contexte **du dessous**.
 
 ### L'ordre des couches — `state/keys.rs` (ADR 0009)
 
-Seul endroit où l'ordre est écrit, et son rustdoc le détaille. Une touche traverse d'abord les
-**modes** (`grabbing_key` : scène verrouillée, confirmations, aide, éditeur, saisies de texte,
-fenêtres modales), puis quatre étages : **la pédale** (`1 2 3 q h * k`, qu'un espace ne peut **pas**
-éclipser : un risque live, pas une esthétique) > **l'espace** (`set_key` / `fx_key` /
-`library_key`) > **les communes** (`S P n`, éclipsables par un espace **qui le déclare**) > **le
-dernier recours** (`Échap`, et la touche sans propriétaire posée dans `State::unhandled`, que la
-boucle trace). L'espace passe avant les communes : seule issue tenable avec 20 lettres sur 26 déjà
-prises.
+`on_key` est un `match` sur `State::context()` : **une ligne par contexte**, qui dit qui le traite.
+Le `match` est **exhaustif**, donc un `Context` nouveau sans preneur ne compile pas. Un **mode**
+(scène verrouillée, confirmations, aide, éditeur, saisies, fenêtres modales) a sa fonction, qui ne
+retombe jamais ; un contexte d'**espace** descend les quatre étages de `tiers` : **la pédale**
+(`1 2 3 q h * k`, qu'un espace ne peut **pas** éclipser : un risque live, pas une esthétique) >
+**l'espace** (`set_key` / `fx_key` / `library_key`) > **les communes** (`S P n`, éclipsables par un
+espace **qui le déclare**) > **le dernier recours** (`Échap`, et la touche sans propriétaire posée
+dans `State::unhandled`, que la boucle trace). L'espace passe avant les communes : seule issue
+tenable avec 20 lettres sur 26 déjà prises. Deux règles seulement précèdent le contexte : un mur ne
+se traverse pas, et `h` ouvre l'aide hors saisie.
 
 Quatre règles à ne pas casser :
 

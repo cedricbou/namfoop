@@ -10,25 +10,75 @@
 use super::*;
 
 impl State {
-    /// **Les étages du clavier** (ADR 0009). Une touche descend les étages dans cet ordre,
-    /// et le **premier qui la possède** la consomme. Trois issues possibles à chaque étage :
-    /// `Some(action)` « elle est à moi », `None` « pas à moi, continue plus bas », et — pour les
-    /// saisies seulement — *rejouer depuis le haut* (`on_key` récursif), qui n'est pas une
-    /// retombée : la saisie se termine, et la touche est relue dans un clavier devenu différent.
+    /// **Qui reçoit la touche.** `State::context()` est la **seule autorité d'ordre** : c'est elle
+    /// qui dit où l'on est, et ce `match` dit qui traite chaque contexte. Il est **exhaustif**,
+    /// donc ajouter un `Context` sans dire qui le prend ne compile plus.
     ///
-    /// L'ordre est la seule chose qui décide, et c'est pour ça qu'il est écrit ici, en entier,
-    /// plutôt que réparti dans les couches.
+    /// Les contextes d'**espace** (et les panneaux qui en font partie) descendent les **quatre
+    /// étages** de l'ADR 0009, dans [`State::tiers`]. Tous les autres sont des **modes** : un mode
+    /// ne retombe jamais, et c'est ce que dit chaque bras qui rend `Action::None` à défaut.
+    ///
+    /// Une saisie de texte peut *rejouer depuis le haut* (`on_key` récursif) : ce n'est pas une
+    /// retombée — la saisie se termine, et la touche est relue dans un clavier devenu différent.
     pub fn on_key(&mut self, key: Key) -> Action {
-        // la scène verrouillée (`run --set`, § 9) : un **mur**, sans parent. Elle passe avant
-        // tout pour qu'aucune couche ne puisse laisser passer un geste d'édition.
-        if self.locked {
-            return self.locked_key(key);
+        use super::context::Context as C;
+        let ctx = self.context();
+        // Les **murs**, qui passent avant l'aide elle-même : la scène verrouillée (`run --set`,
+        // § 9) n'a pas de parent, et une confirmation garde l'état jusqu'à la réponse.
+        match ctx {
+            C::Stage | C::StageQuit => return self.locked_key(key),
+            // l'aide se referme sur n'importe quelle touche
+            C::Help => {
+                self.help = false;
+                return Action::None;
+            }
+            C::ConfirmQuit | C::ConfirmQuitEmpty => return self.confirm_quit_key(key),
+            C::ConfirmSwitch => return self.confirm_switch_key(key),
+            _ => {}
         }
-        // les fenêtres qui prennent TOUT, les saisies de texte (gloutonnes sur les lettres)
-        // et les fenêtres modales : voir `grabbing_key`.
-        if let Some(a) = self.grabbing_key(key) {
-            return a;
+        // `h` **ouvre** l'aide : au-dessus des modales — une fenêtre doit pouvoir s'expliquer —,
+        // mais sous les saisies, où `h` est une lettre.
+        if matches!(key, Key::Char('h') | Key::Char('?')) && !self.typing() {
+            self.help = true;
+            self.message = None;
+            return Action::None;
         }
+        match ctx {
+            // déjà traités plus haut : le `match` reste exhaustif pour que le compilateur nomme
+            // tout contexte nouveau
+            C::Stage | C::StageQuit | C::Help => Action::None,
+            C::ConfirmQuit | C::ConfirmQuitEmpty | C::ConfirmSwitch => Action::None,
+            C::Editor | C::EditorTyping => self.editor_key(key),
+            C::Naming => self.naming_key(key),
+            // le sélecteur sur place prend toutes les touches : valider ou annuler d'abord (§ 5)
+            C::Picker | C::PickerFiltering => self.picker_key(key).unwrap_or(Action::None),
+            // le filtre du catalogue se tape au clavier : il prend les lettres avant les touches
+            // communes, sinon `n` (chaîne vierge) mangerait le « n » de `nam` et de `gain`
+            C::Catalog => self.catalog_key(key).unwrap_or(Action::None),
+            C::Bank => self.bank_key(key).unwrap_or(Action::None),
+            C::Send => self.send_key(key).unwrap_or(Action::None),
+            C::Place => self.place_key(key).unwrap_or(Action::None),
+            // la fenêtre `L` (choisir le set) est une modale **comme les autres** : elle se classe
+            // par sa priorité propre et non par l'espace qui la tient. Logée dans `set_key`, elle
+            // passerait sous les communes, et `n` effacerait la chaîne derrière elle.
+            C::SetPicker => self.set_picker_key(key).unwrap_or(Action::None),
+            // les sous-modes de l'édition d'un set (§ 8) : une saisie, la liste des presets, la
+            // confirmation de `X`. Ce sont des modes, donc ils passent avant la pédale — sans quoi
+            // taper `1` dans un titre changerait d'espace et `q` quitterait au milieu d'un nom.
+            C::SetEditTyping | C::SetEditPicking | C::SetEditRemove => {
+                self.set_edit_mode_key(key).unwrap_or(Action::None)
+            }
+            C::Filtering => self.filtering_key(key),
+            // les espaces, et les panneaux qui en font partie : les quatre étages. La **table** de
+            // l'édition d'un set en fait partie, parce que la pédale doit y répondre.
+            C::Set | C::SetEdit | C::Chain | C::ChainMerge | C::Params => self.tiers(key),
+            C::Models | C::Irs | C::Blend => self.tiers(key),
+        }
+    }
+
+    /// **Les quatre étages** de l'ADR 0009, pour les seuls contextes d'espace. Une touche les
+    /// descend dans cet ordre, et le **premier qui la possède** la consomme.
+    fn tiers(&mut self, key: Key) -> Action {
         // ÉTAGE 1 — LA PÉDALE : les gestes qu'un espace ne peut pas éclipser.
         if let Some(a) = self.pedal_key(key) {
             return a;
@@ -47,123 +97,63 @@ impl State {
         self.global_key(key)
     }
 
-    /// Ce qui **prend la main avant les étages** : les fenêtres de confirmation, l'aide, l'éditeur,
-    /// les saisies de texte et les fenêtres modales. Ce ne sont pas des éclipses mais des **modes**
-    /// — pendant une saisie, le clavier veut dire des **lettres**, pas des commandes.
-    fn grabbing_key(&mut self, key: Key) -> Option<Action> {
-        // la scène verrouillée (`run --set`, § 9) : le filtre passe **avant tout**, pour qu'aucune
-        // couche ne puisse laisser passer un geste d'édition
-        if self.locked {
-            return Some(self.locked_key(key));
-        }
-        if self.confirm_quit {
-            return Some(self.confirm_quit_key(key));
-        }
-        if self.confirm_switch {
-            return Some(self.confirm_switch_key(key));
-        }
-        // l'aide : n'importe quelle touche la referme, et `h` l'ouvre hors saisie
-        if self.help {
-            self.help = false;
-            return Some(Action::None);
-        }
-        if matches!(key, Key::Char('h') | Key::Char('?')) && !self.typing() {
-            self.help = true;
-            self.message = None;
-            return Some(Action::None);
-        }
-        if self.editor.is_some() {
-            return Some(self.editor_key(key));
-        }
-        // saisie du nom du mélange
-        if let Some(name) = self.naming.as_mut() {
-            match key {
-                Key::Enter => {
-                    let n = name.trim().to_string();
-                    let preset = std::mem::take(&mut self.naming_preset);
-                    self.naming = None;
-                    if n.is_empty() {
-                        self.message = Some(
-                            if preset {
-                                "nom vide : preset non enregistré"
-                            } else {
-                                "nom vide : mélange non sauvé"
-                            }
-                            .into(),
-                        );
-                        return Some(Action::None);
-                    }
-                    return Some(if preset { Action::SavePreset(n) } else { Action::SaveBlend(n) });
+    /// **La saisie du nom** d'un mélange ou d'un preset : toute lettre y va, et c'est ce qui
+    /// empêche une touche commune de lui être volée.
+    fn naming_key(&mut self, key: Key) -> Action {
+        let Some(name) = self.naming.as_mut() else { return Action::None };
+        match key {
+            Key::Enter => {
+                let n = name.trim().to_string();
+                let preset = std::mem::take(&mut self.naming_preset);
+                self.naming = None;
+                if n.is_empty() {
+                    self.message = Some(
+                        if preset {
+                            "nom vide : preset non enregistré"
+                        } else {
+                            "nom vide : mélange non sauvé"
+                        }
+                        .into(),
+                    );
+                    return Action::None;
                 }
-                Key::Esc => {
-                    self.naming = None;
-                    self.naming_preset = false;
-                }
-                Key::Backspace => {
-                    name.pop();
-                }
-                Key::Char(c) => name.push(c),
-                _ => {}
+                return if preset { Action::SavePreset(n) } else { Action::SaveBlend(n) };
             }
-            return Some(Action::None);
-        }
-        // saisie du filtre
-        if self.filtering {
-            match key {
-                Key::Enter | Key::Esc | Key::Tab | Key::BackTab | Key::Up | Key::Down => {
-                    self.filtering = false;
-                    if !matches!(key, Key::Enter | Key::Esc) {
-                        return Some(self.on_key(key));
-                    }
-                }
-                Key::Backspace => {
-                    self.filter.pop();
-                    self.set_cursor(0);
-                }
-                Key::Char(c) => {
-                    self.filter.push(c);
-                    self.set_cursor(0);
-                }
-                _ => {}
+            Key::Esc => {
+                self.naming = None;
+                self.naming_preset = false;
             }
-            return Some(Action::None);
+            Key::Backspace => {
+                name.pop();
+            }
+            Key::Char(c) => name.push(c),
+            _ => {}
         }
-        // le filtre du catalogue de blocs se tape au clavier : il prend les lettres avant les
-        // touches communes, sinon `n` (chaîne vierge) mangerait le « n » de `nam` et de `gain`
-        // et effacerait la chaîne au lieu de filtrer
-        if let Some(a) = self.catalog_key(key) {
-            return Some(a);
+        Action::None
+    }
+
+    /// **Le filtre d'une liste de la Bibliothèque.** Les touches de navigation le **terminent** et
+    /// sont **rejouées depuis le haut** : la saisie finit, et la touche est relue dans un clavier
+    /// devenu différent — ce n'est pas une retombée.
+    fn filtering_key(&mut self, key: Key) -> Action {
+        match key {
+            Key::Enter | Key::Esc | Key::Tab | Key::BackTab | Key::Up | Key::Down => {
+                self.filtering = false;
+                if !matches!(key, Key::Enter | Key::Esc) {
+                    return self.on_key(key);
+                }
+            }
+            Key::Backspace => {
+                self.filter.pop();
+                self.set_cursor(0);
+            }
+            Key::Char(c) => {
+                self.filter.push(c);
+                self.set_cursor(0);
+            }
+            _ => {}
         }
-        // la banque de presets, la fenêtre « mettre dans la chaîne » et le mode pose prennent la main
-        if let Some(a) = self.bank_key(key) {
-            return Some(a);
-        }
-        if let Some(a) = self.send_key(key) {
-            return Some(a);
-        }
-        if let Some(a) = self.place_key(key) {
-            return Some(a);
-        }
-        // le sélecteur sur place prend toutes les touches : valider ou annuler d'abord (§ 5)
-        if let Some(a) = self.picker_key(key) {
-            return Some(a);
-        }
-        // la fenêtre `L` (choisir le set) est une **modale comme les autres** : tant qu'elle est
-        // ouverte, elle prend tout. Une modale se classe par sa priorité propre et non par l'espace
-        // qui la tient : logée dans `set_key`, elle passerait **sous** les communes, et `n`, `P`,
-        // `S` agiraient derrière elle — `n` effacerait la chaîne sous une fenêtre ouverte.
-        if let Some(a) = self.set_picker_key(key) {
-            return Some(a);
-        }
-        // les **sous-modes de l'édition d'un set** (§ 8) : la saisie d'un titre, d'un tempo
-        // ou d'un PC, la liste des presets, la confirmation de `X`. Ce sont des modes, donc ils
-        // passent avant la pédale — sans quoi taper `1` dans un titre changerait d'espace et `q`
-        // quitterait au milieu d'un nom (mesuré par l'oracle avant de monter ces trois-là ici).
-        // La **table** de l'édition, elle, reste à l'étage de l'espace : la pédale doit y répondre.
-        if let Some(a) = self.set_edit_mode_key(key) {
-            return Some(a);
-        }
-        None
+        Action::None
     }
 
     /// **L'étage pédale** : les gestes qu'un espace ne peut **pas** éclipser (ADR 0009).

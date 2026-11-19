@@ -25,20 +25,34 @@ quelque part qui possède quoi.
 
 ## La décision
 
-### Quatre étages, écrits en entier dans `on_key`
+### Un contexte décide, quatre étages suivent
 
-Une touche descend les étages, et **le premier qui la possède** la consomme.
+**`State::context()` est la seule autorité d'ordre.** Elle répond à « qui a le clavier » en une
+valeur, et `on_key` est un `match` sur cette valeur : une ligne par contexte, qui dit **qui le
+traite**. Le `match` est **exhaustif**, donc ajouter un contexte sans dire qui le prend ne compile
+plus.
+
+Les contextes se rangent en deux familles :
+
+| famille | contextes | ce qui les traite |
+|---|---|---|
+| **les modes** | la scène verrouillée, les confirmations, l'aide, l'éditeur, les **saisies de texte**, les fenêtres modales | leur propre fonction, qui ne retombe **jamais** |
+| **les espaces** | Bibliothèque (par onglet), Chaîne (dont les réglages et la sortie d'un parallèle), Set (dont la table de son édition) | les **quatre étages**, dans `tiers` |
+
+Et les quatre étages, pour les seuls contextes d'espace — une touche les descend, et **le premier
+qui la possède** la consomme :
 
 | étage | touches | éclipsable par un espace ? |
 |---|---|---|
-| **les modes** | fenêtres de confirmation, aide, éditeur, **saisies de texte**, fenêtres modales | — (voir ci-dessous) |
 | **1 · la pédale** | `1` `2` `3` `q` `h`/`?` `*` `k` | **non** |
 | **2 · l'espace** | le clavier de l'espace où l'on est, et de lui seul | — |
 | **3 · le commun** | `S` `P` `n` | **oui**, par déclaration |
 | **4 · le dernier recours** | `Échap` (« ne quitte pas : q pour quitter ») | — |
 
-L'ordre est la seule chose qui décide : il est donc écrit **en un seul endroit**, en entier, plutôt
-que réparti dans les couches.
+L'ordre est la seule chose qui décide : il n'est donc écrit **qu'à un endroit**, `context()`, et
+jamais retesté ailleurs. Deux règles seulement précèdent le contexte : un mur ne se traverse pas, et
+`h` **ouvre** l'aide — au-dessus des modales, parce qu'une fenêtre doit pouvoir s'expliquer, mais
+sous les saisies, où `h` est une lettre.
 
 ### Pourquoi la pédale n'est pas éclipsable
 
@@ -62,15 +76,14 @@ filtre ne rend `Tab`, `Maj+Tab`, `↑` et `↓`).
 ### Une modale ne retombe jamais
 
 Tant qu'une fenêtre est ouverte, **elle prend tout**. Une touche qui la traverse agit derrière elle,
-sur un écran qu'elle recouvre : c'était le cas de `n`, `P`, `S`, `1`, `2`, `3`, `*`, `k` et `q` avec
-la fenêtre `L`, parce qu'elle vivait dans `set_key`, donc **sous** les communes.
+sur un écran qu'elle recouvre — `n` effacerait la chaîne sous la fenêtre `L`, `P` ouvrirait la
+banque.
 
 Les modales se classent par leur **priorité propre**, pas par l'espace qui les possède : le catalogue
-de blocs appartient à la Chaîne mais passe avant tout (#175).
-
-Conséquence pratique : un `?` (`Option`) sur un champ interne à une modale est un **piège**, parce
-que son `None` signifie « pas à moi » pour l'appelant. Dans une modale ouverte, tout chemin doit
-rendre `Some`.
+de blocs appartient à la Chaîne mais passe avant tout, parce que son filtre se tape au clavier.
+C'est `context()` qui porte ce classement, et le bras de chaque modale rend `Action::None` à défaut :
+**il n'y a plus d'étage en dessous où tomber**, donc le piège du `?` (`Option`) sur un champ interne
+à une modale est devenu inoffensif.
 
 ### Un panneau non plus (complément, #249)
 
@@ -128,8 +141,13 @@ qu'elle ne changeait **que** ce qu'on voulait : l'inversion des communes et des 
 gratuite (aucun espace ne liait `1 2 3 S P n * k`), et les 8 seuls changements de comportement sont
 tous des fuites fermées.
 
-C'est aussi ce qui rend l'ordre des étages vérifiable : lire la cascade ne suffisait pas, et c'est
-précisément pourquoi les trois bugs ci-dessus ont vécu.
+La jointure avec la **table des touches** (`state/bindings.rs`) ferme la boucle dans les deux sens :
+tout ce qui est **déclaré** est possédé, et tout ce qui **agit** est déclaré — un refus poli, lui,
+n'a pas à l'être. Et un test vérifie que **tout** contexte a son cas d'oracle, puisqu'en oublier un,
+c'est ne rien vérifier de lui.
+
+C'est aussi ce qui rend l'ordre vérifiable : lire une cascade ne suffit pas, et c'est précisément
+pourquoi les trois bugs ci-dessus ont vécu.
 
 ## Ce qu'on a écarté
 

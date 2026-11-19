@@ -6,6 +6,23 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#251)
+- **L'ordre du clavier n'est plus écrit qu'à un endroit.** Le code en tenait **deux** copies —
+  la cascade de `on_key` et celle de `context()` — et elles ne s'accordaient déjà plus sur trois
+  points (la saisie du filtre, le sélecteur sur place, l'aide face à la confirmation de sortie).
+  C'était inoffensif **par accident** : rien ne prouvait que les états croisés étaient
+  inatteignables. `context()` est désormais la seule autorité d'ordre, et `on_key` un `match` sur
+  elle : une ligne par contexte, qui dit qui le traite.
+- Le `match` est **exhaustif** : ajouter un contexte sans dire qui le prend ne compile plus — la
+  garantie qu'un test approchait à la main. Et le bras d'une modale rendant `Action::None` à défaut,
+  **il n'y a plus d'étage en dessous où tomber** : le piège du `?` sur un champ interne à une
+  fenêtre, qui faisait agir une touche derrière elle, est devenu inoffensif.
+- Les quatre étages de l'ADR 0009 ne concernent plus que les contextes d'**espace** ; l'ADR est
+  reformulé en conséquence. Aucune nouvelle abstraction : pas de trait, pas de `Box<dyn>`, pas de
+  priorité numérique — un `match` droit à la place d'une chaîne de `if` dupliquée.
+- **`keyboard.ref.txt` est strictement inchangé** : c'est tout le contrat de ce déplacement, dans le
+  même esprit que les rendus de référence de `dsp`.
+
 ### Interne (#252)
 - **La jointure du clavier va maintenant dans les deux sens.** « Déclaré ⇒ possédé » était gardé ;
   **« agit ⇒ déclaré »** ne l'était par rien, alors que trois des cinq divergences d'origine étaient
