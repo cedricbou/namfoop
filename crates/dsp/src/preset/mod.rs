@@ -134,8 +134,8 @@ pub struct PresetSpec {
     #[serde(default)]
     pub name: String,
     /// **Volume du preset** (dB), appliqué après l'alignement de niveau sur le DI et avant le
-    /// master (#179) : c'est ce qui permet d'équilibrer les presets entre eux, là où un bloc `gain`
-    /// serait annulé par l'alignement (#178). Déclaré **avant** `blocks` : en TOML, une valeur ne
+    /// master : c'est ce qui permet d'équilibrer les presets entre eux, là où un bloc `gain`
+    /// serait annulé par l'alignement. Déclaré **avant** `blocks` : en TOML, une valeur ne
     /// peut pas s'écrire après un tableau de tables.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub volume_db: f32,

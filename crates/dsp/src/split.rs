@@ -19,7 +19,7 @@
 //! ```
 //!
 //! Somme = `AP(f1) · AP(f2) · AP(f3)` : plate. À une seule coupure, il ne reste que `LP(f1)` et
-//! `HP(f1)` — exactement le crossover d'avant, au bit près.
+//! `HP(f1)` : le crossover à deux bandes de `--crossover`, au bit près.
 //!
 //! Compensation de retard : à la construction, le retard de chaque branche est mesuré (bruit
 //! d'essai, corrélation croisée entrée / sortie sur 0–20 ms) et les plus courtes sont retardées
@@ -60,7 +60,7 @@ pub struct SplitBranch {
     /// Branche muette : pas traitée du tout, donc rien à sommer.
     pub mute: bool,
     /// Vumètre d'affichage : crête de ce que la branche envoie à la somme, gain et polarité
-    /// compris (#107). Une branche muette reste donc à zéro.
+    /// compris. Une branche muette reste donc à zéro.
     pub meter: Option<Meter>,
 }
 
@@ -301,7 +301,7 @@ impl Split {
 }
 
 impl Stage for Split {
-    /// Le **maximum** des branches audibles (#173) : elles sonnent en parallèle, donc la plus
+    /// Le **maximum** des branches audibles : elles sonnent en parallèle, donc la plus
     /// longue décide. Une branche muette n'est pas traitée, elle ne sonne pas.
     fn tail_ms(&self) -> f32 {
         self.branches.iter().filter(|b| !b.muted).map(|b| b.chain.tail_ms()).fold(0.0f32, f32::max)

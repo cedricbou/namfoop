@@ -9,7 +9,7 @@ pub mod import;
 pub mod model_profile;
 pub mod overrides;
 pub mod profile;
-/// Le prompteur d'un morceau : un fichier ChordPro lu, pas écrit (#222).
+/// Le prompteur d'un morceau : un fichier ChordPro lu, pas écrit.
 pub mod prompt;
 pub mod recommend;
 pub mod set;
@@ -67,9 +67,9 @@ pub enum Kind {
     Ir,
     /// Mélange d'IR (`library/cabs/*.cab.toml`).
     Cab,
-    /// Preset : une chaîne enregistrée (`library/presets/*.preset.toml`, #157).
+    /// Preset : une chaîne enregistrée (`library/presets/*.preset.toml`).
     Preset,
-    /// Set de concert : des morceaux, chacun avec ses sons (`library/sets/*.set.toml`, #217).
+    /// Set de concert : des morceaux, chacun avec ses sons (`library/sets/*.set.toml`).
     Set,
 }
 
@@ -243,7 +243,7 @@ impl Library {
         self.resolve_in(query, &[Kind::Cab, Kind::Ir])
     }
 
-    /// Un preset par son identifiant court ou ses mots-clés (`--preset`, #159).
+    /// Un preset par son identifiant court ou ses mots-clés (`--preset`).
     pub fn resolve_preset(&self, query: &str) -> Result<PathBuf> {
         self.resolve_in(query, &[Kind::Preset])
     }
@@ -267,7 +267,7 @@ impl Library {
         self.root.join("presets").join(format!("{}.preset.toml", name.replace(['/', '\\'], "-")))
     }
 
-    /// Un set par son identifiant court ou ses mots-clés (`run --set`, #217).
+    /// Un set par son identifiant court ou ses mots-clés (`run --set`).
     pub fn resolve_set(&self, query: &str) -> Result<PathBuf> {
         self.resolve_in(query, &[Kind::Set])
     }
@@ -284,7 +284,7 @@ impl Library {
     }
 
     /// Le dossier des sets : `library/sets/`. C'est là que se résolvent les chemins de prompteur
-    /// d'un set tout juste créé, qui n'a pas encore de fichier (#220, #222).
+    /// d'un set tout juste créé, qui n'a pas encore de fichier.
     pub fn sets_dir(&self) -> PathBuf {
         self.root.join("sets")
     }

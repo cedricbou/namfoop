@@ -1,4 +1,4 @@
-//! Ce que coûte de GARDER des chaînes bâties en mémoire (#6, banque préchargée) : mémoire
+//! Ce que coûte de GARDER des chaînes bâties en mémoire (la banque préchargée) : mémoire
 //! résidente par chaîne, temps de construction, part du préchauffage. Mesure, pas de verdict :
 //! aucune assertion serrée (une mesure ne doit pas faire échouer la CI).
 //!

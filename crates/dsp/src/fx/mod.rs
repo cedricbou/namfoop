@@ -1,5 +1,5 @@
 //! Effets : une seule description par effet, partagée par la CLI (`--pre` / `--post`, `namfoop fx`),
-//! `browse`, les presets (#6) et les CC MIDI (#7). Voir `docs/adr/0005-effets-et-chaines.md`.
+//! `browse`, les presets et les CC MIDI. Voir `docs/adr/0005-effets-et-chaines.md`.
 //!
 //! Un effet = des paramètres sérialisables (`FxSpec`, des données) + un [`Stage`] (le calcul, construit
 //! par [`FxSpec::build`]). Chaque paramètre est décrit par un [`ParamInfo`] (nom, unité, plage, défaut,
@@ -78,7 +78,7 @@ impl Unit {
 /// Ce que [`Effect::build`] a besoin de savoir, une fois pour toute la chaîne.
 ///
 /// Un contexte plutôt que des arguments qui s'ajoutent un à un : le tempo est le premier réglage
-/// que **plusieurs** étages dérivent d'une même valeur (ADR 0008), et le suivant (`set_param`, #6)
+/// que **plusieurs** étages dérivent d'une même valeur (ADR 0008), et le suivant (`set_param`)
 /// voyagera par ici sans toucher aux onze effets.
 #[derive(Clone, Debug)]
 pub struct BuildCtx {
@@ -279,7 +279,7 @@ impl FxSpec {
         with_effect!(self, e => e.build(ctx))
     }
 
-    /// Cet effet publie-t-il une **action** pour le synoptique de `browse` (#107) : la réduction
+    /// Cet effet publie-t-il une **action** pour le synoptique de `browse` : la réduction
     /// de gain du compresseur, la fermeture du gate ?
     pub fn has_action_meter(&self) -> bool {
         matches!(self, FxSpec::Comp(_) | FxSpec::Gate(_))
@@ -355,7 +355,7 @@ impl std::str::FromStr for FxSpec {
         let kind = kind.trim();
         if STRUCTURAL_KINDS.contains(&kind.to_lowercase().as_str()) {
             let what = "le parallèle n'est pas un effet mais un bloc de la chaîne : ses branches ne";
-            let why = "se décrivent pas en texte, seulement dans un preset (#6)";
+            let why = "se décrivent pas en texte, seulement dans un preset";
             let hint = "--crossover HZ pour garder le grave clair sous le son saturé";
             return Err(Error::Fx(format!("{kind} : {what} {why} ; {hint}")));
         }
@@ -474,14 +474,14 @@ mod tests {
     }
 
     /// Le parallèle n'est pas un effet : il n'est pas au catalogue, et écrit en mini-syntaxe il
-    /// renvoie à l'endroit où ses branches se décrivent (#102, ADR 0006).
+    /// renvoie à l'endroit où ses branches se décrivent (ADR 0006).
     #[test]
     fn the_parallel_is_not_an_effect() {
         assert!(catalog().iter().all(|f| f.kind() != "split"), "split n'est pas un effet");
         for text in ["split", "split:freq=200", "Parallèle", "parallele:freq=150"] {
             let err = text.parse::<FxSpec>().unwrap_err().to_string();
             assert!(err.contains("bloc de la chaîne"), "{text} : {err}");
-            assert!(err.contains("preset (#6)") && err.contains("--crossover"), "{text} : {err}");
+            assert!(err.contains("dans un preset") && err.contains("--crossover"), "{text} : {err}");
         }
         // un nom vraiment inconnu garde son message habituel
         let err = "fuzz".parse::<FxSpec>().unwrap_err().to_string();

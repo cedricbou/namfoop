@@ -155,7 +155,7 @@ pub struct Metronome {
 }
 
 /// Les sons de clic. `bois` par défaut : attaque instantanée et décroissance courte, ce qui
-/// **perce** un mix de basse là où un bip tonal se noie (#230).
+/// **perce** un mix de basse là où un bip tonal se noie.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ClickSound {
@@ -166,8 +166,8 @@ pub enum ClickSound {
     /// **Tic sec** : une salve de bruit filtrée de quelques millisecondes. Le plus percussif, le
     /// moins musical — il ne porte pas de hauteur, seul le filtre change à l'accent.
     Tic,
-    /// **Bip** : sinus de 25 ms à enveloppe douce. Le plus doux, et le moins percussif ; c'était le
-    /// seul son jusqu'à #230.
+    /// **Bip** : sinus de 25 ms à enveloppe douce. Le plus doux, et le moins percussif — son
+    /// attaque de 12,6 ms est ce qui le fait disparaître dans un retour de basse.
     Bip,
 }
 

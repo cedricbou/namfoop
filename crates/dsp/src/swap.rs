@@ -13,7 +13,7 @@
 //! **reprendre** ([`SwapHandle::reclaim`]) pour les garder bâties et les rejouer sans les
 //! reconstruire : c'est ce que fait `engine::bank`.
 //!
-//! **Queue de preset** (`trails_ms`, #172). Le fondu porte sur l'**entrée** des deux chaînes, pas
+//! **Queue de preset** (`trails_ms`). Le fondu porte sur l'**entrée** des deux chaînes, pas
 //! sur leur sortie : la sortie de l'ancienne garde son gain, si bien que sa réverbe (ou son delay)
 //! peut **finir de sonner** après le fondu, pendant que le nouveau son attaque. La chaîne qu'on
 //! quitte passe donc dans une place à part, la **queue** : elle est alimentée en silence, sa sortie
@@ -22,8 +22,8 @@
 //!
 //! Deux chaînes tournent donc pendant la queue (trois pendant les 20 ms d'un fondu qui interrompt
 //! une queue : la précédente s'éteint en même temps). C'est le prix de la queue, et c'est pour ça
-//! qu'elle se règle : `trails_ms = 0` rend exactement l'ancien comportement, à ceci près que la
-//! queue garde son fondu de sortie.
+//! qu'elle se règle : `trails_ms = 0` coupe la queue, et la chaîne quittée part alors avec son
+//! seul fondu de sortie (23 ms).
 
 use rtrb::{Consumer, Producer, RingBuffer};
 
@@ -36,7 +36,7 @@ const TAIL_FADE_MS: f32 = 20.0;
 pub struct SwapChain {
     current: Box<Chain>,
     incoming: Option<Box<Chain>>,
-    /// La chaîne qu'on vient de quitter, qui **finit de sonner** (entrée muette, #172).
+    /// La chaîne qu'on vient de quitter, qui **finit de sonner** (entrée muette).
     tail: Option<Box<Chain>>,
     rx_new: Consumer<Box<Chain>>,
     tx_old: Producer<Box<Chain>>,
@@ -45,14 +45,14 @@ pub struct SwapChain {
     /// Durée maximale d'une queue (échantillons) et longueur de son fondu de sortie.
     trails_len: usize,
     ramp_len: usize,
-    /// Fréquence d'échantillonnage : convertit la durée annoncée par une chaîne (#173).
+    /// Fréquence d'échantillonnage : convertit la durée annoncée par une chaîne.
     sample_rate: u32,
     /// Gain de sortie de la queue (1 tant qu'elle sonne) et son pas d'extinction par échantillon
     /// (0 : pas encore en extinction).
     tail_gain: f32,
     tail_step: f32,
     /// Échantillons restants avant extinction : la chaîne quittée a **dit** combien de temps elle
-    /// pouvait encore sonner (`Stage::tail_ms`, #173), plafonné par `trails_ms`.
+    /// pouvait encore sonner (`Stage::tail_ms`), plafonné par `trails_ms`.
     tail_left: usize,
     dry: Vec<f32>,
     wet: Vec<f32>,
@@ -68,7 +68,7 @@ pub struct SwapHandle {
 }
 
 /// Crée la paire. `max_block` : taille de bloc au-delà de laquelle `process` découpe. `trails_ms` :
-/// durée maximale de la **queue** du preset quitté (0 : juste le fondu de sortie, #172).
+/// durée maximale de la **queue** du preset quitté (0 : juste le fondu de sortie).
 pub fn swap_pair(
     initial: Chain,
     sample_rate: u32,
@@ -124,7 +124,7 @@ impl SwapHandle {
     }
 
     /// **Reprend** une chaîne rendue par le thread audio au lieu de la libérer, pour la garder
-    /// bâtie et la rejouer sans la reconstruire (banque préchargée, #6). À appeler hors temps réel.
+    /// bâtie et la rejouer sans la reconstruire (banque préchargée). À appeler hors temps réel.
     pub fn reclaim(&mut self) -> Option<Chain> {
         self.rx_old.pop().ok().map(|b| *b)
     }
@@ -147,7 +147,7 @@ impl SwapChain {
         self.incoming.is_some()
     }
 
-    /// Une chaîne quittée finit de sonner (#172) : elle n'est donc pas encore rendue au contrôle.
+    /// Une chaîne quittée finit de sonner : elle n'est donc pas encore rendue au contrôle.
     pub fn tailing(&self) -> bool {
         self.tail.is_some()
     }
@@ -165,7 +165,7 @@ impl SwapChain {
                 // une seule queue à la fois : celle qui sonne encore s'éteint pendant le fondu,
                 // pour que le thread audio ne traite jamais plus de trois chaînes
                 self.fade_tail_out(self.ramp_len.min(self.fade_len));
-                // la chaîne qui s'en va **fige son rythme** maintenant (#225), au début du fondu :
+                // la chaîne qui s'en va **fige son rythme** maintenant, au début du fondu :
                 // c'est le plus tôt qu'elle puisse l'apprendre, et la case de tempo contient déjà
                 // celui du preset suivant. Attendre la fin du fondu lui ferait adopter ce dernier.
                 self.current.enter_trail();
@@ -179,7 +179,7 @@ impl SwapChain {
             None => self.current.process(buf),
             Some(next) => {
                 let (dry, wet) = (&mut self.dry[..n], &mut self.wet[..n]);
-                // fondu à puissance constante sur l'**entrée** des deux chaînes (#172) : la sortie
+                // fondu à puissance constante sur l'**entrée** des deux chaînes : la sortie
                 // de l'ancienne garde son gain, donc sa réverbe peut finir de sonner après (queue).
                 for k in 0..n {
                     let t = ((self.fade_pos + k) as f32 / self.fade_len as f32).min(1.0);
@@ -209,7 +209,7 @@ impl SwapChain {
             // son rythme est déjà figé (au début du fondu, voir plus haut) : `tail_ms` est donc
             // cohérent avec ce qu'elle va vraiment jouer.
             // on **demande** à la chaîne quittée ce qu'elle peut encore sonner, au lieu de
-            // l'écouter décroître (#173) : une somme de quelques appels virtuels, une seule fois
+            // l'écouter décroître : une somme de quelques appels virtuels, une seule fois
             // par bascule, sans allocation. Le fondu de sortie est compris dans le compte.
             let want = self.samples(old.tail_ms()) + self.ramp_len;
             self.tail = Some(old);
@@ -229,7 +229,7 @@ impl SwapChain {
     }
 
     /// La queue : la chaîne quittée tourne sur du silence et sa sortie s'ajoute à celle de la
-    /// chaîne en écoute, le temps qu'elle a **annoncé** (`Stage::tail_ms`, #173), plafonné par
+    /// chaîne en écoute, le temps qu'elle a **annoncé** (`Stage::tail_ms`), plafonné par
     /// `trails_ms`.
     fn mix_tail(&mut self, buf: &mut [f32]) {
         let n = buf.len();
@@ -340,7 +340,7 @@ mod tests {
         assert!(ctl.send(gain_chain(-12.0)).is_ok(), "place libérée");
     }
 
-    /// **Queue de preset** (#172) : la chaîne qu'on quitte finit de sonner. Un écho programmé
+    /// **Queue de preset** : la chaîne qu'on quitte finit de sonner. Un écho programmé
     /// 100 ms après le coup de basse arrive donc **après** la bascule, alors que le fondu ne dure
     /// que 10 ms — et sans queue (`trails_ms = 0`) il est bel et bien coupé.
     #[test]

@@ -28,16 +28,16 @@ pub use chain::Chain;
 /// Un étage mono qui traite le buffer sur place.
 pub trait Stage: Send {
     fn process(&mut self, buf: &mut [f32]);
-    /// Combien de temps (ms) cet étage peut **encore sonner** une fois son entrée silencieuse
-    /// (#173). Défaut **0** : un gain, un EQ, un gate, un modèle NAM n'ont pas de queue.
+    /// Combien de temps (ms) cet étage peut **encore sonner** une fois son entrée silencieuse.
+    /// Défaut **0** : un gain, un EQ, un gate, un modèle NAM n'ont pas de queue.
     ///
-    /// C'est ce que la **queue de preset** (`swap::SwapChain`) garde la chaîne quittée en vie :
-    /// elle le *demande* au lieu de le deviner en écoutant le silence, ce qui coupait les
-    /// répétitions d'un delay espacées de plus de 500 ms et faisait tourner deux chaînes pour rien
-    /// pendant un demi-tiers de seconde sur un `nam › ir` qui ne sonne pas.
+    /// C'est ce que la **queue de preset** (`swap::SwapChain`) garde la chaîne quittée en vie : elle
+    /// le *demande* à la chaîne plutôt que de l'écouter s'éteindre. Écouter le silence couperait les
+    /// répétitions d'un delay espacées de plus de 500 ms, et ferait tourner deux chaînes un demi-
+    /// tiers de seconde pour un `nam › ir`, qui ne sonne pas.
     ///
-    /// Convention : la durée pour tomber sous **-60 dBFS**, le même seuil d'audibilité que celui
-    /// qu'utilisait la mesure (un modèle NAM alimenté en silence sort déjà un plancher à -62).
+    /// Convention : la durée pour tomber sous **-60 dBFS** — un modèle NAM alimenté en silence sort
+    /// déjà un plancher à -62, donc un seuil plus bas ne se déclencherait jamais.
     /// `Chain` **somme** celle de ses étages (une réverbe derrière un delay continue de sonner
     /// après la dernière répétition) et `Split` prend le **maximum** de ses branches.
     /// Appelable depuis le temps réel : aucune allocation, aucune panique.
@@ -48,9 +48,9 @@ pub trait Stage: Send {
     /// gel posé par [`Stage::enter_trail`].
     /// **Hors temps réel** : peut allouer (NAM refait son prewarm).
     fn reset(&mut self) {}
-    /// Appelé **une fois**, en temps réel, quand cette chaîne passe dans la **queue de preset**
-    /// (#172) : l'étage doit cesser de suivre les réglages vivants de **rythme** et figer ce
-    /// qu'il a (#225).
+    /// Appelé **une fois**, en temps réel, quand cette chaîne passe dans la **queue de
+    /// preset** : l'étage doit cesser de suivre les réglages vivants de **rythme** et figer ce
+    /// qu'il a.
     ///
     /// La case de tempo est unique et partagée par toutes les chaînes audibles (ADR 0007). Pour un
     /// **niveau** c'est ce qu'on veut : le volume suit, aucun saut pendant le fondu. Pour un

@@ -76,7 +76,7 @@ fn rms(x: &[f32]) -> f32 {
 }
 
 /// Mode « match » : la **loudness** du son traité (NAM + IR) égale celle du DI de référence. C'est
-/// une loudness pondérée K et non un RMS large (#181) : le RMS, lui, s'écarte de quelques dB,
+/// une loudness pondérée K et non un RMS large : le RMS, lui, s'écarte de quelques dB,
 /// puisque le son traité ne met pas son énergie aux mêmes fréquences que la basse nue.
 #[test]
 fn level_match_equalizes_loudness_with_di() {
@@ -95,7 +95,7 @@ fn level_match_equalizes_loudness_with_di() {
         let out = render(&spec, 64, &reference);
         let loud = dsp::profile::loudness_db(&out, 48000) - dsp::profile::loudness_db(&reference, 48000);
         assert!(loud.abs() < 0.5, "trim {trim} : écart de loudness {loud:.2} dB");
-        // le RMS large, lui, n'est plus égal : c'est le changement voulu par #181
+        // le RMS large, lui, n'est pas égal : c'est l'effet voulu de la pondération K
         let large = 20.0 * (rms(&out) / rms(&reference)).log10();
         assert!(large.abs() < 6.0, "trim {trim} : écart de RMS {large:.2} dB, invraisemblable");
     }
@@ -167,7 +167,7 @@ fn trim_before_pre_effects_sounds_the_same() {
 
 /// Le niveau « match » se mesure sur la chaîne avec ses effets : un `post` à -6 dB est compensé.
 /// Un gain est le seul cas où la compensation est **exacte** : il ne change pas le spectre, donc
-/// loudness et RMS bougent ensemble (#181).
+/// loudness et RMS bougent ensemble.
 #[test]
 fn level_match_includes_effects() {
     use dsp::chain::Level;
@@ -186,7 +186,7 @@ fn level_match_includes_effects() {
 }
 
 /// Le **volume du preset** s'applique après l'alignement sur le DI : contrairement à un bloc
-/// `gain` (#178), il change bien le niveau de sortie (#179).
+/// `gain`, il change bien le niveau de sortie.
 #[test]
 fn the_preset_volume_survives_the_di_alignment() {
     use dsp::block::{BlockSpec, ChainSpec};
@@ -215,7 +215,7 @@ fn the_preset_volume_survives_the_di_alignment() {
     assert!(spec((-6.0).into()).describe().contains("volume -6.0 dB"), "{}", spec((-6.0).into()).describe());
     assert!(!spec(0.0.into()).describe().contains("volume"), "un volume nul ne se dit pas");
 
-    // vivant (#187) : la même chose, mais réglable après la construction — et la chaîne est bâtie
+    // vivant : la même chose, mais réglable après la construction — et la chaîne est bâtie
     // alors que la case vaut 0, le cas qui n'aurait aucun étage si on gardait le garde-fou
     let control = dsp::param::Control::new(0.0);
     let mut chain = spec(control.clone().into()).build(48000, 64).unwrap();
@@ -231,7 +231,7 @@ fn the_preset_volume_survives_the_di_alignment() {
 }
 
 /// L'alignement sur le DI **annule** un bloc `gain`, et sa valeur est publiée dans la table de
-/// vumètres pour que l'écran puisse la montrer (#178).
+/// vumètres pour que l'écran puisse la montrer.
 #[test]
 fn the_di_alignment_cancels_a_gain_block_and_is_published() {
     use dsp::block::{BlockSpec, ChainSpec};
@@ -458,7 +458,7 @@ fn crossover_around_the_model() {
     let _ = std::fs::remove_file(ir);
 }
 
-/// Coût de **plusieurs modèles en parallèle** (#111) : la chaîne `◆ copie [nam › ir | nam › ir | …]`
+/// Coût de **plusieurs modèles en parallèle** : la chaîne `◆ copie [nam › ir | nam › ir | …]`
 /// à 1, 2, 3 et 4 branches, mesurée par bloc de 64 et de 48 (moyenne et pire cas).
 /// Lancer en release pour des chiffres comparables au `bench` :
 /// `cargo test --release -p dsp --test chain -- --nocapture cost_of_several_models`.
@@ -522,7 +522,7 @@ fn cost_of_several_models_in_parallel() {
     let _ = std::fs::remove_file(ir);
 }
 
-/// `Stage::tail_ms` (#173) : la **somme** le long de la série, le **maximum** entre les branches
+/// `Stage::tail_ms` : la **somme** le long de la série, le **maximum** entre les branches
 /// d'un parallèle, et **zéro** pour ce qui ne sonne pas. C'est ce que la queue de preset demande
 /// à la chaîne au lieu de l'écouter décroître.
 #[test]

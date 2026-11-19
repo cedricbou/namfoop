@@ -1,4 +1,4 @@
-//! **Queue de preset** (#172) : ce que coûte et ce que dure la chaîne qu'on vient de quitter
+//! **Queue de preset** : ce que coûte et ce que dure la chaîne qu'on vient de quitter
 //! pendant qu'elle finit de sonner. Mesures, pas de seuils serrés (une mesure ne doit pas casser
 //! la CI) : lire les chiffres avec
 //! `cargo test --release -p dsp --test trails -- --nocapture --test-threads=1` (sans
@@ -97,18 +97,18 @@ fn what_a_tail_costs_and_how_long_it_lasts() {
     println!("  nam › reverb, --no-trails          queue {ms:6.0} ms (le fondu de sortie seul)");
     assert!(ms > 0.0 && ms < 60.0, "sans queue, la chaîne part tout de suite : {ms} ms");
 
-    // #173 : une chaîne **qui ne sonne pas** ne doit plus être gardée en vie. Avant, la queue
+    // une chaîne **qui ne sonne pas** n'est pas gardée en vie. La queue
     // attendait 500 ms de silence mesuré et payait donc deux chaînes pendant 521 ms pour rien ;
     // maintenant elle demande la durée à la chaîne, qui répond 0.
     let (ms, _, _) = measure(&[], 2000.0);
-    assert!(ms < 100.0, "une chaîne sans queue doit partir tout de suite : {ms} ms (#173)");
+    assert!(ms < 100.0, "une chaîne sans queue doit partir tout de suite : {ms} ms");
 
     // et une chaîne qui sonne est gardée le temps qu'elle a annoncé, sans être coupée à 500 ms
     let (ms, _, _) = measure(&["reverb"], 2000.0);
-    assert!(ms > 1000.0, "la réverbe par défaut annonce ~1,1 s de queue : {ms} ms (#173)");
+    assert!(ms > 1000.0, "la réverbe par défaut annonce ~1,1 s de queue : {ms} ms");
 }
 
-/// Le fondu porte maintenant sur l'**entrée** des deux chaînes (#172) : vérifier qu'il ne creuse ni
+/// Le fondu porte maintenant sur l'**entrée** des deux chaînes : vérifier qu'il ne creuse ni
 /// ne gonfle le son direct plus que l'ancien fondu sur la **sortie** (rejoué ici à la main). Le
 /// pire cas n'est pas la non-linéarité du modèle mais la **corrélation** : deux chaînes qui sortent
 /// le même signal s'additionnent, et un fondu à puissance constante les gonfle de +3 dB — c'était
@@ -164,7 +164,9 @@ fn the_input_fade_does_not_dip_more_than_the_old_output_fade() {
         ("nam › gate -> nam", &["gate:threshold=-40"][..], &[][..]),
     ] {
         let mut shown = [0.0f32; 2];
-        for (k, (how, on_input)) in [("entrée (#172)", true), ("sortie (avant)", false)].iter().enumerate() {
+        for (k, (how, on_input)) in
+            [("fondu sur l'entrée", true), ("fondu sur la sortie", false)].iter().enumerate()
+        {
             let env = fade(a, b, *on_input);
             let before = env[5..12].iter().fold(0.0f32, |m, x| m.max(*x));
             let (hi, lo) = env[12..16].iter().fold((0.0f32, f32::MAX), |(h, l), x| (h.max(*x), l.min(*x)));
@@ -181,7 +183,7 @@ fn the_input_fade_does_not_dip_more_than_the_old_output_fade() {
     assert!(worst < 1.5, "le fondu sur l'entrée gonfle {worst:.2} dB de plus que celui sur la sortie");
 }
 
-/// **#225 : la queue garde le rythme de son propre preset.** Un `delay` synchronisé à 60 BPM passe
+/// **La queue garde le rythme de son propre preset.** Un `delay` synchronisé à 60 BPM passe
 /// dans la queue, puis le preset suivant impose 120 BPM : les répétitions en cours ne doivent pas
 /// s'accélérer. La case de tempo est unique et partagée (ADR 0007) — ce qui est juste pour un
 /// **niveau** et faux pour un **rythme**, d'où `Stage::enter_trail`.
@@ -237,7 +239,7 @@ fn a_trail_keeps_the_tempo_of_its_own_preset() {
     }
     let ms = |s: usize| s as f32 * 1000.0 / RATE as f32;
     println!(
-        "\n#225 queue d'un delay 1/8 à 60 BPM, preset suivant à 120 BPM :\n  répétitions à {:?} ms",
+        "\nqueue d'un delay 1/8 à 60 BPM, preset suivant à 120 BPM :\n  répétitions à {:?} ms",
         peaks.iter().map(|p| ms(*p).round()).collect::<Vec<_>>()
     );
     assert!(peaks.len() >= 3, "au moins trois répétitions attendues : {peaks:?}");
@@ -246,7 +248,7 @@ fn a_trail_keeps_the_tempo_of_its_own_preset() {
         assert!(
             (ms(*p) - want).abs() < 20.0,
             "répétition {} à {:.0} ms au lieu de {want:.0} : la queue a suivi le tempo du preset \
-             suivant (#225)",
+             suivant",
             k + 1,
             ms(*p)
         );

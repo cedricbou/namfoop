@@ -45,8 +45,7 @@ pub struct MetronomeConfig {
     pub downbeat: Control,
     /// Temps par mesure ; le premier est accentué. 1 : aucun accent.
     pub beats_per_bar: u32,
-    /// Le **son** du clic : ce qui passe dans un retour de basse ne se choisit qu'à l'oreille
-    /// (#230).
+    /// Le **son** du clic : ce qui passe dans un retour de basse ne se choisit qu'à l'oreille.
     pub sound: ClickSound,
 }
 
@@ -176,7 +175,8 @@ impl Metronome {
         self.burst_left -= 1;
         match self.cfg.sound {
             ClickSound::Bip => {
-                // l'ancien son : enveloppe en cosinus surélevé, douce et symétrique
+                // `bip` : enveloppe en cosinus surélevé, douce et symétrique — donc une attaque
+                // lente (12,6 ms), mesurée plus bas
                 let k = done as f32 / self.burst_len as f32;
                 let env = 0.5 * (1.0 - (std::f32::consts::TAU * k).cos());
                 let v = self.phase.sin() * env;
@@ -345,7 +345,7 @@ mod tests {
         assert!(render(&mut m, 4096).iter().all(|x| x.is_finite()));
     }
 
-    /// **Ce qui fait un clic percussif, mesuré** (#230) : le temps pour atteindre la crête
+    /// **Ce qui fait un clic percussif, mesuré** : le temps pour atteindre la crête
     /// (l'attaque) et celui pour retomber sous -40 dB de cette crête. `bip` montait en 12,5 ms,
     /// d'où un son tonal qui se noie dans une basse ; `bois` et `tic` attaquent en moins d'une
     /// milliseconde.
@@ -375,11 +375,11 @@ mod tests {
                     assert!(ms(peak_at) < 1.0, "{} : attaque en {:.2} ms", sound.name(), ms(peak_at));
                     assert!(ms(end) < 26.0, "{} : extinction à {:.1} ms", sound.name(), ms(end));
                 }
-                // l'ancien son : attaque lente, c'est précisément ce qui lui manquait
+                // `bip` : attaque lente, et c'est précisément ce qui le noie dans un retour
                 ClickSound::Bip => assert!(ms(peak_at) > 5.0, "{:.2} ms", ms(peak_at)),
             }
         }
-        println!("\nsons de clic (#230) :\n{report}");
+        println!("\nsons de clic :\n{report}");
     }
 
     /// L'accent est plus **brillant** quel que soit le son : `tic` n'a pas de hauteur (c'est du

@@ -1,6 +1,6 @@
 //! Chaîne en **blocs** (ADR 0006) : une [`ChainSpec`] est une liste de [`BlockSpec`] entre l'entrée
 //! et la sortie. Un bloc est un effet, un **modèle NAM**, une **IR**, ou un **parallèle**
-//! ([`SplitSpec`] : 2 à 4 branches, chacune une liste de blocs). L'ampli n'est donc plus coincé
+//! ([`SplitSpec`] : 2 à 4 branches, chacune une liste de blocs). L'ampli n'est donc pas coincé
 //! entre `pre` et `post` : on peut mettre « son direct en grave | NAM › IR en aigu », ou
 //! « propre | fuzz capturée › IR | ampli › IR ».
 //!
@@ -12,12 +12,12 @@
 //! - **un seul niveau** de parallèle : un parallèle dans une branche est refusé ;
 //! - 2 à [`crate::split::MAX_BRANCHES`] branches, coupures croissantes dans leur plage
 //!   (vérifiées par [`crate::split::Split::new`]) ;
-//! - **plusieurs NAM** sont permis (leur coût est mesuré dans #111).
+//! - **plusieurs NAM** sont permis (leur coût s'ajoute : voir `crates/dsp/CLAUDE.md`).
 //!
 //! **Trim** (gain de l'instrument, mesuré par `namfoop calibrate`) : en tête de chaîne. Quand la
 //! chaîne n'a **qu'un seul** NAM et que rien ne le précède dans son chemin (ni bloc avant lui dans
 //! sa branche, ni bloc avant le parallèle), il reste **dans l'étage NAM** : le son est alors
-//! identique au bit près à celui d'avant les blocs. Sans NAM, pas de trim (c'est le gain de
+//! identique au bit près à celui d'une chaîne sans parallèle. Sans NAM, pas de trim (c'est le gain de
 //! l'instrument vers le modèle).
 //!
 //! **Alignement des branches** (généralise le grave clair de `--crossover`) : une branche **sans**
@@ -96,7 +96,7 @@ pub struct ChainSpec {
     pub blocks: Vec<BlockSpec>,
     pub level: Level,
     /// **Volume propre à la chaîne**, appliqué **après** l'alignement de niveau et **avant** le
-    /// master (#179). C'est le seul gain qu'un preset peut porter sans être annulé par
+    /// master. C'est le seul gain qu'un preset peut porter sans être annulé par
     /// `Level::Match` : l'alignement se mesure sur les blocs, pas sur lui. Il sert à équilibrer
     /// les presets entre eux ; le master, lui, reste le volume de la scène.
     pub volume: Volume,
@@ -481,7 +481,7 @@ impl ChainSpec {
     }
 
     /// Le trim tient-il dans l'étage NAM ? Oui s'il n'y a qu'un seul NAM et que rien ne le précède
-    /// dans son chemin de signal : le son est alors identique au bit près à celui d'avant les blocs
+    /// dans son chemin de signal : le son est alors identique au bit près à celui d'un seul bloc
     /// (voir l'en-tête du module).
     fn trim_fits_in_the_nam_stage(&self) -> bool {
         if nam_count(&self.blocks) != 1 {
@@ -555,7 +555,7 @@ impl ChainSpec {
             chain.reset();
             // On compare des **loudness pondérées K** (ITU-R BS.1770) et non des RMS larges : à RMS
             // égal, un son qui a mis son énergie là où l'oreille est sensible — un fuzz — s'entend
-            // bien plus fort (#181, mesures dans `crates/dsp/CLAUDE.md`). Le RMS large reste
+            // bien plus fort (mesures dans `crates/dsp/CLAUDE.md`). Le RMS large reste
             // mesuré, et logué, pour pouvoir comparer les deux à l'oreille.
             let (ri, ro) = (crate::chain::rms(&reference), crate::chain::rms(&out));
             let (li, lo) = (
@@ -569,7 +569,7 @@ impl ChainSpec {
                     "niveau aligné sur le DI : {g:+.1} dB (loudness pondérée ; RMS large : {large:+.1} dB)"
                 );
                 chain.push(Gain::db(g, "niveau DI"));
-                // l'écran doit pouvoir le montrer : il annule tout gain posé dans la chaîne (#178)
+                // l'écran doit pouvoir le montrer : il annule tout gain posé dans la chaîne
                 if let Some(m) = meters.as_mut() {
                     m.level_db = Some(g);
                 }
@@ -585,7 +585,7 @@ impl ChainSpec {
             }
             Volume::Db(_) => {}
             // vivant : l'étage est posé **même au neutre**, sinon la case ne serait lue par
-            // personne et le réglage resterait muet (plus rien ne rebâtit la chaîne, #187)
+            // personne et le réglage resterait muet (plus rien ne rebâtit la chaîne)
             Volume::Live(c) => {
                 chain.push(crate::gain::LiveGain::new(c.clone(), sample_rate, "volume"));
             }

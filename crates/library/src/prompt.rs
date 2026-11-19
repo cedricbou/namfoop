@@ -1,5 +1,5 @@
 //! **Le prompteur d'un morceau** : un fichier [ChordPro](https://www.chordpro.org/) lu, pas écrit
-//! (§ 10 de `docs/design/set.md`, #222).
+//! (§ 10 de `docs/design/set.md`).
 //!
 //! Pourquoi ChordPro : c'est le format **de fait** des logiciels de set list, et le texte d'un
 //! concert ne doit pas être prisonnier de namfoop. On en lit un **sous-ensemble** et on ignore le

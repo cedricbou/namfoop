@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#279)
+- **Les en-têtes de module disent ce que le code garantit, sans se comparer à un code qui n'existe
+  plus.** `swap.rs` annonçait « `trails_ms = 0` rend exactement l'ancien comportement », `split.rs`
+  « exactement le crossover d'avant », `block.rs` « identique au bit près à celui d'avant les
+  blocs » : le fait mesuré — une égalité **au bit près** — se garde, mais rapporté à ce qui existe
+  (une chaîne sans parallèle, le crossover à deux bandes de `--crossover`). Le contrat de
+  `Stage::tail_ms` et sa justification ne sont plus écrits deux fois.
+- **Les 90 derniers numéros d'issue du code disparaissent** : le dépôt en compte **zéro** dans ses
+  commentaires, contre 410 occurrences au départ du nettoyage. Les 104 renvois `ADR 000x`, eux,
+  restent — ils pointent vers un document vivant. Partent aussi ceux qui s'affichaient : l'erreur de
+  `--pre split` renvoyait à « un preset (#6) », et le rapport des sons de clic à « #230 ».
+- Les cinq commentaires-titres d'un seul mot de `library` (`// Signal`, `// Cache`, `// Commande`)
+  disent ce que leur section contient ; `metronome.rs` et `model::config` nomment le son `bip` au
+  lieu de « l'ancien son », en gardant ce qui compte : son attaque de 12,6 ms, qui est la raison
+  pour laquelle il se noie dans un retour de basse.
+- Aucun changement de comportement : hors les deux textes ci-dessus et des messages d'assertion,
+  seuls des commentaires bougent ; les rendus de référence et l'oracle du clavier sont inchangés.
+
 ### Interne (#278)
 - **Les commentaires de `namfoop` décrivent ce que le code garantit, et non les bugs qui l'ont fait
   naître.** Les sept blocs de récit de `browse/state/keys.rs` — le journal de la mise en place des

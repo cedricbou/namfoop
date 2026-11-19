@@ -1,4 +1,4 @@
-//! Rendus de référence : filet de non-régression du son avant les déplacements de code (#47, #48).
+//! Rendus de référence : filet de non-régression du son avant les déplacements de code.
 //!
 //! Un signal synthétique déterministe passe dans trois chaînes, en blocs de 16, 48, 64 et 1000
 //! frames. RMS, crête et enveloppe (RMS par fenêtre de 50 ms) sont comparés aux références
