@@ -443,9 +443,9 @@ direct. Conséquences :
 - le volume général se règle avec `--master-db`, et `lim` en bas du navigateur montre si le
   limiteur travaille (s'il est souvent actif, baisse le master, pas l'entrée).
 
-Limite actuelle : l'alignement égalise l'énergie (RMS). À énergie égale, un son clair peut
-paraître un peu moins fort qu'un son saturé. Le temps qu'un volume propre à chaque modèle arrive
-([issue #25](https://github.com/cedricbou/namfoop/issues/25)), compense avec `--master-db`.
+À retenir : l'alignement vise un même volume ressenti, pas un même grain. À niveau aligné, un son
+clair peut paraître un peu moins présent qu'un son saturé — le **volume du preset** (`,` et `.`)
+est là pour ça, et `--master-db` pour le volume de la scène.
 
 #### Étape 5 — Corriger en masse
 
@@ -934,10 +934,9 @@ Trois règles tiennent l'ensemble :
   namfoop browse --no-trails     # ou namfoop run --no-trails
   ```
 
-  La réverbe du preset quitté s'arrête alors net au changement, comme avant, et une seule chaîne
-  tourne. À savoir : la queue ne coûte plus rien quand rien ne sonne (une chaîne `nam › ir` part en
-  23 ms au lieu d'un demi-tiers de seconde), et un delay lent n'est plus coupé entre deux
-  répétitions — la durée est demandée à la chaîne, non devinée en écoutant le silence.
+  La réverbe du preset quitté s'arrête alors net au changement, et une seule chaîne tourne. Sans
+  l'option, la queue dure **exactement le temps que le son met à s'éteindre** : 23 ms pour une
+  chaîne `nam › ir`, qui ne sonne pas, et de quoi laisser passer les répétitions d'un delay lent.
 
   **`t`** déplie le TOML du preset sous le synoptique (replié par défaut : `▸ preset TOML (t)`) —
   pratique pour vérifier ce qui sera écrit, ou pour copier un bloc d'un preset à l'autre.
@@ -1250,13 +1249,13 @@ Ce qui marche quand même :
 | **baisser ou monter la sortie** | `--master-db` (après l'alignement), ou `--level normalize` si tu renonces à l'alignement |
 | **équilibrer deux presets** entre eux | le **volume du preset** : `,` et `.` dans l'espace Chaîne de `browse` (voir ci-dessous). Il s'applique **après** l'alignement, c'est le seul gain du preset qu'il n'annule pas |
 
-**Pondération, et ses limites.** Jusqu'en novembre 2026 l'alignement comparait des RMS larges ; il
-compare maintenant des loudness pondérées K. L'effet est réel mais modeste : sur la bibliothèque,
-une pédale de fuzz est désormais alignée **1,2 dB plus bas** qu'avant, un ampli à 0,1 dB près comme
-avant — soit **1,3 dB** de correction relative entre les deux. Ça ne suffit pas à faire tenir un
-fuzz à côté d'un clair : pour ça, c'est le [volume du preset](#volume-du-preset---et-) qui tranche.
-Une pondération **A** a été mesurée et écartée : elle ignore tellement le grave qu'elle aligne le
-fuzz **plus haut** encore que le RMS large (l'ampli, riche en grave, se retrouve baissé à sa place).
+**Ce que l'alignement corrige, et ce qu'il ne corrige pas.** Il compare des **loudness pondérées
+K** — la mesure de la diffusion, qui tient compte de ce que l'oreille entend vraiment — et non
+l'énergie brute. Sur la bibliothèque, cela baisse une pédale de fuzz d'environ **1,2 dB** et laisse
+un ampli en place : **1,3 dB** de correction relative entre les deux. C'est dans le bon sens, mais
+ça ne suffit pas à faire tenir un fuzz à côté d'un clair, parce que ce qui s'entend alors est une
+différence de **timbre** (un fuzz a bien plus d'aigu à niveau égal) qu'aucune mesure unique ne
+résume. Le réglage qui tranche est le [volume du preset](#volume-du-preset---et-).
 
 `browse` montre cet étage en bout de synoptique (« niveau DI -11.1 dB ») et prévient quand tu poses
 un `gain`. Le grain d'un modèle se règle par l'entrée (`--input-db`, ou l'entrée propre au modèle :
@@ -1270,9 +1269,8 @@ l'alignement de niveau, juste avant le master. C'est ce qui permet qu'un preset 
 
 - dans `browse`, espace Chaîne : **`.`** monte d'1 dB, **`,`** baisse d'1 dB, de -24 à +12 dB ;
 - le réglage **s'entend tout de suite** : c'est le seul gain de la chaîne qui se change sans la
-  rebâtir (#187). Avant, chaque appui rechargeait les modèles et remesurait l'alignement — 143 ms
-  pour un modèle, près de 400 ms pour un parallèle à deux modèles, de quoi croire que le réglage ne
-  faisait rien. Un saut d'1 dB est lissé sur 20 ms, comme un changement de preset ;
+  rebâtir, donc sans recharger les modèles. Un saut d'1 dB est lissé sur 20 ms, comme un changement
+  de preset ;
 - la valeur se lit dans l'en-tête (« preset 2/5 : Couplet · volume +3 dB ») et en bout de
   synoptique, en gris, **après** l'étage « niveau DI » — l'ordre du signal ;
 - elle compte comme une modification : l'en-tête passe à « ● non enregistré », `S` l'enregistre ;
@@ -1319,7 +1317,7 @@ trim › effets pré › modèle NAM › IR › effets post › niveau › maste
 | `delay` | écho | post, vers la fin |
 | `reverb` | un peu d'espace, surtout dans les in-ears | post, en dernier |
 | `gain` | monter ou baisser le niveau à un point de la chaîne | où il faut — mais **avant** le modèle en volume aligné sur le DI, où il ne change que la saturation ([`--level`](#volume-de-sortie--level)) |
-| parallèle | 2 à 4 branches (copie ou bandes) : ce n'est pas un effet mais un **bloc de la chaîne**, décrit dans un preset (#6) ; `--crossover` en ligne de commande | — |
+| parallèle | 2 à 4 branches (copie ou bandes) : ce n'est pas un effet mais un **bloc de la chaîne**, décrit dans un preset ; `--crossover` en ligne de commande | — |
 
 Ordre conseillé : **pré** `gate › comp`, **post** `EQ › chorus › delay › reverb`. Le gate vient en
 premier pour ne pas couper les queues des effets ; la réverbe en dernier pour réverbérer les échos.
@@ -1635,7 +1633,7 @@ est coupée (24 dB/oct), la fondamentale reste nette.
 - `damping` : amortissement des aigus dans la queue (plus : plus sombre, plus naturel).
 - `lowcut` : 150–300 Hz pour une basse ; `mix` : niveau de la réverbe, **bas** (10–20 %), le son
   direct reste à 100 %.
-- Piège : changer un paramètre reconstruit la chaîne et coupe la queue (prototype).
+- Piège : changer un paramètre reconstruit la chaîne et coupe la queue ([§ 17](#17-limites-actuelles)).
 
 ```sh
 namfoop run -m b7k -i "dg212 sm57" --post reverb:decay=1.2,predelay=20,lowcut=250,mix=15
@@ -1676,7 +1674,7 @@ namfoop run -m b7k -i auto --crossover 120 --crossover-low-db -3
 chaîne est une suite de **blocs** entre l'entrée et la sortie : un bloc est un effet, un **modèle
 NAM**, une **IR**, ou un **parallèle**. Le modèle n'est donc plus coincé entre `pre` et `post` : il
 se place où tu veux, y compris dans une branche, et tu peux en mettre **plusieurs** (une fuzz
-capturée devant un ampli, par exemple ; leur coût processeur est mesuré, #111).
+capturée devant un ampli, par exemple ; chacun ajoute son coût processeur).
 
 Un parallèle a **2 à 4 branches** et deux modes :
 
@@ -1691,7 +1689,7 @@ niveau** : pas de parallèle dans une branche (plusieurs parallèles peuvent se 
 Les branches ne se décrivent **pas en ligne de commande** (ce serait illisible) : `--pre split` et
 `--post split` sont refusés — le parallèle n'est pas un effet, il n'est pas au catalogue de
 `namfoop fx` ni de `browse`. Pour autre chose que `--crossover`, ça passe par l'éditeur de chaîne de
-`browse` et les presets (#6).
+`browse` et les presets.
 
 ---
 
@@ -1701,10 +1699,9 @@ Un **set** est la liste ordonnée des morceaux d'un concert, chacun avec **ses s
 de ta bibliothèque, **référencés et non copiés** : modifier un preset le change dans tous les
 morceaux qui s'en servent.
 
-> Ce qui existe aujourd'hui : **construire un set à l'écran** (`e` dans l'espace Set), l'écrire à
-> la main si on préfère, le vérifier avec `namfoop sets`, **lire le prompteur** de chaque morceau
-> (ChordPro), le jouer au pied dans `browse` et sur scène avec `run --set`. La battue et le
-> défilement au tempo viennent ensuite (épique #215).
+> Un set se **construit à l'écran** (`e` dans l'espace Set) ou s'écrit à la main, se vérifie avec
+> `namfoop sets`, porte le **prompteur** de chaque morceau (ChordPro), et se joue au pied dans
+> `browse` comme sur scène avec `run --set`.
 
 ### Le fichier : `library/sets/<nom>.set.toml`
 
@@ -2181,8 +2178,7 @@ le bouton Mixer ne vont pas.
 
 Le retour est cherché au **maximum** du signal dans les 250 ms qui suivent l'impulsion, comparé au
 bruit de fond mesuré juste avant — pas avec un seuil fixe. Il se mesure donc à n'importe quel
-niveau, même quand PipeWire atténue et étale l'impulsion (la sortie à 85 % ne donnait aucune mesure
-avant, #70). Deux pièges qui restent :
+niveau, même quand PipeWire atténue et étale l'impulsion. Deux pièges :
 
 - **ne joue pas pendant la mesure** : une note plus forte que le retour serait prise pour lui. Les
   colonnes `min` / `max` et l'avertissement « mesures instables » le montrent.
