@@ -6,6 +6,26 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#272)
+- **`scripts/check-docs.sh` vérifie les règles mécanisables de `docs/style-doc.md`** (étapes 9 à
+  12) : un numéro d'issue dans un commentaire ou un rustdoc, un mot-signal temporel dans un
+  commentaire, dans `docs/` ou dans un `CLAUDE.md`, un chemin cité qui n'existe plus à HEAD, et la
+  taille d'un document. Une règle non vérifiée redérive ; une règle vérifiée tient derrière le
+  nettoyage qui la suit.
+- Les trois premiers contrôles sont **provisoirement des avertissements** — le dépôt compte 410
+  numéros d'issue dans 394 commentaires et 31 lignes de récit —, parce que le cycle de
+  développement exige une CI verte pour fusionner. Le compte affiché mesure l'avancement des
+  nettoyages ; une dernière PR les passe en échec quand il tombe à zéro.
+- Le contrôle de **référence périmée** annonce combien de chemins il a vérifiés (153 aujourd'hui) :
+  il ne trouve rien, et c'est ce chiffre qui le distingue d'un contrôle qui ne regarde rien.
+- Les numéros d'issue cachés dans une **chaîne littérale** sont comptés à part (17), parce que cinq
+  d'entre eux s'affichent : le champ `what` de la table des touches va dans la fenêtre d'aide, un
+  message d'erreur de `FxSpec` va au terminal, et la ligne de tempo de l'écran Set montre
+  « battue : #223 » en concert.
+- Trois exemptions, chacune pour une raison de genre : le `CHANGELOG.md` **est** de l'histoire, un
+  ADR dit ce qui motive sa décision et se supersède plutôt que se réécrire, et `docs/style-doc.md`
+  doit nommer les mots qu'il proscrit. `docs/cli.md` est engendré : il n'est pas compté.
+
 ### Documentation (#271)
 - **[`docs/style-doc.md`](docs/style-doc.md)** : les règles de ce qu'on écrit à côté du code
   (commentaires, rustdoc, `CLAUDE.md`, `docs/`), cité par le `CLAUDE.md` racine. Onze règles, chacune

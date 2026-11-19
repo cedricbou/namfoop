@@ -64,8 +64,9 @@ En français : `README.md` (chaque sous-commande), `docs/guide.md` (chaque optio
 exemple ```sh), `docs/cli.md` (généré par `scripts/gen-cli-doc.sh`), `CHANGELOG.md` (« Non
 publié »). Pour une fonctionnalité visible : aide clap, cli.md, guide (+ README), changelog, dans le
 même commit. check-docs vérifie aussi les exemples, l'absence de sons versionnés, un `CLAUDE.md`
-par crate cité ici et dans `docs/architecture.md`, et la taille des fichiers (> 600 lignes :
-avertissement, > 1 000 : échec).
+par crate cité ici et dans `docs/architecture.md`, la taille des fichiers (> 600 lignes :
+avertissement, > 1 000 : échec) et les règles mécanisables de `docs/style-doc.md` : numéro d'issue
+dans un commentaire, mot-signal temporel, chemin cité qui n'existe plus.
 
 **Publier une version** : rouler « Non publié » dans une section `## X.Y.Z — AAAA-MM-JJ`, aligner
 `version` de `[workspace.package]` (sinon `namfoop --version` ment : il a annoncé 0.1.0 jusqu'à
