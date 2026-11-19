@@ -95,7 +95,7 @@ fn the_bench_is_heard_without_any_effect_and_the_chain_with_them() {
 }
 
 /// Entrée sur une chaîne vide la crée (`nam › ir`), et le message dit quoi faire ensuite (§ 4).
-/// Chaîne non vide : rien n'est touché (la fenêtre vient avec #135).
+/// Chaîne non vide : rien n'est touché, la fenêtre « quel bloc remplacer » s'en charge.
 #[test]
 fn enter_on_an_empty_chain_creates_it() {
     let mut s = sample();
@@ -222,10 +222,10 @@ fn the_space_keys_wait_for_a_typing_or_a_choice_to_end() {
     assert_eq!(s.space, Space::Library);
 }
 
-/// Non-régression (§ 8) : dans la Chaîne, toutes les touches de l'éditeur de #103 répondent encore,
-/// et `v` masque les vumètres.
+/// Non-régression (§ 8) : dans la Chaîne, toutes les touches de l'éditeur de chaîne répondent, et
+/// `v` masque les vumètres.
 #[test]
-fn the_chain_editor_keys_of_the_epic_103_still_answer() {
+fn the_chain_editor_keys_still_answer() {
     let mut s = with_chain(vec![Block::Leaf(nam(0)), Block::Leaf(ir(2)), fx_block("reverb")]);
     s.fx.cursor = chain::Cursor::Top(2);
     // `v` : les vumètres du synoptique

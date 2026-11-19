@@ -1,4 +1,4 @@
-//! **Éditer un set à l'écran** (`e`, § 8 de `docs/design/set.md`, #220).
+//! **Éditer un set à l'écran** (`e`, § 8 de `docs/design/set.md`).
 //!
 //! Pourquoi à l'écran et pas dans le TOML : un set se bâtit **en écoutant**. On met un preset dans
 //! un morceau, on l'entend, on le remplace. Le fichier reste lisible et éditable à la main, mais ce
@@ -9,7 +9,7 @@
 //! - **viser n'écoute pas.** `↑↓` et `←→` déplacent le cadre jaune sans rien changer à l'oreille.
 //!   Seuls `+` et `Entrée` ouvrent une liste où `↑↓` **essaie** un preset — et `Échap` rend le son
 //!   qu'on jouait. C'est le patron du sélecteur de la Chaîne (§ 5 de `browse-espaces.md`) ;
-//! - **une saisie passe avant toutes les touches** (#175) : tant qu'on tape un titre, un tempo ou
+//! - **une saisie passe avant toutes les touches** : tant qu'on tape un titre, un tempo ou
 //!   un numéro de PC, `a`, `r`, `x` sont des lettres, pas des commandes.
 
 use super::{ActiveSet, At};
@@ -166,7 +166,7 @@ impl State {
     ///
     /// Ils sont appelés à l'étage des **modes** (`keys.rs`), donc **avant la pédale** : pendant une
     /// saisie, `1` est un chiffre du tempo et non un changement d'espace, et `q` une lettre du
-    /// titre et non la sortie de `browse` (#175, ADR 0009). Les deux autres sont des fenêtres, et
+    /// titre et non la sortie de `browse` (ADR 0009). Les deux autres sont des fenêtres, et
     /// une fenêtre ne retombe jamais.
     pub(in crate::browse::state) fn set_edit_mode_key(&mut self, key: Key) -> Option<Action> {
         let e = self.set_edit.as_ref()?;
@@ -209,13 +209,13 @@ impl State {
             Key::Char('.') => self.adjust_sound_volume(VOLUME_STEP_DB),
             // `S` ÉCLIPSE la touche commune (ADR 0009) : en édition de set, on enregistre le set
             Key::Char('S') => self.save_set(),
-            // la touche du pied ne se bloque **jamais** (la leçon de #249) : on édite en écoutant,
+            // la touche du pied ne se bloque **jamais** : on édite en écoutant,
             // donc on doit pouvoir changer de son sans sortir de l'édition
             Key::PageDown | Key::PageUp => self.step_set(key == Key::PageDown),
             // **l'édition ne laisse rien tomber.** Tout le reste lui appartient et reste inerte :
             // sans ça, les touches de la vue scène agissaient derrière un écran qui ne les montre
             // pas — `L` changeait de set en abandonnant les modifications sans rien demander,
-            // `i` dépliait un détail invisible, `P` ouvrait la banque (même famille que #249).
+            // `i` déplierait un détail invisible, `P` ouvrirait la banque.
             _ => {
                 // celles qui ont un sens ailleurs dans cet espace le disent, plutôt que de ne
                 // rien faire du tout (ADR 0009 : une touche possédée mais inerte dit pourquoi)
@@ -326,7 +326,7 @@ impl State {
         Action::None
     }
 
-    /// Les touches d'une saisie. Tout y est une lettre (#175), sauf Entrée, Échap et Retour.
+    /// Les touches d'une saisie. Tout y est une lettre, sauf Entrée, Échap et Retour.
     fn set_typing_key(&mut self, key: Key) -> Action {
         let Some(t) = self.set_edit.as_mut().and_then(|e| e.typing.as_mut()) else {
             return Action::None;
@@ -521,7 +521,7 @@ impl State {
 impl State {
     /// `+` : un son de plus **après** celui qu'on vise, et la liste des presets s'ouvre dessus.
     /// Un son sans preset n'aurait aucun sens, donc Échap le retire (comme un bloc tout juste posé
-    /// par le catalogue, #170).
+    /// par le catalogue).
     fn add_sound(&mut self) -> Action {
         let aim = self.edit_mut().aim;
         let song = aim.song();
@@ -733,7 +733,7 @@ impl State {
     }
 
     /// **`S` : enregistrer le set.** L'écriture est à la boucle (l'état est pur), comme pour un
-    /// preset (#110).
+    /// preset.
     fn save_set(&mut self) -> Action {
         let Some(set) = self.set.as_ref() else { return Action::None };
         if set.stem.trim().is_empty() {

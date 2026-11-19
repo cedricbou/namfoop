@@ -5,7 +5,7 @@ use super::chain::{Block, Branch, Chain, Cursor, Leaf, Mode, Split, Spot, MAX_BR
 use super::State;
 
 /// Ce que répondent les touches d'édition sur la **sortie** d'un parallèle : elle ne sert qu'à
-/// ajouter après lui, tout le reste se règle depuis le `◆` (#152).
+/// ajouter après lui, tout le reste se règle depuis le `◆`.
 pub(super) const MERGE_ELSEWHERE: &str =
     "sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆)";
 
@@ -177,7 +177,7 @@ impl State {
                 self.fx.cursor = Cursor::Top(at);
             }
             // la **sortie** du parallèle : `a` ajoute après lui, `i` à la fin de sa première
-            // branche — le rang où la sortie se trouve (#152, comme le Merge de Helix)
+            // branche — le rang où la sortie se trouve (comme le Merge de Helix)
             Spot::Merge => {
                 if before {
                     let at = self.fx.chain.split_at(top).map_or(0, |s| s.branches[0].blocks.len());

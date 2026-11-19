@@ -1,4 +1,4 @@
-//! **Le prompteur à l'écran** (§ 10 de `docs/design/set.md`, #222) : où l'on en est dans le texte
+//! **Le prompteur à l'écran** (§ 10 de `docs/design/set.md`) : où l'on en est dans le texte
 //! du morceau joué, et comment on s'y déplace.
 //!
 //! La lecture du ChordPro est dans `library::prompt` (pure, testée). Ici, rien que la **position**
@@ -12,7 +12,7 @@
 //!   suivent pas le même découpage.
 //!
 //! Les prompteurs eux-mêmes sont tenus par `State::prompts`, **indexés par leur chemin** et non par
-//! le numéro du morceau : l'édition d'un set (#220) ajoute, retire et déplace des morceaux, et une
+//! le numéro du morceau : l'édition d'un set ajoute, retire et déplace des morceaux, et une
 //! liste parallèle se serait désalignée au premier `[`.
 
 use std::path::PathBuf;

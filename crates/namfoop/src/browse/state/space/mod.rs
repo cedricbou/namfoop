@@ -16,7 +16,7 @@ pub enum Space {
     Library,
     /// Le synoptique et ses réglages : on entend la chaîne.
     Chain,
-    /// **La vue scène** (§ 6 du mode Set, #219) : la set list et le prompteur. On y entend la
+    /// **La vue scène** (§ 6 du mode Set) : la set list et le prompteur. On y entend la
     /// chaîne, comme dans l'espace Chaîne — un son du set *est* un preset.
     Set,
 }

@@ -1,4 +1,4 @@
-//! Les tests de l'**édition d'un set** (§ 8 de `docs/design/set.md`, #220).
+//! Les tests de l'**édition d'un set** (§ 8 de `docs/design/set.md`).
 //!
 //! Ils disent, touche par touche, ce que le § 8 promet — et deux choses qu'il promet **en
 //! creux** : viser n'écoute pas, et un essai annulé ne laisse rien derrière lui.
@@ -166,7 +166,7 @@ fn an_empty_tempo_follows_the_presets() {
     assert!(s.message.as_deref().is_some_and(|m| m.contains("refusé")), "{:?}", s.message);
 }
 
-/// Une saisie passe **avant toutes les touches** (#175) : dans un titre, `a` est une lettre.
+/// Une saisie passe **avant toutes les touches** : dans un titre, `a` est une lettre.
 #[test]
 fn a_field_being_typed_takes_every_letter() {
     let mut s = editing();

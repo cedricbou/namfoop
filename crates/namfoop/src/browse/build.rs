@@ -1,5 +1,5 @@
 //! Le thread de construction de `browse` : il bâtit les chaînes hors temps réel et les installe
-//! par fondu, et il **précharge** celles des presets entre deux demandes (banque, #6) pour que
+//! par fondu, et il **précharge** celles des presets entre deux demandes (banque) pour que
 //! changer de preset n'ait plus rien à charger.
 
 use anyhow::Result;
@@ -17,11 +17,11 @@ use crate::config::LoadedConfig;
 use library::Library;
 
 pub(super) enum Built {
-    /// Chaîne installée, avec la table de ses vumètres par bloc et par branche (#107).
+    /// Chaîne installée, avec la table de ses vumètres par bloc et par branche.
     Ok(dsp::meter::ChainMeters),
     /// C'est déjà cette chaîne qui joue : rien à installer.
     Unchanged,
-    /// Où en est le préchargement de la banque (places prêtes, places en tout) : #6.
+    /// Où en est le préchargement de la banque : places prêtes, places en tout.
     Preloading(usize, usize),
     Err(String),
 }
@@ -85,7 +85,7 @@ pub(super) struct Drained {
 
 /// Vide la file des demandes **sans bloquer**. La **dernière** chaîne demandée gagne : les
 /// intermédiaires ne s'entendraient pas, et les installer ferait entendre un preset qu'on a déjà
-/// quitté (#191). Les banques sont rendues dans l'ordre, aucune n'est perdue.
+/// quitté. Les banques sont rendues dans l'ordre, aucune n'est perdue.
 pub(super) fn drain(
     rx: &mpsc::Receiver<Job>,
     wanted: &mut Option<Request>,
@@ -136,10 +136,10 @@ pub(super) fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
 
 /// Les **paramètres vivants** de la session (ADR 0007) : des cases que `browse/mod.rs` écrit et
 /// que chaque chaîne bâtie ici lit une fois par bloc, celles de la banque préchargée comprises.
-/// Le prochain (#6) s'ajoute ici, sans un argument de plus à `spawn`.
+/// Le prochain s'ajoute ici, sans un argument de plus à `spawn`.
 #[derive(Clone)]
 pub(super) struct Live {
-    /// Volume du preset (#187).
+    /// Volume du preset.
     pub volume: dsp::param::Control,
     /// Tempo, d'où les paramètres `division` tirent leur durée (ADR 0008).
     pub tempo: dsp::param::Control,
@@ -157,7 +157,7 @@ pub(super) fn spawn(
     live: Live,
 ) -> Result<(mpsc::Sender<Job>, mpsc::Receiver<Built>)> {
     // construction des chaînes hors temps réel : la demande la plus récente gagne, et les chaînes
-    // des presets sont bâties à l'avance (banque préchargée, #6 : bascule en 1 µs au lieu de 80 ms)
+    // des presets sont bâties à l'avance (banque préchargée : bascule en 1 µs au lieu de 80 ms)
     let (tx_req, rx_req) = mpsc::channel::<Job>();
     let (tx_built, rx_built) = mpsc::channel::<Built>();
     let (conf2, lib_dir) = (conf.clone(), library.to_path_buf());
@@ -166,12 +166,12 @@ pub(super) fn spawn(
         // la description de chaque place de la banque, prête à bâtir (`None` : rien à précharger)
         let mut specs: Vec<Option<dsp::block::ChainSpec>> = Vec::new();
         // le cadre (trim, niveau, master, limiteur) vient des options et de la config ; les blocs,
-        // eux, sont ceux de l'éditeur. Les vumètres par bloc voyagent avec la chaîne (#107).
+        // eux, sont ceux de l'éditeur. Les vumètres par bloc voyagent avec la chaîne.
         let to_spec = |req: &Request, lib: &Library| -> Result<dsp::block::ChainSpec> {
             let mut spec = amp_args(&lib_dir, size, req).spec(&conf2, Some(limiter.clone()))?.to_chain_spec();
             spec.blocks = block_specs(&req.blocks, lib, req, size);
-            // le volume du preset, après l'alignement de niveau (#179) : vivant, donc la chaîne
-            // suit la case au lieu de porter un gain figé (#187)
+            // le volume du preset, après l'alignement de niveau : vivant, donc la chaîne
+            // suit la case au lieu de porter un gain figé
             spec.volume = live.volume.clone().into();
             // le tempo, vivant pour la même raison (ADR 0008) : un tap ne rebâtit rien
             spec.tempo = live.tempo.clone().into();
@@ -209,8 +209,8 @@ pub(super) fn spawn(
                             std::thread::sleep(Duration::from_millis(5));
                             continue;
                         }
-                        // pas (encore) préchargée (sa chaîne est encore dans le thread audio, queue
-                        // de preset #172), ou impossible : on bâtit comme avant
+                        // pas (encore) préchargée — sa chaîne est encore dans le thread audio, en
+                        // queue de preset —, ou impossible : on bâtit la chaîne nous-même
                         engine::bank::Switch::NotReady | engine::bank::Switch::Failed(_) => {}
                     }
                 }
@@ -222,12 +222,12 @@ pub(super) fn spawn(
                 match built {
                     Ok((mut chain, meters)) => {
                         // le préchauffage (26 à 54 ms) **avant** la vérification ci-dessous : sinon
-                        // une demande arrivée pendant ce temps passerait inaperçue (#191)
+                        // une demande arrivée pendant ce temps passerait inaperçue
                         bank.prewarm(&mut chain);
                         loop {
                             // une demande plus récente est arrivée **pendant** la construction (80 à
                             // 400 ms pour un NAM) : installer celle-ci ferait entendre le preset d'il y
-                            // a un ou deux appuis, alors que l'écran affiche déjà le suivant (#191).
+                            // a un ou deux appuis, alors que l'écran affiche déjà le suivant.
                             // On la jette ; la plus récente est déjà dans `wanted`.
                             let drained = drain(&rx_req, &mut wanted, &mut banks);
                             for reqs in banks.drain(..) {
@@ -249,7 +249,7 @@ pub(super) fn spawn(
                                         req.preset.map(|i| format!(" (place {i})")).unwrap_or_default(),
                                         meters.blocks.len(),
                                         meters.splits.len(),
-                                        // l'alignement sur le DI, s'il y en a un (#178)
+                                        // l'alignement sur le DI, s'il y en a un
                                         meters
                                             .level_db
                                             .map(|d| format!(" niveauDI={d:+.1}"))
@@ -307,7 +307,7 @@ mod tests {
     }
 
     /// La **dernière** chaîne demandée gagne, aucune banque n'est perdue, et la fermeture du
-    /// dialogue se voit (#191).
+    /// dialogue se voit.
     #[test]
     fn draining_keeps_the_last_chain_and_every_bank() {
         let (tx, rx) = mpsc::channel::<Job>();

@@ -33,7 +33,7 @@ use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
 const FADE_MS: f32 = 20.0;
-/// Queue de preset : la chaîne quittée finit de sonner au plus ce temps (#172).
+/// Queue de preset : la chaîne quittée finit de sonner au plus ce temps.
 const TRAILS_MS: f32 = 2000.0;
 
 /// Préfixe commun des noms d'un pack, coupé sur un séparateur (« 1970 Bassman Cabinet CTS - »).
@@ -105,7 +105,7 @@ pub fn index(
         .map(|e| {
             let mut it = model_item(lib, e, default_ir, &by_rel);
             it.profile = model_profiles.by_rel.get(&e.rel).cloned();
-            // le modèle nu, pour le panneau Bandes : `profile` contient déjà l'IR conseillée (#183)
+            // le modèle nu, pour le panneau Bandes : `profile` contient déjà l'IR conseillée
             it.voicing = model_profiles.measures.get(&e.rel).map(|m| std::sync::Arc::new(m.voicing.clone()));
             it
         })
@@ -213,7 +213,7 @@ pub struct Start<'a> {
     pub edit: bool,
     /// Set à ouvrir (`browse --set <id | mots-clés>`, US 2). Le choix à l'écran (`L`) est l'US 3.
     pub set: Option<&'a str>,
-    /// **`run --set` : la scène verrouillée** (§ 9, #221). Le set devient obligatoire — sans lui on
+    /// **`run --set` : la scène verrouillée** (§ 9). Le set devient obligatoire — sans lui on
     /// refuse de démarrer, avec un code d'erreur, parce que le service de scène du Pi doit échouer
     /// bruyamment plutôt que d'ouvrir un écran vide.
     pub locked: bool,
@@ -241,7 +241,7 @@ pub fn run(
 
     // audio : routeur + chaîne échangeable (au départ vide = son direct)
     let limiter: Arc<AtomicU32> = Arc::default();
-    // le volume du preset est un réglage **vivant** (#187, ADR 0007) : la chaîne lit cette case une
+    // le volume du preset est un réglage **vivant** (ADR 0007) : la chaîne lit cette case une
     // fois par bloc, donc `,` / `.` s'entendent sans rien rebâtir. Un seul écrivain : la boucle
     // ci-dessous, d'après l'état — jamais `browse::state`, qui ne tient aucune poignée `dsp`.
     let volume = dsp::param::Control::new(0.0);
@@ -281,7 +281,7 @@ pub fn run(
         bail!("le flux tourne à {} Hz, attendu {} Hz (option --rate)", engine.sample_rate(), cfg.rate);
     }
     let handle = engine.take_chain_sender().expect("pris une seule fois");
-    // construction des chaînes hors temps réel, et préchargement de la banque de presets (#6)
+    // construction des chaînes hors temps réel, et préchargement de la banque de presets
     let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size, live.clone())?;
 
     // grain de l'éditeur : mesuré hors temps réel avec la basse de l'utilisateur, la plus récente gagne
@@ -307,14 +307,14 @@ pub fn run(
     let audition = std::env::temp_dir().join(format!("namfoop-audition-{}.cab.toml", std::process::id()));
     let mut last_req: Option<Request> = None;
     let mut st = State::new(models, irs);
-    // volume aligné sur le DI : l'alignement annule les blocs `gain`, l'écran doit le dire (#178)
+    // volume aligné sur le DI : l'alignement annule les blocs `gain`, l'écran doit le dire
     st.level_match = conf.level == LevelMode::Match;
     // sans sortie qui le reçoit, `k` doit le dire au lieu d'allumer un clic inaudible
     st.metronome_routed = click_routed;
     if let Some(f) = start_with.filter {
         st.filter = f.to_string();
     }
-    // la banque de presets, prête à être cherchée et rechargée (#110)
+    // la banque de presets, prête à être cherchée et rechargée
     st.adopt_presets(scan_presets(library));
     // les touches de scène, réglables (§ 9) : un nom illisible est dit au démarrage plutôt
     // qu'ignoré en silence — sur scène, une touche qui ne répond pas ne se diagnostique pas
@@ -374,7 +374,7 @@ pub fn run(
     st.start_bench_from_chain();
     // référence du « non enregistré » (q demande confirmation) : l'état avant la première touche
     st.mark_start();
-    // les chaînes des presets sont bâties à l'avance, entre deux demandes (#6)
+    // les chaînes des presets sont bâties à l'avance, entre deux demandes
     let mut bank_reqs = bank_requests(&st, &audition);
     let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
     let mut first = Action::None;
@@ -414,7 +414,7 @@ pub fn run(
             match action {
                 Action::None => {}
                 Action::Quit => return Ok(()),
-                // `S` en édition de set : la boucle écrit le fichier (§ 8, #220)
+                // `S` en édition de set : la boucle écrit le fichier (§ 8)
                 Action::SaveSet(stem) => {
                     let Some(set) = st.set.as_ref() else { continue };
                     let file = Library::scan(library).set_path(&stem);
@@ -452,7 +452,7 @@ pub fn run(
                         Err(e) => st.message = Some(format!("set « {stem} » non enregistré : {e:#}")),
                     }
                 }
-                // `t` : le prompteur du morceau dans `$EDITOR` (§ 10, #222). C'est la boucle qui
+                // `t` : le prompteur du morceau dans `$EDITOR` (§ 10). C'est la boucle qui
                 // rend la main au terminal : l'état ne touche à aucun fichier.
                 Action::EditPrompt(song) => {
                     let what = st.set.as_ref().and_then(|set| {
@@ -497,7 +497,7 @@ pub fn run(
                     Err(e) => st.message = Some(format!("set « {id} » : {e:#}")),
                 },
                 Action::SetChanged => {
-                    // un set tout neuf (#220) n'a pas de dossier : ses prompteurs se résolvent
+                    // un set tout neuf n'a pas de dossier : ses prompteurs se résolvent
                     // dans `library/sets/`, comme ceux d'un set lu sur le disque
                     if let Some(set) = st.set.as_mut().filter(|s| s.spec.base.as_os_str().is_empty()) {
                         set.spec.base = Library::scan(library).sets_dir();
@@ -520,7 +520,7 @@ pub fn run(
                         preset: None,
                     };
                     // cette chaîne est-elle exactement celle d'un preset ? alors elle est déjà
-                    // bâtie dans la banque (#6) : la comparaison porte sur les blocs résolus
+                    // bâtie dans la banque : la comparaison porte sur les blocs résolus
                     req.preset = bank_reqs.iter().position(|r| r.as_ref() == Some(&req));
                     // même chaîne que la dernière : pas de reconstruction ni de fondu inutile
                     // (le mélange d'écoute garde son nom de fichier mais change de contenu)
@@ -622,7 +622,7 @@ pub fn run(
             }
             // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008). C'est
             // celui de l'**arbitre** et non celui du preset : dès qu'une horloge MIDI tournera
-            // (#7), les deux diffèreront, et c'est l'arbitre qui dit ce qu'on entend.
+            //, les deux diffèreront, et c'est l'arbitre qui dit ce qu'on entend.
             let heard_tempo = st.heard_tempo_bpm();
             if heard_tempo != tempo.get() {
                 tempo.set(heard_tempo);
@@ -636,14 +636,14 @@ pub fn run(
             while let Ok(b) = rx_built.try_recv() {
                 status.loading = false;
                 match b {
-                    // les vumètres de la chaîne qui vient d'être installée (#107)
+                    // les vumètres de la chaîne qui vient d'être installée
                     Built::Ok(meters) => st.set_chain_meters(meters),
                     Built::Unchanged => {}
                     Built::Preloading(done, total) => status.bank = Some((done, total)),
                     Built::Err(e) => st.message = Some(format!("chargement impossible : {e}")),
                 }
             }
-            // la largeur décide des panneaux réservés aux écrans larges (Bandes, #183)
+            // la largeur décide des panneaux réservés aux écrans larges (Bandes)
             st.width = session.terminal.size().map(|s| s.width).unwrap_or(0);
             let m = engine.meters();
             status.in_peak = m.in_peak.max(status.in_peak * 0.85); // retombée douce
@@ -651,7 +651,7 @@ pub fn run(
             status.load = m.load.max(status.load * 0.9);
             status.limiter = m.limiter_db.max(status.limiter * 0.85);
             status.xruns = engine.xruns();
-            // vumètres du synoptique : montée immédiate, descente 28 dB/s (#107, #108)
+            // vumètres du synoptique : montée immédiate, descente 28 dB/s
             st.update_meters(start.elapsed().as_millis() as u64, m.in_peak, m.out_peak);
             session.terminal.draw(|f| ui::render(&st, &status, f))?;
         }
@@ -668,7 +668,7 @@ pub fn run(
 }
 
 /// La banque : les presets de `library/presets/`, chargés pour que la bascule ne lise plus de
-/// fichier (#110). Un preset illisible est signalé et listé grisé par l'état.
+/// fichier. Un preset illisible est signalé et listé grisé par l'état.
 fn scan_presets(library: &Path) -> Vec<(String, String, PathBuf, dsp::preset::PresetSpec)> {
     let lib = Library::scan(library);
     let mut out = Vec::new();
@@ -684,12 +684,12 @@ fn scan_presets(library: &Path) -> Vec<(String, String, PathBuf, dsp::preset::Pr
 /// Trace des chaînes installées dans le thread audio (`NAMFOOP_BROWSE_TRACE=<fichier>`) : sert aux
 /// tests de bout en bout (pseudo-terminal), l'écran plein ne laissant passer aucun log.
 /// Début de la trace, pour horodater chaque ligne : sans cela, impossible de raisonner sur une
-/// durée de construction ou sur une queue de preset en relisant un relevé (#191).
+/// durée de construction ou sur une queue de preset en relisant un relevé.
 static TRACE_START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 
 fn trace(line: &str) {
     // le fichier est lu dans l'environnement **une seule fois** : éteinte, la trace n'est plus
-    // qu'une lecture atomique et un retour (#193)
+    // qu'une lecture atomique et un retour
     static FILE: std::sync::OnceLock<Option<std::ffi::OsString>> = std::sync::OnceLock::new();
     if let Some(path) = FILE.get_or_init(|| std::env::var_os("NAMFOOP_BROWSE_TRACE")) {
         use std::io::Write;
@@ -697,7 +697,7 @@ fn trace(line: &str) {
         if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
             // une seule écriture par ligne : `writeln!` en fait plusieurs (le fichier n'a pas de
             // tampon), et les lignes de la boucle d'affichage et du thread de construction se
-            // mélangeaient (#191)
+            // mélangeaient
             let _ = f.write_all(format!("{ms:>7} {line}\n").as_bytes());
         }
     }

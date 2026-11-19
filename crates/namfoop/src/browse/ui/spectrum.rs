@@ -8,7 +8,7 @@
 use super::*;
 
 /// Largeur minimale du corps pour afficher le panneau spectre à droite de la liste. C'est aussi ce
-/// qui définit un écran « large » pour le panneau Bandes (#183) : une seule valeur pour les deux.
+/// qui définit un écran « large » pour le panneau Bandes : une seule valeur pour les deux.
 pub const SPECTRUM_MIN_WIDTH: u16 = crate::browse::state::bands::WIDE_COLUMNS;
 
 type Profile = std::sync::Arc<dsp::profile::IrProfile>;
@@ -33,7 +33,7 @@ pub(super) struct Shown {
     pub grain: Option<(String, Option<String>)>,
     /// Ce que dit le panneau quand il n'y a pas de référence.
     pub hint: &'static str,
-    /// Le panneau **Bandes** est dessiné juste en dessous (#183) : les écarts par zone, qu'il
+    /// Le panneau **Bandes** est dessiné juste en dessous : les écarts par zone, qu'il
     /// montre en colonnes, n'ont plus à être répétés en texte ici.
     pub bands_shown: bool,
 }
@@ -78,7 +78,7 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
     let grain = (s.tab == Tab::Models)
         .then(|| (grain_of(s, s.model_at_cursor()), s.ref_model.map(|r| grain_of(s, Some(r)))));
     // sur un écran large, le panneau Bandes se glisse sous la courbe : il ne prend aucune ligne à
-    // la liste, et il remplace la ligne de texte des écarts par zone (#183). Sur un panneau trop
+    // la liste, et il remplace la ligne de texte des écarts par zone. Sur un panneau trop
     // court, la courbe garde toute la place et le texte reste.
     let (top, panel) = if s.show_bands() && area.height >= bands::HEIGHT + 8 {
         let [a, b] = Layout::vertical([Constraint::Min(8), Constraint::Length(bands::HEIGHT)]).areas(area);
@@ -191,7 +191,7 @@ fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
 
     let mut text = Vec::new();
     match (shown.curves.last(), &shown.reference) {
-        // les écarts par zone, en texte : le panneau Bandes les dit mieux quand il est là (#183)
+        // les écarts par zone, en texte : le panneau Bandes les dit mieux quand il est là
         (Some((name, p, _)), Some((rname, r))) if !shown.bands_shown => {
             let (a, b) = (library::profile::zones(p), library::profile::zones(r));
             let parts: Vec<String> = library::profile::ZONES

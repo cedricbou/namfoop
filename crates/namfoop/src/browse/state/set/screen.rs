@@ -1,5 +1,5 @@
 //! **La vue scène** : ce que l'espace 3 fait des touches (§ 6 et § 7 de `docs/design/set.md`,
-//! #219). Le dessin est dans `ui/set.rs`.
+//! `docs/design/set.md`). Le dessin est dans `ui/set.rs`.
 //!
 //! La règle qui tient tout : **viser n'est pas jouer**. `↑` / `↓` déplacent un curseur dans la set
 //! list sans rien changer à l'oreille ; c'est `Entrée` qui joue le morceau visé, sur son premier
@@ -74,15 +74,15 @@ impl State {
         let songs = self.set.as_ref().map(|s| s.spec.songs.len()).unwrap_or(0);
         match key {
             // `e` : éditer le set (§ 8). Depuis la vue scène seulement : l'éditeur de modèle de la
-            // Bibliothèque garde son `e`, chaque espace possède ses touches (#247).
+            // Bibliothèque garde son `e`, chaque espace possède ses touches.
             Key::Char('e') => Some(self.toggle_set_edit()),
             // `L` : choisir le set. **Dans l'espace Set seulement** — le garde plus haut l'y
-            // enferme, et le commentaire d'origine prétendait le contraire (#243).
+            // enferme, et le commentaire d'origine prétendait le contraire.
             Key::Char('L') => Some(self.open_set_picker()),
-            // **`n` est éclipsée ici** (#250, ADR 0009 « l'éclipse se déclare »). Commune, elle
-            // vidait la chaîne, détachait le preset **et quittait l'espace** — sur l'écran de
-            // préparation de concert, sans confirmation, puisqu'il n'y a rien de non enregistré.
-            // C'est la famille de #247 : une touche d'un espace agissait sur l'objet d'un autre.
+            // **`n` est éclipsée ici** (ADR 0009 « l'éclipse se déclare »). Commune, elle vide la
+            // chaîne, détache le preset **et quitte l'espace** : sur l'écran de préparation d'un
+            // concert ce serait sans confirmation, puisqu'il n'y a rien de non enregistré. Une
+            // touche d'un espace n'agit pas sur l'objet d'un autre.
             // Son geste — « repartir d'une chaîne vierge » — ne désigne rien d'ici, alors elle le
             // **dit** plutôt que de ne rien faire. Sur scène (`locked_key`), la liste blanche la
             // refusait déjà : la bonne polarité était connue, elle n'était pas appliquée ici.
@@ -91,7 +91,7 @@ impl State {
                 Some(Action::None)
             }
             // **son suivant / précédent** : la touche du pied. Elle ne passait PAS par ici au
-            // premier jet (#219) — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que
+            // premier jet — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que
             // dans l'espace Chaîne — si bien que dans l'espace Set, celui où elle compte le plus,
             // PgDn/PgUp tombaient sur le curseur de liste de la Bibliothèque et ne jouaient rien.
             Key::PageDown => Some(self.step_set(true)),
@@ -104,13 +104,13 @@ impl State {
             // ne l'édite pas : c'est un éditeur de texte qui l'écrit, et d'autres logiciels
             // demain. Absent de la scène (`locked_key`) : rien ne s'édite là-bas.
             Key::Char('t') => Some(self.edit_prompt()),
-            // les touches de morceau, pour la même raison : elles n'étaient liées nulle part dans
-            // l'espace Set (#218 les avait laissées en attente de cet écran)
+            // les touches de morceau, pour la même raison : c'est ici qu'elles se lient, l'espace
+            // Set étant le seul où un morceau existe
             k if k == self.song_keys.0 && songs > 0 => Some(self.step_set_song(true)),
             k if k == self.song_keys.1 && songs > 0 => Some(self.step_set_song(false)),
             // sans set, l'espace possède quand même ses touches et **dit** quoi faire : une
-            // touche annoncée que personne ne consomme, c'est #238 (trouvé par la jointure #243 —
-            // les touches de morceau étaient annoncées et orphelines ici).
+            // touche annoncée que personne ne consomme est un mensonge, et la jointure de
+            // l'oracle avec la table le refuse.
             _ if songs == 0 => match key {
                 Key::Up | Key::Down | Key::Enter | Key::Char('i') => {
                     self.message = Some("aucun set : L pour en choisir un".into());
@@ -206,7 +206,7 @@ impl State {
             Key::Enter => {
                 // ATTENTION : une modale ne **retombe jamais**. Le `?` sur une liste encore vide
                 // (la boucle n'a pas répondu à `ListSets`) laissait passer `Entrée` vers les étages
-                // du dessous, qui jouaient un morceau DERRIÈRE la fenêtre ouverte (#242).
+                // du dessous, qui jouaient un morceau DERRIÈRE la fenêtre ouverte.
                 let Some(choice) = self.set_picker.as_ref().and_then(|p| p.sets.get(p.cursor)).cloned()
                 else {
                     return Some(Action::None);
@@ -388,7 +388,7 @@ mod foot_tests {
     }
 
     /// Le même set, mais sur une chaîne donnée : il faut quelque chose à défendre pour vérifier
-    /// qu'une touche d'un autre espace n'y touche pas (#250).
+    /// qu'une touche d'un autre espace n'y touche pas.
     fn staged_with(blocks: Vec<crate::browse::state::chain::Block>) -> State {
         let mut s = with_chain(blocks);
         let sound = |p: &str| Sound { preset: p.into(), volume_db: 0.0 };
@@ -416,12 +416,11 @@ mod foot_tests {
         s
     }
 
-    /// **La régression du pied** : dans l'espace Set, `PgDn` / `PgUp` doivent suivre le set. Au
-    /// premier jet de #219 elles n'y étaient liées nulle part — `step_preset` n'est atteint que par
-    /// `fx_key`, qui ne tourne que dans l'espace Chaîne —, si bien que dans l'espace Set, celui où
-    /// la touche du pied compte le plus, elles tombaient sur le curseur de liste de la Bibliothèque
-    /// et ne jouaient rien. Ça marchait dans `run --set` (liste blanche explicite), pas dans
-    /// `browse` : signalé par l'utilisateur, set « One More Time ».
+    /// **La touche du pied** : dans l'espace Set, `PgDn` / `PgUp` suivent le set, et il faut les
+    /// lier **ici** — `step_preset` n'est atteint que par `fx_key`, qui ne tourne que dans l'espace
+    /// Chaîne. Sans ce lien, elles tombent sur le curseur de liste de la Bibliothèque et ne jouent
+    /// rien, dans l'espace où la touche du pied compte le plus. `run --set` a sa propre liste
+    /// blanche, donc il ne couvre pas ce cas.
     #[test]
     fn page_keys_follow_the_set_in_the_set_space() {
         let mut s = staged();
@@ -450,13 +449,13 @@ mod foot_tests {
         assert_eq!(s.set.as_ref().unwrap().at, Some((0, 0)), "morceau précédent");
     }
 
-    /// **`n` est éclipsée dans l'espace Set** (#250, ADR 0009 « l'éclipse se déclare »). Commune
-    /// ailleurs, elle y vidait la chaîne, détachait le preset **et quittait l'espace** — sur
-    /// l'écran de préparation de concert, et sans confirmation puisqu'il n'y a rien de non
-    /// enregistré. Même famille que #247 : une touche d'un espace agissait sur l'objet d'un autre.
+    /// **`n` est éclipsée dans l'espace Set** (ADR 0009 « l'éclipse se déclare »). Commune
+    /// ailleurs, elle viderait ici la chaîne, détacherait le preset **et quitterait l'espace** —
+    /// sur l'écran de préparation d'un concert, et sans confirmation, puisqu'il n'y a rien de non
+    /// enregistré. Une touche d'un espace n'agit pas sur l'objet d'un autre.
     ///
-    /// Sur scène (`locked_key`), la liste blanche la refusait déjà : la bonne polarité était
-    /// connue, elle n'était simplement pas appliquée dans `browse`.
+    /// Sur scène (`locked_key`), la liste blanche la refuse déjà : c'est la même polarité, tenue
+    /// des deux côtés.
     #[test]
     fn a_blank_chain_is_refused_in_the_set_space() {
         let mut s = staged_with(vec![fx_block("reverb")]);

@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#278)
+- **Les commentaires de `namfoop` décrivent ce que le code garantit, et non les bugs qui l'ont fait
+  naître.** Les sept blocs de récit de `browse/state/keys.rs` — le journal de la mise en place des
+  quatre étages du clavier — deviennent des contrats au présent : « cette couche rend un `Option`,
+  un `match` exhaustif avalerait les étages du dessous » plutôt que « son ancien `_ => {}` avalait
+  tout ». Même traitement pour les en-têtes de `context.rs`, `bindings.rs`, `footer.rs` et
+  `windows.rs`, qui racontaient leur propre naissance avant de dire ce qu'ils garantissent.
+- **Les 313 numéros d'issue de la crate disparaissent** (le compte du dépôt tombe de 394 à 96
+  commentaires, tous dans les crates de bibliothèque), et avec eux les quatre qui s'**affichaient** :
+  trois dans la fenêtre d'aide (« les lettres vont au filtre (#175) ») et un sur l'écran Set, en
+  concert — la ligne de tempo annonçait « (battue : #223) ». L'historique est dans git et le
+  changelog ; les renvois `ADR 000x`, eux, restent.
+- Aucun changement de comportement : hors les quatre textes d'interface ci-dessus, seuls des
+  commentaires bougent, et l'oracle du clavier (`keyboard.ref.txt`) ne change que par la ligne
+  d'en-tête qui portait un numéro.
+
 ### Documentation (#275)
 - **Le guide dit ce que fait namfoop, et plus comment il en est venu là.** Trois passages
   s'adressaient au développeur plutôt qu'au bassiste : l'alignement de niveau racontait son

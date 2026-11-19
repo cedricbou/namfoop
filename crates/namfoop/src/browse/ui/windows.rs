@@ -228,15 +228,15 @@ pub(super) fn render_set_picker(s: &State, f: &mut Frame, area: Rect) {
 
 /// Le titre et les touches de l'écran où l'on est (`h`, § 11 de `browse-espaces.md`).
 ///
-/// **Dérivée de la table** depuis #243 : les ~96 paires (touche, explication) qui vivaient ici,
-/// écrites une par une, étaient une copie du dispatch que rien ne vérifiait. Ne restent ici que ce
-/// que la table ne peut pas porter : le **titre** et les **notes** en gris.
+/// **Dérivée de la table** : écrites ici une par une, les paires (touche, explication) seraient une
+/// copie du dispatch que rien ne vérifie. Ne reste ici que ce que la table ne peut pas porter : le
+/// **titre** et les **notes** en gris.
 fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
     // l'aide s'ouvre AU-DESSUS d'un contexte : c'est celui du dessous qu'elle explique
     let ctx = s.context_under_help();
     let mut v: Vec<Line<'static>> = bindings(ctx).iter().map(|b| key_line(b.label, b.what)).collect();
     // l'alignement sur le DI n'est pas une touche, mais c'est la question qu'on se pose devant un
-    // gain qui ne fait rien : l'étage grisé en bout de synoptique (#178)
+    // gain qui ne fait rien : l'étage grisé en bout de synoptique
     if matches!(ctx, Context::Chain | Context::ChainMerge) && s.level_match {
         v.push(key_line(
             "niveau DI",
@@ -344,7 +344,7 @@ pub(super) fn render_help(s: &State, area: Rect, f: &mut Frame) {
     );
 }
 
-/// La **banque** de presets (`P`, #110) : la liste, le filtre `/`, et la chaîne de chacun en une
+/// La **banque** de presets (`P`) : la liste, le filtre `/`, et la chaîne de chacun en une
 /// ligne. Un preset dont un son manque est grisé, avec la raison à la place de sa chaîne.
 pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
     let Some(bank) = s.bank.as_ref() else { return };
@@ -427,7 +427,7 @@ pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
 }
 
 /// « La chaîne n'est pas enregistrée » : demandé **une fois** avant de charger un autre preset ou
-/// de repartir d'une chaîne vierge (`n`, #170).
+/// de repartir d'une chaîne vierge (`n`).
 pub(super) fn render_confirm_switch(s: &State, body: Rect, f: &mut Frame) {
     let what = match s.pending_switch {
         Some(Pending::New) => "Repartir d'une chaîne vierge remplacerait la chaîne en cours.".to_string(),

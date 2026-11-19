@@ -354,10 +354,10 @@ mod tests {
         assert!(err("gain:vol=3").contains("paramètre « vol » inconnu (db)"));
         assert!(err("gain:db=99").contains("hors plage (-60 … 24 dB)"));
         assert!(err("gain:db=99").contains("namfoop fx"));
-        // le parallèle est un bloc de la chaîne, pas un effet (#102, ADR 0006)
+        // le parallèle est un bloc de la chaîne, pas un effet (ADR 0006)
         for fx in ["split", "split:freq=200", "parallele"] {
             assert!(err(fx).contains("bloc de la chaîne"), "{}", err(fx));
-            assert!(err(fx).contains("preset (#6)") && err(fx).contains("--crossover"), "{}", err(fx));
+            assert!(err(fx).contains("dans un preset") && err(fx).contains("--crossover"), "{}", err(fx));
         }
         let ok = Cli::try_parse_from([
             "namfoop",
@@ -406,7 +406,7 @@ mod tests {
     }
 
     /// Un preset décrit toute la chaîne : les options de chaîne sont refusées, avec un message qui
-    /// dit quoi faire (#159). Et il se résout comme `-m` / `-i` (bibliothèque jetable).
+    /// dit quoi faire. Et il se résout comme `-m` / `-i` (bibliothèque jetable).
     #[test]
     fn a_preset_refuses_to_mix_with_the_chain_options() {
         // bibliothèque jetable (jamais celle de l'utilisateur)

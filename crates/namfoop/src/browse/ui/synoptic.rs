@@ -217,7 +217,7 @@ pub fn build(st: &State) -> Synoptic {
                 split(&mut g, st, s, i, &m, cursor, &mut cursor_cols);
                 g.sync();
                 // la **sortie** du parallèle : le `◇` où les branches se somment, et d'où l'on
-                // ajoute après lui (#152)
+                // ajoute après lui
                 g.plain(0, "─ ", line_style());
                 let on_merge = cursor == Cursor::Merge(i);
                 let from = g.len[0];
@@ -233,13 +233,13 @@ pub fn build(st: &State) -> Synoptic {
     // L'alignement de niveau sur le DI (`level = "match"`) : ce n'est pas un bloc de la chaîne —
     // ni éditable, ni déplaçable, d'où le gris — mais c'est le **dernier étage réel** avant la
     // sortie, et il annule tout gain posé dans la chaîne. Le cacher laissait croire à un vumètre
-    // OUT cassé (#178).
+    // OUT cassé.
     if let (Some(db), false) = (st.level_align_db(), chain.is_empty()) {
         g.add(0, &format!("niveau DI {db:+.1} dB"), Style::new().fg(Color::DarkGray), false, Vec::new());
         g.plain(0, " ─ ", line_style());
         g.sync();
     }
-    // le volume du preset : pas un bloc non plus, mais le réglage qui suit l'alignement (#179)
+    // le volume du preset : pas un bloc non plus, mais le réglage qui suit l'alignement
     if chain.volume_db != 0.0 {
         g.add(
             0,
@@ -422,9 +422,9 @@ pub fn title(chain: &Chain) -> (String, Option<String>) {
     let nam = chain.active_nam();
     // le bandeau de l'espace Chaîne (§ 2 de `docs/design/browse-espaces.md`)
     let text = format!("♪ CHAÎNE — NAM actifs : {nam} · parallèles : {}", chain.splits());
-    // Seuil retenu avec l'utilisateur (#111) : on alerte dès 2 modèles actifs et on ne refuse
+    // Seuil retenu avec l'utilisateur : on alerte dès 2 modèles actifs et on ne refuse
     // rien. Le coût est linéaire (×N) et 2 modèles restent confortables sur x86, mais le Pi 5
-    // n'est pas mesuré (#44 / #45) : prudence tant qu'on ne connaît pas la machine de scène.
+    // n'est pas mesuré : prudence tant qu'on ne connaît pas la machine de scène.
     let warn = (nam >= 2).then(|| format!(" ⚠ CPU ≈ ×{nam} (à mesurer sur Pi 5)"));
     (text, warn)
 }
@@ -466,7 +466,7 @@ mod tests {
     }
 
     /// L'alignement de niveau sur le DI se voit en queue de synoptique, juste avant `OUT` : sans
-    /// lui, un bloc `gain` qui ne change rien à la sortie reste inexplicable (#178).
+    /// lui, un bloc `gain` qui ne change rien à la sortie reste inexplicable.
     #[test]
     fn the_di_alignment_is_shown_just_before_out() {
         use crate::browse::state::tests::{fx_block, with_chain};
@@ -483,7 +483,7 @@ mod tests {
     }
 
     /// Le **volume du preset** se voit lui aussi en bout de synoptique, **après** l'alignement :
-    /// c'est l'ordre du signal, et c'est ce qui le distingue d'un bloc `gain` (#179).
+    /// c'est l'ordre du signal, et c'est ce qui le distingue d'un bloc `gain`.
     #[test]
     fn the_preset_volume_is_shown_after_the_alignment() {
         use crate::browse::state::tests::{fx_block, with_chain};

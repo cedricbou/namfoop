@@ -179,7 +179,7 @@ fn the_picker_filters_and_refuses_to_quit() {
     assert_eq!(s.on_key(Key::Char('q')), Action::None);
     assert!(!s.confirm_quit);
     assert!(s.message.as_deref().is_some_and(|m| m.contains("valide (Entrée) ou annule (Échap)")));
-    // `e` (calibrer) n'est pas accessible d'ici (§ 9) : il dit où il se trouve (#148)
+    // `e` (calibrer) n'est pas accessible d'ici (§ 9) : il dit où il se trouve
     s.on_key(Key::Char('e'));
     assert!(s.picker.is_some() && s.editor.is_none());
     assert!(
@@ -235,8 +235,7 @@ fn a_block_citing_the_live_blend_has_no_current_row() {
     assert_eq!(heard(&s), "ir·mélange");
 }
 
-/// Les onglets Modèles / IR n'écrivent pas dans le bloc à l'essai (ils reprennent la main
-/// après, tant que #134 ne les a pas séparés de la chaîne).
+/// Les onglets Modèles / IR n'écrivent pas dans le bloc à l'essai : ils reprennent la main après.
 #[test]
 fn the_library_tabs_do_not_write_into_the_block_being_tried() {
     let mut s = sample();

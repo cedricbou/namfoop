@@ -241,7 +241,7 @@ mod tests {
     use super::*;
 
     /// Une touche de modification seule (Maj, Ctrl, Alt) n'est pas une touche pour les écrans :
-    /// elle ne peut donc pas fermer une fenêtre de confirmation (#104).
+    /// elle ne peut donc pas fermer une fenêtre de confirmation.
     #[test]
     fn modifier_keys_alone_are_ignored() {
         use ratatui::crossterm::event::ModifierKeyCode;

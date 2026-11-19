@@ -1,10 +1,10 @@
-//! Les **presets** dans `browse` (#110) : `S` enregistre la chaîne, `P` ouvre la **banque** (la
-//! chercher, la réouvrir), `n` repart d'une **chaîne vierge** (#170), `t` déplie le TOML, et
+//! Les **presets** dans `browse` : `S` enregistre la chaîne, `P` ouvre la **banque** (la
+//! chercher, la réouvrir), `n` repart d'une **chaîne vierge**, `t` déplie le TOML, et
 //! l'en-tête dit si quelque chose n'est pas enregistré.
 //!
 //! La conversion chaîne ⇄ preset est **ici**, pure et testée : la chaîne éditée porte des **index**
 //! de la bibliothèque, le fichier porte des **chemins relatifs** et l'identifiant court en filet
-//! (`dsp::preset`, #157). L'écriture et la lecture des fichiers, elles, restent dans `browse/mod.rs`.
+//! (`dsp::preset`). L'écriture et la lecture des fichiers, elles, restent dans `browse/mod.rs`.
 
 use std::path::PathBuf;
 
@@ -23,7 +23,7 @@ pub struct PresetRef {
 }
 
 /// Ce qui doit remplacer la chaîne en cours : un preset de la banque, ou une **chaîne vierge**
-/// (`n`, #170). Les deux passent par la même fenêtre « la chaîne n'est pas enregistrée ».
+/// (`n`). Les deux passent par la même fenêtre « la chaîne n'est pas enregistrée ».
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pending {
     Preset(usize),
@@ -99,11 +99,11 @@ impl State {
         self.presets.iter().position(|x| x.path == p.path)
     }
 
-    /// **Preset suivant / précédent** (`PgDn` / `PgUp`, #158) : le geste du pédalier. L'ordre est
+    /// **Preset suivant / précédent** (`PgDn` / `PgUp`) : le geste du pédalier. L'ordre est
     /// celui de la banque, et on **boucle** du dernier au premier. Si la chaîne n'est pas
     /// enregistrée, on demande une fois (`switch_to`).
     pub(super) fn step_preset(&mut self, down: bool) -> Action {
-        // ATTENTION (#247) : un set actif ne change RIEN ici. Les espaces sont indépendants —
+        // ATTENTION : un set actif ne change RIEN ici. Les espaces sont indépendants —
         // choisir un espace, c'est travailler sur ce qu'il représente —, donc la Chaîne parcourt
         // toujours la banque. Le set se joue dans SON espace (`step_set`) et sur scène.
         let n = self.presets.len();
@@ -129,13 +129,13 @@ impl State {
     pub fn preset_label(&self) -> (String, bool) {
         let saved = self.unsaved().is_empty();
         // le volume du preset, quand il n'est pas au neutre : c'est un réglage qu'on ne voit nulle
-        // part ailleurs dans la liste des blocs (#179)
+        // part ailleurs dans la liste des blocs
         let volume = match self.fx.chain.volume_db {
             0.0 => String::new(),
             v => format!(" · volume {v:+.0} dB"),
         };
         match &self.preset {
-            // la place dans la banque : le repère du pédalier (#158)
+            // la place dans la banque : le repère du pédalier
             Some(p) => {
                 let place = match (self.preset_index(), self.presets.len()) {
                     (Some(i), n) if n > 1 => format!(" {}/{n}", i + 1),
@@ -167,7 +167,7 @@ impl State {
     }
 
     /// `,` / `.` : le **volume du preset**, appliqué après l'alignement de niveau sur le DI — donc
-    /// le seul gain du preset que cet alignement n'annule pas (#178, #179). Il s'enregistre avec la
+    /// le seul gain du preset que cet alignement n'annule pas. Il s'enregistre avec la
     /// chaîne, et sert à équilibrer les presets entre eux ; le master de la config, lui, reste le
     /// volume de la scène.
     pub(super) fn adjust_volume(&mut self, step: f32) -> Action {
@@ -184,7 +184,7 @@ impl State {
             format!("volume du preset {next:+.0} dB — après l'alignement sur le DI, S pour l'enregistrer")
         });
         // aucune chaîne à redemander : le volume est **vivant**, la boucle d'affichage pose la
-        // valeur dans la case et la chaîne qui joue la lit au bloc suivant (#187)
+        // valeur dans la case et la chaîne qui joue la lit au bloc suivant
         Action::None
     }
 
@@ -306,7 +306,7 @@ impl State {
         }
     }
 
-    /// Le TOML du preset tel qu'il serait écrit (`t` le déplie, #110).
+    /// Le TOML du preset tel qu'il serait écrit (`t` le déplie).
     pub fn preset_toml(&self) -> Result<String, String> {
         let name = self.preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| self.default_preset_name());
         toml::to_string_pretty(&self.to_preset(&name)).map_err(|e| e.to_string())
@@ -347,7 +347,7 @@ impl State {
         self.preset = Some(PresetRef { name: name.clone(), path });
         self.mark_start();
         // charger un preset mène à la Chaîne — sauf **depuis la vue scène**, où jouer un son du
-        // set ne doit pas quitter l'écran de concert (§ 6, #219)
+        // set ne doit pas quitter l'écran de concert (§ 6)
         if self.space != super::space::Space::Set {
             self.space = super::space::Space::Chain;
         }
@@ -428,19 +428,19 @@ impl State {
                 self.bank = None;
                 self.message = None;
             }
-            // `n` : repartir d'une chaîne vierge (#170) ; la banque se referme
+            // `n` : repartir d'une chaîne vierge ; la banque se referme
             Key::Char('n') => return Some(self.new_chain_or_confirm()),
             _ => {}
         }
         Some(Action::None)
     }
 
-    /// Charger un preset, en demandant **une fois** si la chaîne n'est pas enregistrée (#158).
+    /// Charger un preset, en demandant **une fois** si la chaîne n'est pas enregistrée.
     pub(super) fn switch_to(&mut self, i: usize) -> Action {
         self.replace_chain(Pending::Preset(i))
     }
 
-    /// **`n` : repartir d'une chaîne vierge** (#170), en demandant une fois si la chaîne n'est pas
+    /// **`n` : repartir d'une chaîne vierge**, en demandant une fois si la chaîne n'est pas
     /// enregistrée. C'est le seul moyen de bâtir une chaîne neuve sans vider celle d'un preset (et
     /// sans risquer de réenregistrer par-dessus lui).
     pub(super) fn new_chain_or_confirm(&mut self) -> Action {
@@ -454,7 +454,7 @@ impl State {
     /// Mettre `what` à la place de la chaîne en cours : tout de suite s'il n'y a rien à perdre,
     /// après la fenêtre « la chaîne n'est pas enregistrée » sinon.
     fn replace_chain(&mut self, what: Pending) -> Action {
-        // la CHAÎNE seulement : un set édité n'empêche pas de changer de preset (#220)
+        // la CHAÎNE seulement : un set édité n'empêche pas de changer de preset
         if self.chain_unsaved().is_empty() {
             return self.apply_pending(what);
         }

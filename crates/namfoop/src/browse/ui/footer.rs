@@ -1,9 +1,9 @@
 //! La **barre du bas** : les touches de l'écran où l'on est, dans l'ordre où l'on en a besoin.
 //!
-//! Depuis #243, son texte **n'est plus écrit ici** : il vient du champ `bar` de la table
-//! (`state/bindings.rs`), seule déclaration des touches. Ce fichier ne garde que ce qui est
-//! vraiment **dynamique** — un verbe qui change, une case qui n'apparaît que parfois, la tête de
-//! navigation de la Chaîne qui dépend de l'endroit du curseur.
+//! Son texte **n'est pas écrit ici** : il vient du champ `bar` de la table (`state/bindings.rs`),
+//! seule déclaration des touches. Ce fichier ne garde que ce qui est vraiment **dynamique** — un
+//! verbe qui change, une case qui n'apparaît que parfois, la tête de navigation de la Chaîne qui
+//! dépend de l'endroit du curseur.
 //!
 //! Avant, la barre était une cascade de littéraux **parallèle** à celle de `on_key` : rien ne les
 //! reliait, et cinq divergences y vivaient (`S` annoncé mais mort dans la banque, `3` traité mais
@@ -28,7 +28,7 @@ pub(super) fn keys(s: &State, _lib: bool) -> String {
 /// Chaîne. Garder ces trois cas en code vaut mieux que de rendre la table paramétrable.
 fn head(s: &State, ctx: Context) -> Vec<String> {
     match ctx {
-        // le même mot que la fenêtre : « charger » un preset, ou « repartir » de zéro (#170)
+        // le même mot que la fenêtre : « charger » un preset, ou « repartir » de zéro
         Context::ConfirmSwitch => {
             let go = if s.pending_switch == Some(Pending::New) { "repartir" } else { "charger" };
             vec![format!("S enregistrer puis {go}"), format!("Entrée {go} quand même")]

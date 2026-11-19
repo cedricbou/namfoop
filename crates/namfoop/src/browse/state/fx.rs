@@ -186,7 +186,7 @@ impl State {
                 v
             }
             Spot::Header => vec![Field::Gain, Field::Phase, Field::Mute, Field::Solo],
-            // la sortie du parallèle : pas de réglage propre pour l'instant (#153)
+            // la sortie du parallèle : pas de réglage propre pour l'instant
             Spot::Merge | Spot::Empty => Vec::new(),
         }
     }
@@ -231,7 +231,7 @@ impl State {
                 // un paramètre remplacé par une division rythmique se montre **dérivé**, entre
                 // parenthèses, avec la durée que le tempo lui impose (ADR 0008) : c'est le signe
                 // qu'il ne se règle plus, et le même esprit que le gain annulé par l'alignement
-                // sur le DI (#178) — ne jamais afficher un nombre qui n'agit pas
+                // sur le DI — ne jamais afficher un nombre qui n'agit pas
                 if let Some(ms) = self.derived_ms(spec.as_ref(), p.name) {
                     return (ms, frac);
                 }
@@ -270,7 +270,7 @@ impl State {
             Field::Param(p) => {
                 let cur = self.fx.cursor;
                 // régler un paramètre que la division remplace ne ferait rien : le dire plutôt que
-                // de laisser croire que le réglage est cassé (#177)
+                // de laisser croire que le réglage est cassé
                 let spec = match self.fx.chain.leaf(cur) {
                     Some(Leaf::Fx(s)) => Some(s.spec.clone()),
                     _ => None,
@@ -380,7 +380,7 @@ impl State {
         let pick = matches!(e.kind, "nam" | "ir");
         let mut msg = self.insert_leaf(leaf, c.before);
         // un `gain` dans une chaîne alignée sur le DI ne sert pas à ce qu'on croit : le dire tout
-        // de suite plutôt que de laisser chercher pourquoi la sortie ne bouge pas (#178)
+        // de suite plutôt que de laisser chercher pourquoi la sortie ne bouge pas
         if e.kind == "gain" && self.level_match {
             msg += " — mais le volume est aligné sur le DI : il ne changera pas la sortie, \
                     seulement la saturation de ce qui suit";
@@ -393,7 +393,7 @@ impl State {
         true
     }
 
-    /// Le bloc sous le curseur est-il un `gain` que l'**alignement sur le DI** annule (#178) ?
+    /// Le bloc sous le curseur est-il un `gain` que l'**alignement sur le DI** annule ?
     /// Posé après un modèle il ne change plus rien du tout ; posé avant, il n'agit que sur la
     /// saturation, l'alignement rattrapant le niveau derrière lui.
     pub fn gain_cancelled_by_alignment(&self) -> bool {
@@ -406,7 +406,7 @@ impl State {
     }
 
     /// Touches de la fenêtre du catalogue. `None` : la fenêtre est fermée. Appelée par `on_key`
-    /// **avec les autres saisies de texte** (#175) : son filtre se tape au clavier, il doit donc
+    /// **avec les autres saisies de texte** : son filtre se tape au clavier, il doit donc
     /// recevoir les lettres avant que les touches communes (`n`, `S`, `P`, `1`, `2`) les prennent.
     pub(super) fn catalog_key(&mut self, key: Key) -> Option<Action> {
         let c = self.fx.catalog.as_mut()?;
@@ -438,7 +438,7 @@ impl State {
 
     /// Touches de l'espace Chaîne ; `None` : touche commune (`q`, Échap au dernier niveau...).
     pub(super) fn fx_key(&mut self, key: Key) -> Option<Action> {
-        // le catalogue est pris en amont, avec les saisies de texte (#175)
+        // le catalogue est pris en amont, avec les saisies de texte
         // réglages : ↑↓ choisit, ←→ change, Échap / Entrée reviennent à la chaîne
         if self.fx.focus == FxFocus::Params {
             let n = self.fields().len();
@@ -468,13 +468,13 @@ impl State {
                     self.fx.focus = FxFocus::Chain;
                     return Some(Action::None);
                 }
-                // **Un panneau ne retombe pas** (#249) : la règle des modales de l'ADR 0009 vaut
+                // **Un panneau ne retombe pas** : la règle des modales de l'ADR 0009 vaut
                 // aussi pour lui. Ce qui suit est une liste **blanche**, comme celle de la scène,
                 // parce qu'une liste de refus échoue *ouverte* — une touche ajoutée demain à
-                // l'édition de la chaîne agirait de nouveau derrière ce panneau. C'était le cas de
-                // `Retour` et `x`, qui retiraient le bloc dont on réglait justement les paramètres
-                // en laissant le focus sur un bloc qui n'en a aucun ; et de `s`, `a`, `i`, `b`,
-                // `[`, `n`, qui éditaient la chaîne depuis un écran montrant une liste de valeurs.
+                // l'édition de la chaîne agirait derrière ce panneau : `Retour` et `x` retireraient
+                // le bloc dont on règle justement les paramètres, en laissant le focus sur un bloc
+                // qui n'en a aucun, et `s`, `a`, `i`, `b`, `[`, `n` éditeraient la chaîne depuis un
+                // écran qui ne montre qu'une liste de valeurs.
                 //
                 // `1 2 3 q h * k` ne passent pas par ici : l'étage pédale les a déjà prises.
                 //
@@ -484,7 +484,7 @@ impl State {
                 //
                 // le volume du preset (un paramètre vivant), l'A/B sans effets, les vumètres
                 Key::Char(',') | Key::Char('.') | Key::Char('r') | Key::Char('v') => {}
-                // `PgDn` / `PgUp` : le geste du **pédalier** (#158) ne se bloque jamais — la
+                // `PgDn` / `PgUp` : le geste du **pédalier** ne se bloque jamais — la
                 // fiabilité live prime. Le preset remplace la chaîne entière, donc le panneau
                 // n'a plus de sujet : il se referme de lui-même.
                 Key::PageDown | Key::PageUp => self.fx.focus = FxFocus::Chain,
@@ -498,7 +498,7 @@ impl State {
             }
         }
         // La **sortie** d'un parallèle (`◇`) ne sert qu'à ajouter autour de lui : tout le reste se
-        // règle depuis le `◆` (#152). On le dit une fois pour toutes, plutôt que touche par touche.
+        // règle depuis le `◆`. On le dit une fois pour toutes, plutôt que touche par touche.
         if self.fx.chain.spot(self.fx.cursor) == Spot::Merge {
             match key {
                 Key::Char('s' | '+' | '=' | 'x' | '[' | ']' | '{' | '}' | 'b' | 'm' | 'o' | 'p')
@@ -559,14 +559,14 @@ impl State {
             Key::Char('m') => self.message = Some(self.branch_flag(Flag::Mute)),
             Key::Char('o') => self.message = Some(self.branch_flag(Flag::Solo)),
             Key::Char('p') => self.message = Some(self.branch_flag(Flag::Phase)),
-            // PgDn / PgUp : preset suivant / précédent, le geste du pédalier (#158). Dans la
+            // PgDn / PgUp : preset suivant / précédent, le geste du pédalier. Dans la
             // Bibliothèque, ces touches défilent les listes : le preset, c'est la chaîne.
             Key::PageDown => return Some(self.step_preset(true)),
             Key::PageUp => return Some(self.step_preset(false)),
-            // `,` / `.` : le volume du preset, après l'alignement sur le DI (#179)
+            // `,` / `.` : le volume du preset, après l'alignement sur le DI
             Key::Char(',') => return Some(self.adjust_volume(-chain::VOLUME_STEP_DB)),
             Key::Char('.') => return Some(self.adjust_volume(chain::VOLUME_STEP_DB)),
-            // `t` : le TOML du preset, replié par défaut (#110)
+            // `t` : le TOML du preset, replié par défaut
             Key::Char('t') => {
                 self.show_toml = !self.show_toml;
                 changed = false;

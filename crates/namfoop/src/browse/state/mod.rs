@@ -42,7 +42,7 @@ pub struct Item {
     /// Modèles : la courbe du **modèle nu** (sans IR), mesurée avec la basse de l'utilisateur
     /// (`library::model_profile::ModelProfile::voicing`). `profile`, lui, y a déjà ajouté l'IR
     /// conseillée quand le modèle en a besoin : pour montrer la chaîne **réellement écoutée** il
-    /// faut repartir du modèle nu et y poser l'IR du moment (panneau Bandes, #183).
+    /// faut repartir du modèle nu et y poser l'IR du moment (panneau Bandes).
     pub voicing: Option<std::sync::Arc<dsp::profile::IrProfile>>,
     /// IR : c'est un **mélange enregistré** (`library/cabs/`). Ils passent en tête de la liste du
     /// sélecteur de la Chaîne (§ 5).
@@ -144,7 +144,7 @@ pub enum Action {
         ir: IrChoice,
     },
     SaveBlend(String),
-    /// Écrit la chaîne en preset sous ce nom (`library/presets/<nom>.preset.toml`, #110).
+    /// Écrit la chaîne en preset sous ce nom (`library/presets/<nom>.preset.toml`).
     SavePreset(String),
     /// Enregistre les métadonnées de ces modèles (`library/overrides.toml`).
     SaveMeta(Vec<(usize, ModelMeta)>),
@@ -153,13 +153,13 @@ pub enum Action {
         model: usize,
         input_db: f32,
     },
-    /// `L` : la boucle doit lister les sets de la bibliothèque (§ 7, #219).
+    /// `L` : la boucle doit lister les sets de la bibliothèque (§ 7).
     ListSets,
     /// Ouvre ce set (son identifiant court) : la boucle le lit et précharge sa banque.
     OpenSet(String),
-    /// **`S` en édition de set** : la boucle écrit `library/sets/<nom>.set.toml` (#220).
+    /// **`S` en édition de set** : la boucle écrit `library/sets/<nom>.set.toml`.
     SaveSet(String),
-    /// **`t`** : ouvrir le prompteur de ce morceau dans `$EDITOR` (#222). La boucle rend la main
+    /// **`t`** : ouvrir le prompteur de ce morceau dans `$EDITOR`. La boucle rend la main
     /// au terminal, puis relit le fichier — l'état, lui, ne touche à aucun fichier.
     EditPrompt(usize),
     /// Le set actif a changé (ou disparu) : la banque préchargée doit être refaite.
@@ -200,7 +200,7 @@ pub struct State {
     pub fx: fx::FxState,
     /// Sélecteur sur place d'un bloc `nam` / `ir` de la chaîne (§ 5), quand il est ouvert.
     pub picker: Option<picker::Picker>,
-    /// La banque de presets (`P`) : ce que la bibliothèque contient, chaîne déjà résolue (#110).
+    /// La banque de presets (`P`) : ce que la bibliothèque contient, chaîne déjà résolue.
     pub presets: Vec<preset::PresetItem>,
     /// Le preset dont la chaîne vient, s'il y en a un.
     pub preset: Option<preset::PresetRef>,
@@ -213,7 +213,7 @@ pub struct State {
     /// Fichier du mélange d'IR enregistré (chemin relatif, identifiant) : un preset le cite.
     blend_file: Option<(String, String)>,
     /// Ce qu'on veut mettre à la place de la chaîne en cours dès qu'elle est réglée (fenêtre de
-    /// bascule) : un preset, ou une chaîne vierge (`n`, #170).
+    /// bascule) : un preset, ou une chaîne vierge (`n`).
     pub pending_switch: Option<preset::Pending>,
     /// Fenêtre « la chaîne n'est pas enregistrée » d'une bascule (preset ou chaîne vierge).
     pub confirm_switch: bool,
@@ -225,18 +225,18 @@ pub struct State {
     pub place: Option<send::Place>,
     /// Effets changés : écoute à reconstruire après `AUDITION_DELAY_MS` sans touche.
     fx_due: Option<u64>,
-    /// Vumètres par bloc et par branche de la chaîne **en écoute** (#107) : la table arrive avec la
+    /// Vumètres par bloc et par branche de la chaîne **en écoute** : la table arrive avec la
     /// chaîne construite, `meters` garde ce que les barres montrent.
     pub chain_meters: Option<dsp::meter::ChainMeters>,
     pub meters: meters::MeterDisplay,
-    /// La config aligne-t-elle le volume sur le DI (`level = "match"`, #178) ? Alors un bloc `gain`
+    /// La config aligne-t-elle le volume sur le DI (`level = "match"`) ? Alors un bloc `gain`
     /// posé dans la chaîne est annulé par cet alignement : l'écran doit le dire. La **valeur** de
     /// l'alignement, elle, arrive avec la chaîne installée (`chain_meters`), donc plus tard.
     pub level_match: bool,
     /// `v` : vumètres du synoptique affichés ou masqués.
     pub show_meters: bool,
     /// `z` : panneau Bandes montré ou masqué. `None` : le choix par défaut de l'écran — affiché
-    /// quand il ne coûte aucune ligne de liste (écran large), masqué sinon (#183).
+    /// quand il ne coûte aucune ligne de liste (écran large), masqué sinon.
     pub bands: Option<bool>,
     /// Largeur du terminal à la dernière image, posée par la boucle d'affichage : elle décide des
     /// panneaux qui ne tiennent que sur un écran large.
@@ -263,19 +263,19 @@ pub struct State {
     pub song_keys: (Key, Key),
     /// La fenêtre **`L` : choisir le set** (§ 7). `None` : fermée.
     pub set_picker: Option<set::screen::Picker>,
-    /// **L'édition du set** (`e`, § 8, #220). `None` : on regarde la set list, on ne la change pas.
+    /// **L'édition du set** (`e`, § 8). `None` : on regarde la set list, on ne la change pas.
     pub set_edit: Option<set::edit::Edit>,
-    /// Les **prompteurs** lus, par chemin de fichier (#222) : la boucle les lit, l'écran les
+    /// Les **prompteurs** lus, par chemin de fichier : la boucle les lit, l'écran les
     /// affiche. Indexés par chemin et non par numéro de morceau, pour qu'une édition du set
     /// (ajouter, retirer, déplacer un morceau) ne les désaligne pas.
     pub prompts: std::collections::HashMap<std::path::PathBuf, set::prompt::Loaded>,
     /// Les touches **réglables** du prompteur (`[set] prompt_next` / `prompt_prev`, § 10).
     pub prompt_keys: (Key, Key),
-    /// La dernière touche que **personne** n'a possédée (ADR 0009, #242). La boucle l'écrit dans
+    /// La dernière touche que **personne** n'a possédée (ADR 0009). La boucle l'écrit dans
     /// `NAMFOOP_BROWSE_TRACE` puis la remet à `None` : sur scène, « j'ai appuyé et rien ne s'est
     /// passé » devient diagnosticable, sans rien afficher à l'utilisateur.
     pub unhandled: Option<crate::tui::Key>,
-    /// **`run --set` : la scène verrouillée** (§ 9, #221). Seuls les gestes de scène répondent —
+    /// **`run --set` : la scène verrouillée** (§ 9). Seuls les gestes de scène répondent —
     /// changer de son, de morceau, voir un détail, taper le tempo. Tout le reste affiche
     /// `🔒 run --set : rien ne s'édite ici`. On ne modifie pas un preset par mégarde en concert.
     pub locked: bool,
@@ -286,7 +286,7 @@ pub struct State {
     /// s'entendrait nulle part, et il faut le **dire** plutôt que de laisser croire à une panne.
     pub metronome_routed: bool,
     /// **L'arbitre de tempo** (ADR 0008) : il tranche entre le preset, le tap et — plus tard —
-    /// l'horloge MIDI (#7). Le tempo **entendu** est le sien ([`State::heard_tempo_bpm`]) ; celui
+    /// l'horloge MIDI. Le tempo **entendu** est le sien ([`State::heard_tempo_bpm`]) ; celui
     /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
     /// le changent. Les deux diffèrent dès qu'une horloge tourne, et l'en-tête le dit.
     tempo: engine::tempo::Arbiter,
@@ -476,7 +476,7 @@ impl State {
 
     /// L'aide du réglage sous le curseur. Dynamique pour une **division** : la fraction nue se lit
     /// mal (`1/4` est une *noire*, donc **un temps**, et non « un quart de temps »), donc on nomme
-    /// la note, on dit ce qu'elle vaut en temps, et on donne la durée au tempo courant (#207).
+    /// la note, on dit ce qu'elle vaut en temps, et on donne la durée au tempo courant.
     pub fn field_help(&self, f: fx::Field) -> String {
         let fx::Field::Param(p) = f else { return f.help().to_string() };
         if p.unit != dsp::fx::Unit::Division {
@@ -502,11 +502,11 @@ impl State {
     }
 
     /// Un **tap** (`*`) : il donne le tempo *et* modifie le preset, comme tout autre réglage
-    /// (#110) — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de preset
+    /// — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de preset
     /// restaure celui du preset suivant.
     fn tap_tempo(&mut self) -> Action {
         // le banc d'essai n'est pas un preset : il n'a ni volume ni tempo propres, et y taper
-        // ferait apparaître « non enregistré » alors qu'on écoute seulement des modèles (#207)
+        // ferait apparaître « non enregistré » alors qu'on écoute seulement des modèles
         if self.space == space::Space::Library {
             self.message = Some("le tap tempo est dans l'espace Chaîne (2)".into());
             return Action::None;
@@ -526,7 +526,7 @@ impl State {
     /// Horloge (ms) : déclenche l'écoute différée et la mesure du grain de l'éditeur.
     pub fn tick(&mut self, now_ms: u64) -> Action {
         self.now = now_ms;
-        // une horloge MIDI qui se tait doit se voir (#7 l'alimentera) : le tempo, lui, est gardé
+        // une horloge MIDI qui se tait doit se voir : le tempo, lui, est gardé
         self.tempo.poll(now_ms * 1000);
         if let (Some(t), Some(ed)) = (self.grain_due, &self.editor) {
             if now_ms >= t + GRAIN_DELAY_MS {
@@ -570,17 +570,17 @@ impl State {
 }
 
 pub mod bands;
-/// La table des touches : ce que chaque contexte possède, déclaré une fois (#243).
+/// La table des touches : ce que chaque contexte possède, déclaré une fois.
 pub mod bindings;
 mod blend;
 pub mod chain;
 mod compare;
-/// Le contexte : qui a le clavier, en une valeur (#243).
+/// Le contexte : qui a le clavier, en une valeur.
 pub mod context;
 mod edit;
 mod editor;
 pub mod fx;
-/// L'oracle du clavier (#241) : la table de référence de ce que fait chaque touche.
+/// L'oracle du clavier : la table de référence de ce que fait chaque touche.
 #[cfg(test)]
 mod keyboard;
 mod keys;

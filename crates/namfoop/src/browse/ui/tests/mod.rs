@@ -87,7 +87,7 @@ fn with_profiles(s: &mut State) {
     }
 }
 
-/// Le panneau **Bandes** (#183) : d'office sous la courbe du Spectre sur un écran large, où il ne
+/// Le panneau **Bandes** : d'office sous la courbe du Spectre sur un écran large, où il ne
 /// coûte aucune ligne de liste ; sous la liste et seulement après `z` sur un écran étroit.
 #[test]
 fn the_bands_panel_shows_the_seven_zones_and_follows_z() {
@@ -162,7 +162,7 @@ fn input_meter_shows_calibration_mark_and_model_level() {
     assert!(t.contains("┃") && t.contains("→ modèle -30 dB"), "{t}");
 }
 
-/// Le préchargement de la banque se voit tant qu'il reste des places, et disparaît ensuite (#6).
+/// Le préchargement de la banque se voit tant qu'il reste des places, et disparaît ensuite.
 #[test]
 fn the_bank_preloading_shows_until_it_is_done() {
     let s = sample();
@@ -272,7 +272,7 @@ fn the_quit_window_signals_an_empty_chain() {
     assert!(t.contains("mélange d'IR"), "{t}");
 }
 
-/// Le seuil du panneau Spectre : **128 colonnes** (police 10×20 sur l'écran 1280×800 du Pi, #138).
+/// Le seuil du panneau Spectre : **128 colonnes** (police 10×20 sur l'écran 1280×800 du Pi).
 /// À 128, la liste et le panneau restent lisibles côte à côte — pas plus tronqués qu'à 130.
 #[test]
 fn the_spectrum_panel_appears_from_128_columns() {

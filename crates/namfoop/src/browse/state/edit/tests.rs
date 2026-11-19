@@ -61,7 +61,7 @@ fn the_cursor_walks_the_chain_in_two_dimensions() {
     assert_eq!(s.fx.cursor, Cursor::Header { top: 1, b: 0 });
     s.on_key(Key::Right);
     assert_eq!(s.fx.cursor, Cursor::Block { top: 1, b: 0, j: 0 });
-    // au bout de la branche : la **sortie** du parallèle (`◇`, #152), puis ce qui le suit
+    // au bout de la branche : la **sortie** du parallèle (`◇`), puis ce qui le suit
     s.on_key(Key::Right);
     assert_eq!(s.fx.cursor, Cursor::Merge(1));
     assert_eq!(s.fx.chain.spot(s.fx.cursor), Spot::Merge);
@@ -334,8 +334,8 @@ fn the_catalog_filter_puts_names_first() {
 }
 
 /// Le filtre du catalogue reçoit **toutes** les lettres, y compris celles des touches communes :
-/// taper `gain` ou `nam` filtre et n'efface pas la chaîne (#175 : `n` ouvre une chaîne vierge, mais
-/// pas au milieu d'une saisie).
+/// taper `gain` ou `nam` filtre et n'efface pas la chaîne : `n` ouvre une chaîne vierge, mais pas
+/// au milieu d'une saisie.
 #[test]
 fn the_catalog_filter_gets_the_letters_of_the_common_keys() {
     for (filtre, attendu, forme) in
@@ -362,7 +362,7 @@ fn the_catalog_filter_gets_the_letters_of_the_common_keys() {
 }
 
 /// Volume aligné sur le DI : un bloc `gain` ajouté le dit tout de suite, et le panneau de réglages
-/// le redit tant que le curseur est dessus (#178). Sans alignement, pas d'avertissement.
+/// le redit tant que le curseur est dessus. Sans alignement, pas d'avertissement.
 #[test]
 fn a_gain_block_warns_when_the_volume_is_aligned_on_the_di() {
     let add_gain = |aligned: bool| -> State {
@@ -490,7 +490,7 @@ fn every_edit_asks_for_a_deferred_audition() {
     assert_eq!(s.tick(2000), Action::None);
 }
 
-/// La **sortie** d'un parallèle (`◇`, #152) : on y ajoute **après** le parallèle — le geste qui
+/// La **sortie** d'un parallèle (`◇`) : on y ajoute **après** le parallèle — le geste qui
 /// manquait quand il est en bout de chaîne —, `i` ajoute à la fin de sa première branche, et tout
 /// le reste se règle depuis le `◆`.
 #[test]
@@ -590,7 +590,7 @@ fn a_tap_gives_the_tempo_and_marks_the_preset_modified() {
 
 /// Une division rythmique **remplace** `time` (ADR 0008) : la ligne `time` montre alors la durée
 /// que le tempo lui impose, **entre parenthèses**, et la régler ne fait rien — mais le dit, plutôt
-/// que de laisser croire que le réglage est cassé (#177).
+/// que de laisser croire que le réglage est cassé.
 #[test]
 fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
     let mut s = with_chain(vec![fx_block("delay:time=400")]);
@@ -634,7 +634,7 @@ fn a_division_shows_time_as_derived_and_refuses_to_set_it() {
 }
 
 /// **La ligne d'aide dit ce que vaut la note** : une fraction nue se lit mal — `1/4` est une
-/// *noire*, donc **un temps**, et non « un quart de temps » (#207). C'est exactement la confusion
+/// *noire*, donc **un temps**, et non « un quart de temps ». C'est exactement la confusion
 /// que l'utilisateur a eue, et c'est là qu'elle se lève.
 #[test]
 fn the_help_line_says_what_the_note_is_worth() {
@@ -675,7 +675,7 @@ fn the_help_line_says_what_the_note_is_worth() {
 }
 
 /// Le **banc d'essai n'est pas un preset** : y taper ne doit rien modifier, et la touche dit où
-/// elle agit (#207).
+/// elle agit.
 #[test]
 fn the_tap_does_nothing_in_the_library_space() {
     let mut s = with_chain(vec![fx_block("delay:division=1/8.")]);
@@ -702,7 +702,7 @@ fn the_tap_does_nothing_in_the_library_space() {
 }
 
 /// `k` allume le clic du métronome — et **le dit** quand aucune sortie ne le reçoit, au lieu
-/// d'allumer un clic inaudible (#201). Il est éteint au démarrage, toujours : c'est une aide
+/// d'allumer un clic inaudible. Il est éteint au démarrage, toujours : c'est une aide
 /// d'écoute, pas un son, et il ne vit pas dans un preset (ADR 0008).
 #[test]
 fn the_click_is_off_at_start_and_says_when_it_has_nowhere_to_go() {

@@ -1,4 +1,4 @@
-//! `namfoop presets` : la banque enregistrée (`library/presets/*.preset.toml`, #157), comme
+//! `namfoop presets` : la banque enregistrée (`library/presets/*.preset.toml`), comme
 //! `namfoop models` pour les sons. Chaque ligne donne l'identifiant court — celui de
 //! `run --preset` —, le nom, et la chaîne en une ligne.
 
@@ -26,7 +26,7 @@ pub fn list(library: &Path, _conf: &LoadedConfig) -> Result<()> {
             Ok(spec) => match spec.to_blocks(1.0, &|_| 0.0, &|id| lib.path_of_id(id)) {
                 Ok(blocks) => {
                     let parts: Vec<String> = blocks.iter().map(dsp::block::BlockSpec::describe).collect();
-                    // le volume du preset fait partie de ce qu'on entendra (#179)
+                    // le volume du preset fait partie de ce qu'on entendra
                     let volume = match spec.volume_db {
                         0.0 => String::new(),
                         v => format!(" › volume {v:+.1} dB"),

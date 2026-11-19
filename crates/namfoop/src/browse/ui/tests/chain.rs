@@ -124,7 +124,7 @@ fn the_header_shows_both_spaces_and_counts_the_chain_blocks() {
 }
 
 /// Fenêtre « Modifications non enregistrées » (`q`) : elle dit ce qui serait perdu, n'offre que
-/// `Q` pour quitter, et la barre d'aide le répète (#104).
+/// `Q` pour quitter, et la barre d'aide le répète.
 #[test]
 fn unsaved_changes_window_lists_what_would_be_lost() {
     let mut s = sample();
@@ -194,7 +194,7 @@ fn the_synoptic_draws_the_four_shapes_with_aligned_columns() {
     ]);
     assert_eq!(lines.len(), 2);
     assert!(lines[0].starts_with("IN ─ gate -60 ─ ◆─┬─ < 150 Hz ─ son direct"), "{}", lines[0]);
-    // la sortie du parallèle (`◇`, #152) se dessine entre les branches et ce qui suit
+    // la sortie du parallèle (`◇`) se dessine entre les branches et ce qui suit
     assert!(lines[0].contains("-2 dB ─┬─ ◇ ─ peak ─ reverb ─ OUT"), "{}", lines[0]);
     assert!(lines[1].contains("└─ > 150 Hz ─ nam·B7K Ultra ─ ir·121 Lower - Cap ─"), "{}", lines[1]);
     assert!(lines[1].contains("0 dB ─┘"), "{}", lines[1]);
@@ -477,7 +477,7 @@ fn the_picker_shows_the_spectrum_panel_on_a_wide_terminal() {
 
 /// La fenêtre du catalogue se dessine **toujours** quand elle est ouverte, quel que soit le bloc
 /// sous le curseur — un `return` la sautait sur un bloc `nam` / `ir` et `a` semblait ne rien faire
-/// (#148).
+///.
 #[test]
 fn the_catalog_window_is_drawn_whatever_the_block_under_the_cursor() {
     use crate::browse::state::chain::{Block, Cursor, Leaf};
@@ -511,7 +511,7 @@ fn the_catalog_window_is_drawn_whatever_the_block_under_the_cursor() {
 }
 
 /// La barre permanente du bas rappelle **toujours** comment sortir : `h` (l'aide), `1` / `2`
-/// (l'autre espace) et `q` (quitter) — c'est ce qui manquait dans la Chaîne (#150). Et plus aucun
+/// (l'autre espace) et `q` (quitter) — c'est ce qui manquait dans la Chaîne. Et plus aucun
 /// trou dans les textes.
 #[test]
 fn the_permanent_help_bar_always_says_how_to_get_out() {
@@ -584,7 +584,7 @@ fn the_permanent_help_bar_always_says_how_to_get_out() {
 }
 
 /// L'overlay `h` : contextuel, il se referme à n'importe quelle touche, et `h` pendant une saisie
-/// s'écrit dans le filtre (#150).
+/// s'écrit dans le filtre.
 #[test]
 fn the_help_overlay_is_contextual() {
     use crate::browse::state::chain::{Block, Cursor, Leaf};
@@ -630,7 +630,7 @@ fn the_help_overlay_is_contextual() {
     s.on_key(Key::Esc);
 }
 
-/// La sortie d'un parallèle à l'écran (#152) : le `◇` est dessiné, le curseur s'y voit, le panneau
+/// La sortie d'un parallèle à l'écran : le `◇` est dessiné, le curseur s'y voit, le panneau
 /// dit ce qu'elle somme, et la barre d'aide comme l'overlay `h` disent quoi en faire.
 #[test]
 fn the_output_of_a_parallel_is_visible_and_explained() {
@@ -672,7 +672,7 @@ fn the_output_of_a_parallel_is_visible_and_explained() {
     assert_eq!(sur.style.bg, Some(Color::Cyan), "le curseur est dessus");
 }
 
-/// Les presets à l'écran (#110) : l'indicateur de l'en-tête, la banque (`P`), la fenêtre de
+/// Les presets à l'écran : l'indicateur de l'en-tête, la banque (`P`), la fenêtre de
 /// bascule, et le TOML replié puis déplié (`t`).
 #[test]
 fn presets_on_screen() {
@@ -730,7 +730,7 @@ fn presets_on_screen() {
     assert!(t.contains("S      enregistrer la chaîne, puis charger"), "{t}");
     assert!(t.contains("Entrée charger quand même"), "{t}");
     s.on_key(Key::Esc);
-    // `n` sur la même chaîne non enregistrée : la fenêtre parle de repartir, pas de charger (#170)
+    // `n` sur la même chaîne non enregistrée : la fenêtre parle de repartir, pas de charger
     s.on_key(Key::Char('n'));
     let t = screen(&s);
     assert!(t.contains("La chaîne n'est pas enregistrée"), "{t}");

@@ -1,16 +1,12 @@
-//! **Le contexte** : qui a le clavier, en une valeur (#243, épique #240).
+//! **Le contexte** : qui a le clavier, en une valeur.
 //!
-//! Cette énumération ne s'invente pas — elle **existait déjà**, éparpillée en trois copies : la
-//! cascade de `on_key` (qui décide), celle de `ui::footer::keys` (qui annonce) et celle de
-//! `ui::windows::help_lines` (qui explique). Trois cascades parallèles que rien ne reliait, et
-//! c'est ce qui a laissé vivre cinq divergences entre ce qui est annoncé et ce qui est traité
-//! (`S` annoncé mais mort dans la banque, `3` traité mais annoncé nulle part, `k` actif dans la
-//! Bibliothèque sans y être dit, `?` jamais annoncé, `L` dont le commentaire promettait plus que
-//! le code).
+//! **Une** fonction dit où l'on est, et la table de `bindings.rs` dit ce qu'on y peut faire. Trois
+//! cascades voulaient cette réponse — `on_key` (qui décide), `ui::footer::keys` (qui annonce) et
+//! `ui::windows::help_lines` (qui explique) : qu'elles la tirent toutes d'ici est ce qui empêche
+//! une touche d'être annoncée sans être traitée, ou traitée sans être annoncée.
 //!
-//! Désormais : **une** fonction dit où l'on est, et la table de `keys::bindings` dit ce qu'on y
-//! peut faire. L'ordre des `if` suit exactement celui des étages de `on_key` (ADR 0009) — c'est la
-//! même vérité, écrite une fois.
+//! L'ordre des `if` suit exactement celui des étages de `on_key` (ADR 0009) : c'est la même
+//! vérité, écrite une fois.
 
 use super::{fx::FxFocus, space::Space, State, Tab};
 
@@ -53,7 +49,7 @@ pub enum Context {
     /// Les trois espaces. La Bibliothèque est **par onglet** : c'est la seule façon de dire
     /// « `a` / `s` / `x` sont à moi, en Mélange seulement ».
     Set,
-    /// La **sortie d'un parallèle** (le `◇`) : ses touches ne sont pas celles d'un bloc (#152).
+    /// La **sortie d'un parallèle** (le `◇`) : ses touches ne sont pas celles d'un bloc.
     ChainMerge,
     Chain,
     Models,

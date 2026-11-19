@@ -2,7 +2,7 @@
 //! rien n'est en jeu et demande confirmation sinon. Ce qui est « modifié » se décide en **comparant
 //! des états** (jamais un drapeau posé à la main) : défaire un changement ou l'enregistrer efface
 //! l'alerte. Décisions : `docs/design/browse-chaine.md` § 8 (l'enregistrement du preset avec `S`
-//! viendra avec les presets, #6).
+//! viendra avec les presets).
 
 use super::*;
 
@@ -24,7 +24,7 @@ impl State {
     /// d'états : défaire un changement fait disparaître la ligne correspondante.
     pub fn unsaved(&self) -> Vec<String> {
         let mut v = self.chain_unsaved();
-        // le set édité (§ 8, #220) : `●` tant qu'il n'est pas écrit.
+        // le set édité (§ 8) : `●` tant qu'il n'est pas écrit.
         //
         // ATTENTION : il est **hors** de `chain_unsaved`, qui répond à une autre question. Mis
         // dans la même liste, il faisait demander « non enregistré » à chaque essai de preset
@@ -104,7 +104,7 @@ impl State {
         if key == Key::Char('Q') {
             return Action::Quit;
         }
-        // `S` : enregistrer le preset **puis** quitter (#110)
+        // `S` : enregistrer le preset **puis** quitter
         if key == Key::Char('S') && !self.fx.chain.is_empty() {
             self.quit_after_save = true;
             let a = self.save_preset();
@@ -131,7 +131,7 @@ mod tests {
 
     /// Échap ne renvoie jamais `Action::Quit`, dans tous les onglets et à tous les niveaux : il remonte
     /// d'un cran (filtre, saisie du nom, éditeur, réglages d'un effet) et, quand il n'y a plus rien à
-    /// remonter, il le dit (#104).
+    /// remonter, il le dit.
     #[test]
     fn escape_never_quits_and_climbs_back_one_level() {
         // chaque onglet de la Bibliothèque, puis la Chaîne, sans rien ouvert
@@ -186,7 +186,7 @@ mod tests {
 
     /// `q` : quitte tout de suite si rien n'est en jeu, sinon ouvre la confirmation. Seul `Q` quitte ;
     /// toute autre touche (Échap, q, une flèche) fait rester. Ce qui est « modifié » se décide en
-    /// comparant des états : défaire le changement efface l'alerte (#104).
+    /// comparant des états : défaire le changement efface l'alerte.
     #[test]
     fn q_asks_before_losing_something_and_only_shift_q_quits() {
         let mut s = sample();
@@ -208,7 +208,7 @@ mod tests {
         assert!(s.unsaved()[0].contains("chaîne : 1 bloc"), "{:?}", s.unsaved());
         assert_eq!(s.on_key(Key::Char('q')), Action::None);
         assert!(s.confirm_quit, "fenêtre de confirmation ouverte");
-        // `S` a maintenant un sens ici (enregistrer puis quitter, #110) : il n'est pas dans la
+        // `S` a maintenant un sens ici (enregistrer puis quitter) : il n'est pas dans la
         // liste des « toute autre touche »
         for key in [Key::Esc, Key::Char('q'), Key::Down, Key::Char('v')] {
             assert_eq!(s.on_key(key), Action::None, "{key:?} ne quitte pas");
@@ -232,7 +232,7 @@ mod tests {
     }
 
     /// Les deux autres choses qu'on peut perdre : un mélange d'IR pas enregistré et le brouillon de
-    /// l'éditeur `e`. Enregistrer les efface (#104).
+    /// l'éditeur `e`. Enregistrer les efface.
     #[test]
     fn an_unsaved_blend_or_editor_draft_also_asks_before_quitting() {
         // mélange : deux IR ajoutées, puis enregistrées

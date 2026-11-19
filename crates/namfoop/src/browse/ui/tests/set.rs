@@ -1,4 +1,4 @@
-//! **La vue scène** (§ 6 de `docs/design/set.md`, #219) à plusieurs tailles de terminal : les deux
+//! **La vue scène** (§ 6 de `docs/design/set.md`) à plusieurs tailles de terminal : les deux
 //! colonnes, la fenêtre de la set list, le set sans titres, la ligne compacte. Ce qui compte ici
 //! n'est pas le pixel mais **ce qu'on doit pouvoir lire sur scène** : le morceau joué, le son
 //! joué, et ce que fera le prochain appui.
@@ -223,7 +223,7 @@ fn the_set_picker_lists_sets_and_the_two_special_rows() {
     assert!(out.contains("Entrée activer"), "{out}");
 }
 
-/// **`run --set` : la scène verrouillée** (§ 9, #221). L'en-tête porte le cadenas et le nom du set
+/// **`run --set` : la scène verrouillée** (§ 9). L'en-tête porte le cadenas et le nom du set
 /// au lieu des trois espaces — on ne montre pas des espaces qu'on ne peut pas ouvrir —, et la
 /// barre du bas ne propose que ce qui marche.
 #[test]
@@ -279,7 +279,7 @@ fn the_locked_help_says_where_to_go_to_edit() {
     assert!(out.contains("namfoop browse"), "{out}");
 }
 
-// ----------------------------------------------- l'édition (`e`, § 8, #220)
+// ----------------------------------------------- l'édition (`e`, § 8)
 
 /// Le même état, en édition, le son `at` joué et visé.
 fn edited(at: (usize, usize)) -> State {
@@ -377,7 +377,7 @@ fn a_brand_new_set_asks_for_its_name_then_shows_an_empty_table() {
     assert!(out.contains("a ajoute un premier morceau"), "{out}");
 }
 
-// ------------------------------------------------- le prompteur (§ 10, #222)
+// ------------------------------------------------- le prompteur (§ 10)
 
 /// Le texte de « Le Phare » : trois sections, des accords, une cue, et deux sections liées à un son.
 const CHO: &str = "{title: Le Phare}\n{tempo: 124}\n{time: 4/4}\n\

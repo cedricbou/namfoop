@@ -9,7 +9,7 @@ pub fn parse_out(s: &str) -> std::result::Result<OutputRoute, String> {
         .trim()
         .parse::<Source>()
         .map_err(|_| format!("source inconnue « {src} » (processed, di, mic, mute)"))?;
-    // `--route` ne dit rien du clic de métronome : il se règle dans la config (#201)
+    // `--route` ne dit rien du clic de métronome : il se règle dans la config
     Ok(OutputRoute { channel, source, click: false })
 }
 
