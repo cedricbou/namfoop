@@ -161,13 +161,13 @@ pub(super) fn window(len: usize, cursor: usize, height: usize) -> std::ops::Rang
 
 pub fn render(s: &State, st: &Status, f: &mut Frame) {
     let lib = s.space == Space::Library;
-    // l'en-tête : les deux espaces, puis les onglets de la Bibliothèque (ou l'A/B de la Chaîne),
+    // l'en-tête : les espaces, puis les onglets de la Bibliothèque (ou l'A/B de la Chaîne),
     // puis le filtre — qui n'a de sens que dans la Bibliothèque
     let [spaces, tabs, filter, body, now, foot] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(1),
         // le filtre n'a de sens que dans la Bibliothèque, mais la **saisie d'un nom** (mélange ou
-        // preset) doit se voir depuis les deux espaces
+        // preset) doit se voir depuis n'importe quel espace
         Constraint::Length(u16::from(lib || s.naming.is_some())),
         Constraint::Min(5),
         Constraint::Length(4),

@@ -1,13 +1,16 @@
 # Spécification · le mode Set : la set list de concert
 
-Référence de comportement pour l'épique #215 « Mode Set » (née de l'échange du 15/11/2026). Elle
-ajoute un **troisième espace** à `browse` (après les deux espaces de
-[`browse-espaces.md`](browse-espaces.md)) et un mode scène à `run`. Elle ne change rien aux espaces
-Bibliothèque et Chaîne, sauf ce que dit le § 13.
+**Ce que couvre ce fichier** : le format d'un set, la banque du set, la navigation au pied et en
+MIDI, l'**espace Set** de `browse` (la vue scène), le choix et l'édition d'un set, la scène
+verrouillée `run --set`, le prompteur ChordPro et la battue. Les deux autres espaces de `browse` sont
+spécifiés dans [`browse-espaces.md`](browse-espaces.md) (la Bibliothèque) et
+[`browse-chaine.md`](browse-chaine.md) (la Chaîne).
 
-Maquette interactive : [`set.html`](set.html), à ouvrir dans un navigateur (clavier, deux sets
-d'exemple, mode `run --set`, Program Change et horloge simulés). La maquette fait foi pour le
-comportement ; son code (JavaScript) n'est pas à reprendre. Presets, morceaux et textes sont fictifs.
+Ce qui **fait foi** pour le comportement : le code et l'oracle du clavier
+(`crates/namfoop/src/browse/state/keyboard.ref.txt`), qui sont vérifiés à chaque commit. La maquette
+[`set.html`](set.html) est une **illustration** validée avec l'utilisateur (clavier, deux sets
+d'exemple, mode `run --set`, Program Change et horloge simulés) : à ouvrir dans un navigateur, sans
+en reprendre le JavaScript. Presets, morceaux et textes y sont fictifs.
 
 ## 1. Le besoin et les règles
 
@@ -30,14 +33,13 @@ Règles :
 3. **On sait toujours** quel morceau on joue, quel son, et ce qui vient au prochain appui.
 4. **La scène ne s'édite pas par erreur** : l'édition est un mode explicite (`e`) ; `run --set` ne
    permet aucune édition.
-5. **Sans set, rien ne change** : la banque entière, en boucle, comme aujourd'hui (#110).
+5. **Sans set, rien ne change** : la banque entière, en boucle.
 
 ## 2. Vocabulaire et état de l'art
 
 **Set** › **morceaux** (dans l'ordre) › **sons** (1 à n par morceau). Un **morceau** porte un n° de
 Program Change, son tempo, sa mesure et son prompteur ; un **son** est un preset plus le volume que
 ce morceau lui donne. Un son n'a **pas** de n° de PC : il est désigné par sa place (§ 3, § 5).
-(Corrigé en réalisant l'US 1 : cette phrase disait l'inverse du § 3.)
 
 C'est la hiérarchie des multi-effets du marché : la *Performance* Kemper (5 slots de rigs par morceau),
 le *preset par morceau + snapshots par partie* des utilisateurs de Helix, les *setlists* du Quad
@@ -108,21 +110,21 @@ avertissements.
 
 ## 4. La banque du set
 
-- Quand un set est **actif**, la banque préchargée (#6) devient **celle du set** : seuls ses presets
+- Quand un set est **actif**, la banque préchargée devient **celle du set** : seuls ses presets
   sont préparés, une place par preset **distinct** (le volume et le tempo étant des paramètres vivants,
   ADR 0007 et 0008, un même preset utilisé dans dix morceaux n'occupe qu'une place).
-- Passer d'un son à l'autre installe la place préparée (20 ms, queue de réverbe du son quitté, #172),
+- Passer d'un son à l'autre installe la place préparée (20 ms, plus la queue du son quitté),
   puis pose le **volume du son** (volume du preset + `volume_db` du morceau) et le **tempo** (celui du
   morceau s'il en a un, sinon celui du preset) dans leurs cases vivantes, sans rebâtir de chaîne.
 - Le tempo du morceau entre dans l'arbitre (`engine::tempo::Arbiter`) comme le ferait celui d'un
-  preset : un tap (`*`) ou une horloge MIDI le recouvrent ensuite, comme aujourd'hui (#200).
+  preset : un tap (`*`) ou une horloge MIDI le recouvrent ensuite.
 - Le set actif est retenu d'une session à l'autre (`browse` rouvre le dernier set) ; « aucun set »
   rend la banque entière.
 
 ## 5. Se déplacer
 
-**`PgDn` / `PgUp` : la liste à plat**, dans l'espace Set et sur scène (#247 : **pas** dans la
-Chaîne, qui garde sa banque). Son suivant / précédent ; après le dernier son d'un morceau, le
+**`PgDn` / `PgUp` : la liste à plat**, dans l'espace Set et sur scène — **pas** dans la Chaîne, qui
+garde sa banque (§ 13). Son suivant / précédent ; après le dernier son d'un morceau, le
 premier du morceau suivant. **Pas de bouclage** : sur le dernier son du set, `PgDn` ne fait rien et
 le message dit `fin du set`. Sans set, l'espace Set le dit (`aucun set : L pour en choisir un`).
 
@@ -133,7 +135,7 @@ et plus.
 **↑↓ puis Entrée** (espace 3 seulement) : viser un morceau sans changer le son, puis le jouer (son 1).
 Rien ne change à l'oreille tant qu'on n'a pas appuyé sur Entrée.
 
-**MIDI** (avec #7, § 12) : adressage hiérarchique, comme tous les pédaliers du marché — Helix :
+**MIDI** (§ 12) : adressage hiérarchique, comme tous les pédaliers du marché — Helix :
 CC32 setlist › PC preset › CC69 snapshot ; Quad Cortex : CC0/32 › PC › CC43 scène ; Fractal : bank ›
 PC › CC de scène ; Kemper : PC Performance › CC 50-54 slot.
 
@@ -201,7 +203,7 @@ PC › CC de scène ; Kemper : PC Performance › CC 50-54 slot.
 ┌ Choisir le set ───────────────────────────────────────────────────────┐
 │ ▶ Groupe 1 · Live Mairie   6 morceaux · 9 sons · sets/groupe-1.set.toml │
 │   Trio acoustique          — morceaux · 3 sons · sets/trio.set.toml     │
-│   aucun set                la banque entière, comme aujourd'hui         │
+│   aucun set                la banque entière                            │
 │   ＋ nouveau set…          un set vide, à remplir en édition            │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -231,25 +233,24 @@ preset (comme le sélecteur de la Chaîne, § 5 de `browse-espaces.md`).
 | `t` | ouvrir le prompteur du morceau dans `$EDITOR` (§ 10) | |
 
 `S` enregistre le set, Échap ou `e` sort de l'édition (le `●` reste tant que ce n'est pas enregistré),
-`q` passe par la fenêtre « non enregistré » si besoin. Une saisie (titre, tempo, PC) passe avant toutes
-les touches, comme le filtre et le nom aujourd'hui (keys.rs, #175).
+`q` passe par la fenêtre « non enregistré » si besoin. Une saisie (titre, tempo, PC) passe avant
+toutes les touches, comme le filtre et le nom d'un preset.
 
 **Modifier un son, c'est modifier son preset** : depuis l'espace 3, `2` mène à la Chaîne du son joué ;
 le titre de la Chaîne rappelle `preset utilisé par N morceaux de ce set` et `S` y enregistre le
 preset, donc partout.
 
-> Précisé à l'implémentation (17/11/2026, #220), trois points que cette section laissait ouverts :
->
-> - **l'édition est un écran à elle** : les touches de la vue scène (`i`, `L`, `P`) y **dorment**.
->   `L` y changeait de set en abandonnant les modifications sans rien demander — c'est la famille
->   de #249. Seules `PgDn` / `PgUp` la traversent (on édite en écoutant), comme la pédale
->   (`1 2 3`, `*`, `k`, `h`, `q`), qui est au-dessus des modes ;
-> - **`Échap` défait l'essai** : `↑↓` écrivent le preset essayé **dans** le son, puisque c'est ce
->   qui le fait entendre ; annuler remet donc celui d'avant, sinon « preset inchangé » serait un
->   mensonge. (Le sélecteur de la Chaîne n'a pas ce problème : son essai n'est posé que par
->   `plan()`.) ;
-> - **le nom d'un set est le nom de son fichier**, comme pour un preset. `L` › `＋ nouveau set…` le
->   demande avant tout le reste, et `Échap` abandonne le set : sans nom, il n'a pas de fichier.
+Trois règles tiennent cet écran :
+
+- **l'édition est un écran à elle** : les touches de la vue scène (`i`, `L`, `P`) y **dorment**, sans
+  quoi `L` changerait de set en abandonnant les modifications sans rien demander. Seules
+  `PgDn` / `PgUp` la traversent — on édite en écoutant —, comme la pédale (`1 2 3`, `*`, `k`, `h`,
+  `q`), qui est au-dessus des modes ;
+- **`Échap` défait l'essai** : `↑↓` écrivent le preset essayé **dans** le son, puisque c'est ce qui
+  le fait entendre ; annuler remet donc celui d'avant, sinon « preset inchangé » serait un mensonge.
+  Le sélecteur de la Chaîne n'a pas ce problème : son essai n'est posé que par `plan()` ;
+- **le nom d'un set est le nom de son fichier**, comme pour un preset. `L` › `＋ nouveau set…` le
+  demande avant tout le reste, et `Échap` abandonne le set : sans nom, il n'a pas de fichier.
 
 ## 9. `namfoop run --set <id | mots-clés>` : la scène verrouillée
 
@@ -257,8 +258,8 @@ preset, donc partout.
   espaces, ni `t` : toute autre touche affiche `🔒 run --set : rien ne s'édite ici`.
 - Touches : `PgDn` / `PgUp`, morceau suivant / précédent, défilement et sections du prompteur, `i`, `*`.
   `q` ouvre `Quitter la scène ? Q quitter · Échap rester`.
-- `run --set` sans argument prend `[set] default` de la config : c'est ce que lancera le service de
-  scène du Pi (#46).
+- `run --set` sans argument prend `[set] default` de la config : c'est ce que lance le service de
+  scène du Pi.
 - `run --preset` et `run --set` s'excluent.
 
 Configuration :
@@ -314,7 +315,7 @@ tient la carte des mesures**, tirée du prompteur.
 `{x_namfoop_beats}` du `.cho` et la durée `{x_namfoop_bars}`. Le **BPM se compte toujours à la
 noire**, comme Live et l'horloge (24 tops par noire) : en 6/8 à ♩ = 82, on bat 2 noires pointées.
 Le tempo de la section en cours est le **tempo entendu** (delays), au même rang que celui du morceau
-dans l'arbitre (#200) : un tap ou l'horloge le recouvrent.
+dans l'arbitre : un tap ou l'horloge le recouvrent.
 
 **La bande de battue**, en tête de la colonne prompteur :
 
@@ -355,12 +356,12 @@ de la position ; rien dans le fil audio. Un écart visuel de 10-30 ms est invisi
 Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possible plus tard (hors
 épique : sur scène, le clic vient en général d'Ableton).
 
-## 12. MIDI (avec #7)
+## 12. MIDI
 
 - **PC / CC 69** : § 5 (PC = morceau, CC 69 = son du morceau, fenêtre PC + CC). Sans set : PC n =
-  n-ième preset de la banque (à confirmer dans #7).
+  n-ième preset de la banque.
 - **Horloge** : Start lance la battue sur le 1 de la mesure 1, Stop l'arrête, le tempo reçu devient
-  le tempo entendu (#200).
+  le tempo entendu.
 - **Song Position Pointer** (Ableton l'envoie en mode « Song ») : position en doubles croches,
   convertie en section / mesure / temps par la carte des mesures (§ 11).
 - Plus tard, hors épique : CC32 pour choisir le set (comme les setlists Helix), CC « son / morceau
@@ -376,45 +377,30 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
     travaille son preset ;
   - le set ne se joue que dans **son** espace et sur scène (`run --set`).
 
-  > Corrigé le 16/11/2026 (#247) : cette section demandait l'inverse (« `PgDn` / `PgUp` dans la
-  > Chaîne suivent le set actif »), et c'était faux — on ne pouvait plus travailler à la maille
-  > preset dans l'espace fait pour ça. La banque **préchargée** reste celle du set (§ 4) : c'est en
-  > Set et sur scène que la bascule doit être instantanée ; dans la Chaîne, un preset hors du set
-  > se charge par l'ancien chemin (~80 ms, sans coupure).
-- La Bibliothèque est inchangée (ses `PgDn` / `PgUp` déplacent la liste de 10).
-- Sans set actif : `browse`, `run --preset`, la banque, `P`, `S`, `n` sont **exactement** ceux
-  d'aujourd'hui (tests de non-régression de #110 et #131).
+  La banque **préchargée**, elle, reste celle du set (§ 4) : c'est en Set et sur scène que la
+  bascule doit être instantanée. Dans la Chaîne, un preset hors du set se charge par le chemin
+  complet (~80 ms, sans coupure).
+- La **Bibliothèque** ne connaît pas les sets : ses `PgDn` / `PgUp` déplacent la liste de 10.
+- Sans set actif, `browse`, `run --preset`, la banque, `P`, `S` et `n` se comportent comme si les
+  sets n'existaient pas, et des tests de non-régression le vérifient.
 
-## 14. Découpage (épique et US)
+## 14. Les décisions de forme, et leur raison
 
-| US | Issue | Contenu | Crates |
-|---|---|---|---|
-| 1 | #217 | Format `.set.toml` (dont `pc` de morceau et `time`), lecture, contrôles du § 3, `Kind::Set` dans la bibliothèque, commande `namfoop sets` | library, namfoop |
-| 2 | #218 | Banque du set (§ 4) et navigation (§ 5 sans MIDI) : préchargement des seuls presets du set, volume et tempo du morceau, liste à plat sans bouclage, touches de morceau réglables (`[set]`) | namfoop, model |
-| 3 | #219 | Espace 3, vue scène en deux colonnes (§ 6, dont `i` et le terminal étroit) et choix du set `L` (§ 7), set actif retenu | namfoop |
-| 4 | #220 | Édition à l'écran (§ 8) et enregistrement du set | namfoop |
-| 5 | #221 | `run --set` verrouillé et `[set]` dans la config (§ 9) | model, namfoop |
-| 6a | #222 | Prompteur ChordPro (§ 10) : lecture du sous-ensemble, rendu, suivi du son, sections au pied, `t` | library, namfoop |
-| 6b | #223 | Carte des mesures et bande de battue (§ 11) : `{time}` / `{tempo}` successifs, `x_namfoop_bars` / `x_namfoop_beats`, `Espace`, compte à rebours, défilement au tempo, tempo de section dans l'arbitre | library, namfoop |
-| 7 | #224 | MIDI du Set (§ 5, § 12), une fois #7 livré : PC morceau, CC 69 son, fenêtre PC + CC, Start/Stop, SPP sur la carte des mesures | engine, namfoop |
+1. **Vue scène en deux colonnes**, set list compacte à gauche, `i` pour le détail (§ 6) : sur scène,
+   on cherche d'un coup d'œil où l'on en est, pas la liste complète.
+2. **MIDI à la Helix** : PC = morceau (unique dans le set), CC 69 = son du morceau (§ 5) — c'est
+   l'adressage hiérarchique de tous les pédaliers du marché (§ 2), donc celui que les pieds
+   connaissent déjà.
+3. **Métrique dans le ChordPro**, BPM toujours à la noire, bande de battue avec temps 1 et compte à
+   rebours de changement de son (§ 11) : le texte et sa métrique viennent du même fichier, écrit
+   ailleurs.
+4. **Pas de bouclage dans un set** (§ 5) : en fin de set, un appui de trop ne doit pas rejouer le
+   premier morceau.
+5. **Le tempo se règle par morceau** (puis par section), **le volume son par son** (§ 3) : le tempo
+   est une propriété du morceau, le volume une propriété de ce qu'on joue.
+6. **`S` dans la Chaîne modifie le preset partout où il sert**, et le set le rappelle (§ 8) : un set
+   référence des presets, il ne les copie pas (règle 2).
+7. **En défilement la position suit le temps, à l'arrêt elle suit le son** (§ 10).
 
-Ordre : 1 → 5 (le set se joue au pied), puis 6a, 6b, puis 7. Chaque US garde le cycle habituel (issue,
-branche, PR, CI, test matériel quand l'audio est touché : US 2, 5, 7). Décision du 15/11/2026 : pour
-cette épique, les essais matériels se font **sur la carte en ALSA** (la carte simulée reste couverte
-par les tests automatiques).
-
-## 15. Décisions et points à valider
-
-Décidé le 15/11/2026 :
-
-1. vue scène en deux colonnes, set list compacte à gauche, `i` pour le détail (§ 6) ;
-2. MIDI à la Helix : PC = morceau (unique dans le set), CC 69 = son du morceau (§ 5) ;
-3. métrique dans le ChordPro, BPM toujours à la noire, bande de battue avec temps 1 et compte à
-   rebours de changement de son (§ 11).
-
-À confirmer sur la maquette :
-
-1. pas de bouclage dans un set (§ 5) ;
-2. le tempo est réglé par morceau (puis par section), le volume son par son (§ 3) ;
-3. `S` dans la Chaîne modifie le preset partout où il sert, le set le rappelle (§ 8) ;
-4. en défilement la position suit le temps, à l'arrêt elle suit le son (§ 10).
+Les essais matériels de ce mode se font **sur la carte en ALSA** ; la carte simulée est couverte par
+les tests automatiques.

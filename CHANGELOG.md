@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#270)
+- **Connaître le comportement d'un écran demande de lire un fichier, au présent.** Les trois
+  spécifications de `docs/design/` se lisaient en pile, dans l'ordre chronologique :
+  `browse-espaces.md` « remplace le § 10 de `browse-chaine.md` », `set.md` « ajoute un troisième
+  espace ». Chacune dit maintenant **ce qu'elle couvre** en tête, et décrit son écran sans renvoyer
+  à l'histoire des autres.
+- **Les huit errata datés disparaissent** : la règle est corrigée, pas annotée. Avec eux partent la
+  proposition de format TOML conservée **au-dessus** de la décision qui la remplace, la section
+  « ce qui disparaît » (des symboles qui n'existent plus), le découpage en US avec ses numéros
+  d'issue, et la liste « à confirmer » — devenue les **décisions de forme et leur raison**.
+- **Les maquettes HTML redeviennent des illustrations.** Ce qui fait foi pour le comportement est le
+  code et l'**oracle du clavier**, qui sont vérifiés à chaque commit ; une maquette n'est vérifiée
+  par rien. Les trois fichiers le disent en tête.
+- Divergences trouvées en confrontant les spécifications au code, et corrigées : `browse` a **trois**
+  espaces, pas deux — l'en-tête, le guide et six commentaires l'annonçaient encore à deux.
+
 ### Interne (#279)
 - **Les en-têtes de module disent ce que le code garantit, sans se comparer à un code qui n'existe
   plus.** `swap.rs` annonçait « `trails_ms = 0` rend exactement l'ancien comportement », `split.rs`

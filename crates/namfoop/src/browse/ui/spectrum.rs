@@ -1,7 +1,7 @@
 //! Panneau spectre (≥ [`SPECTRUM_MIN_WIDTH`] colonnes, 128 : la police 10×20 de l'écran du Pi) : la courbe de la ligne sous le curseur,
 //! une **référence** superposée, les écarts par zone et le grain.
 //!
-//! Il sert aux deux espaces (§ 5 de `docs/design/browse-espaces.md`) : dans la **Bibliothèque** la
+//! Il sert à deux écrans (§ 5 de `docs/design/browse-espaces.md`) : dans la **Bibliothèque** la
 //! référence est celle épinglée par `c` (`◆`), dans le **sélecteur** de la Chaîne c'est l'**actuel**
 //! (`●`) — d'où le paramétrage par « courbes + référence » plutôt que par onglet.
 
