@@ -33,6 +33,27 @@ jobs:
       # format + clippy ; le C++ n'est pas compilé (NAMFOOP_SKIP_CPP, posé par check.sh en CI)
       - run: scripts/check.sh --lint-only
 
+  # La cible du Pi 5 (étape 6 de la feuille de route) n'est pas exécutée ici, seulement COMPILÉE :
+  # deux blocs d'assembleur aarch64 du chemin temps réel ne sont visibles d'aucun autre job.
+  aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      # réessaie : un miroir Ubuntu injoignable ne doit pas faire échouer la PR (#117)
+      - uses: ./.github/actions/deps
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+          targets: aarch64-unknown-linux-gnu
+      - uses: mozilla-actions/sccache-action@v0.0.11
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: aarch64
+      # --required : ici la cible est installée par le toolchain, un saut serait un faux vert
+      - run: scripts/check-aarch64.sh --required
+
   check:
     runs-on: ubuntu-latest
     env:

@@ -62,6 +62,9 @@ if [[ $PROFILE == release ]]; then
   cargo test -q --release -p dsp --test budget
 fi
 
+step "cible aarch64 du Pi 5 (compilée, pas exécutée)"
+scripts/check-aarch64.sh
+
 step "build (profil $PROFILE)"
 cargo build -q --profile "$PROFILE"
 BIN=./target/$PROFILE/namfoop
