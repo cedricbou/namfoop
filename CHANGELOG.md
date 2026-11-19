@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#273)
+- **Les écrans ont leur propre fichier** : `crates/namfoop/src/browse/CLAUDE.md` (263 lignes) porte
+  les espaces, le clavier et ses quatre étages, l'oracle, la chaîne éditée, les presets, le set et
+  le dessin ; Claude Code ne le charge que quand on travaille dans ce répertoire. Le `CLAUDE.md` de
+  la crate retombe à 95 lignes (514 avant) et ne parle plus que de la CLI, des commandes et de
+  `setup`.
+- Ce qui disparaît au passage : l'**annexe de 169 lignes** qui recopiait une version périmée du
+  `CLAUDE.md` racine (33 % du fichier), le bloc « Tester » écrit **deux fois** mot pour mot, les
+  16 lignes de rendus de référence qui appartiennent à `crates/dsp/CLAUDE.md`, et les 63 lignes qui
+  ne portaient qu'un numéro d'issue. Les contrats, eux, sont tous conservés — reformulés au présent.
+
 ### Interne (#272)
 - **`scripts/check-docs.sh` vérifie les règles mécanisables de `docs/style-doc.md`** (étapes 9 à
   12) : un numéro d'issue dans un commentaire ou un rustdoc, un mot-signal temporel dans un

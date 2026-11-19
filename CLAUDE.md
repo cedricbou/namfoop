@@ -16,6 +16,7 @@ crates/model/     types sérialisables (config, routage)   interdit : toute crat
 crates/engine/    session audio : seule à ouvrir la carte  interdit : clap, ratatui, alsa direct
 crates/library/   bibliothèque, import, profils            interdit : audio-io, engine, clap, ratatui
 crates/namfoop/   binaire : CLI, écrans, une fonction par commande ; anyhow
+                  les écrans ont le leur : crates/namfoop/src/browse/CLAUDE.md
 scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, gen-cli-doc.sh,
                   check-aarch64.sh (compile la cible du Pi 5), install-hooks.sh, feature.sh,
                   test-feature.sh (le cycle lui-même, hors-ligne), test-backends.sh (matériel)
