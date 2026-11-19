@@ -6,6 +6,26 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#269)
+- **Les frontières annoncées sont maintenant celles qui sont vérifiées.** `docs/architecture.md`
+  déclarait cinq interdictions dont trois ne tenaient pas : « `dsp` interdit la config » et
+  « `audio-io` interdit la config » étaient **fausses** telles qu'écrites (`dsp` lit et écrit ses
+  propres formats — presets, mélanges d'IR —, et `audio-io` lit `/proc/asound` pour sonder les
+  cartes), et « `dsp` interdit les threads » était vraie mais non contrôlée. Une règle
+  aspirationnelle qu'un agent lit comme vraie coûte plus qu'une règle absente : elle oriente le
+  travail de travers.
+- Ce qui est vrai **et** désormais mécanisé : `dsp` ne dépend pas de `model`, donc le type `Config`
+  lui est inaccessible — c'est ça, « `dsp` ne connaît pas la config » ; et `dsp` ne crée aucun
+  thread, c'est à l'appelant de décider où le DSP tourne. Les deux refus ont été éprouvés en les
+  violant.
+- `scripts/check-arch.sh` dit maintenant dans son en-tête qu'il ne lit que les arêtes **directes**,
+  et pourquoi c'est l'intention : `model` ne ré-exporte pas `toml`, donc `engine` ne peut pas s'en
+  servir sans le déclarer.
+- Le contrôle de taille de `scripts/check-docs.sh` exemptait `tests/` tout en attrapant
+  `src/.../tests.rs` : un fichier de 764 lignes passait quand un autre de 730 était signalé. Les
+  fichiers de test comptent désormais aussi — la règle porte sur ce qu'on lit d'un bloc, pas sur la
+  nature du code.
+
 ### Interne (#267)
 - **La cible du Raspberry Pi 5 est compilée par la CI** (`scripts/check-aarch64.sh`, job `aarch64`),
   alors que rien ne la compilait : `crates/audio-io/src/rt.rs` **et** `crates/engine/src/rt.rs`

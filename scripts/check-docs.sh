@@ -9,7 +9,7 @@
 #  6. rappel CHANGELOG.md si du code a changé sans entrée de changelog (avertissement)
 #  7. chaque crate a son CLAUDE.md, citée dans la carte du CLAUDE.md racine et dans
 #     docs/architecture.md
-#  8. taille des fichiers .rs (hors tests/ et vendor/) : avertissement > 600 lignes, échec > 1000
+#  8. taille des fichiers .rs (hors vendor/), tests compris : avertissement > 600, échec > 1000
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -97,7 +97,10 @@ for dir in crates/*/; do
   grep -q "\`$c\`" docs/architecture.md || err "crate « $c » absente de docs/architecture.md"
 done
 
-# 8. taille des fichiers : au-delà de ~600 lignes, un agent lit en morceaux et rate des invariants
+# 8. taille des fichiers : au-delà de ~600 lignes, un agent lit en morceaux et rate des invariants.
+# Les fichiers de test comptent aussi : la règle porte sur ce qu'on arrive à lire d'un bloc, pas sur
+# la nature du code. (Le contrôle exemptait `tests/` tout en attrapant `src/.../tests.rs`, si bien
+# qu'un fichier de 764 lignes passait quand un autre de 730 était signalé.)
 while IFS= read -r -d '' f; do
   n=$(wc -l < "$f")
   if (( n > 1000 )); then
@@ -105,7 +108,7 @@ while IFS= read -r -d '' f; do
   elif (( n > 600 )); then
     echo "  ⚠ $f : $n lignes (> 600) : penser à découper"
   fi
-done < <(find crates -name '*.rs' -not -path '*/tests/*' -not -path '*/vendor/*' -not -path '*/target/*' -print0)
+done < <(find crates -name '*.rs' -not -path '*/vendor/*' -not -path '*/target/*' -print0)
 
 if (( fail )); then echo "docs : ÉCHEC"; exit 1; fi
 echo "docs : OK"

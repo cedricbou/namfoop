@@ -23,8 +23,8 @@ Les dépendances ne vont que **vers le bas**. La CLI pilote, `engine` fait sonne
 | Crate      | Responsabilité                                                       | Interdit                                   |
 |------------|----------------------------------------------------------------------|--------------------------------------------|
 | `nam-sys`  | FFI vers le C++ NAM                                                  | tout le reste                              |
-| `dsp`      | étages audio mono, chaîne, swap, analyses hors ligne                 | carte son, config, threads, CLI            |
-| `audio-io` | ouvrir une carte (ALSA, simulée), négocier format et buffer, RT      | clap, config utilisateur, DSP              |
+| `dsp`      | étages audio mono, chaîne, swap, analyses hors ligne                 | carte son, `model` (donc la config), threads, CLI |
+| `audio-io` | ouvrir une carte (ALSA, simulée), négocier format et buffer, RT      | clap, `toml`/`serde` (donc la config), DSP |
 | `model`    | types sérialisables : config, routage, profils de carte              | toute logique, toute crate du projet       |
 | `engine`   | session audio : routeur, swap, mesures, commandes, reprise           | clap, ratatui, bibliothèque de sons        |
 | `library`  | modèles et IR, import, overrides, recommandations, profils de sons   | carte son, clap, ratatui                   |
@@ -32,6 +32,14 @@ Les dépendances ne vont que **vers le bas**. La CLI pilote, `engine` fait sonne
 
 Règles clés : `dsp` et `audio-io` ne se connaissent pas ; seule `engine` ouvre la carte ; `model`
 ne dépend d'aucune crate du projet ; aucune crate de bibliothèque n'utilise `clap` ni `ratatui`.
+
+**Ce que « ne connaît pas la config » veut dire exactement**, parce que la formulation courte était
+fausse : `dsp` **lit et écrit des fichiers** — ses propres formats, les presets (`.preset.toml`) et
+les mélanges d'IR (`.cab.toml`). Ce qu'il ne peut pas voir, c'est la configuration de
+l'utilisateur : il ne dépend pas de `model`, donc le type `Config` lui est inaccessible, et
+`check-arch.sh` le vérifie. `audio-io`, lui, ne dépend ni de `toml` ni de `serde` : il ne
+désérialise rien. Il lit bien `/proc/asound/...` pour sonder les cartes, mais c'est du matériel,
+pas de la configuration.
 
 ## Où en est-on
 
