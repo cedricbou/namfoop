@@ -51,8 +51,10 @@ se traverse pas, et `h` ouvre l'aide hors saisie.
 
 Quatre règles à ne pas casser :
 
-- **une modale ne retombe jamais.** Un `?` sur un champ interne à une modale ouverte est un piège :
-  son `None` veut dire « pas à moi » et laisse la touche agir sur l'écran du dessous ;
+- **une modale ne retombe jamais** — sauf devant la **pédale**, qui la **referme** d'abord (comme
+  `Échap`, avec l'annulation que la fenêtre connaît) puis agit : `1 2 3 q * k` répondent pareil
+  partout, et rester coincé dans une fenêtre est un risque en concert. Une touche qui *traverse* une
+  modale, elle, agirait derrière elle ;
 - **un panneau non plus.** Les réglages d'un effet (`FxFocus::Params`) gardent une liste
   **blanche** — une liste de refus échoue **ouverte**. Passent ce qui écoute ou montre (`,` `.` `r`
   `v` `S` `P`) et `PgDn` / `PgUp`, le geste du pédalier, qui ne se bloque jamais ;

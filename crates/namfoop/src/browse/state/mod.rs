@@ -566,6 +566,7 @@ impl State {
             || self.editor.as_ref().is_some_and(|e| e.typing.is_some())
             || self.set_edit.as_ref().is_some_and(|e| e.typing.is_some())
             || self.picker.as_ref().is_some_and(|p| p.filtering)
+            || self.bank.as_ref().is_some_and(|b| b.filtering)
     }
 }
 

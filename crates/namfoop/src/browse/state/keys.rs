@@ -43,6 +43,28 @@ impl State {
             self.message = None;
             return Action::None;
         }
+        // **L'étage pédale passe au-dessus des fenêtres** (ADR 0009 : `*` et `k` sont des gestes
+        // physiques, ils répondent pareil partout). La touche **referme** la fenêtre — comme
+        // `Échap`, donc avec l'annulation que cette fenêtre connaît — **puis** agit : elle n'agit
+        // jamais *derrière* elle, ce qui est la règle des modales. Restent au-dessus de la pédale
+        // les **saisies** (une lettre y est une lettre) et les **murs** (une confirmation attend sa
+        // réponse). Aucune de ces fenêtres ne lie `1 2 3 q * k` : rien ne lui est volé.
+        if Self::pedal_owns(key)
+            && !self.typing()
+            && matches!(ctx, C::Bank | C::Send | C::Place | C::Picker | C::SetPicker)
+        {
+            match ctx {
+                C::Bank => self.bank_key(Key::Esc),
+                C::Send => self.send_key(Key::Esc),
+                C::Place => self.place_key(Key::Esc),
+                C::Picker => self.picker_key(Key::Esc),
+                C::SetPicker => self.set_picker_key(Key::Esc),
+                _ => None,
+            };
+            // le message d'annulation de la fenêtre n'a plus d'intérêt : le geste demandé parle
+            self.message = None;
+            return self.pedal_key(key).unwrap_or(Action::None);
+        }
         match ctx {
             // déjà traités plus haut : le `match` reste exhaustif pour que le compilateur nomme
             // tout contexte nouveau
@@ -74,6 +96,15 @@ impl State {
             C::Set | C::SetEdit | C::Chain | C::ChainMerge | C::Params => self.tiers(key),
             C::Models | C::Irs | C::Blend => self.tiers(key),
         }
+    }
+
+    /// **Les touches de l'étage pédale**, pour la garde qui les fait passer au-dessus des
+    /// fenêtres. `h` / `?` y sont par exactitude, mais l'aide est traitée avant d'arriver ici :
+    /// elle doit pouvoir expliquer la fenêtre elle-même. Le test
+    /// `the_pedal_list_matches_the_dispatch` vérifie que cette liste est exactement celle de
+    /// [`State::pedal_key`] — deux listes qui divergent sont le défaut que l'ADR 0009 a chassé.
+    fn pedal_owns(key: Key) -> bool {
+        matches!(key, Key::Char('1' | '2' | '3' | '*' | 'k' | 'q' | 'h' | '?'))
     }
 
     /// **Les quatre étages** de l'ADR 0009, pour les seuls contextes d'espace. Une touche les
@@ -633,12 +664,6 @@ mod tier_tests {
             Key::Char('n'),
             Key::Char('P'),
             Key::Char('S'),
-            Key::Char('1'),
-            Key::Char('2'),
-            Key::Char('3'),
-            Key::Char('*'),
-            Key::Char('k'),
-            Key::Char('q'),
             Key::Enter, // liste encore vide : la boucle n'a pas répondu à ListSets
         ] {
             assert!(matches!(s.on_key(key), Action::None), "{key:?} a produit une action");
@@ -649,9 +674,112 @@ mod tier_tests {
                 "{key:?} a agi derrière la fenêtre"
             );
         }
-        // Échap, lui, la referme : c'est sa seule sortie avec `L` et `Entrée`
+        // Échap la referme : c'est sa sortie, avec `L` et `Entrée`
         s.on_key(Key::Esc);
         assert!(s.set_picker.is_none());
+    }
+
+    /// **La pédale, elle, passe — en refermant la fenêtre d'abord.** C'est la promesse de l'ADR
+    /// 0009 : `1 2 3 q * k` sont des gestes physiques qui répondent pareil partout, et se retrouver
+    /// coincé dans une fenêtre, sans sortie ni tap tempo, est un risque en concert. La touche
+    /// n'agit pas *derrière* la fenêtre : elle la **ferme**, comme `Échap` le ferait.
+    ///
+    /// Les **cinq** fenêtres sont essayées, depuis l'espace où chacune s'ouvre.
+    #[test]
+    fn a_pedal_key_closes_the_window_then_acts() {
+        /// Comment ouvrir une fenêtre, en jouant des touches depuis une chaîne connue.
+        type Open = fn(&mut State);
+        /// Les cinq fenêtres, et comment les ouvrir.
+        const WINDOWS: &[(&str, Open)] = &[
+            ("la banque (P)", |s| {
+                s.on_key(Key::Char('P'));
+                assert!(s.bank.is_some());
+            }),
+            ("la fenêtre L (choisir le set)", |s| {
+                s.on_key(Key::Char('3'));
+                s.on_key(Key::Char('L'));
+                assert!(s.set_picker.is_some());
+            }),
+            ("le sélecteur sur place", |s| {
+                s.on_key(Key::Char('2'));
+                s.fx.cursor = chain::Cursor::Top(0);
+                s.on_key(Key::Enter);
+                assert!(s.picker.is_some());
+            }),
+            ("« mettre dans la chaîne »", |s| {
+                s.on_key(Key::Char('1'));
+                s.on_key(Key::Down);
+                s.tick(10_000);
+                s.on_key(Key::Enter);
+                assert!(s.send.is_some());
+            }),
+            ("le mode pose", |s| {
+                s.on_key(Key::Char('1'));
+                s.on_key(Key::Down);
+                s.tick(10_000);
+                s.on_key(Key::Enter);
+                s.on_key(Key::Down); // « ajouter un bloc… », la dernière ligne
+                s.on_key(Key::Down);
+                s.on_key(Key::Enter);
+                assert!(s.place.is_some());
+            }),
+        ];
+        let open = |setup: fn(&mut State)| {
+            let nam = chain::Block::Leaf(chain::Leaf::Nam { model: Some(1), on: true });
+            let mut s = with_chain(vec![nam, fx_block("reverb")]);
+            s.mark_start();
+            setup(&mut s);
+            s
+        };
+        let a_window = |s: &State| {
+            s.bank.is_some()
+                || s.send.is_some()
+                || s.place.is_some()
+                || s.picker.is_some()
+                || s.set_picker.is_some()
+        };
+        for (what, setup) in WINDOWS {
+            // les trois espaces répondent
+            for (key, want) in [
+                (Key::Char('1'), Space::Library),
+                (Key::Char('2'), Space::Chain),
+                (Key::Char('3'), Space::Set),
+            ] {
+                let mut s = open(*setup);
+                s.on_key(key);
+                assert!(!a_window(&s), "{what} : {key:?} n'a pas refermé la fenêtre");
+                assert_eq!(s.space, want, "{what} / {key:?}");
+            }
+            // le tap et le clic répondent — jamais « rien ne se passe »
+            for key in [Key::Char('*'), Key::Char('k')] {
+                let mut s = open(*setup);
+                s.message = None;
+                s.on_key(key);
+                assert!(!a_window(&s), "{what} : {key:?} n'a pas refermé la fenêtre");
+                assert!(s.message.is_some(), "{what} : {key:?} doit répondre");
+            }
+            // `q` : ici rien n'est en jeu, donc il quitte
+            let mut s = open(*setup);
+            assert_eq!(s.on_key(Key::Char('q')), Action::Quit, "{what}");
+            assert!(!a_window(&s), "{what} : q n'a pas refermé la fenêtre");
+        }
+    }
+
+    /// **La liste de la pédale est celle du dispatch**, et non une copie : la garde qui fait passer
+    /// la pédale au-dessus des fenêtres lit `pedal_owns`, le dispatch lit son `match`. Deux listes
+    /// qui divergent, c'est le défaut que l'ADR 0009 a chassé cinq fois.
+    #[test]
+    fn the_pedal_list_matches_the_dispatch() {
+        for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStTvxXz".chars() {
+            let key = Key::Char(c);
+            let mut s = sample();
+            let dispatched = s.pedal_key(key).is_some();
+            assert_eq!(
+                State::pedal_owns(key),
+                dispatched,
+                "{key:?} : la garde et le dispatch ne sont pas d'accord"
+            );
+        }
     }
 
     /// **Un panneau ne retombe pas non plus**. Les réglages d'un effet sont un quasi-modal : ce

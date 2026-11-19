@@ -175,9 +175,9 @@ fn the_picker_filters_and_refuses_to_quit() {
     s.on_key(Key::Backspace);
     s.on_key(Key::Enter); // sort du filtre
     assert!(!s.picker.as_ref().unwrap().filtering);
-    // q ne quitte pas et ne demande rien : il faut d'abord valider ou annuler
-    assert_eq!(s.on_key(Key::Char('q')), Action::None);
-    assert!(!s.confirm_quit);
+    // `Tab` est bien retenue : elle n'appartient pas à la pédale
+    assert_eq!(s.on_key(Key::Tab), Action::None);
+    assert!(s.picker.is_some());
     assert!(s.message.as_deref().is_some_and(|m| m.contains("valide (Entrée) ou annule (Échap)")));
     // `e` (calibrer) n'est pas accessible d'ici (§ 9) : il dit où il se trouve
     s.on_key(Key::Char('e'));

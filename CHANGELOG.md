@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#253)
+- **Les gestes du pied et de l'oreille répondent maintenant devant une fenêtre ouverte.** Avec la
+  banque, le catalogue, « mettre dans la chaîne », le mode pose, le sélecteur ou le choix du set
+  ouverts, `q` ne quittait pas, `*` ne tapait pas, `k` n'allumait rien et `1` / `2` / `3` ne
+  changeaient pas d'espace : la fenêtre éclipsait l'étage **pédale** en entier. L'ADR 0009 promet le
+  contraire — « des gestes physiques, qui répondent **pareil partout** », parce que rester coincé
+  est un risque en concert, pas un désagrément.
+- Une touche de pédale **referme** la fenêtre, avec l'annulation que cette fenêtre connaît (le
+  sélecteur retire le bloc qu'il venait d'ajouter, le mode pose ramène à la Bibliothèque), **puis**
+  agit. Elle n'agit donc jamais *derrière* la fenêtre : la règle des modales tient.
+- Restent au-dessus de la pédale les **saisies de texte** — une lettre y est une lettre — et les
+  **murs** : confirmations, aide, éditeur, sous-modes de l'édition d'un set. Une confirmation à
+  laquelle `q` échapperait ne confirmerait plus rien.
+- Trouvé en route : le **filtre de la banque** n'était pas compté comme une saisie, si bien que `h`
+  y ouvrait l'aide au lieu de s'écrire. Il l'est maintenant.
+
 ### Interne (#251)
 - **L'ordre du clavier n'est plus écrit qu'à un endroit.** Le code en tenait **deux** copies —
   la cascade de `on_key` et celle de `context()` — et elles ne s'accordaient déjà plus sur trois

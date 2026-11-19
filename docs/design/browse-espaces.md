@@ -35,9 +35,13 @@ son de la Bibliothèque vers la chaîne, choisir un modèle depuis la Chaîne).
 | Ce qu'on entend | le **banc d'essai** : basse › modèle › IR, sans aucun effet | la **chaîne** éditée | le son du morceau joué |
 | Couleur d'accent | magenta | cyan | — |
 
-- **`1`** va à la Bibliothèque, **`2`** à la Chaîne, **`3`** à l'espace Set, depuis n'importe où sauf
-  pendant une saisie (filtre, nom) et pendant un choix en cours dans la Chaîne (§ 5 :
-  `valide (Entrée) ou annule (Échap) le choix d'abord`).
+- **`1`** va à la Bibliothèque, **`2`** à la Chaîne, **`3`** à l'espace Set, **depuis n'importe
+  où** sauf pendant une saisie (filtre, nom), où une lettre est une lettre. Devant une **fenêtre**
+  (la banque, « mettre dans la chaîne », le mode pose, le sélecteur, le choix du set), la touche
+  **referme la fenêtre** — avec l'annulation que cette fenêtre connaît, comme `Échap` — puis change
+  d'espace : elle n'agit donc jamais *derrière* elle. C'est la règle de l'[ADR
+  0009](../adr/0009-clavier-de-browse.md) : les gestes du pied et de l'oreille (`1 2 3`, `q`, `*`,
+  `k`, `h`) répondent **pareil partout**, parce que rester coincé est un risque en concert.
 - Dans la Bibliothèque, **Tab / Maj+Tab** (en boucle) et **→ / ←** (de proche en proche) passent entre
   Modèles, IR et Mélange. Ils ne mènent plus à la Chaîne ; → sur Mélange le dit :
   `→ ne va pas plus loin : 2 pour la Chaîne`.
@@ -208,9 +212,11 @@ d'espace ni d'écran, le synoptique reste visible au-dessus.
 - **Panneau Spectre** à droite de la liste quand le terminal est assez large (même seuil que dans la
   Bibliothèque) : courbe de l'élément sous le curseur, et l'actuel comme référence (écarts par zone,
   grain).
-- **Un essai n'est pas une modification** : tant qu'on n'a pas validé, l'état comparé par `unsaved()`
-  (et l'indicateur de l'en-tête) est celui d'avant. `q` et les touches d'espace sont refusées pendant
-  un choix.
+- **Un essai n'est pas une modification** : tant qu'on n'a pas validé, l'état comparé par
+  `unsaved()` (et l'indicateur de l'en-tête) est celui d'avant. Les touches qui ne sont ni de la
+  pédale ni du sélecteur sont refusées pendant un choix (`valide (Entrée) ou annule (Échap) le choix
+  d'abord`) ; `q`, `1`, `2`, `3`, `*` et `k`, elles, **referment** le sélecteur — l'essai est donc
+  annulé, comme avec `Échap` — puis agissent (§ 2).
 - Barre d'aide :
   `↑↓ essayer dans la chaîne  Entrée garder  Échap revenir à l'ancien  c actuel / essai  o écouter ce bloc seul  r sans effets  / filtrer`
 
