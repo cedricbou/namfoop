@@ -17,8 +17,8 @@ crates/engine/    session audio : seule à ouvrir la carte  interdit : clap, rat
 crates/library/   bibliothèque, import, profils            interdit : audio-io, engine, clap, ratatui
 crates/namfoop/   binaire : CLI, écrans, une fonction par commande ; anyhow
 scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, gen-cli-doc.sh,
-                  install-hooks.sh, feature.sh, test-feature.sh (le cycle lui-même, hors-ligne),
-                  test-backends.sh (matériel)
+                  check-aarch64.sh (compile la cible du Pi 5), install-hooks.sh, feature.sh,
+                  test-feature.sh (le cycle lui-même, hors-ligne), test-backends.sh (matériel)
 docs/             guide.md, cli.md (généré), architecture.md, adr/, design/ (spécifications d'écran et maquettes)
 profiles/         profils de carte livrés (TOML, inclus dans le binaire par model::card)
 library/, nam/    sons et zips de l'utilisateur : non versionnés, ne pas modifier (tests : copie jetable)
@@ -31,9 +31,10 @@ conseillées, profils -> `library` ; option, écran, commande -> `namfoop`.
 ## Commandes
 
 - Rust est dans `~/.cargo/bin` : `export PATH="$HOME/.cargo/bin:$PATH"`.
-- `scripts/check.sh` : fmt, clippy -D warnings, tests (debug), build, docs, architecture, rendu de
-  chaque modèle de `library/` ; `--quick` sans la bibliothèque. Profil `ci`
-  (`NAMFOOP_PROFILE=ci`) : ce que fait la CI (jobs `lint` et `check`, sccache).
+- `scripts/check.sh` : fmt, clippy -D warnings, tests (debug), budget de coût par bloc, cible
+  aarch64, build, docs, architecture, rendu de chaque modèle de `library/` ; `--quick` sans la
+  bibliothèque. Profil `ci` (`NAMFOOP_PROFILE=ci`) : ce que fait la CI (jobs `lint`, `aarch64` et
+  `check`, sccache).
 - Toujours `--no-config` pour des résultats reproductibles (n'écrit rien non plus).
 - Audio : tout changement doit marcher sur **ALSA** (matériel) et **sim** (agents). Un
   agent ne branche pas de câble : demander à l'utilisateur, prévenir avant de prendre la carte ;

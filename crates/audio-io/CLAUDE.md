@@ -14,7 +14,9 @@ binaire (`crates/namfoop/src/cli_audio.rs`), qui produit un `Settings`. Erreurs 
 l'ouverture, avertissement si absents, sonde `cards` / `probe_channels` / `proc_usb_channels`,
 profil PipeWire mis à « off » puis restauré, y compris sur panic), `sim.rs` (basse synthétique sur
 l'entrée 1, bruit sur la 2), `rt.rs` (SCHED_FIFO 80, RLIMIT_RTTIME, dénormaux, `setup_audio_thread` : cœur `Settings.cpu`
-et pile préchargée, appelé au démarrage des threads ALSA et sim).
+et pile préchargée, appelé au démarrage des threads ALSA et sim). Le flush-to-zero a un bloc
+**d'assembleur aarch64** qu'aucune compilation x86 ne regarde : `scripts/check-aarch64.sh` le
+compile (en `cargo build`, un `cargo check` ne validant pas le contenu d'un `asm!`).
 
 **Règles temps réel** : celles du `CLAUDE.md` racine s'appliquent aux callbacks (aucune
 allocation, lock, I/O, log ni panic ; buffers de n'importe quelle longueur).

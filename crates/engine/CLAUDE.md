@@ -20,7 +20,8 @@ seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
 - `raw::start(settings, callback, quiet)` : **réservé aux outils de mesure et de configuration**
   (`setup`, `latency`) ; tout le reste passe par `Engine`. `scripts/check-arch.sh` refuse tout
   `audio_io::start` hors d'`engine` / `audio-io` ;
-- `rt::flush_denormals()` : flush-to-zero du thread courant (FTZ + DAZ x86_64, FZ aarch64), appelé
+- `rt::flush_denormals()` : flush-to-zero du thread courant (FTZ + DAZ x86_64, FZ aarch64 — ce
+  bloc d'assembleur est compilé par `scripts/check-aarch64.sh`, rien d'autre ne le regarde), appelé
   au premier callback d'`Engine` et de `raw` (#78) ; `render` et `bench` l'appellent aussi ;
 - `rt` : réglages temps réel du processus, une fois par `start` / `raw::start` (#3) : `mlockall`
   seulement si `memlock` est illimité (sinon `MCL_FUTURE` ferait échouer des allocations),

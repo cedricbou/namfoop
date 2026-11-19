@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#267)
+- **La cible du Raspberry Pi 5 est compilée par la CI** (`scripts/check-aarch64.sh`, job `aarch64`),
+  alors que rien ne la compilait : `crates/audio-io/src/rt.rs` **et** `crates/engine/src/rt.rs`
+  portent chacun un bloc d'assembleur aarch64 (le flush-to-zero du processeur, dans le chemin temps
+  réel) qu'aucune compilation x86 ne regarde. Une faute y aurait été découverte sur le Pi.
+- C'est un `cargo build` et non un `cargo check` : le contenu d'un `asm!` n'est donné à
+  l'assembleur qu'à la **génération de code**, si bien qu'un `check` passe sans broncher sur une
+  instruction qui n'existe pas (vérifié en cassant les deux blocs).
+- Aucun paquet système en plus : le C++ NAM n'est pas compilé pour la cible (`NAMFOOP_SKIP_CPP`, une
+  bibliothèque ne se liant pas) et `pkg-config` rend les drapeaux de l'ALSA de l'hôte
+  (`PKG_CONFIG_ALLOW_CROSS`), qui ne servent qu'à lier. Seule la cible Rust est nécessaire.
+
 ### Interne (#266)
 - **Un budget de coût par bloc, vérifié par un test** (`crates/dsp/tests/budget.rs` +
   `tests/budget.toml`) : la latence et la charge sont la priorité n°1 annoncée du projet, et rien ne
