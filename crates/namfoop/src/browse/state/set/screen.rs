@@ -96,6 +96,9 @@ impl State {
             // PgDn/PgUp tombaient sur le curseur de liste de la Bibliothèque et ne jouaient rien.
             Key::PageDown => Some(self.step_set(true)),
             Key::PageUp => Some(self.step_set(false)),
+            // **la battue** (§ 11) : `Espace` la lance et l'arrête, et son appui est le 1 de la
+            // mesure en cours. Réglable comme les autres touches du pied.
+            k if k == self.play_key => Some(self.toggle_beat()),
             // **le prompteur au pied** (§ 10) : `Fin` / `Début` changent de section SANS toucher
             // au son. Réglables comme les touches de morceau, parce que c'est le même pédalier.
             k if k == self.prompt_keys.0 => Some(self.step_prompt(true)),
@@ -120,7 +123,11 @@ impl State {
                     self.message = Some("aucun set : L pour en choisir un".into());
                     Some(Action::None)
                 }
-                k if k == self.prompt_keys.0 || k == self.prompt_keys.1 || k == Key::Char('t') => {
+                k if k == self.prompt_keys.0
+                    || k == self.prompt_keys.1
+                    || k == self.play_key
+                    || k == Key::Char('t') =>
+                {
                     self.message = Some("aucun set : L pour en choisir un".into());
                     Some(Action::None)
                 }

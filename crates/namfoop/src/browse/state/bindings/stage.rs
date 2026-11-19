@@ -24,9 +24,15 @@ pub(super) const STAGE: &[Binding] = &[
     bind!(ENTER, "Entrée", "jouer le morceau visé, sur son premier son", ""),
     bind!(&[k('i')], "i", "déplier le détail du morceau : PC, CC 69, volumes, prompteur", "i détail"),
     bind!(
+        &[KeySpec::PromptPlay],
+        "Espace",
+        "lancer / arrêter la battue : l'appui est le 1 de la mesure en cours ([set] prompt_play)",
+        "Espace battue"
+    ),
+    bind!(
         &[KeySpec::PromptNext, KeySpec::PromptPrev],
         "Fin / Début",
-        "section suivante / précédente du prompteur — le son ne change pas ([set] prompt_next)",
+        "section suivante / précédente du prompteur, recalée sur son 1 — le son ne change pas",
         "Fin/Début section"
     ),
     bind!(&[k('*')], "*", "tap tempo", "* tap"),

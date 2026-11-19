@@ -56,7 +56,7 @@ mod locked_tests {
         // avec les réglages par défaut c'est la même touche
         let allowed: Vec<Key> = bindings(Context::Stage)
             .iter()
-            .flat_map(|b| b.keys.iter().map(|k| k.resolve(s.song_keys, s.prompt_keys)))
+            .flat_map(|b| b.keys.iter().map(|k| k.resolve(s.song_keys, s.prompt_keys, s.play_key)))
             .collect();
         let before = format!("{:?}", s.fx.chain);
         let mut tried = 0;
@@ -66,7 +66,7 @@ mod locked_tests {
             }
             for b in bindings(*ctx) {
                 for spec in b.keys {
-                    let key = spec.resolve(s.song_keys, s.prompt_keys);
+                    let key = spec.resolve(s.song_keys, s.prompt_keys, s.play_key);
                     if allowed.contains(&key) {
                         continue;
                     }

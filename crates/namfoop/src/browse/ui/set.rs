@@ -20,6 +20,7 @@ use super::super::state::bindings;
 use super::super::state::set::edit::Edit;
 use super::super::state::set::ActiveSet;
 use super::super::state::State;
+use super::beat::band_lines;
 
 /// En dessous, la set list se réduit (§ 6).
 const WIDE: u16 = 100;
@@ -237,15 +238,13 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     };
     let title = format!(" {who}son {}/{sounds} {} · PgDn : ensuite {next} ", at.1 + 1, sound_name(set, at),);
     let mut lines: Vec<Line> = Vec::new();
-    // la place de la bande de battue (US 6b) et du texte (US 6a) : dite, pas simulée
-    lines.push(Line::styled(
-        format!("  ♩{:.0} {}", s.heard_tempo_bpm(), set.spec.songs[at.0].time_sig()),
-        Style::new().fg(Color::DarkGray),
-    ));
+    // **la bande de battue** (§ 11), en tête de la colonne : c'est elle qu'on regarde en jouant
+    let w = area.width.saturating_sub(4) as usize;
+    lines.extend(band_lines(s, w));
     lines.push(Line::raw(""));
     // le texte du morceau (§ 10) : ce qui reste de hauteur lui revient, moins la place du
     // morceau suivant (4 lignes) qu'on garde pour voir venir
-    let room = (area.height as usize).saturating_sub(7);
+    let room = (area.height as usize).saturating_sub(8);
     lines.extend(prompt_lines(s, set, at, area.width.saturating_sub(4) as usize, room));
     // le morceau suivant, pour voir venir (§ 6)
     if let Some(n) = (at.0 + 1 < songs).then(|| at.0 + 1) {

@@ -31,7 +31,7 @@
   'q'      → Quit
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   'z'      « panneau Bandes affiché (z pour le masquer) »   bandes: None → Some(true)
-  inertes : ↑ ← Maj+← Maj+→ PgUp Retour Fin Début ' ' '+' ',' '-' '.' '=' 'L' 'Q' 'T' 'X' '[' ']' 'a' 'c' 'i' 'm' 'o' 'p' 's' 't' 'v' 'x' '{' '}' 'é'
+  inertes : ↑ ← Maj+← Maj+→ PgUp Retour Fin Début Espace '+' ',' '-' '.' '=' 'L' 'Q' 'T' 'X' '[' ']' 'a' 'c' 'i' 'm' 'o' 'p' 's' 't' 'v' 'x' '{' '}' 'é'
 
 ## bibliothèque · onglet IR
   ↓        curseur: 0 → 1
@@ -57,7 +57,7 @@
   'q'      → Quit
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   'z'      « panneau Bandes affiché (z pour le masquer) »   bandes: None → Some(true)
-  inertes : ↑ Maj+← Maj+→ PgUp Retour Fin Début ' ' '+' ',' '-' '.' '=' 'L' 'Q' 'T' 'X' '[' ']' 'a' 'c' 'e' 'i' 'm' 'o' 'p' 's' 't' 'v' 'x' '{' '}' 'é'
+  inertes : ↑ Maj+← Maj+→ PgUp Retour Fin Début Espace '+' ',' '-' '.' '=' 'L' 'Q' 'T' 'X' '[' ']' 'a' 'c' 'e' 'i' 'm' 'o' 'p' 's' 't' 'v' 'x' '{' '}' 'é'
 
 ## bibliothèque · onglet Mélange
   ←        onglet: Blend → Irs
@@ -82,7 +82,7 @@
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   's'      « mélange vide : espace sur une IR (onglet IR) pour l'ajouter »
   'z'      « panneau Bandes affiché (z pour le masquer) »   bandes: None → Some(true)
-  inertes : ↑ ↓ Maj+← Maj+→ PgUp PgDn Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' 'L' 'Q' 'T' 'X' '[' ']' 'c' 'e' 'i' 'm' 'o' 'p' 't' 'v' 'x' '{' '}' 'é'
+  inertes : ↑ ↓ Maj+← Maj+→ PgUp PgDn Retour Fin Début Espace '+' ',' '-' '.' '/' '=' 'L' 'Q' 'T' 'X' '[' ']' 'c' 'e' 'i' 'm' 'o' 'p' 't' 'v' 'x' '{' '}' 'é'
 
 ## bibliothèque · saisie du filtre
   ↑        filtre: true/ → false/
@@ -91,7 +91,7 @@
   Tab      onglet: Models → Irs   filtre: true/ → false/
   Maj+Tab  onglet: Models → Blend   filtre: true/ → false/
   Échap    filtre: true/ → false/
-  ' '      filtre: true/ → true/ 
+  Espace   filtre: true/ → true/ 
   '*'      filtre: true/ → true/*
   '+'      filtre: true/ → true/+
   ','      filtre: true/ → true/,
@@ -170,7 +170,7 @@
   'x'      « chaîne vide »
   '{'      « { } déplace un bloc d'une branche à l'autre »
   '}'      « { } déplace un bloc d'une branche à l'autre »
-  inertes : ↑ ↓ ← → Maj+← Maj+→ Fin Début ' ' '-' '/' 'L' 'Q' 'T' 'X' '[' ']' 'c' 'e' 'z' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ Fin Début Espace '-' '/' 'L' 'Q' 'T' 'X' '[' ']' 'c' 'e' 'z' 'é'
 
 ## chaîne · trois blocs
   →        curseur chaîne: Top(0) → Top(1)
@@ -210,7 +210,7 @@
   'x'      « nam·800D Modern retiré »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Ir { ir: Item(2), on: true }), Leaf…
   '{'      « { } déplace un bloc d'une branche à l'autre »
   '}'      « { } déplace un bloc d'une branche à l'autre »
-  inertes : ↑ ↓ ← Maj+← Maj+→ Fin Début ' ' '-' '/' 'L' 'Q' 'T' 'X' '[' 'c' 'e' 'z' 'é'
+  inertes : ↑ ↓ ← Maj+← Maj+→ Fin Début Espace '-' '/' 'L' 'Q' 'T' 'X' '[' 'c' 'e' 'z' 'é'
 
 ## chaîne · un set actif (les espaces sont indépendants)
   PgUp     → Play   « preset « Chill verse » chargé (1/2) »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
@@ -248,7 +248,7 @@
   'x'      « nam·B7K Ultra retiré »   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],… → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
   '{'      « { } déplace un bloc d'une branche à l'autre »
   '}'      « { } déplace un bloc d'une branche à l'autre »
-  inertes : ↑ ↓ ← → Maj+← Maj+→ Fin Début ' ' '-' '/' 'L' 'Q' 'T' 'X' '[' ']' 'c' 'e' 'z' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ Fin Début Espace '-' '/' 'L' 'Q' 'T' 'X' '[' ']' 'c' 'e' 'z' 'é'
 
 ## chaîne · réglages d'un effet
   ←        « reverb : decay = 1.4 s »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
@@ -264,7 +264,7 @@
   Retour   « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   Fin      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   Début    « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
-  ' '      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
+  Espace   « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '+'      « rien ne s'édite depuis les réglages : Échap revient à la chaîne »
   ','      « volume du preset -1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
@@ -310,7 +310,7 @@
 ## chaîne · catalogue de blocs
   Entrée   sélecteur: false → true   catalogue: true → false   curseur chaîne: Top(0) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   Échap    « ajout annulé »   catalogue: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' '?' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'h' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début Espace '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' '?' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'h' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## bibliothèque · fenêtre « mettre dans la chaîne »
   Entrée   « nam·800D Modern remplacé par nam·B7K Ultra  ·  2 pour voir la chaîne »   send: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true }), …
@@ -323,7 +323,7 @@
   'h'      aide: false → true
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   send: true → false
   'q'      → Quit   send: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'n' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début Espace '+' ',' '-' '.' '/' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'n' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## chaîne · mode pose
   →        curseur chaîne: Top(0) → Top(1)
@@ -337,7 +337,7 @@
   'h'      aide: false → true
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   espace: Chain → Library   pose: true → false
   'q'      → Quit   espace: Chain → Library   pose: true → false
-  inertes : ↑ ↓ ← Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'n' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début Espace '+' ',' '-' '.' '/' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'n' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## set · aucun set actif
   ↑        « aucun set : L pour en choisir un »
@@ -350,6 +350,7 @@
   Échap    « Échap ne quitte pas : q pour quitter »
   Fin      « aucun set : L pour en choisir un »
   Début    « aucun set : L pour en choisir un »
+  Espace   « aucun set : L pour en choisir un »
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '1'      → Play   espace: Set → Library
   '2'      → Play   espace: Set → Chain
@@ -365,7 +366,7 @@
   'n'      « n bâtit une chaîne : 2 pour la Chaîne »
   'q'      → Quit
   't'      « aucun set : L pour en choisir un »
-  inertes : Maj+← Maj+→ Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' 'Q' 'T' 'X' '[' ']' 'a' 'b' 'c' 'm' 'o' 'p' 'r' 's' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : Maj+← Maj+→ Tab Maj+Tab Retour '+' ',' '-' '.' '/' '=' 'Q' 'T' 'X' '[' ']' 'a' 'b' 'c' 'm' 'o' 'p' 'r' 's' 'v' 'x' 'z' '{' '}' 'é'
 
 ## set · un set joué
   ↓        set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 0)), 1, []))
@@ -377,6 +378,7 @@
   Échap    « Échap ne quitte pas : q pour quitter »
   Fin      « pas de prompteur pour ce morceau : t l'écrit »
   Début    « pas de prompteur pour ce morceau : t l'écrit »
+  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0 },… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0 }, …
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '1'      → Play   espace: Set → Library
   '2'      → Play   espace: Set → Chain
@@ -392,7 +394,7 @@
   'n'      « n bâtit une chaîne : 2 pour la Chaîne »
   'q'      → Quit
   't'      → EditPrompt   « prompteur prompts/a.cho : à enregistrer dans le set (e puis S) »   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…
-  inertes : ↑ Maj+← Maj+→ Tab Maj+Tab Retour ' ' '+' ',' '-' '.' '/' '=' 'Q' 'T' 'X' '[' ']' 'a' 'b' 'c' 'm' 'o' 'p' 'r' 's' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ Maj+← Maj+→ Tab Maj+Tab Retour '+' ',' '-' '.' '/' '=' 'Q' 'T' 'X' '[' ']' 'a' 'b' 'c' 'm' 'o' 'p' 'r' 's' 'v' 'x' 'z' '{' '}' 'é'
 
 ## set · en édition (e)
   ↑        édition: Some((Sound((0, 0)), None, None, false)) → Some((Song(0), None, None, false))
@@ -431,13 +433,13 @@
   'x'      « son « Punk chorus » retiré »   set: Some((Some((0, 0)), 0, [])) → Some((None, 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…
   '{'      « déjà le premier »
   '}'      « son déplacé en 2 (CC 69 = 1) »   set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 1)), 0, []))   set list: Some([Song { title: Some("A"), pc: None, tempo_bpm: None,… → Some([Song { title: Some("A"), pc: None, tempo_bpm: None,…   édition: Some((Sound((0, 0)), None, None, false)) → Some((Sound((0, 1)), None, None, false))
-  inertes : Maj+← Maj+→ Tab Maj+Tab Retour Fin Début ' ' '-' '/' 'Q' 'b' 'c' 'm' 'o' 's' 't' 'v' 'z' 'é'
+  inertes : Maj+← Maj+→ Tab Maj+Tab Retour Fin Début Espace '-' '/' 'Q' 'b' 'c' 'm' 'o' 's' 't' 'v' 'z' 'é'
 
 ## set · édition · saisie (r)
   Entrée   « morceau « A » »   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), None, None, false))
   Échap    « saisie annulée »   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), None, None, false))
   Retour   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "", false)), None, false))
-  ' '      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, " ", false)), None, fal…
+  Espace   édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, " ", false)), None, fal…
   '*'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "*", false)), None, fal…
   '+'      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, "+", false)), None, fal…
   ','      édition: Some((Sound((0, 0)), Some((Title, "A", true)), None, false)) → Some((Sound((0, 0)), Some((Title, ",", false)), None, fal…
@@ -489,7 +491,7 @@
   Échap    → Play   « 1/2 · A · son 1/2 »   preset: Some(PresetRef { name: "Chill verse", path: "/x/b.preset.… → Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.…   set: Some((Some((0, 1)), 0, [])) → Some((Some((0, 0)), 0, []))   édition: Some((Sound((0, 1)), None, Some(((0, 1), 0, false)), false)) → Some((Sound((0, 1)), None, None, false))
   '?'      aide: false → true
   'h'      aide: false → true
-  inertes : ← → Maj+← Maj+→ Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ← → Maj+← Maj+→ Tab Maj+Tab Retour Fin Début Espace '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## set · édition · retirer un morceau (X)
   ↑        « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
@@ -507,7 +509,7 @@
   Retour   « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
   Fin      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
   Début    « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
-  ' '      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
+  Espace   « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
   '*'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
   '+'      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
   ','      « morceau gardé »   édition: Some((Sound((0, 0)), None, None, true)) → Some((Sound((0, 0)), None, None, false))
@@ -561,7 +563,7 @@
   'h'      aide: false → true
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   fenêtre L: true → false
   'q'      → Quit   fenêtre L: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'n' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour Fin Début Espace '+' ',' '-' '.' '/' '=' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'n' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## banque de presets (P)
   Entrée   → Play   « preset « Chill verse » chargé (1/2) »   banque: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…   preset: None → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
@@ -576,7 +578,7 @@
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   banque: true → false
   'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   banque: true → false   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
   'q'      → Quit   banque: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' 'L' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début Espace '+' ',' '-' '.' '/' '=' 'L' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'i' 'm' 'o' 'p' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## chaîne · sélecteur sur place (Entrée sur un nam)
   ←        « valide (Entrée) ou annule (Échap) le choix d'abord »
@@ -590,7 +592,7 @@
   Retour   « valide (Entrée) ou annule (Échap) le choix d'abord »
   Fin      « valide (Entrée) ou annule (Échap) le choix d'abord »
   Début    « valide (Entrée) ou annule (Échap) le choix d'abord »
-  ' '      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  Espace   « valide (Entrée) ou annule (Échap) le choix d'abord »
   '*'      « tempo 120.0 BPM — tape encore pour le donner »   sélecteur: true → false
   '+'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   ','      « valide (Entrée) ou annule (Échap) le choix d'abord »
@@ -641,7 +643,7 @@
   'q'      quitter?: false → true
   'r'      « A/B : pas de référence — c sur un modèle ou une IR pour l'épingler »
   's'      → SaveMeta   « m001 enregistré »   éditeur: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'c' 'e' 'i' 'k' 'm' 'n' 'o' 'p' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour Fin Début Espace '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'c' 'e' 'i' 'k' 'm' 'n' 'o' 'p' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## confirmation « non enregistré » (bascule de preset)
   ↑        « on reste sur cette chaîne »   bascule?: true → false
@@ -659,7 +661,7 @@
   Retour   « on reste sur cette chaîne »   bascule?: true → false
   Fin      « on reste sur cette chaîne »   bascule?: true → false
   Début    « on reste sur cette chaîne »   bascule?: true → false
-  ' '      « on reste sur cette chaîne »   bascule?: true → false
+  Espace   « on reste sur cette chaîne »   bascule?: true → false
   '*'      « on reste sur cette chaîne »   bascule?: true → false
   '+'      « on reste sur cette chaîne »   bascule?: true → false
   ','      « on reste sur cette chaîne »   bascule?: true → false
@@ -706,7 +708,7 @@
   Entrée   → SavePreset   nom: Some("800D Modern + 3 blocs") → None
   Échap    nom: Some("800D Modern + 3 blocs") → None
   Retour   nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 bloc")
-  ' '      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocs ")
+  Espace   nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocs ")
   '*'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocs*")
   '+'      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocs+")
   ','      nom: Some("800D Modern + 3 blocs") → Some("800D Modern + 3 blocs,")
@@ -765,7 +767,7 @@
   Retour   « on reste : rien n'est perdu »   quitter?: true → false
   Fin      « on reste : rien n'est perdu »   quitter?: true → false
   Début    « on reste : rien n'est perdu »   quitter?: true → false
-  ' '      « on reste : rien n'est perdu »   quitter?: true → false
+  Espace   « on reste : rien n'est perdu »   quitter?: true → false
   '*'      « on reste : rien n'est perdu »   quitter?: true → false
   '+'      « on reste : rien n'est perdu »   quitter?: true → false
   ','      « on reste : rien n'est perdu »   quitter?: true → false
@@ -824,7 +826,7 @@
   Retour   aide: true → false
   Fin      aide: true → false
   Début    aide: true → false
-  ' '      aide: true → false
+  Espace   aide: true → false
   '*'      aide: true → false
   '+'      aide: true → false
   ','      aide: true → false
@@ -871,58 +873,58 @@
   ↓        set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 0)), 1, []))
   ←        « premier morceau »
   →        → Play   « 2/2 · B · son 1/1 »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…   set: Some((Some((0, 0)), 0, [])) → Some((Some((1, 0)), 1, []))
-  Maj+←    « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  Maj+→    « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Maj+←    « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Maj+→    « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   PgUp     « début du set »
   PgDn     → Play   « 1/2 · A · son 2/2 »   preset: Some(PresetRef { name: "Punk chorus", path: "/x/a.preset.… → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…   set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 1)), 0, []))
   Entrée   → Play   « 1/2 · A · son 1/2 »
-  Tab      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  Maj+Tab  « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  Échap    « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  Retour   « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Tab      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Maj+Tab  « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Échap    « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Retour   « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   Fin      « pas de prompteur pour ce morceau »
   Début    « pas de prompteur pour ce morceau »
-  ' '      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0 },… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0 }, …
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
-  '+'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  ','      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '-'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '.'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '/'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '1'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '2'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '3'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '='      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '+'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  ','      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '-'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '.'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '/'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '1'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '2'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '3'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '='      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   '?'      aide: false → true
-  'L'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'P'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'Q'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'S'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'T'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'X'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '['      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  ']'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'a'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'b'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'c'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'e'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'L'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'P'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'Q'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'S'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'T'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'X'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '['      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  ']'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'a'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'b'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'c'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'e'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   'h'      aide: false → true
   'i'      set: Some((Some((0, 0)), 0, [])) → Some((Some((0, 0)), 0, [0]))
   'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
-  'm'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'n'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'o'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'p'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'm'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'n'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'o'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'p'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   'q'      quitter?: false → true
-  'r'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  's'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  't'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'v'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'x'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'z'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '{'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  '}'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
-  'é'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'r'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  's'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  't'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'v'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'x'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'z'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '{'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  '}'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
+  'é'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   inertes : ↑
 
 ## scène · fenêtre « quitter la scène » (q)
@@ -941,7 +943,7 @@
   Retour   quitter?: true → false
   Fin      quitter?: true → false
   Début    quitter?: true → false
-  ' '      quitter?: true → false
+  Espace   quitter?: true → false
   '*'      quitter?: true → false
   '+'      quitter?: true → false
   ','      quitter?: true → false
@@ -1000,7 +1002,7 @@
   Retour   « on reste : rien n'est perdu »   quitter?: true → false
   Fin      « on reste : rien n'est perdu »   quitter?: true → false
   Début    « on reste : rien n'est perdu »   quitter?: true → false
-  ' '      « on reste : rien n'est perdu »   quitter?: true → false
+  Espace   « on reste : rien n'est perdu »   quitter?: true → false
   '*'      « on reste : rien n'est perdu »   quitter?: true → false
   '+'      « on reste : rien n'est perdu »   quitter?: true → false
   ','      « on reste : rien n'est perdu »   quitter?: true → false
@@ -1044,12 +1046,12 @@
   inertes : 
 
 ## éditeur d'un modèle · saisie d'un champ (Entrée sur Marque)
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Échap Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' '?' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'h' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Échap Retour Fin Début Espace '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' '?' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'h' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## chaîne · sélecteur sur place · saisie du filtre (/)
   Tab      « valide (Entrée) ou annule (Échap) le choix d'abord »
   Maj+Tab  « valide (Entrée) ou annule (Échap) le choix d'abord »
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Échap Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' '?' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'h' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Échap Retour Fin Début Espace '*' '+' ',' '-' '.' '/' '1' '2' '3' '=' '?' 'L' 'P' 'Q' 'S' 'T' 'X' '[' ']' 'a' 'b' 'c' 'e' 'h' 'i' 'k' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'v' 'x' 'z' '{' '}' 'é'
 
 ## chaîne · sortie d'un parallèle (◇)
   ↑        curseur chaîne: Merge(0) → Top(0)
@@ -1092,4 +1094,4 @@
   'x'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
   '{'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
   '}'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
-  inertes : ↓ Maj+← Maj+→ Fin Début ' ' '-' '/' 'L' 'Q' 'T' 'X' 'c' 'e' 'z' 'é'
+  inertes : ↓ Maj+← Maj+→ Fin Début Espace '-' '/' 'L' 'Q' 'T' 'X' 'c' 'e' 'z' 'é'

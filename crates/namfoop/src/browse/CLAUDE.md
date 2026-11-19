@@ -203,6 +203,27 @@ utilisé par N morceaux de ce set »). Trois choses à ne pas casser :
    donc `Échap` a quelque chose à défaire : `Picking::was` garde le preset d'avant. Le sélecteur de
    la Chaîne, lui, n'a pas ce problème — son essai n'est posé que par `plan()`.
 
+`beat.rs` — **la battue** (§ 11) : la position dans le temps du morceau (`Beat` : la mesure, le
+tick, et si elle avance ; la **section** est `prompt_section`, parce que le texte et la battue
+avancent ensemble et que deux champs se désaligneraient), et `State::band()`, les **faits** que la
+bande montre — `ui/set.rs` les dessine, il ne les calcule pas. La carte des mesures est pure et
+vit dans `library::bars`. Quatre choses à ne pas casser :
+
+1. **l'horloge est fournie** (`advance_beat(now_ms)`, appelée par `tick`) et **rien ne descend dans
+   le fil audio** : le tempo d'une section entre dans l'arbitre par `set_section_tempo`, comme
+   celui d'un preset, et **seulement au passage d'une section à l'autre et seulement s'il change** —
+   sinon chaque mesure annulerait le tap, que le § 11 veut plus fort que le fichier. Il ne touche
+   pas à `fx.chain.tempo_bpm` : un morceau qui module n'a pas à rendre son preset « non
+   enregistré » ;
+2. **en marche la position suit le temps, à l'arrêt elle suit le son** (§ 10, § 14) : c'est
+   `follow_prompt` qui rend la main quand la battue tourne, et c'est tout le mécanisme ;
+3. le rattrapage est **borné** (`CATCH_UP_TICKS`) : une image en retard ne perd pas de temps, mais
+   une pause longue (`$EDITOR`, un modèle qui se charge) se **recale** sur l'horloge au lieu de
+   faire défiler le morceau en accéléré ;
+4. `Espace` est une touche **réglable** (`[set] prompt_play`), donc une variante de `KeySpec` comme
+   les quatre autres : déclarée dans la **table** (`bindings/set.rs` et `bindings/stage.rs`), sans
+   quoi les deux jointures de `keyboard.rs` échouent. `all_keys()` la trouve d'elle-même.
+
 `prompt.rs` — le prompteur (§ 10) : la lecture du ChordPro est dans `library::prompt`, ici il n'y a
 que la **position** (`ActiveSet::prompt_section` / `prompt_line`) et ce qui la déplace — le son
 (`follow_prompt`, appelé par `play_set_sound` **avant** de bouger `at`, parce que la règle dépend de
@@ -250,6 +271,12 @@ Ratatui, testé sur `TestBackend` : un fichier par zone (`mod.rs` listes et barr
   Pi), les Bandes sous lui au-delà de 128 et sous la liste en dessous (±12 dB sur 5 lignes, 3 dB par
   demi-bloc, ▲/▼ hors échelle), la set list sur 44 colonnes au-delà de 100, 30 en dessous et une
   ligne compacte sous 70 ;
+- la **bande de battue** (`band_lines`, § 11) ne tronque jamais : **quelque chose cède**. Ce qui
+  cède, dans l'ordre : le rappel de la touche après `⏸` (la barre du bas la donne), l'étiquette de
+  la section (le texte en dessous la marque), puis la mesure courante ; ce qui ne cède jamais, ce
+  sont les **temps** — c'est la largeur des cases qui se serre, pour qu'un 7/8 montre ses sept
+  croches sur 80 colonnes. « Allumé » est une **inversion** et non une couleur de plus, pour qu'un
+  temps qui sonne reste reconnaissable comme temps 1 (jaune) ou comme autre temps (vert) ;
 - `footer.rs` ne décide rien : il montre les touches de l'écran où l'on est, la première couche qui
   a la main gagne. `windows.rs` dessine l'**overlay d'aide** `h`, contextuel, par-dessus tout.
 
@@ -259,6 +286,12 @@ La logique se teste dans `browse::state`, sans terminal. De bout en bout, `scrip
 pilote l'écran dans un pseudo-terminal (`--no-config --backend sim`, bibliothèque **jetable**
 `--library <tmp>` : `browse` écrit les mélanges dans `<library>/cabs/`, ne jamais polluer la
 bibliothèque de l'utilisateur) ; les pièges du pilotage y sont **implémentés**.
+
+La **bande de battue** est testée aux deux tailles d'écran du projet (80×25 et 160×50) dans
+`ui/tests/beat.rs` : un écran à deux colonnes mêle les deux dans chaque ligne, et la set list
+contient elle aussi le tempo du morceau — chercher `♩124` dans la ligne entière mesure donc la
+mauvaise colonne. Les bordures `│` les séparent, et c'est le **dernier** segment qui porte la
+bande.
 
 `NAMFOOP_BROWSE_TRACE=<fichier>` écrit chaque chaîne réellement installée dans le thread audio
 (modèle, IR, entrée, effets pré / post, taille de la table de vumètres) et chaque grain mesuré par
@@ -284,6 +317,10 @@ parce qu'une demande plus récente est arrivée le dit aussi (`JETÉE`).
   une 3ᵉ une seconde plus tard **repart** une séquence (`59.3`, exactement la règle des ±40 %), puis
   des frappes à 750 ms convergent (`67.6`, `70.8`) vers 80 ; l'étoile « non enregistré » apparaît à
   la première frappe mesurée.
+- **La bande de battue sur le Pi 5 : non mesurée.** Ce qu'il faut savoir du cadre : la boucle de
+  `browse` redessine à chaque tour et scrute le clavier pendant **30 ms**, ce qui est aussi la
+  granularité de la position — à ♩ 120 en 4/4 un temps dure 500 ms, et en 7/8 une croche 250 ms.
+  L'écart visuel attendu est donc celui du rafraîchissement, pas celui de la battue.
 - **Un piège de terminal que le harnais ne peut pas absorber** : `Terminal::clear` de ratatui
   demande au terminal où est le curseur (`ESC [ 6 n`) et **attend** la réponse, donc il échoue au
   bout de deux secondes devant un terminal muet. `Terminal::resize(Rect)` remet le tampon à zéro

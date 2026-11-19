@@ -60,6 +60,7 @@ class Ecran:
 
     def __init__(self, binaire, args, lignes, colonnes, trace, env=None):
         self.trace = trace
+        self.code = None
         self.tampon = ""
         maitre, esclave = pty.openpty()
         # piège 2 : sans TIOCSWINSZ, ratatui ne dessine rien du tout
@@ -100,9 +101,15 @@ class Ecran:
         return re.sub(r"[ \t]+", " ", t)
 
     def fini(self):
-        """piège 1 : os.kill(pid, 0) réussit sur un zombie, waitpid est le seul juge."""
-        pid, statut = os.waitpid(self.proc.pid, os.WNOHANG)
-        return (os.waitstatus_to_exitcode(statut) if pid else None)
+        """piège 1 : os.kill(pid, 0) réussit sur un zombie, waitpid est le seul juge.
+
+        Le code est **retenu** : `waitpid` ne récolte un processus qu'une fois, et demander deux
+        fois « est-il fini ? » lèverait `ChildProcessError` au lieu de répondre."""
+        if self.code is None:
+            pid, statut = os.waitpid(self.proc.pid, os.WNOHANG)
+            if pid:
+                self.code = os.waitstatus_to_exitcode(statut)
+        return self.code
 
     def attendre_fin(self, duree=3.0):
         fin = time.monotonic() + duree
@@ -164,6 +171,45 @@ def bibliotheque_jetable(dossier):
     for sous in ("ir/essai", "cabs", "presets", "sets"):
         os.makedirs(os.path.join(dossier, sous), exist_ok=True)
     ir_de_synthese(os.path.join(dossier, "ir/essai/essai.wav"))
+    return dossier
+
+
+def set_de_concert(dossier):
+    """Un set de concert jouable : deux presets, un morceau, son prompteur ChordPro.
+
+    Le morceau passe du 4/4 au 7/8 (2+2+3) après deux mesures, et sa deuxième section est liée à
+    un **autre** son : c'est ce qui fait apparaître la bande de battue, son changement de mesure
+    et son compte à rebours de changement de son (§ 11 de `docs/design/set.md`)."""
+    presets = os.path.join(dossier, "presets")
+    sets = os.path.join(dossier, "sets/prompts")
+    os.makedirs(presets, exist_ok=True)
+    os.makedirs(sets, exist_ok=True)
+    for nom in ("clean", "fuzz"):
+        with open(os.path.join(presets, f"{nom}.preset.toml"), "w", encoding="utf-8") as f:
+            f.write(
+                f'name = "{nom}"\n'
+                '[[block]]\nkind = "nam"\nfile = "nam/wavenet.nam"\n'
+                '[[block]]\nkind = "ir"\nfile = "ir/essai/essai.wav"\n'
+            )
+    with open(os.path.join(dossier, "sets/concert.set.toml"), "w", encoding="utf-8") as f:
+        f.write(
+            'name = "Concert e2e"\n\n'
+            "[[song]]\n"
+            'title = "Le Phare"\n'
+            "tempo_bpm = 120\n"
+            'prompt = "prompts/le-phare.cho"\n'
+            '  [[song.sound]]\n  preset = "clean"\n'
+            '  [[song.sound]]\n  preset = "fuzz"\n'
+        )
+    with open(os.path.join(sets, "le-phare.cho"), "w", encoding="utf-8") as f:
+        f.write(
+            "{title: Le Phare}\n"
+            "{start_of_verse: Couplet 1}\n{x_namfoop_sound: clean}\n{x_namfoop_bars: 2}\n"
+            "le phare tourne encore\n{end_of_verse}\n"
+            "{time: 7/8}\n{x_namfoop_beats: 2+2+3}\n"
+            "{start_of_chorus: Refrain}\n{x_namfoop_sound: fuzz}\n{x_namfoop_bars: 4}\n"
+            "tout casse\n{end_of_chorus}\n"
+        )
     return dossier
 
 
@@ -238,6 +284,56 @@ def scenario_browse(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_battue(binaire, lignes, colonnes):
+    """**La bande de battue** (§ 11), de bout en bout : elle se dessine, `Espace` la lance, elle
+    avance au tempo jusqu'au changement de mesure, et **rien n'entre dans le fil audio**.
+
+    Toutes les assertions portent sur du texte qui **apparaît** (piège 6 : le tampon ratatui est
+    cumulatif, donc « a disparu » ne se vérifie pas en le scrutant) et sur le **compte** des lignes
+    de trace, qui dit ce qui est entré dans le thread audio."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-battue-") as tmp:
+        bib = set_de_concert(bibliotheque_jetable(os.path.join(tmp, "library")))
+        trace = os.path.join(tmp, "trace.log")
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "browse",
+             "--library", bib, "--set", "concert"],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(2.5)
+            ec.taper("3", 0.6)       # l'espace Set
+            ec.taper("\r", 1.5)      # Entrée : le morceau 1 sur son son 1
+            vu = ec.voir()
+            verifier("♩120 4/4" in vu, f"{taille} : la bande donne le tempo et la mesure")
+            verifier("mes. 1/2" in vu, f"{taille} : la mesure dans la section")
+            verifier("⏸" in vu, f"{taille} : à l'arrêt, la bande le dit")
+            verifier("fuzz dans 2 mes." in vu, f"{taille} : le changement de son est annoncé")
+
+            # Espace lance la battue : `⏵` n'était pas à l'écran avant
+            avant = len(ec.lignes_de_trace())
+            ec.taper(" ", 0.8)
+            vu = ec.voir()
+            verifier("⏵" in vu, f"{taille} : Espace lance la battue")
+            # deux mesures de 4/4 à ♩120 = 4 s : la section suivante est en 7/8 (2+2+3)
+            ec.lire(4.0)
+            vu = ec.voir()
+            verifier("7/8 (2+2+3)" in vu, f"{taille} : la battue passe la fin de section, en 7/8")
+            verifier(
+                len(ec.lignes_de_trace()) == avant,
+                f"{taille} : la battue n'installe AUCUNE chaîne (rien dans le fil audio)",
+            )
+
+            ec.taper("q", 0.8)
+            if ec.fini() is None:
+                ec.taper("Q", 0.6)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : le set se quitte proprement (code {code})")
+        finally:
+            ec.tuer()
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -251,6 +347,7 @@ def main():
     # les deux tailles que le projet utilise : le minimum, et l'écran 1280×800 du Pi
     for lignes, colonnes in ((25, 80), (50, 160)):
         scenario_browse(binaire, lignes, colonnes)
+        scenario_battue(binaire, lignes, colonnes)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")

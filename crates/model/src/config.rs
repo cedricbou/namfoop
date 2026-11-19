@@ -125,6 +125,9 @@ pub struct Set {
     pub prompt_next: String,
     /// Section précédente du prompteur (défaut `Home`).
     pub prompt_prev: String,
+    /// **La battue** (défaut `Space`) : le § 11 la lance et l'arrête au pied, et l'appui est le 1
+    /// de la mesure en cours.
+    pub prompt_play: String,
 }
 
 impl Default for Set {
@@ -135,6 +138,7 @@ impl Default for Set {
             prev_song: "Left".into(),
             prompt_next: "End".into(),
             prompt_prev: "Home".into(),
+            prompt_play: "Space".into(),
         }
     }
 }

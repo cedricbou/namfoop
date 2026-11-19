@@ -403,7 +403,7 @@ impl State {
             self.help = false;
             return Action::None;
         }
-        let (song, prompt) = (self.song_keys, self.prompt_keys);
+        let (song, prompt, play) = (self.song_keys, self.prompt_keys, self.play_key);
         match key {
             Key::PageDown => self.step_set(true),
             Key::PageUp => self.step_set(false),
@@ -414,6 +414,9 @@ impl State {
             // il écrit un fichier et rend la main au terminal.
             k if k == prompt.0 => self.step_prompt(true),
             k if k == prompt.1 => self.step_prompt(false),
+            // **la battue passe le verrou** pour la même raison (§ 11) : elle ne change ni le son
+            // ni le set, et sur scène c'est elle qu'on lance en comptant le groupe.
+            k if k == play => self.toggle_beat(),
             Key::Up | Key::Down | Key::Enter | Key::Char('i') => self.set_key(key).unwrap_or(Action::None),
             Key::Char('*') => self.tap_tempo(),
             Key::Char('k') => self.toggle_metronome(),

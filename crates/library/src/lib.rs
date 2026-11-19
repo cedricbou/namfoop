@@ -4,6 +4,8 @@
 //! chemin relatif à la bibliothèque. Stable tant que le fichier ne bouge pas ; allongé seulement
 //! en cas de collision avec un autre fichier du même type (rare).
 
+/// La carte des mesures d'un morceau : section, mesure, temps, et le Song Position Pointer.
+pub mod bars;
 pub mod error;
 pub mod import;
 pub mod model_profile;

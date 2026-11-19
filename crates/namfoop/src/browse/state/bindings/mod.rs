@@ -31,9 +31,10 @@ mod windows;
 /// Une touche de la table : fixe, ou **réglable** par la config.
 ///
 /// Les réglables le sont parce qu'un footswitch les envoie (`[set] next_song` / `prev_song` pour le
-/// morceau, `prompt_next` / `prompt_prev` pour les sections du prompteur), et c'est pour ça
-/// qu'elles ne peuvent pas être de simples `Key` `'static`. Quatre variantes **nommées**, et non un
-/// système de configuration : le besoin est le pédalier, pas la personnalisation.
+/// morceau, `prompt_next` / `prompt_prev` pour les sections du prompteur, `prompt_play` pour la
+/// battue), et c'est pour ça qu'elles ne peuvent pas être de simples `Key` `'static`. Des
+/// variantes **nommées**, et non un système de configuration : le besoin est le pédalier, pas la
+/// personnalisation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeySpec {
     Fixed(Key),
@@ -41,6 +42,8 @@ pub enum KeySpec {
     PrevSong,
     PromptNext,
     PromptPrev,
+    /// La battue (`Espace` par défaut) : son appui est le 1.
+    PromptPlay,
 }
 
 /// Ce qu'un contexte déclare : des touches, leur étiquette, et ce qu'elles font.
@@ -215,13 +218,14 @@ impl KeySpec {
     /// La touche réelle : les réglables sont résolues contre la config lue au démarrage. Comme
     /// `Binding::keys`, lu par la jointure seulement.
     #[allow(dead_code, reason = "lu par la jointure annoncé ↔ possédé, dans keyboard.rs")]
-    pub fn resolve(self, song_keys: (Key, Key), prompt_keys: (Key, Key)) -> Key {
+    pub fn resolve(self, song_keys: (Key, Key), prompt_keys: (Key, Key), play_key: Key) -> Key {
         match self {
             KeySpec::Fixed(k) => k,
             KeySpec::NextSong => song_keys.0,
             KeySpec::PrevSong => song_keys.1,
             KeySpec::PromptNext => prompt_keys.0,
             KeySpec::PromptPrev => prompt_keys.1,
+            KeySpec::PromptPlay => play_key,
         }
     }
 }

@@ -298,5 +298,7 @@ fn the_spectrum_panel_appears_from_128_columns() {
     assert_eq!(cut(&t128), cut(&t130), "la ligne de l'IR reste visible");
 }
 
+/// La bande de battue (§ 11) : les mesures, le compte à rebours, les deux tailles d'écran.
+mod beat;
 mod chain;
 mod set;
