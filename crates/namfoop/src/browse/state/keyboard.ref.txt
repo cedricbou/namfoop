@@ -900,3 +900,172 @@
   'X'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
   'z'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Fin/Début section · * tap · k clic · h aide · q quitter) »
   inertes : ↑
+
+## scène · fenêtre « quitter la scène » (q)
+  ↑        quitter?: true → false
+  ↓        quitter?: true → false
+  ←        quitter?: true → false
+  →        quitter?: true → false
+  Maj+←    quitter?: true → false
+  Maj+→    quitter?: true → false
+  PgUp     quitter?: true → false
+  PgDn     quitter?: true → false
+  Entrée   quitter?: true → false
+  Tab      quitter?: true → false
+  Maj+Tab  quitter?: true → false
+  Échap    quitter?: true → false
+  Retour   quitter?: true → false
+  Fin      quitter?: true → false
+  Début    quitter?: true → false
+  ' '      quitter?: true → false
+  '*'      quitter?: true → false
+  '+'      quitter?: true → false
+  ','      quitter?: true → false
+  '-'      quitter?: true → false
+  '.'      quitter?: true → false
+  '/'      quitter?: true → false
+  '='      quitter?: true → false
+  '?'      quitter?: true → false
+  '['      quitter?: true → false
+  ']'      quitter?: true → false
+  '{'      quitter?: true → false
+  '}'      quitter?: true → false
+  '1'      quitter?: true → false
+  '2'      quitter?: true → false
+  '3'      quitter?: true → false
+  'a'      quitter?: true → false
+  'b'      quitter?: true → false
+  'c'      quitter?: true → false
+  'e'      quitter?: true → false
+  'é'      quitter?: true → false
+  'h'      quitter?: true → false
+  'i'      quitter?: true → false
+  'k'      quitter?: true → false
+  'L'      quitter?: true → false
+  'm'      quitter?: true → false
+  'n'      quitter?: true → false
+  'o'      quitter?: true → false
+  'P'      quitter?: true → false
+  'p'      quitter?: true → false
+  'q'      quitter?: true → false
+  'Q'      → Quit   quitter?: true → false
+  'r'      quitter?: true → false
+  's'      quitter?: true → false
+  'S'      quitter?: true → false
+  't'      quitter?: true → false
+  'T'      quitter?: true → false
+  'v'      quitter?: true → false
+  'x'      quitter?: true → false
+  'X'      quitter?: true → false
+  'z'      quitter?: true → false
+  inertes : 
+
+## confirmation « quitter » · chaîne vide, le banc joue (q)
+  ↑        « on reste : rien n'est perdu »   quitter?: true → false
+  ↓        « on reste : rien n'est perdu »   quitter?: true → false
+  ←        « on reste : rien n'est perdu »   quitter?: true → false
+  →        « on reste : rien n'est perdu »   quitter?: true → false
+  Maj+←    « on reste : rien n'est perdu »   quitter?: true → false
+  Maj+→    « on reste : rien n'est perdu »   quitter?: true → false
+  PgUp     « on reste : rien n'est perdu »   quitter?: true → false
+  PgDn     « on reste : rien n'est perdu »   quitter?: true → false
+  Entrée   « chaîne créée : nam·B7K Ultra  ·  2 pour l'habiller d'effets »   quitter?: true → false   curseur chaîne: Empty → Top(0)   chaîne: Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 } → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…
+  Tab      « on reste : rien n'est perdu »   quitter?: true → false
+  Maj+Tab  « on reste : rien n'est perdu »   quitter?: true → false
+  Échap    « on reste : rien n'est perdu »   quitter?: true → false
+  Retour   « on reste : rien n'est perdu »   quitter?: true → false
+  Fin      « on reste : rien n'est perdu »   quitter?: true → false
+  Début    « on reste : rien n'est perdu »   quitter?: true → false
+  ' '      « on reste : rien n'est perdu »   quitter?: true → false
+  '*'      « on reste : rien n'est perdu »   quitter?: true → false
+  '+'      « on reste : rien n'est perdu »   quitter?: true → false
+  ','      « on reste : rien n'est perdu »   quitter?: true → false
+  '-'      « on reste : rien n'est perdu »   quitter?: true → false
+  '.'      « on reste : rien n'est perdu »   quitter?: true → false
+  '/'      « on reste : rien n'est perdu »   quitter?: true → false
+  '='      « on reste : rien n'est perdu »   quitter?: true → false
+  '?'      « on reste : rien n'est perdu »   quitter?: true → false
+  '['      « on reste : rien n'est perdu »   quitter?: true → false
+  ']'      « on reste : rien n'est perdu »   quitter?: true → false
+  '{'      « on reste : rien n'est perdu »   quitter?: true → false
+  '}'      « on reste : rien n'est perdu »   quitter?: true → false
+  '1'      « on reste : rien n'est perdu »   quitter?: true → false
+  '2'      « on reste : rien n'est perdu »   quitter?: true → false
+  '3'      « on reste : rien n'est perdu »   quitter?: true → false
+  'a'      « on reste : rien n'est perdu »   quitter?: true → false
+  'b'      « on reste : rien n'est perdu »   quitter?: true → false
+  'c'      « on reste : rien n'est perdu »   quitter?: true → false
+  'e'      « on reste : rien n'est perdu »   quitter?: true → false
+  'é'      « on reste : rien n'est perdu »   quitter?: true → false
+  'h'      « on reste : rien n'est perdu »   quitter?: true → false
+  'i'      « on reste : rien n'est perdu »   quitter?: true → false
+  'k'      « on reste : rien n'est perdu »   quitter?: true → false
+  'L'      « on reste : rien n'est perdu »   quitter?: true → false
+  'm'      « on reste : rien n'est perdu »   quitter?: true → false
+  'n'      « on reste : rien n'est perdu »   quitter?: true → false
+  'o'      « on reste : rien n'est perdu »   quitter?: true → false
+  'P'      « on reste : rien n'est perdu »   quitter?: true → false
+  'p'      « on reste : rien n'est perdu »   quitter?: true → false
+  'q'      « on reste : rien n'est perdu »   quitter?: true → false
+  'Q'      → Quit   quitter?: true → false
+  'r'      « on reste : rien n'est perdu »   quitter?: true → false
+  's'      « on reste : rien n'est perdu »   quitter?: true → false
+  'S'      « on reste : rien n'est perdu »   quitter?: true → false
+  't'      « on reste : rien n'est perdu »   quitter?: true → false
+  'T'      « on reste : rien n'est perdu »   quitter?: true → false
+  'v'      « on reste : rien n'est perdu »   quitter?: true → false
+  'x'      « on reste : rien n'est perdu »   quitter?: true → false
+  'X'      « on reste : rien n'est perdu »   quitter?: true → false
+  'z'      « on reste : rien n'est perdu »   quitter?: true → false
+  inertes : 
+
+## éditeur d'un modèle · saisie d'un champ (Entrée sur Marque)
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Échap Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '=' '?' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'h' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+
+## chaîne · sélecteur sur place · saisie du filtre (/)
+  Tab      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  Maj+Tab  « valide (Entrée) ou annule (Échap) le choix d'abord »
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Échap Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '=' '?' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'h' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+
+## chaîne · sortie d'un parallèle (◇)
+  ↑        curseur chaîne: Merge(0) → Top(0)
+  ←        curseur chaîne: Merge(0) → Header { top: 0, b: 0 }
+  →        curseur chaîne: Merge(0) → Top(1)
+  PgUp     « aucun preset enregistré : S enregistre la chaîne »
+  PgDn     « aucun preset enregistré : S enregistre la chaîne »
+  Entrée   « la sortie somme les branches ; ses réglages propres (niveau, mix) viendront »
+  Tab      « la sortie somme les branches ; ses réglages propres (niveau, mix) viendront »
+  Maj+Tab  « la sortie somme les branches ; ses réglages propres (niveau, mix) viendront »
+  Échap    « Échap ne quitte pas : q pour quitter »
+  Retour   « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  '*'      « tempo 120.0 BPM — tape encore pour le donner »
+  '+'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  ','      « volume du preset -1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Split(Split { mode: Bands, freqs: [150.0… → Chain { blocks: [Split(Split { mode: Bands, freqs: [150.0…
+  '.'      « volume du preset +1 dB — après l'alignement sur le DI, S pour l'enregistrer »   chaîne: Chain { blocks: [Split(Split { mode: Bands, freqs: [150.0… → Chain { blocks: [Split(Split { mode: Bands, freqs: [150.0…
+  '='      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  '?'      aide: false → true
+  '['      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  ']'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  '{'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  '}'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  '1'      → Play   espace: Chain → Library
+  '2'      « tu es déjà dans la Chaîne »
+  '3'      → Play   espace: Chain → Set
+  'a'      catalogue: false → true
+  'b'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  'h'      aide: false → true
+  'i'      catalogue: false → true
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »
+  'm'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  'n'      bascule?: false → true
+  'o'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  'P'      « aucun preset enregistré : S enregistre la chaîne »   banque: false → true
+  'p'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  'q'      quitter?: false → true
+  'r'      « A/B : sans effets (r pour les remettre) »
+  's'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  'S'      nom: None → Some("800D Modern + 3 blocs")
+  't'      toml: false → true
+  'v'      « vumètres masqués »   vumètres: true → false
+  'x'      « sortie du parallèle : a ajoute après lui · ↑ pour le régler, le déplacer ou le défaire (◆) »
+  inertes : ↓ Maj+← Maj+→ Fin Début ' ' '-' '/' 'c' 'e' 'é' 'L' 'Q' 'T' 'X' 'z'

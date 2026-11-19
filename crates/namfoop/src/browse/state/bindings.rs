@@ -269,6 +269,8 @@ const BANK: &[Binding] = &[
         what: "repartir d'une chaîne vierge (la banque se referme)",
         bar: "n vierge",
     },
+    // `P` referme la banque : la touche qui l'ouvre la referme, et c'est le geste qu'on essaie.
+    Binding { keys: &[k('P')], label: "P", what: "refermer la banque", bar: "" },
     Binding { keys: ESC, label: "Échap", what: "fermer la banque", bar: "Échap fermer" },
 ];
 
@@ -402,6 +404,14 @@ const SET: &[Binding] = &[
     // Ici elle dit où bâtir — la barre de cet écran est pleine, l'aide `h` la porte.
     Binding {
         keys: &[k('n')], label: "n", what: "une chaîne vierge se bâtit dans la Chaîne (2)", bar: ""
+    },
+    // les **communes** `S` et `P` ne sont pas éclipsées ici : elles agissent sur le preset du son
+    // joué, donc elles se déclarent (la barre de cet écran est pleine, l'aide `h` les porte).
+    Binding {
+        keys: &[k('S'), k('P')],
+        label: "S / P",
+        what: "enregistrer le preset du son joué · ouvrir la banque",
+        bar: "",
     },
     Binding { keys: &[k('*')], label: "*", what: "tap tempo", bar: "* tap" },
     Binding { keys: &[k('k')], label: "k", what: "clic du métronome", bar: "k clic" },
@@ -689,6 +699,9 @@ fn library(ctx: Context) -> &'static [Binding] {
             what: "onglet voisin (ils ne mènent pas à la Chaîne)",
             bar: "",
         },
+        // `b` agit dans les trois onglets — c'est l'IR du **banc** qu'il coupe, mélange compris :
+        // déclaré ici une fois plutôt que dans chaque onglet.
+        Binding { keys: &[k('b')], label: "b", what: "avec ou sans IR", bar: "b avec/sans IR" },
     ];
     const TAIL: &[Binding] = &[
         Binding {
@@ -743,7 +756,6 @@ fn library(ctx: Context) -> &'static [Binding] {
             what: "épingler une référence (◆) · A/B ton choix ↔ référence",
             bar: "c réf.   r A/B",
         },
-        Binding { keys: &[k('b')], label: "b", what: "avec ou sans IR", bar: "b avec/sans IR" },
         Binding {
             keys: &[k('/')],
             label: "/",
@@ -764,7 +776,6 @@ fn library(ctx: Context) -> &'static [Binding] {
             what: "épingler une référence (◆) · A/B ton choix ↔ référence",
             bar: "c réf.   r A/B",
         },
-        Binding { keys: &[k('b')], label: "b", what: "avec ou sans IR", bar: "b avec/sans IR" },
         Binding {
             keys: &[k('/')],
             label: "/",

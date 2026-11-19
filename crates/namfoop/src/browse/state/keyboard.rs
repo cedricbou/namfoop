@@ -294,6 +294,68 @@ fn contexts() -> Vec<Ctx> {
             },
             check: |s| s.locked,
         },
+        Ctx {
+            name: "scène · fenêtre « quitter la scène » (q)",
+            build: || {
+                let mut s = staged_set();
+                s.locked = true;
+                s.play_set_sound((0, 0));
+                s.on_key(Key::Char('q'));
+                s.message = None;
+                s
+            },
+            check: |s| s.locked && s.confirm_quit,
+        },
+        Ctx {
+            name: "confirmation « quitter » · chaîne vide, le banc joue (q)",
+            build: || {
+                let mut s = sample();
+                s.on_key(Key::Down);
+                s.tick(10_000); // l'écoute différée part : le banc joue, la chaîne est restée vide
+                s.on_key(Key::Char('q'));
+                s.message = None;
+                s
+            },
+            check: |s| s.confirm_quit && s.empty_chain_warning().is_some(),
+        },
+        Ctx {
+            name: "éditeur d'un modèle · saisie d'un champ (Entrée sur Marque)",
+            build: || {
+                let mut s = sample();
+                s.on_key(Key::Down);
+                s.on_key(Key::Char('e'));
+                for _ in 0..3 {
+                    s.on_key(Key::Down); // Type -> Entrée -> IR -> Marque
+                }
+                s.on_key(Key::Enter);
+                s.message = None;
+                s
+            },
+            check: |s| s.editor.as_ref().is_some_and(|e| e.typing.is_some()),
+        },
+        Ctx {
+            name: "chaîne · sélecteur sur place · saisie du filtre (/)",
+            build: || {
+                let mut s = chain_of_three();
+                s.on_key(Key::Enter); // le sélecteur sur le bloc nam
+                s.on_key(Key::Char('/'));
+                s.message = None;
+                s
+            },
+            check: |s| s.picker.as_ref().is_some_and(|p| p.filtering),
+        },
+        Ctx {
+            name: "chaîne · sortie d'un parallèle (◇)",
+            build: || {
+                let mut s = chain_of_three();
+                s.on_key(Key::Char('s')); // le nam et son ir partent en parallèle de bandes
+                s.on_key(Key::Right);
+                s.on_key(Key::Right); // dernier bloc de la branche -> la sortie ◇
+                s.message = None;
+                s
+            },
+            check: |s| matches!(s.fx.cursor, chain::Cursor::Merge(_)),
+        },
     ]
 }
 
@@ -475,6 +537,17 @@ fn probe(ctx: &Ctx, key: Key) -> Option<String> {
     (!bits.is_empty()).then(|| bits.join("   "))
 }
 
+/// **La touche fait-elle autre chose que parler ?** Un message seul est un **refus** : l'ADR 0009
+/// demande qu'une touche possédée mais inerte dise pourquoi, et la table n'a pas à déclarer un
+/// refus. Une **action** ou un **champ d'état changé**, en revanche, c'est un geste : il doit être
+/// annoncé, sinon on agit sur un écran qu'on ne regarde pas.
+fn acts(ctx: &Ctx, key: Key) -> bool {
+    let mut s = (ctx.build)();
+    let before = fingerprint(&s);
+    let action = s.on_key(key);
+    action != Action::None || fingerprint(&s) != before
+}
+
 /// Le nom de l'action, sans son contenu : la table dit **qu'une** chaîne est demandée, pas laquelle
 /// (le contenu est déjà couvert par les tests de chaque fonctionnalité).
 fn short_action(a: &Action) -> &'static str {
@@ -617,6 +690,19 @@ fn context_cases() -> Vec<(Context, Ctx)> {
     v
 }
 
+/// **Tous les contextes sont mesurés.** En oublier un, c'est ne pas le vérifier — ni par la table,
+/// ni par les deux jointures. Le `match` de `bindings` étant exhaustif, un `Context` sans cas
+/// d'oracle est déclaré, annoncé à l'écran, et mesuré par rien.
+#[test]
+fn every_context_is_measured_by_the_oracle() {
+    let mesures: Vec<Context> = context_cases().into_iter().map(|(c, _)| c).collect();
+    let manquants: Vec<&Context> = Context::ALL.iter().filter(|c| !mesures.contains(c)).collect();
+    assert!(
+        manquants.is_empty(),
+        "contextes déclarés mais hors de l'oracle : {manquants:?}\n         (en ajouter un cas dans `contexts()`, atteint **en jouant des touches**)"
+    );
+}
+
 /// **`State::context()` dit bien où l'on est.** Sans ça, toute la jointure parlerait d'un autre
 /// contexte que celui qu'on mesure — et personne ne le verrait.
 #[test]
@@ -648,6 +734,11 @@ fn every_measured_context_is_named_correctly() {
         ("confirmation « quitter » (q)", Context::ConfirmQuit),
         ("aide (h)", Context::Help),
         ("scène verrouillée (run --set)", Context::Stage),
+        ("scène · fenêtre « quitter la scène » (q)", Context::StageQuit),
+        ("confirmation « quitter » · chaîne vide, le banc joue (q)", Context::ConfirmQuitEmpty),
+        ("éditeur d'un modèle · saisie d'un champ (Entrée sur Marque)", Context::EditorTyping),
+        ("chaîne · sélecteur sur place · saisie du filtre (/)", Context::PickerFiltering),
+        ("chaîne · sortie d'un parallèle (◇)", Context::ChainMerge),
     ];
     for (ctx, case) in context_cases() {
         let expected = want
@@ -683,6 +774,73 @@ fn everything_declared_is_actually_owned() {
         }
     }
     assert!(orphans.is_empty(), "touches ANNONCÉES que personne ne possède :\n{}", orphans.join("\n"));
+}
+
+/// **Tout ce qui agit est déclaré** : l'autre moitié de la jointure. Une touche qui change l'état
+/// ou qui parle sans que la barre du bas ni l'aide `h` ne la nomment, c'est agir sur un écran qu'on
+/// ne regarde pas — trois des cinq divergences d'origine étaient de cette forme (`k` actif dans la
+/// Bibliothèque sans y être dit, `?` jamais annoncé, `3` traité et annoncé nulle part).
+///
+/// Le prédicat est celui de la table : `probe` rend `Some` quand la touche fait **quelque chose**.
+/// La liste d'exceptions **est** le contrat : une ligne par décision relue. Un refus volontaire y
+/// entre explicitement ; une fuite n'y entre pas.
+#[test]
+fn everything_that_acts_is_declared() {
+    // **L'étage pédale** : `1 2 3 q h ? * k` valent partout (ADR 0009), et la barre permanente
+    // les donne toujours — elle finit par `h aide`, l'autre espace et `q quitter`. Les déclarer
+    // dans les 24 contextes noierait l'aide de chaque écran sous ce qui ne change jamais.
+    const PEDAL: &[Key] = &[
+        Key::Char('1'),
+        Key::Char('2'),
+        Key::Char('3'),
+        Key::Char('q'),
+        Key::Char('Q'),
+        Key::Char('h'),
+        Key::Char('?'),
+        Key::Char('*'),
+        Key::Char('k'),
+    ];
+    // **Les contextes qui répondent à TOUTE touche par construction**, chacun pour une raison que
+    // sa table déclare en une ligne plutôt qu'en cinquante.
+    let answers_everything = |ctx: Context| match ctx {
+        // une saisie de texte prend toutes les lettres : c'est la règle « les lettres vont au
+        // filtre / au nom », sans quoi une lettre commune serait volée au texte
+        Context::Filtering
+        | Context::Naming
+        | Context::PickerFiltering
+        | Context::SetEditTyping
+        | Context::EditorTyping => true,
+        // l'aide se referme sur n'importe quelle touche ; une confirmation garde l'état sur
+        // n'importe quelle touche (« rester »). Les deux sont des murs, et le disent.
+        Context::Help
+        | Context::ConfirmQuit
+        | Context::ConfirmQuitEmpty
+        | Context::ConfirmSwitch
+        | Context::SetEditRemove
+        | Context::StageQuit => true,
+        _ => false,
+    };
+    let mut leaks = Vec::new();
+    for (ctx, case) in context_cases() {
+        if answers_everything(ctx) {
+            continue;
+        }
+        let s = (case.build)();
+        let declared: Vec<Key> = bindings(ctx)
+            .iter()
+            .flat_map(|b| b.keys.iter().map(|spec| spec.resolve(s.song_keys, s.prompt_keys)))
+            .collect();
+        for (name, key) in all_keys() {
+            if declared.contains(&key) || PEDAL.contains(&key) {
+                continue;
+            }
+            if acts(&case, key) {
+                let what = probe(&case, key).unwrap_or_default();
+                leaks.push(format!("  [{ctx:?}] {name:<8} {what}"));
+            }
+        }
+    }
+    assert!(leaks.is_empty(), "touches qui AGISSENT sans être déclarées :\n{}", leaks.join("\n"));
 }
 
 /// **Aucune touche déclarée deux fois** dans le même contexte : sinon l'aide la montre deux fois,

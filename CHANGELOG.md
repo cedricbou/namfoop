@@ -6,6 +6,23 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#252)
+- **La jointure du clavier va maintenant dans les deux sens.** « Déclaré ⇒ possédé » était gardé ;
+  **« agit ⇒ déclaré »** ne l'était par rien, alors que trois des cinq divergences d'origine étaient
+  de cette forme — une touche qui agit sans que la barre du bas ni l'aide `h` la nomment. Le nouveau
+  test l'a prouvé en trouvant **cinq fuites réelles** : `b` (avec / sans IR) agissait dans l'onglet
+  Mélange sans y être annoncé, `P` refermait la banque sans le dire, et `S` / `P` agissaient dans
+  l'espace Set sans y être déclarés. Les quatre sont maintenant dans la table, donc dans l'aide.
+- Le prédicat distingue **agir** de **refuser** : un message seul est un refus, et l'ADR 0009 le
+  demande (« une touche possédée mais inerte dit pourquoi ») ; une action ou un champ d'état changé,
+  c'est un geste, et il doit être annoncé. Trois classes d'exception, nommées dans le test : les
+  touches de la **pédale** (elles valent partout, et la barre permanente les donne), les **saisies
+  de texte** (toute lettre va au texte) et les **murs** qui se referment sur n'importe quelle touche.
+- **Les cinq contextes hors de l'oracle sont mesurés** : la fenêtre de sortie de la scène, la
+  confirmation « chaîne vide », la saisie d'un champ de l'éditeur, le filtre du sélecteur, et
+  surtout **la sortie d'un parallèle** (`◇`) — 15 touches déclarées, aucune mesurée. Un test vérifie
+  désormais que **tout** `Context` a son cas d'oracle : en oublier un, c'est ne rien vérifier de lui.
+
 ### Interne (#280)
 - **La relecture d'une zone coûte une commande** : la skill de projet `relire-docs`
   (`.claude/skills/`) applique `docs/style-doc.md` à un fichier ou un répertoire et rend un **diff

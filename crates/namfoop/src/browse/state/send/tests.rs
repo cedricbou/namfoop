@@ -229,7 +229,7 @@ fn sending_a_blend_saves_it_first() {
 }
 
 /// Chaîne vide : Entrée installe **ce qu'on entend au banc**, depuis n'importe quel onglet
-/// (décision du 12/11/2026, § 4) — sinon le parcours nominal perdait le modèle.
+/// (§ 4) — autrement, le parcours nominal perdrait le modèle.
 #[test]
 fn an_empty_chain_takes_the_whole_bench_from_any_tab() {
     // le parcours nominal : un modèle, puis son IR dans l'onglet IR, puis Entrée
