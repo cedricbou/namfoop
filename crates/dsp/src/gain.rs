@@ -34,7 +34,7 @@ pub const RAMP_MS: f32 = 20.0;
 /// joue, et rampe linéairement vers chaque nouvelle valeur sur [`RAMP_MS`] (ADR 0007).
 ///
 /// La rampe compte en **échantillons** et traverse les frontières de bloc : le son ne dépend donc
-/// pas de la taille de bloc (48 en ALSA, 64 en JACK, 1000 en `render`), ce qu'une rampe étalée sur
+/// pas de la taille de bloc (48 en ALSA, 1000 en `render`), ce qu'une rampe étalée sur
 /// le buffer ne tiendrait pas. Sur la plage du volume d'un preset (-24 à +12 dB), un saut étalé sur
 /// un bloc de 48 serait un transitoire, et sur un bloc de 1000 un glissando.
 ///

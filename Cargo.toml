@@ -8,7 +8,6 @@ version = "0.6.0"
 license = "MIT"
 
 [workspace.dependencies]
-jack = "0.14"
 rtrb = "0.4"
 clap = { version = "4.6", features = ["derive"] }
 anyhow = "1"

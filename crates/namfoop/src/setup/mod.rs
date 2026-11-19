@@ -43,7 +43,7 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
         let settings = |s: &State| Settings {
             backend: crate::cli_audio::to_audio(s.kind()),
             device: s.device().map(|d| d.id.clone()),
-            buffer: if s.kind() == Kind::Jack { 256 } else { 128 }, // vumètres : stabilité avant tout
+            buffer: 128, // vumètres de l'assistant : stabilité avant tout
             ..base.clone()
         };
         loop {
@@ -66,7 +66,7 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
                 Action::None => {}
                 Action::LoadDevices(kind) => {
                     monitor = None;
-                    match devices::list(kind, &base.client_name) {
+                    match devices::list(kind) {
                         Ok(d) => st.set_devices(d, preferred.as_deref()),
                         Err(e) => {
                             st.set_devices(Vec::new(), None);

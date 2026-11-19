@@ -138,9 +138,6 @@ pactl set-card-profile <nom de la carte> pro-audio
 systemctl --user restart wireplumber pipewire pipewire-pulse
 ```
 
-En Pro Audio, les ports JACK s'appellent `capture_AUX0/1` et `playback_AUX0/1` (`namfoop ports`
-pour les voir).
-
 ### Temps réel
 
 Sur scène, un seul buffer en retard s'entend. Quatre réglages du système comptent ; namfoop
@@ -2179,11 +2176,10 @@ Affiche le temps moyen et maximal par bloc, et la part du budget temps réel. `-
 `--seconds` (durée simulée) et `--library` sont réglables ; `--all-sizes` mesure chaque taille des
 modèles slimmable. À lancer sur la machine de scène (ex. le Pi) pour savoir quels modèles tiennent.
 
-### `namfoop models` et `namfoop ports`
+### `namfoop models`
 
 `namfoop models` liste la bibliothèque ([§ 6](#6-la-bibliothèque-de-sons)) ; `namfoop import` et
-`namfoop meta` la remplissent et la corrigent. `namfoop ports` liste
-les ports JACK audio et MIDI.
+`namfoop meta` la remplissent et la corrigent.
 
 ---
 

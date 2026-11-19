@@ -1,5 +1,5 @@
-//! Abstraction audio : le moteur fournit un callback, le backend (JACK, ALSA direct ou carte
-//! simulée) s'occupe de la carte. Même code DSP partout, pour tout tester de tous les côtés.
+//! Abstraction audio : le moteur fournit un callback, le backend (ALSA direct ou carte simulée)
+//! s'occupe de la carte. Même code DSP partout, pour tout tester de tous les côtés.
 //!
 //! Le nombre de canaux est celui de la carte (iTwo : 2/2, Soundcraft MTK : 14/12...).
 
@@ -9,12 +9,10 @@ static ALLOC: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
 
 pub mod alsa;
 mod error;
-pub mod jack;
 pub mod rt;
 pub mod sim;
 
 pub use error::{Error, Result};
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -78,11 +76,8 @@ where
 }
 
 /// Backend audio (l'aide de la CLI est dans le binaire, `BackendArg`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// JACK API (PipeWire ou jackd) : carte partagée avec les autres applis
-    Jack,
     /// ALSA direct : latence minimale et stable, accès exclusif à la carte
     Alsa,
     /// Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
@@ -99,19 +94,18 @@ pub struct Settings {
     /// Contrôles mixer ALSA (nom, valeur) réglés à l'ouverture (ALSA seulement), ex.
     /// (« Capture », « 80% ») : voir `alsa::mixer::parse_value`.
     pub mixer: Vec<(String, String)>,
-    /// Cœur sur lequel épingler le thread audio (ALSA, sim ; avec JACK c'est le serveur qui décide).
+    /// Cœur sur lequel épingler le thread audio.
     pub cpu: Option<usize>,
     pub buffer: u32,
     pub periods: u32,
     pub rate: u32,
-    pub client_name: String,
 }
 
 impl Default for Settings {
     /// Valeurs par défaut de la CLI quand ni option ni config ne disent rien.
     fn default() -> Self {
         Settings {
-            backend: Kind::Jack,
+            backend: Kind::Alsa,
             device: None,
             capture_device: None,
             mixer: Vec::new(),
@@ -119,7 +113,6 @@ impl Default for Settings {
             buffer: 64,
             periods: 3,
             rate: 48000,
-            client_name: "namfoop".into(),
         }
     }
 }
@@ -151,19 +144,15 @@ pub fn start_with(cfg: &Settings, processor: impl Processor, quiet: bool) -> Res
     if cfg.capture_device.is_some() && cfg.backend != Kind::Alsa {
         log::warn!("device de capture séparé ignoré : ALSA seulement");
     }
-    if cfg.cpu.is_some() && cfg.backend == Kind::Jack {
-        log::warn!("--cpu ignoré avec JACK : le thread audio appartient au serveur");
-    }
     if !cfg.mixer.is_empty() && cfg.backend != Kind::Alsa {
         log::warn!("contrôles mixer du profil ignorés : ALSA seulement (régler la carte avec alsamixer)");
     }
     let stream: Box<dyn Stream> = match cfg.backend {
-        Kind::Jack => Box::new(jack::JackStream::start(cfg, processor)?),
         Kind::Alsa => Box::new(alsa::AlsaStream::start(cfg, processor)?),
         Kind::Sim => Box::new(sim::SimStream::start(cfg, processor)?),
     };
-    // Stabilisation : PipeWire change de quantum juste après l'activation, et les premiers
-    // callbacks sont à froid. Les xruns comptés ensuite sont ceux du régime établi.
+    // Stabilisation : les premiers callbacks sont à froid. Les xruns comptés ensuite sont ceux
+    // du régime établi.
     std::thread::sleep(std::time::Duration::from_millis(500));
     stream.stats().xruns.store(0, Ordering::Relaxed);
     if !quiet {

@@ -39,7 +39,7 @@ fn render(spec: &AmpSpec, block: usize, input: &[f32]) -> Vec<f32> {
     buf
 }
 
-/// Le son ne doit pas dépendre de la taille de buffer (JACK 64, ALSA 48, render 1000...).
+/// Le son ne doit pas dépendre de la taille de buffer (ALSA 48, render 1000, 16 et 64 dans les tests...).
 #[test]
 fn output_is_independent_of_block_size() {
     let ir = test_ir("blocks");
@@ -118,7 +118,7 @@ fn limiter_caps_output() {
 }
 
 /// Chaque effet du catalogue (défauts et bornes) donne la même sortie quelle que soit la taille de
-/// bloc (JACK 64, ALSA 48, render 1000...).
+/// bloc (ALSA 48, render 1000, 16 et 64 dans les tests...).
 #[test]
 fn fx_catalog_is_independent_of_block_size() {
     let input = signal(24000);
