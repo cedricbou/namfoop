@@ -93,13 +93,18 @@ Sans cette liste, un nettoyage zélé jette le bon :
 `scripts/check-docs.sh` (étapes 9 à 12) tient les quatre règles qui s'écrivent en expression
 régulière :
 
-| Vérifié | Règle | Portée |
-|---|---|---|
-| numéro d'issue ou de PR | 2 | commentaires et rustdoc de `crates/**/*.rs` |
-| le même, dans une chaîne littérale | 2 | `crates/**/*.rs`, compté à part (certains s'affichent) |
-| mots-signaux temporels, errata datés | 1, 5 | les mêmes commentaires, `docs/`, les `CLAUDE.md` |
-| chemin cité qui n'existe plus | — | les `CLAUDE.md` et `docs/` |
-| taille d'un document | — | avertissement au-delà de 600 lignes |
+| Vérifié | Règle | Portée | Verdict |
+|---|---|---|---|
+| numéro d'issue ou de PR | 2 | commentaires et rustdoc de `crates/**/*.rs` | **échec** |
+| le même, dans une chaîne littérale | 2 | `crates/**/*.rs`, compté à part (certains s'affichent) | **échec** |
+| mots-signaux temporels, errata datés | 1, 5 | les mêmes commentaires, `docs/`, les `CLAUDE.md` | **échec** |
+| chemin cité qui n'existe plus | — | les `CLAUDE.md` et `docs/` | **échec** |
+| taille d'un document | — | les `CLAUDE.md` et `docs/` | avertissement au-delà de 600 lignes |
+
+Les quatre premiers **refusent le commit** : une règle qui avertit sans refuser finit ignorée, comme
+un test de coût qui imprime des µs que personne ne relit. Le cinquième reste un avertissement parce
+que découper un document est un chantier, pas une correction. Une occurrence légitime se traite donc
+en **exception inscrite dans le script**, avec sa raison — jamais en revenant à l'avertissement.
 
 Exemptés, et pour une raison de genre : le `CHANGELOG.md` **est** de l'histoire ; un ADR dit ce qui
 était le cas pour justifier sa décision, et ne se réécrit pas — il se supersède ; ce fichier doit

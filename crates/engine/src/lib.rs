@@ -435,7 +435,7 @@ mod tests {
             // la machine décroche déjà sans qu'on échange : rien à conclure
             eprintln!(
                 "machine chargée : {idle_xruns} xrun(s) sur une fenêtre de repos de même durée, \
-                 {swapping} pendant les échanges — le test ne conclut pas là-dessus (#114)"
+                 {swapping} pendant les échanges — le test ne conclut pas là-dessus"
             );
         } else {
             // un décrochage isolé mesure la machine ; deux, sur deux échanges, mesurent le code
@@ -446,7 +446,7 @@ mod tests {
                 chains.len()
             );
             if swapping > 0 {
-                eprintln!("1 xrun pendant les échanges, 0 au repos : toléré (#130)");
+                eprintln!("1 xrun pendant les échanges, 0 au repos : toléré");
             }
         }
         drop(engine);
