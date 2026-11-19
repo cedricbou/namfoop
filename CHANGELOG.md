@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#254)
+- **La table des touches ne tient plus dans un seul fichier de 854 lignes** : elle devient un
+  module, un fichier par famille d'écrans (`stage.rs`, `windows.rs`, `set.rs`, `chain.rs`,
+  `library.rs`, `set_edit.rs`), aucun au-delà de **147** lignes. Une macro `bind!` ramène chaque
+  déclaration — quatre lignes de littéral `struct` telles que `rustfmt` les étale — à **une ligne**,
+  si bien qu'une table se lit comme une table. `scripts/check-docs.sh` ne signale plus `bindings`.
+- **`all_keys()`, la sixième copie, est dérivée de la table** : l'oracle mesure désormais l'union de
+  ce que déclarent les 24 contextes, touches réglables résolues, plus le témoin `é` (la lettre qui
+  ne veut rien dire). Écrite à la main, cette liste laissait un caractère lié échapper à toute
+  mesure. L'oracle lui-même a prouvé l'équivalence : « les tables diffèrent mais **aucun (contexte,
+  touche) ne change** » — seul l'ordre d'énumération des touches inertes bouge.
+- `keys.rs` (880 lignes) se sépare de ses tests, 448 et 436 lignes.
+
 ### Corrigé (#253)
 - **Les gestes du pied et de l'oreille répondent maintenant devant une fenêtre ouverte.** Avec la
   banque, le catalogue, « mettre dans la chaîne », le mode pose, le sélecteur ou le choix du set

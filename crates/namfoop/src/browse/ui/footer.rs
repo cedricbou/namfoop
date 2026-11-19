@@ -1,6 +1,6 @@
 //! La **barre du bas** : les touches de l'écran où l'on est, dans l'ordre où l'on en a besoin.
 //!
-//! Son texte **n'est pas écrit ici** : il vient du champ `bar` de la table (`state/bindings.rs`),
+//! Son texte **n'est pas écrit ici** : il vient du champ `bar` de la table (`state/bindings/`),
 //! seule déclaration des touches. Ce fichier ne garde que ce qui est vraiment **dynamique** — un
 //! verbe qui change, une case qui n'apparaît que parfois, la tête de navigation de la Chaîne qui
 //! dépend de l'endroit du curseur.

@@ -273,7 +273,7 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
 /// permanente, l'overlay `h` donne le détail.
 /// **La tête de la barre du bas de la Chaîne** : où l'on est dans le synoptique, et donc ce que
 /// les flèches vont faire. C'est la seule partie qui dépend du curseur ; tout le reste vient de la
-/// table (`state/bindings.rs`), seule déclaration des touches.
+/// table (`state/bindings/`), seule déclaration des touches.
 pub fn chain_head(s: &State) -> String {
     let leaf = s.fx.chain.leaf(s.fx.cursor);
     match (leaf, s.fx.chain.spot(s.fx.cursor)) {

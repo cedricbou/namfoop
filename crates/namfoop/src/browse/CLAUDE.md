@@ -25,7 +25,7 @@ l'espace Set **éclipse** `n`, pour qu'une touche d'un espace n'agisse pas sur l
 
 ## Le clavier
 
-### La table — `state/bindings.rs`
+### La table — `state/bindings/`
 
 **Ce que chaque contexte possède est déclaré une fois**, ici : `label` et `what` (l'aide), `bar`
 (la barre du bas), `keys` (la jointure). `ui/footer.rs` et `ui/windows.rs::help_lines` en
@@ -36,7 +36,7 @@ l'espace Set **éclipse** `n`, pour qu'une touche d'un espace n'agisse pas sur l
 `State::context()` nomme le contexte actif. `context_under_help()` existe parce que `h` explique le
 contexte **du dessous**.
 
-### L'ordre des couches — `state/keys.rs` (ADR 0009)
+### L'ordre des couches — `state/keys/mod.rs` (ADR 0009)
 
 `on_key` est un `match` sur `State::context()` : **une ligne par contexte**, qui dit qui le traite.
 Le `match` est **exhaustif**, donc un `Context` nouveau sans preneur ne compile pas. Un **mode**
