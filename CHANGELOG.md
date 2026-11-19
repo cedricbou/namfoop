@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#266)
+- **Un budget de coût par bloc, vérifié par un test** (`crates/dsp/tests/budget.rs` +
+  `tests/budget.toml`) : la latence et la charge sont la priorité n°1 annoncée du projet, et rien ne
+  les vérifiait — une régression de 40 % passait la CI au vert. Quatre chaînes de référence, blocs
+  48 et 64, lancé par `scripts/check.sh` et par la CI.
+- Le seuil est un **rapport à un repère mesuré dans la même exécution**, pas des microsecondes :
+  mesuré sur cinq exécutions, le rapport d'une chaîne varie de **6 % au pire** quand ses µs varient
+  de **40 %** avec la montée en fréquence du processeur. Le test **ne conclut pas** s'il n'est pas
+  compilé optimisé, ni sur une machine dont le repère disperse de plus de 50 % : un runner surchargé
+  ne doit pas faire échouer une PR pour une raison qui n'est pas le code.
+
 ### Supprimé (#263)
 - **Le backend JACK est retiré.** Il n'était ni utilisé ni testé, et il imposait les en-têtes
   `libjack` à la compilation de **tout** le projet — sur chaque poste, en CI, et pour la future

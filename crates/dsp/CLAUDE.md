@@ -130,6 +130,19 @@ si pertinent, à `chain.rs` (indépendance au bloc).
   enveloppe ±0,05 dB ; un gain de 0,5 dB le fait échouer). Un déplacement de code ne doit JAMAIS
   les changer. Régénérer (`NAMFOOP_UPDATE_GOLDEN=1 cargo test -p dsp --test golden`) seulement
   pour un changement de son voulu, en le disant dans la PR.
+- **Budget de coût par bloc** (`crates/dsp/tests/budget.rs` + `tests/budget.toml`) : filet de
+  non-régression de la **performance**, dans le même esprit que les rendus de référence le sont pour
+  le son. Quatre chaînes (`nam`, `nam › ir`, une chaîne complète, un parallèle à deux `nam › ir`),
+  blocs 48 et 64. Le seuil est un **rapport à un repère mesuré dans la même exécution** et non des
+  µs : mesuré sur cinq exécutions, le rapport d'une chaîne varie de 6 % au pire alors que ses µs
+  varient de 40 % avec la montée en fréquence du processeur. Marge 1,4, donc une régression de 40 %
+  est refusée. Le test **ne conclut pas** sans optimisation (le DSP Rust serait dix fois plus lent
+  que le C++ NAM, lui toujours en -O3) ni sur une machine dont le repère disperse de plus de 50 % :
+  `check.sh` le lance donc explicitement en release. Les chiffres portent sur le **modèle d'exemple**
+  du sous-module NAM, seul disponible en CI : ils traquent les régressions du code, pas le coût de la
+  bibliothèque de l'utilisateur, que `namfoop bench` mesure. Régénérer
+  (`NAMFOOP_UPDATE_BUDGET=1 cargo test --release -p dsp --test budget`) seulement pour un coût qu'on
+  accepte, en le justifiant dans la PR.
 - Sans carte son, valider un changement audio avec `namfoop render` (même code que `run`) et
   `namfoop bench`. Écouter un rendu n'est pas possible pour un agent : s'appuyer sur les tests, les
   niveaux (crête/RMS) et des comparaisons numériques.
