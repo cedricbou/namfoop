@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#271)
+- **[`docs/style-doc.md`](docs/style-doc.md)** : les règles de ce qu'on écrit à côté du code
+  (commentaires, rustdoc, `CLAUDE.md`, `docs/`), cité par le `CLAUDE.md` racine. Onze règles, chacune
+  ancrée sur un cas réel du dépôt, plus la liste de **ce qui se garde** — sans laquelle un nettoyage
+  zélé jette les contrats avec le récit.
+- Le principe tient en une question : *existe-t-il un endroit qui porterait ce fait mieux que du
+  texte ?* Un fait qui se vérifie va dans ce qui le vérifie, un savoir-faire qui s'exécute dans ce
+  qui l'exécute, un nombre qui bouge dans ce qui l'engendre. Le texte n'est le meilleur endroit que
+  par défaut.
+
 ### Interne (#268)
 - **Les écrans plein écran sont testés de bout en bout** (`scripts/check-e2e.py`, lancé par
   `scripts/check.sh`) : `browse` est piloté dans un pseudo-terminal, sur la carte simulée et une

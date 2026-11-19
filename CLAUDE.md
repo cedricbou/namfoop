@@ -76,6 +76,9 @@ avertissement, > 1 000 : échec).
 ## Conventions
 
 - Messages, logs, docs, commentaires en **français** ; identifiants en anglais.
+- **Style de ce qu'on écrit à côté du code** : [`docs/style-doc.md`](docs/style-doc.md). En deux
+  rappels : une PR ne laisse **aucun numéro d'issue dans le code** (l'historique est dans git et le
+  changelog), et un fait mesuré **remplace** le précédent au lieu de s'empiler.
 - Erreurs : `anyhow` dans le binaire, types d'erreur propres (`thiserror`) dans les bibliothèques.
 - `rustfmt.toml` largeur 110, clippy sans warning, toolchain épinglée.
 - Ne jamais versionner `library/`, `nam/` ni de fichiers audio (droits Tone3000 non établis).
