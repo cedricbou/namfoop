@@ -3,7 +3,9 @@
 **Responsabilité.** L'écran plein écran `browse` : trois espaces (Bibliothèque, Chaîne, Set), la
 chaîne éditée en blocs, les presets, le set de concert et le prompteur. `state/` est de la logique
 **pure** (horloge fournie, testée sans terminal ni carte), `ui/` ne fait que dessiner (ratatui,
-`TestBackend`), et `mod.rs` est le seul à toucher aux fichiers, au terminal et au thread audio.
+`TestBackend`), `actions/` **exécute** ce que l'état demande — c'est là que sont les effets de bord,
+et nulle part ailleurs —, et `mod.rs` tient la boucle : les touches, l'horloge, les vumètres, le
+dessin.
 
 Spécifications : [`browse-espaces.md`](../../../../docs/design/browse-espaces.md),
 [`browse-chaine.md`](../../../../docs/design/browse-chaine.md),
@@ -95,7 +97,7 @@ division se montre **entre parenthèses** avec la durée que le tempo lui impose
 `(2000 ms, plafond)`), et le régler est refusé **avec la marche à suivre** : ne jamais afficher un
 nombre qui n'agit pas.
 
-## Ce qu'on entend — `state/target.rs`, `plan.rs`, `build.rs`, `mod.rs`
+## Ce qu'on entend — `state/target.rs`, `plan.rs`, `build.rs`, `actions/sound.rs`
 
 `target.rs` dit la chaîne telle qu'on l'écoute **selon l'espace** : banc à nu, ou blocs édités avec
 l'essai du sélecteur et l'écoute isolée. `plan.rs` en fait la demande au thread de construction
@@ -113,7 +115,7 @@ bâtie pendant que l'utilisateur a déjà rappuyé est **jetée** plutôt qu'ins
 preset d'il y a un ou deux appuis. Le préchauffage (`bank.prewarm`, 26 à 54 ms) précède donc cette
 vérification, et l'installation passe par `bank.install_warm`.
 
-**Les paramètres vivants** (ADR 0007, ADR 0008) ne passent pas par là : `mod.rs` tient les cases
+**Les paramètres vivants** (ADR 0007, ADR 0008) ne passent pas par là : la boucle tient les cases
 `dsp::param::Control` du volume, du tempo et du clic, et les écrit d'après `st.plan()` **juste
 après** le `match action` — pour qu'une chaîne installée par ce tour-ci les lise dès son premier
 bloc — et les trace quand elles changent (`volume=±x.x`, `tempo=xxx.x`). Le thread de construction
@@ -125,6 +127,19 @@ preset : `unsaved()` ne le voit pas) et il ne va que dans les sorties déclarée
 `setup` (`OutputRoute::click`, posé par `setup/state.rs` d'après `OutRole::InEar`) : c'est ce qui
 garantit qu'il n'atteint jamais le sondier. `State::metronome_routed` dit si une sortie le reçoit ;
 sinon `k` renvoie à `setup` au lieu d'allumer un clic inaudible.
+
+## L'exécution des actions — `actions/`
+
+`state` **décide** et c'est testé sans terminal ni carte ; `actions/` **exécute**. La frontière est
+la structure `Ctx` : elle énumère ce qu'une action a le droit de toucher (la bibliothèque, la
+config, le thread de construction, la ligne d'état, le terminal), si bien qu'en voir un de plus
+signale une décision en train de descendre dans l'exécution. Une famille par fichier — `sound.rs`
+(la chaîne demandée, le grain), `files.rs` (correction d'un modèle, preset, mélange), `set.rs` (le
+fichier du set, ses prompteurs, `$EDITOR`, le set du moment) — et un `match` **exhaustif** dans
+`actions::run` : une action nouvelle ne compile pas sans dire qui la prend.
+
+Chaque action rend un `Flow` : finir le tour, passer au suivant (rien n'a changé à l'écran), ou
+quitter. C'est ce qui a remplacé les `continue` et les `return` au milieu de la boucle.
 
 ## Les presets — `state/preset/`
 
