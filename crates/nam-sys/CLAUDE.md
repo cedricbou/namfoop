@@ -24,9 +24,5 @@ Côté Rust (`src/lib.rs`) : `Model::load`, `reset(sample_rate, max_block)`, `pr
 **Tester seul** : `cargo test -p nam-sys` ; les modèles de démo sont dans
 `vendor/NeuralAmpModelerCore/example_models/` (`wavenet.nam`, utilisé par les tests de `dsp`).
 
-## Carte détaillée (reprise du `CLAUDE.md` racine)
-
-```
-crates/nam-sys/   FFI vers NeuralAmpModelerCore (sous-module vendor/, C++20, compilé par build.rs avec cc)
-  shim/           API C (nam_shim.h/.cpp) : load, reset, process (f32 <-> double), loudness, slimmable
-```
+La place de cette crate dans le graphe des dépendances : la carte du `CLAUDE.md` racine et
+[`docs/architecture.md`](../../docs/architecture.md).

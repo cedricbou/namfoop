@@ -69,11 +69,11 @@ par crate cité ici et dans `docs/architecture.md`, la taille des fichiers (> 60
 avertissement, > 1 000 : échec) et les règles mécanisables de `docs/style-doc.md` : numéro d'issue
 dans un commentaire, mot-signal temporel, chemin cité qui n'existe plus.
 
-**Publier une version** : rouler « Non publié » dans une section `## X.Y.Z — AAAA-MM-JJ`, aligner
-`version` de `[workspace.package]` (sinon `namfoop --version` ment : il a annoncé 0.1.0 jusqu'à
-0.5.0), puis un tag **annoté** `vX.Y.Z` dont le message dit ce que la version apporte
-(`git tag -a v0.5.0 -m "namfoop 0.5.0 — …"`). Les tags 0.2.0 à 0.4.0 ont sauté les deux premières
-étapes : leurs entrées sont regroupées en bloc dans le CHANGELOG, faute de pouvoir les replacer.
+**Publier une version**, dans cet ordre : rouler « Non publié » dans une section
+`## X.Y.Z — AAAA-MM-JJ`, aligner `version` de `[workspace.package]` — sans quoi `namfoop --version`
+ment —, puis poser un tag **annoté** `vX.Y.Z` dont le message dit ce que la version apporte
+(`git tag -a v0.6.0 -m "namfoop 0.6.0 — …"`). Sauter l'une des deux premières étapes rend les
+entrées du changelog irrattribuables : on ne peut plus les replacer sans deviner.
 
 ## Conventions
 
