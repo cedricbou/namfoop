@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#274)
+- **`crates/dsp/CLAUDE.md` dit ce que la crate garantit, et non comment on y est arrivé.** Le
+  paragraphe « Fichiers / API » de 80 lignes devient une **liste**, un fichier par ligne avec son
+  rôle et ses invariants — le contrat détaillé reste dans le rustdoc, qui le porte déjà. Les coûts
+  par bloc, jusque-là éparpillés en huit mesures isolées, tiennent dans **un tableau** avec leurs
+  conditions.
+- Disparaissent : la « Carte détaillée » recopiée du `CLAUDE.md` racine (périmée : elle citait
+  `preset.rs`), les colonnes « avant / après » qui mesuraient du code supprimé, la pondération A
+  « mesurée et écartée », la régénération d'un rendu de référence racontée comme un événement, et
+  les 42 lignes qui ne portaient qu'un numéro d'issue.
+- Restent intactes : les **règles temps réel non négociables**, la procédure **« Ajouter un
+  effet »** et les tables de mesures actuelles (queue de preset, loudness pondérée K, coût de
+  plusieurs modèles, RT60, divisions).
+
 ### Documentation (#273)
 - **Les écrans ont leur propre fichier** : `crates/namfoop/src/browse/CLAUDE.md` (263 lignes) porte
   les espaces, le clavier et ses quatre étages, l'oracle, la chaîne éditée, les presets, le set et
