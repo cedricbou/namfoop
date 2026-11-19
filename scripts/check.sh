@@ -54,6 +54,14 @@ fi
 if ! out=$(cargo test -q "${test_args[@]}" 2>&1); then echo "$out"; exit 1; fi
 grep -E '^test result' <<<"$out" | grep -v ' 0 passed' || true
 
+# Le budget de coût par bloc ne veut rien dire sans optimisation : le DSP Rust serait 10 fois plus
+# lent que le C++ NAM, toujours en -O3. Le test le détecte et ne conclut pas. En profil `ci`
+# (optimisé), le `cargo test` ci-dessus l'a donc déjà vérifié ; en local il a tourné en debug.
+if [[ $PROFILE == release ]]; then
+  step "budget de coût par bloc (optimisé : sinon la mesure ne veut rien dire)"
+  cargo test -q --release -p dsp --test budget
+fi
+
 step "build (profil $PROFILE)"
 cargo build -q --profile "$PROFILE"
 BIN=./target/$PROFILE/namfoop
