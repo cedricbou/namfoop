@@ -599,13 +599,22 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
 
 /// La barre d'aide, sur les **deux lignes** du bas. Elle est coupée **aux séparateurs de touches**
 /// (trois espaces) et non au milieu d'un mot, et quand le terminal est trop étroit les touches du
-/// milieu sautent (remplacées par `…`) : les **touches de sortie** — les trois dernières, `h aide`,
-/// l'autre espace et `q quitter` — restent toujours lisibles. L'overlay `h` donne le détail.
+/// milieu sautent (remplacées par `…`) : les **touches de sortie** restent toujours lisibles.
+/// L'overlay `h` donne le détail.
+///
+/// Ce qui est protégé est **le défaut**, et il est le même partout : les trois derniers segments,
+/// que les étages de `state/bindings/` placent en fin de table (`h aide`, l'autre espace,
+/// `q quitter`). Le jour où un écran devra en protéger d'autres — l'édition d'un set aimerait
+/// garder `Échap sortir` —, c'est **sa table** qui le dira, par un champ sur `Binding` ; cette
+/// fonction comptera alors les segments marqués au lieu d'en compter trois. Tant que personne ne
+/// le demande, il n'y a rien à écrire : le défaut suffit.
 fn help_bar(keys: &str, width: u16) -> Vec<Line<'static>> {
+    /// Les segments de sortie, jamais coupés.
+    const SORTIES: usize = 3;
     let w = (width as usize).max(24) - 1;
     let grey = Style::new().fg(Color::DarkGray);
     let seg: Vec<&str> = keys.split("   ").filter(|p| !p.is_empty()).collect();
-    let cut = seg.len().saturating_sub(3);
+    let cut = seg.len().saturating_sub(SORTIES);
     // range les segments sur deux lignes au plus ; `None` : ça ne tient pas
     let lay = |parts: &[&str]| -> Option<Vec<String>> {
         let mut lines: Vec<String> = vec![String::new()];

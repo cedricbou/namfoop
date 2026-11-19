@@ -49,6 +49,36 @@ qui la possède** la consomme :
 | **3 · le commun** | `S` `P` `n` | **oui**, par déclaration |
 | **4 · le dernier recours** | `Échap` (« ne quitte pas : q pour quitter ») | — |
 
+### La table porte les étages, et l'ordre ne se surcharge pas
+
+Les étages 1 et 3 ne sont pas que du dispatch : ils sont aussi **déclarés** une fois, dans
+`state/bindings/`, et ajoutés à la table de chaque espace dans un **ordre canonique** — les
+communes, la pédale, puis les sorties (`h`, l'autre espace, `q`). Un espace y gagne deux choses
+qu'il n'avait pas : il ne peut plus **oublier** une touche d'étage, et le bassiste les retrouve
+**au même endroit** d'un écran à l'autre.
+
+Ce qu'un écran garde comme liberté :
+
+| liberté | comment |
+|---|---|
+| **ajouter** ses touches à lui | sa table, dans l'ordre de l'écran |
+| **dire autrement** une touche d'étage | une entrée de sa liste `OVERRIDES`, mêmes touches, d'autres mots |
+| **la retirer de la barre du bas** sans la retirer de l'aide `h` | la même surcharge, avec `bar: ""` |
+| **l'éclipser** | la même surcharge : l'espace Set dit que `n` se bâtit dans la Chaîne |
+
+Ce qu'il ne peut pas : **replacer** une touche d'étage, ni en perdre une en silence. Une surcharge
+qui ne correspond à aucun étage fait échouer un test — sans quoi on croirait avoir changé un texte
+que l'étage continue de dire.
+
+Les écrans qui ne sont **pas** des espaces gardent leur table à la main : les fenêtres, le panneau
+des réglages, l'édition d'un set, la scène verrouillée. Ce qu'ils laissent passer est une **liste
+blanche**, pas un étage — et une liste blanche se lit, elle ne se déduit pas.
+
+**Ce qui est protégé dans la barre du bas** est le défaut, et il est le même partout : les trois
+derniers segments. Le jour où un écran devra en garder d'autres — l'édition d'un set aimerait
+protéger `Échap sortir` —, c'est sa table qui le dira, pas `help_bar` : la couture est nommée dans
+`ui/mod.rs`. Tant que personne ne le demande, il n'y a rien à écrire.
+
 L'ordre est la seule chose qui décide : il n'est donc écrit **qu'à un endroit**, `context()`, et
 jamais retesté ailleurs. Deux règles seulement précèdent le contexte : un mur ne se traverse pas, et
 `h` **ouvre** l'aide — au-dessus des modales, parce qu'une fenêtre doit pouvoir s'expliquer, mais

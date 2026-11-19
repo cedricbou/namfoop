@@ -5,7 +5,7 @@
 use super::super::context::Context;
 use super::{bind, k, n, Binding, Key, ENTER};
 
-pub(super) fn table(ctx: Context) -> &'static [Binding] {
+pub(super) fn own(ctx: Context) -> &'static [Binding] {
     const COMMON: &[Binding] = &[
         bind!(
             &[n(Key::Up), n(Key::Down), n(Key::PageUp), n(Key::PageDown)],
@@ -20,21 +20,12 @@ pub(super) fn table(ctx: Context) -> &'static [Binding] {
         // déclaré ici une fois plutôt que dans chaque onglet.
         bind!(&[k('b')], "b", "avec ou sans IR", "b avec/sans IR"),
     ];
-    const TAIL: &[Binding] = &[
-        bind!(&[k('z')], "z", "panneau Bandes : ce que la chaîne fait aux 7 zones (sub … air)", "z bandes"),
-        bind!(
-            &[k('S'), k('P')],
-            "S / P",
-            "enregistrer la chaîne en preset · ouvrir la banque",
-            "S enregistrer   P banque"
-        ),
-        bind!(&[k('n')], "n", "nouvelle chaîne vierge (on passe à la Chaîne pour la bâtir)", "n vierge"),
-        bind!(&[k('*')], "*", "tap tempo (il appartient à la Chaîne : ici il le dit)", ""),
-        bind!(&[k('k')], "k", "clic du métronome", ""),
-        bind!(&[k('h'), k('?')], "h", "cette aide", "h aide"),
-        bind!(&[k('2'), k('3')], "2 / 3", "la Chaîne (effets, parallèles) · le Set", "2 Chaîne 3 Set"),
-        bind!(&[k('q')], "q", "quitter — Échap ne quitte jamais, il remonte d'un niveau", "q quitter"),
-    ];
+    const TAIL: &[Binding] = &[bind!(
+        &[k('z')],
+        "z",
+        "panneau Bandes : ce que la chaîne fait aux 7 zones (sub … air)",
+        "z bandes"
+    )];
     const MODELS: &[Binding] = &[
         bind!(&[k('e')], "e", "modifier et calibrer le modèle (type, entrée, IR, nom)", "e calibrer"),
         bind!(
@@ -94,3 +85,13 @@ pub(super) fn table(ctx: Context) -> &'static [Binding] {
         _ => joined!(MODELS),
     }
 }
+
+/// Les touches d'étage que **la Bibliothèque dit autrement** (`super::assemble`). `*` n'y tape
+/// pas : il dit où le tap se trouve, donc il reste hors de la barre — l'annoncer `* tap` ici serait
+/// un mensonge. `k`, lui, agit vraiment, mais la barre de cet écran est déjà pleine. Et `n` dit en
+/// plus où la chaîne vierge se bâtit.
+pub(super) const OVERRIDES: &[Binding] = &[
+    bind!(&[k('*')], "*", "tap tempo (il appartient à la Chaîne : ici il le dit)", ""),
+    bind!(&[k('k')], "k", "clic du métronome, dans les sorties in-ear seulement · éteint au démarrage", ""),
+    bind!(&[k('n')], "n", "nouvelle chaîne vierge (on passe à la Chaîne pour la bâtir)", "n vierge"),
+];

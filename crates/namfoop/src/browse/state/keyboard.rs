@@ -798,9 +798,12 @@ fn everything_declared_is_actually_owned() {
 /// entre explicitement ; une fuite n'y entre pas.
 #[test]
 fn everything_that_acts_is_declared() {
-    // **L'étage pédale** : `1 2 3 q h ? * k` valent partout (ADR 0009), et la barre permanente
-    // les donne toujours — elle finit par `h aide`, l'autre espace et `q quitter`. Les déclarer
-    // dans les 24 contextes noierait l'aide de chaque écran sous ce qui ne change jamais.
+    // **L'étage pédale**, pour les écrans qui ne sont **pas** des espaces : les fenêtres (une
+    // touche de pédale les referme puis agit), le panneau des réglages, l'édition d'un set, la
+    // scène. Les six contextes d'espace, eux, déclarent les étages **par construction**
+    // (`bindings::space`), et `every_space_declares_the_tiers` le vérifie : ils ne sont donc pas
+    // exemptés ici, et une touche de pédale qui agirait dans un espace sans y être déclarée
+    // ferait échouer ce test.
     const PEDAL: &[Key] = &[
         Key::Char('1'),
         Key::Char('2'),
@@ -832,6 +835,18 @@ fn everything_that_acts_is_declared() {
         | Context::StageQuit => true,
         _ => false,
     };
+    // un espace déclare ses étages : il n'a pas droit à l'exemption
+    let a_space = |ctx: Context| {
+        matches!(
+            ctx,
+            Context::Models
+                | Context::Irs
+                | Context::Blend
+                | Context::Chain
+                | Context::ChainMerge
+                | Context::Set
+        )
+    };
     let mut leaks = Vec::new();
     for (ctx, case) in context_cases() {
         if answers_everything(ctx) {
@@ -843,7 +858,7 @@ fn everything_that_acts_is_declared() {
             .flat_map(|b| b.keys.iter().map(|spec| spec.resolve(s.song_keys, s.prompt_keys)))
             .collect();
         for (name, key) in all_keys() {
-            if declared.contains(&key) || PEDAL.contains(&key) {
+            if declared.contains(&key) || (PEDAL.contains(&key) && !a_space(ctx)) {
                 continue;
             }
             if acts(&case, key) {

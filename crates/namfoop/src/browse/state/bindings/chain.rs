@@ -55,34 +55,12 @@ pub(super) const CHAIN: &[Binding] = &[
         ", . volume"
     ),
     bind!(
-        &[k('*')],
-        "*",
-        "tap tempo : deux frappes suffisent · modifie le preset, comme tout réglage",
-        "* tap"
-    ),
-    bind!(
-        &[k('k')],
-        "k",
-        "clic du métronome, dans les sorties in-ear seulement · éteint au démarrage",
-        "k clic"
-    ),
-    bind!(
-        &[k('S'), k('P')],
-        "S / P",
-        "enregistrer la chaîne en preset · ouvrir la banque",
-        "S enregistrer   P banque"
-    ),
-    bind!(&[k('n')], "n", "nouvelle chaîne vierge (le preset courant est détaché)", "n vierge"),
-    bind!(
         &[n(Key::PageDown), n(Key::PageUp)],
         "PgDn / PgUp",
         "preset suivant / précédent (la banque en boucle)",
         "PgDn/PgUp preset"
     ),
     bind!(&[k('t')], "t", "déplier le TOML du preset", "t TOML"),
-    bind!(&[k('h'), k('?')], "h", "cette aide", "h aide"),
-    bind!(&[k('1'), k('3')], "1 / 3", "la Bibliothèque (le banc d'essai) · le Set", "1 Bibliothèque 3 Set"),
-    bind!(&[k('q')], "q", "quitter — Échap ne quitte jamais, il remonte d'un niveau", "q quitter"),
 ];
 
 // -------------------------------------------------------------- la sortie d'un parallèle (le ◇)
@@ -103,15 +81,6 @@ pub(super) const CHAIN_MERGE: &[Binding] = &[
     ),
     bind!(&[k('v'), k('r')], "v / r", "vumètres · avec ou sans effets", "v vumètres   r sans effets"),
     bind!(&[k(','), k('.')], ", / .", "volume du preset (1 dB)", ", . volume"),
-    bind!(&[k('*')], "*", "tap tempo", "* tap"),
-    bind!(&[k('k')], "k", "clic du métronome", "k clic"),
-    bind!(
-        &[k('S'), k('P')],
-        "S / P",
-        "enregistrer la chaîne en preset · ouvrir la banque",
-        "S enregistrer   P banque"
-    ),
-    bind!(&[k('n')], "n", "nouvelle chaîne vierge", "n vierge"),
     bind!(
         &[n(Key::PageDown), n(Key::PageUp)],
         "PgDn / PgUp",
@@ -119,7 +88,4 @@ pub(super) const CHAIN_MERGE: &[Binding] = &[
         "PgDn/PgUp preset"
     ),
     bind!(&[k('t')], "t", "déplier le TOML du preset", "t TOML"),
-    bind!(&[k('h'), k('?')], "h", "cette aide", "h aide"),
-    bind!(&[k('1'), k('3')], "1 / 3", "la Bibliothèque · le Set", "1 Bibliothèque 3 Set"),
-    bind!(&[k('q')], "q", "quitter", "q quitter"),
 ];
