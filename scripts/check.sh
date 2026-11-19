@@ -69,6 +69,9 @@ step "build (profil $PROFILE)"
 cargo build -q --profile "$PROFILE"
 BIN=./target/$PROFILE/namfoop
 
+step "écrans de bout en bout (pseudo-terminal, carte simulée)"
+NAMFOOP_BIN=$BIN scripts/check-e2e.py
+
 step "cycle de développement (scripts/feature.sh, hors-ligne, faux gh)"
 scripts/test-feature.sh
 

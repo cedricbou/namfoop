@@ -4,3 +4,6 @@
 /nam
 *.wav
 !crates/**/tests/data/*.wav
+
+# caches Python des scripts du harnais
+__pycache__/

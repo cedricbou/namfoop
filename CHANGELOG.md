@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#268)
+- **Les écrans plein écran sont testés de bout en bout** (`scripts/check-e2e.py`, lancé par
+  `scripts/check.sh`) : `browse` est piloté dans un pseudo-terminal, sur la carte simulée et une
+  bibliothèque jetable (le modèle d'exemple du sous-module NAM et une IR de synthèse). Jusqu'ici la
+  technique était décrite en 40 lignes de prose et **aucun script n'existait** — autrement dit, la
+  boucle d'événements (`browse/mod.rs`, 855 lignes, 1 test) et le thread qui décide de ce qu'on
+  entend (`browse/build.rs`, 1 test) n'étaient exercés par rien.
+- Les assertions portent sur la **trace** (`NAMFOOP_BROWSE_TRACE`), c'est-à-dire sur la chaîne
+  réellement entrée dans le thread audio, et non sur l'écran : `↓` fait jouer « modèle › IR », puis
+  **`b` coupe l'IR et garde le modèle**. Plus deux garanties de fiabilité scène : `q` **avertit** au
+  lieu de quitter quand la chaîne est vide alors que le banc joue, et `Q` quitte quand même. Aux
+  deux tailles d'écran du projet (80×25 et l'écran du Pi en 160×50).
+- Les pièges du pilotage (un zombie répond à `os.kill`, un emoji occupe deux cellules, ratatui ne
+  dessine rien sans `TIOCSWINSZ`, `Terminal::clear` attend une réponse du terminal) sont désormais
+  **implémentés** dans le harnais au lieu d'être décrits dans un `CLAUDE.md`.
+
 ### Interne (#269)
 - **Les frontières annoncées sont maintenant celles qui sont vérifiées.** `docs/architecture.md`
   déclarait cinq interdictions dont trois ne tenaient pas : « `dsp` interdit la config » et
