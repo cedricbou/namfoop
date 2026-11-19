@@ -382,27 +382,22 @@ mod tests {
 
     /// Carte simulée : démarrage, deux chaînes successives, vumètres non nuls, arrêt.
     ///
-    /// Les xruns ne sont **pas** exigés nuls dans l'absolu : la carte simulée en compte un dès que
-    /// son thread a une période de retard, ce qui mesure la machine (un runner partagé décroche)
-    /// plutôt que le code (#114). On prend donc une **référence** sans rien échanger, et on refuse
-    /// une **dégradation** plutôt qu'un décrochage isolé. Le 0 xrun strict reste vérifié sur le
-    /// matériel (`scripts/test-backends.sh`), où il a un sens.
+    /// **Les xruns ne sont pas exigés nuls dans l'absolu** : la carte simulée en compte un dès que
+    /// son thread a une période de retard, ce qui mesure la machine — un runner partagé décroche —
+    /// et non le code. Le 0 xrun strict reste vérifié sur le matériel
+    /// (`scripts/test-backends.sh`), où il a un sens.
     ///
-    /// Deux précautions, mesurées par #130 (le test échouait **3 fois sur 12** en isolation sur une
-    /// machine au repos) :
-    /// 1. la référence dure **exactement aussi longtemps** que la phase d'échange. Elle ne durait
-    ///    que 400 ms contre 800, si bien qu'une machine qui lâche une période par seconde montrait
-    ///    0 au repos et 1 pendant les échanges — et le test l'imputait au code ;
-    /// 2. référence propre, on tolère quand même **un** décrochage. `send_chain` préchauffe la
-    ///    chaîne (0,25 s de bruit puis 0,5 s de silence, `rt::prewarm`), donc la phase d'échange
-    ///    charge vraiment le processeur : c'est ce qui pousse un flux limite au-delà du bord. Un
-    ///    vrai défaut, lui, décrocherait à **chaque** échange, donc au moins deux fois ici.
-    ///
-    /// Ce qu'on ne fait **pas** : comparer les deux comptes quand la référence décroche déjà. La
-    /// phase d'échange travaille strictement plus, donc sous charge elle décroche proportionnellement
-    /// plus, et aucun seuil ne distingue alors « échanger coûte du processeur » de « échanger a un
-    /// défaut ». Mesuré : 48 boucles de charge sur 16 cœurs font dépasser n'importe quelle marge.
-    /// Dans ce cas on le dit et on ne conclut pas — c'est la règle de #114.
+    /// Le test prend donc une **référence** sans rien échanger, et trois règles le tiennent :
+    /// 1. la référence dure **exactement aussi longtemps** que la phase d'échange, sinon une
+    ///    machine qui lâche une période par seconde montre 0 au repos et 1 pendant les échanges,
+    ///    et le test l'impute au code ;
+    /// 2. référence propre, **un** décrochage est toléré : `send_chain` préchauffe la chaîne
+    ///    (0,25 s de bruit puis 0,5 s de silence, `rt::prewarm`), donc la phase d'échange charge
+    ///    vraiment le processeur et pousse un flux limite au-delà du bord. Un vrai défaut, lui,
+    ///    décroche à **chaque** échange, donc au moins deux fois ici ;
+    /// 3. référence sale, le test **le dit et ne conclut pas**. La phase d'échange travaille
+    ///    strictement plus, donc sous charge elle décroche proportionnellement plus, et aucun seuil
+    ///    ne distingue alors « échanger coûte du processeur » de « échanger a un défaut ».
     #[test]
     fn sim_session_swaps_chains() {
         /// Ce qu'une étape d'échange laisse passer de temps (ms) : la même attente sert à la

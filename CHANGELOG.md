@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#276)
+- **La règle qui évite de conclure sur une machine lente est écrite une fois.** Le récit de la
+  stabilisation de `sim_session_swaps_chains` existait en **trois exemplaires** — deux fois dans
+  `crates/engine/CLAUDE.md`, une troisième en 23 lignes de rustdoc. Il reste un contrat de test, au
+  présent : référence de même durée, un décrochage toléré si elle est propre, et surtout **le test
+  le dit et ne conclut pas** si elle est sale. `crates/dsp/tests/budget.rs` applique la même règle à
+  son repère de coût.
+- `crates/engine/CLAUDE.md` passe de 154 à 108 lignes : la section API ne recopie plus en Markdown
+  le rustdoc des modules (qui donne unités, défauts et garanties temps réel) et devient une carte —
+  quoi vit où, et ce qu'il ne faut pas casser. Les faits mesurés de la banque préchargée et des
+  dénormalisés sont inchangés.
+
 ### Documentation (#274)
 - **`crates/dsp/CLAUDE.md` dit ce que la crate garantit, et non comment on y est arrivé.** Le
   paragraphe « Fichiers / API » de 80 lignes devient une **liste**, un fichier par ligne avec son
