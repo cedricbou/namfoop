@@ -33,6 +33,14 @@ l'espace Set **éclipse** `n`, pour qu'une touche d'un espace n'agisse pas sur l
 (la barre du bas), `keys` (la jointure). `ui/footer.rs` et `ui/windows.rs::help_lines` en
 **dérivent** leur texte : ajouter une touche, c'est ajouter une ligne ici.
 
+Un fichier par famille d'écrans, et `mod.rs` porte **les étages** : les communes (`S P n`), la
+pédale (`* k`) et les sorties (`h`, l'autre espace, `q`) sont déclarées **une fois** et ajoutées à
+la table de chaque espace dans cet ordre. Un écran **surcharge** une touche d'étage par une entrée
+de sa liste `OVERRIDES` — d'autres mots, ou `bar: ""` pour la laisser à l'aide `h` — mais il ne la
+**replace** pas : c'est ce qui fait qu'on la retrouve au même endroit d'un écran à l'autre. Les
+écrans qui ne sont pas des espaces (les fenêtres, les réglages, l'édition d'un set, la scène)
+gardent leur table à la main : ce qu'ils laissent passer est une **liste blanche**.
+
 ### Qui a le clavier — `state/context.rs`
 
 `State::context()` nomme le contexte actif. `context_under_help()` existe parce que `h` explique le

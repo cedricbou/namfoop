@@ -6,6 +6,28 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#254)
+- **La table des touches porte les étages.** Les communes (`S` `P` `n`), la pédale (`*` `k`) et les
+  sorties (`h`, l'autre espace, `q`) étaient recopiées dans **cinq** tables : ajouter une touche
+  d'étage demandait cinq éditions, et une divergence entre deux copies ne faisait échouer aucun
+  test. Elles sont maintenant déclarées **une fois** et ajoutées à chaque espace dans un **ordre
+  canonique** : le bassiste les retrouve au même endroit d'un écran à l'autre, et un espace ne peut
+  plus en oublier une.
+- Ce qu'un écran garde : **ajouter** ses touches à lui, **dire autrement** une touche d'étage, la
+  **retirer de la barre** sans la retirer de l'aide `h`, ou l'**éclipser**. Ce qu'il ne peut plus :
+  la replacer, ou en perdre une en silence. Trois tests le tiennent, dont « une surcharge qui ne
+  correspond à aucun étage » — sans quoi on croirait avoir changé un texte que l'étage continue de
+  dire.
+- **Ce qui change à l'écran** : dans la Chaîne et sur la sortie d'un parallèle, quatre segments de
+  la barre du bas changent de place (`PgDn/PgUp preset` et `t TOML` passent avant `S enregistrer`,
+  `* tap` et `k clic` après `n vierge`) — **rien** à 80 colonnes, où la barre est coupée avant d'y
+  arriver. La Bibliothèque et l'espace Set sont inchangés. L'aide `h` de la sortie d'un parallèle
+  gagne les textes longs de la Chaîne.
+- **Ce qui est protégé dans la barre** reste le défaut, partout le même : les trois derniers
+  segments. Le jour où un écran devra en garder d'autres — l'édition d'un set aimerait protéger
+  `Échap sortir` —, c'est sa table qui le dira, et la couture est nommée dans `ui/mod.rs`. Rien
+  n'est écrit d'avance : le code le plus stable est celui qu'on n'écrit pas.
+
 ### Interne (#265)
 - **L'exécution des actions sort de la boucle d'événements.** `browse/mod.rs` était le plus gros
   fichier du dépôt (855 lignes, à 145 du seuil d'échec) et ne portait **qu'un seul test**, alors que
