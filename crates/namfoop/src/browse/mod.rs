@@ -4,15 +4,17 @@
 //!
 //! - `state/`  logique pure (testée), horloge fournie par la boucle
 //! - `ui/`     rendu ratatui (testé avec TestBackend)
+//! - `actions/` l'**exécution** des actions : fichiers, `$EDITOR`, chaînes demandées
 //! - `build.rs` thread de construction des chaînes, `plan.rs` ce qu'il reste à préchauffer
 //! - ici        index de la bibliothèque, audio (routeur + SwapChain), la boucle d'événements
 
+mod actions;
 mod build;
 mod plan;
 mod state;
 mod ui;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU32;
@@ -25,10 +27,9 @@ use crate::tui;
 use audio_io::Settings;
 use build::{bank_requests, Built, Job};
 use engine::{Engine, EngineConfig, Routing};
-use library::overrides::{ModelOverride, Overrides};
 use library::recommend::{needs_ir, recommend, NeedsIr};
-use library::{content_hash, Kind, Library};
-use plan::{plan_blocks, Request};
+use library::{Kind, Library};
+use plan::Request;
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
 const MAX_BLOCK: usize = 1024;
@@ -114,7 +115,7 @@ pub fn index(
 }
 
 /// Ligne d'un modèle : badge IR, IR conseillées, métadonnées (corrigées et du fichier).
-fn model_item(
+pub(super) fn model_item(
     lib: &Library,
     e: &library::Entry,
     default_ir: Option<&str>,
@@ -159,46 +160,6 @@ fn model_item(
         profile: None,
         voicing: None,
         blend: false,
-    }
-}
-
-/// Enregistre les métadonnées éditées (différences avec le fichier) dans `library/overrides.toml`.
-fn save_meta(library: &Path, st: &State, edits: &[(usize, ModelMeta)]) -> Result<()> {
-    let mut ov = Overrides::load(library)?;
-    for (i, draft) in edits {
-        let item = &st.models[*i];
-        let file = item.meta.as_ref().map(|b| b.1.clone()).unwrap_or_default();
-        let diff = |a: &String, b: &String| (a != b).then(|| a.clone());
-        let o = ModelOverride {
-            file: Some(item.rel.clone()),
-            gear_type: diff(&draft.gear_type, &file.gear_type),
-            gear_make: diff(&draft.make, &file.make),
-            name: diff(&draft.name, &file.name),
-            input_db: (draft.input_db != 0.0).then_some(draft.input_db),
-            ir: draft.ir.map(|x| st.irs[x].rel.clone()),
-            note: Some("namfoop browse".into()),
-            ..Default::default()
-        };
-        ov.set(&content_hash(&item.path)?, o);
-    }
-    Ok(ov.save(library)?)
-}
-
-fn blend_spec(name: &str, s: &State, absolute: bool) -> dsp::blend::BlendSpec {
-    dsp::blend::BlendSpec {
-        name: name.to_string(),
-        align: s.align,
-        max_ms: None,
-        parts: s
-            .blend
-            .iter()
-            .map(|p: &BlendPart| dsp::blend::BlendPart {
-                file: if absolute { s.irs[p.ir].path.clone() } else { PathBuf::from(&s.irs[p.ir].rel) },
-                gain_db: p.gain_db,
-                invert: p.invert,
-            })
-            .collect(),
-        base: PathBuf::new(),
     }
 }
 
@@ -315,7 +276,7 @@ pub fn run(
         st.filter = f.to_string();
     }
     // la banque de presets, prête à être cherchée et rechargée
-    st.adopt_presets(scan_presets(library));
+    st.adopt_presets(actions::files::scan_presets(library));
     // les touches de scène, réglables (§ 9) : un nom illisible est dit au démarrage plutôt
     // qu'ignoré en silence — sur scène, une touche qui ne répond pas ne se diagnostique pas
     {
@@ -340,10 +301,10 @@ pub fn run(
         .map(str::to_string)
         .or_else(|| conf.config.set.as_ref().and_then(|s| s.default.clone()));
     if let Some(query) = wanted_set.as_deref() {
-        match open_set(library, query, &st) {
+        match actions::set::open_set(library, query, &st) {
             Ok(set) => {
                 st.message = Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
-                st.adopt_prompts(read_prompts(&set.spec));
+                st.adopt_prompts(actions::set::read_prompts(&set.spec));
                 st.set = Some(set);
             }
             // `run --set` ne tolère pas un set illisible : on le dit et on sort (code d'erreur)
@@ -411,195 +372,25 @@ pub fn run(
                     }
                 }
             }
-            match action {
-                Action::None => {}
-                Action::Quit => return Ok(()),
-                // `S` en édition de set : la boucle écrit le fichier (§ 8)
-                Action::SaveSet(stem) => {
-                    let Some(set) = st.set.as_ref() else { continue };
-                    let file = Library::scan(library).set_path(&stem);
-                    match set.spec.save(&file) {
-                        Ok(()) => {
-                            st.message = Some(format!("set « {stem} » enregistré ({})", file.display()));
-                            if let Some(set) = st.set.as_mut() {
-                                set.saved = set.spec.clone();
-                            }
-                            // un set tout juste créé (`L` › « ＋ nouveau set… ») n'avait pas
-                            // d'identifiant : le fichier existe maintenant, donc il en a un, et
-                            // c'est à partir de là qu'on peut le retenir dans `[set] default`
-                            // (§ 4) — et que `run --set` sans argument le reprendra (§ 9)
-                            if st.set.as_ref().is_some_and(|x| x.id.is_empty()) {
-                                let id = Library::scan(library)
-                                    .by_path(&file)
-                                    .map(|e| e.id.clone())
-                                    .unwrap_or_default();
-                                if !id.is_empty() {
-                                    if let Some(set) = st.set.as_mut() {
-                                        set.id = id.clone();
-                                    }
-                                    remember_set(conf, Some(&id));
-                                }
-                            }
-                            // le set a pu gagner ou perdre des presets : sa banque est à refaire
-                            bank_reqs = bank_requests(&st, &audition);
-                            let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
-                            status.bank = Some((0, bank_reqs.len()));
-                            // `S` depuis la fenêtre de `q` : on quitte maintenant que c'est écrit
-                            if std::mem::take(&mut st.quit_after_save) {
-                                return Ok(());
-                            }
-                        }
-                        Err(e) => st.message = Some(format!("set « {stem} » non enregistré : {e:#}")),
-                    }
-                }
-                // `t` : le prompteur du morceau dans `$EDITOR` (§ 10). C'est la boucle qui
-                // rend la main au terminal : l'état ne touche à aucun fichier.
-                Action::EditPrompt(song) => {
-                    let what = st.set.as_ref().and_then(|set| {
-                        let s = set.spec.songs.get(song)?;
-                        Some((set.spec.base.join(s.prompt.as_deref()?), s.label().to_string()))
-                    });
-                    let Some((file, title)) = what else { continue };
-                    match edit_prompt(&mut session, &file, &title) {
-                        Ok(()) => {
-                            st.adopt_prompts(read_prompt(&file));
-                            let lines = st
-                                .prompt_of(song)
-                                .and_then(|l| l.prompt())
-                                .map(|p| p.line_count())
-                                .unwrap_or(0);
-                            st.message = Some(format!(
-                                "prompteur « {title} » : {lines} ligne(s) — {}",
-                                file.display()
-                            ));
-                        }
-                        Err(e) => st.message = Some(format!("prompteur « {title} » : {e:#}")),
-                    }
-                }
-                // `L` : la liste des sets de la bibliothèque, que seule la boucle voit (§ 7)
-                Action::ListSets => st.adopt_sets(list_sets(library)),
-                Action::OpenSet(id) => match open_set(library, &id, &st) {
-                    Ok(set) => {
-                        st.message =
-                            Some(format!("set « {} » : {} morceaux", set.stem, set.spec.songs.len()));
-                        st.adopt_prompts(read_prompts(&set.spec));
-                        st.set = Some(set);
-                        remember_set(conf, Some(&id));
-                        // sa banque remplace la banque entière (§ 4)
-                        bank_reqs = bank_requests(&st, &audition);
-                        let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
-                        // et son premier son joue
-                        let first = st.set.as_ref().and_then(|s| s.flat().first().copied());
-                        if let Some(at) = first {
-                            st.play_set_sound(at);
-                        }
-                    }
-                    Err(e) => st.message = Some(format!("set « {id} » : {e:#}")),
-                },
-                Action::SetChanged => {
-                    // un set tout neuf n'a pas de dossier : ses prompteurs se résolvent
-                    // dans `library/sets/`, comme ceux d'un set lu sur le disque
-                    if let Some(set) = st.set.as_mut().filter(|s| s.spec.base.as_os_str().is_empty()) {
-                        set.spec.base = Library::scan(library).sets_dir();
-                    }
-                    remember_set(conf, None);
-                    bank_reqs = bank_requests(&st, &audition);
-                    let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
-                }
-                Action::Play { .. } => {
-                    // le mélange d'écoute est écrit avant d'être cité par un bloc `ir`
-                    let plan = st.plan();
-                    if plan.leaves().any(|l| matches!(l, state::chain::Leaf::Ir { ir: IrChoice::Blend, .. }))
-                    {
-                        blend_spec("écoute", &st, true).save(&audition)?;
-                        st.blend_profile = dsp::profile::IrProfile::of_file(&audition).ok().map(Arc::new);
-                    }
-                    let mut req = Request {
-                        blocks: plan_blocks(&plan.blocks, &st, &audition),
-                        input_db: st.input_offset(),
-                        preset: None,
-                    };
-                    // cette chaîne est-elle exactement celle d'un preset ? alors elle est déjà
-                    // bâtie dans la banque : la comparaison porte sur les blocs résolus
-                    req.preset = bank_reqs.iter().position(|r| r.as_ref() == Some(&req));
-                    // même chaîne que la dernière : pas de reconstruction ni de fondu inutile
-                    // (le mélange d'écoute garde son nom de fichier mais change de contenu)
-                    let same = last_req.as_ref() == Some(&req)
-                        && !req.irs().iter().any(|p| p.as_path() == audition.as_path());
-                    if !same {
-                        last_req = Some(req.clone());
-                        let _ = tx_req.send(Job::Chain(req));
-                        status.loading = true;
-                    }
-                }
-                Action::MeasureGrain { model, input_db } => {
-                    let _ = tx_grain.send((model, input_db, st.models[model].path.clone()));
-                }
-                Action::SaveMeta(edits) => {
-                    if let Err(e) = save_meta(library, &st, &edits) {
-                        st.message = Some(format!("enregistrement impossible : {e:#}"));
-                    } else {
-                        let lib = Library::scan(library);
-                        let by_rel: HashMap<String, usize> =
-                            st.irs.iter().enumerate().map(|(i, x)| (x.rel.clone(), i)).collect();
-                        for (i, _) in &edits {
-                            if let Some(e) = lib.by_path(&st.models[*i].path) {
-                                let profile = st.models[*i].profile.take();
-                                st.models[*i] = model_item(&lib, e, conf.default_ir.as_deref(), &by_rel);
-                                st.models[*i].profile = profile;
-                            }
-                        }
-                        // l'entrée ou l'IR ont pu changer : profils remesurés (le reste vient du cache)
-                        let mp = library::model_profile::ModelProfiles::load(&lib, conf, &profiles, |_| {});
-                        for m in st.models.iter_mut() {
-                            m.profile = mp.by_rel.get(&m.rel).cloned();
-                        }
-                        // la chaîne relit la correction enregistrée
-                        last_req = None;
-                        if st.model.is_some_and(|m| edits.iter().any(|(i, _)| *i == m)) {
-                            first = Action::Play { model: st.model, ir: st.ir };
-                        }
-                    }
-                }
-                Action::SavePreset(name) => {
-                    let lib = Library::scan(library);
-                    let file = lib.preset_path(&name);
-                    match st.to_preset(&name).save(&file) {
-                        Ok(()) => {
-                            st.message = Some(format!("preset « {name} » enregistré ({})", file.display()));
-                            st.mark_preset_saved(name, file);
-                            // la banque contient le nouveau preset : à précharger de nouveau
-                            st.adopt_presets(scan_presets(library));
-                            bank_reqs = bank_requests(&st, &audition);
-                            let _ = tx_req.send(Job::Bank(bank_reqs.clone()));
-                            status.bank = Some((0, bank_reqs.len()));
-                            // `S` depuis la fenêtre de `q` : on quitte maintenant que c'est écrit
-                            if std::mem::take(&mut st.quit_after_save) {
-                                return Ok(());
-                            }
-                            // une bascule attendait l'enregistrement (preset ou chaîne vierge)
-                            if let Some(what) = st.pending_switch.take() {
-                                first = st.apply_pending(what);
-                            }
-                        }
-                        Err(e) => {
-                            st.message = Some(format!("enregistrement impossible : {e:#}"));
-                            st.quit_after_save = false;
-                            st.pending_switch = None;
-                        }
-                    }
-                }
-                Action::SaveBlend(name) => {
-                    let file =
-                        library.join("cabs").join(format!("{}.cab.toml", name.replace(['/', '\\'], "-")));
-                    blend_spec(&name, &st, false).save(&file)?;
-                    let id = Library::scan(library).by_path(&file).map(|e| e.id.clone()).unwrap_or_default();
-                    let rel = Library::scan(library).relative(&file);
-                    st.message = Some(format!("mélange sauvé : {id} {name} ({})", file.display()));
-                    st.set_blend_file(rel, id.clone());
-                    saved = Some((id, st.blend.clone(), st.align));
-                    st.mark_blend_saved();
-                }
+            let mut ctx = actions::Ctx {
+                st: &mut st,
+                library,
+                conf,
+                profiles: &profiles,
+                audition: &audition,
+                bank_reqs: &mut bank_reqs,
+                tx_req: &tx_req,
+                tx_grain: &tx_grain,
+                last_req: &mut last_req,
+                status: &mut status,
+                first: &mut first,
+                saved: &mut saved,
+                session: &mut session,
+            };
+            match actions::run(&mut ctx, action)? {
+                actions::Flow::Go => {}
+                actions::Flow::Next => continue,
+                actions::Flow::Quit => return Ok(()),
             }
             // le volume écouté : posé **juste après** le `match`, pour qu'une chaîne installée par
             // ce tour-ci le lise dès son premier bloc (ADR 0007). `plan()` plutôt qu'une règle
@@ -667,20 +458,6 @@ pub fn run(
     Ok(())
 }
 
-/// La banque : les presets de `library/presets/`, chargés pour que la bascule ne lise plus de
-/// fichier. Un preset illisible est signalé et listé grisé par l'état.
-fn scan_presets(library: &Path) -> Vec<(String, String, PathBuf, dsp::preset::PresetSpec)> {
-    let lib = Library::scan(library);
-    let mut out = Vec::new();
-    for e in lib.of_kind(Kind::Preset) {
-        match lib.preset(&e.path) {
-            Ok(spec) => out.push((e.id.clone(), e.stem.clone(), e.path.clone(), spec)),
-            Err(err) => log::warn!("preset {} ignoré : {err:#}", e.rel),
-        }
-    }
-    out
-}
-
 /// Trace des chaînes installées dans le thread audio (`NAMFOOP_BROWSE_TRACE=<fichier>`) : sert aux
 /// tests de bout en bout (pseudo-terminal), l'écran plein ne laissant passer aucun log.
 /// Début de la trace, pour horodater chaque ligne : sans cela, impossible de raisonner sur une
@@ -705,128 +482,6 @@ fn trace(line: &str) {
 
 fn stream_label(cfg: &Settings) -> String {
     format!("{:?} {}", cfg.backend, cfg.device.as_deref().unwrap_or("")).to_lowercase()
-}
-
-/// Les sets de la bibliothèque, pour la fenêtre `L` (§ 7). Un set illisible est quand même listé,
-/// avec ce qu'on sait de lui : mieux vaut le voir que l'escamoter.
-fn list_sets(library: &Path) -> Vec<state::set::screen::Entry> {
-    let lib = Library::scan(library);
-    lib.of_kind(library::Kind::Set)
-        .map(|e| {
-            let (name, songs, sounds) = match lib.set(&e.path) {
-                Ok(spec) => (spec.name.clone(), spec.songs.len(), spec.sound_count()),
-                Err(_) => (format!("⚠ {}", e.stem), 0, 0),
-            };
-            state::set::screen::Entry::Set {
-                id: e.id.clone(),
-                stem: e.stem.clone(),
-                name,
-                songs,
-                sounds,
-                rel: e.rel.clone(),
-            }
-        })
-        .collect()
-}
-
-/// Les **prompteurs** d'un set, lus d'un coup à son ouverture : des fichiers texte de quelques
-/// kilo-octets, et les lire ici évite toute lecture de fichier pendant un concert (§ 10).
-fn read_prompts(spec: &library::set::SetSpec) -> Vec<(PathBuf, state::set::prompt::Loaded)> {
-    spec.songs
-        .iter()
-        .filter_map(|s| s.prompt.as_deref())
-        .flat_map(|rel| read_prompt(&spec.base.join(rel)))
-        .collect()
-}
-
-/// Un prompteur. Un fichier absent ou illisible **n'est pas une erreur** : il est retenu comme tel,
-/// le cadre le dit, et le concert continue (§ 10).
-fn read_prompt(path: &Path) -> Vec<(PathBuf, state::set::prompt::Loaded)> {
-    use state::set::prompt::Loaded;
-    let loaded = match library::prompt::Prompt::load(path) {
-        Ok(p) => Loaded::Ok(p),
-        Err(e) => Loaded::Failed(format!("{e:#}")),
-    };
-    vec![(path.to_path_buf(), loaded)]
-}
-
-/// **`t`** : rend la main au terminal, ouvre `$EDITOR` sur le `.cho` (en le **créant** avec son
-/// titre s'il n'existe pas), puis reprend l'écran. namfoop n'est pas l'éditeur du prompteur (§ 10) :
-/// le texte vient d'un éditeur de texte, et viendra à terme d'autres logiciels.
-fn edit_prompt(session: &mut tui::Session, file: &Path, title: &str) -> Result<()> {
-    if !file.exists() {
-        if let Some(dir) = file.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        std::fs::write(file, library::prompt::Prompt::skeleton(title))?;
-    }
-    let editor =
-        std::env::var("VISUAL").or_else(|_| std::env::var("EDITOR")).unwrap_or_else(|_| "vi".to_string());
-    let mut parts = editor.split_whitespace();
-    let prog = parts.next().unwrap_or("vi").to_string();
-    let args: Vec<String> = parts.map(str::to_string).collect();
-    // l'éditeur a besoin du terminal **entier** : on quitte l'écran plein et le mode brut, puis
-    // on y revient. On garde **le même** terminal : le recréer (`ratatui::init`) interroge le
-    // terminal sur la position du curseur, et un terminal qui ne répond pas — un pseudo-terminal
-    // de test, une console inhabituelle — ferait échouer le retour alors que tout va bien.
-    use ratatui::crossterm::{execute, terminal};
-    terminal::disable_raw_mode().context("sortie du mode brut")?;
-    execute!(std::io::stdout(), terminal::LeaveAlternateScreen).context("sortie de l'écran plein")?;
-    let status = std::process::Command::new(&prog).args(&args).arg(file).status();
-    execute!(std::io::stdout(), terminal::EnterAlternateScreen).context("retour à l'écran plein")?;
-    terminal::enable_raw_mode().context("retour au mode brut")?;
-    // tout est à redessiner (l'écran plein a été quitté). **Pas** `Terminal::clear` : il demande
-    // au terminal où est le curseur (`ESC [ 6 n`) et attend la réponse — un terminal qui ne
-    // répond pas (un pseudo-terminal de test, une console inhabituelle) ferait échouer le retour
-    // de l'éditeur alors que tout va bien. `resize` remet le tampon à zéro sans rien demander.
-    let size = session.terminal.size().context("taille du terminal")?;
-    session
-        .terminal
-        .resize(ratatui::layout::Rect::new(0, 0, size.width, size.height))
-        .context("écran à redessiner")?;
-    match status {
-        Ok(s) if s.success() => Ok(()),
-        Ok(s) => bail!("{prog} a quitté sans enregistrer ({s})"),
-        Err(e) => bail!("{prog} : {e} (règle $EDITOR)"),
-    }
-}
-
-/// Retient le set actif d'une session à l'autre (§ 4) : `[set] default` de la config, qui sert
-/// aussi à `run --set` sans argument (§ 9, US 5). Sans config (`--no-config`), rien n'est écrit.
-fn remember_set(conf: &LoadedConfig, id: Option<&str>) {
-    if conf.ignored {
-        return;
-    }
-    let mut cfg = conf.config.clone();
-    let mut set = cfg.set.clone().unwrap_or_default();
-    if set.default.as_deref() == id {
-        return;
-    }
-    set.default = id.map(str::to_string);
-    cfg.set = Some(set);
-    if let Err(e) = cfg.save(&conf.path) {
-        log::warn!("set actif non retenu : {e:#}");
-    }
-}
-
-/// Ouvre un set de la bibliothèque et place ses sons dans la banque de `browse` (§ 4, US 2).
-/// Les presets sont retrouvés par identifiant **ou** par mots-clés, comme partout ailleurs.
-fn open_set(library: &Path, query: &str, st: &State) -> anyhow::Result<state::set::ActiveSet> {
-    let lib = Library::scan(library);
-    let path = lib.resolve_set(query)?;
-    let spec = lib.set(&path)?;
-    let id = lib.by_path(&path).map(|e| e.id.clone()).unwrap_or_default();
-    let stem = library::set::display_name(&path);
-    // un son du set désigne un preset : on retrouve sa place dans la banque de `browse`
-    let find = |q: &str| {
-        let p = lib.resolve_preset(q).ok()?;
-        st.presets.iter().position(|x| x.path == p)
-    };
-    let set = state::set::ActiveSet::new(id, stem, spec, &find);
-    for w in lib.set_warnings(&set.spec) {
-        log::warn!("set {} : {}", set.stem, w.text);
-    }
-    Ok(set)
 }
 
 #[cfg(test)]

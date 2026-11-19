@@ -6,6 +6,27 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#265)
+- **L'exécution des actions sort de la boucle d'événements.** `browse/mod.rs` était le plus gros
+  fichier du dépôt (855 lignes, à 145 du seuil d'échec) et ne portait **qu'un seul test**, alors que
+  c'est lui qui écrit les fichiers, rend la main à `$EDITOR` et décide de ce qu'on entend. Il tombe à
+  **510 lignes** et ne garde que la boucle : les touches, l'horloge, les cases vivantes, les
+  vumètres, le dessin.
+- Le `match` des 13 actions devient `actions/`, une famille par fichier — `sound.rs` (la chaîne
+  demandée, le grain d'un modèle), `files.rs` (correction d'un modèle, preset, mélange d'IR),
+  `set.rs` (le fichier du set, ses prompteurs, `$EDITOR`, le set du moment) — derrière une
+  **frontière nommée** : la structure `Ctx` énumère ce qu'une action a le droit de toucher, si bien
+  qu'en voir un de plus signale une décision en train de descendre dans l'exécution. Le `match`
+  d'aiguillage reste **exhaustif** : une action nouvelle ne compile pas sans dire qui la prend.
+- Les `continue` et les `return` au milieu de la boucle deviennent un `Flow` : finir le tour, passer
+  au suivant, ou quitter.
+- **Quatre tests là où il n'y en avait aucun**, sur ce qui se passe mal : un preset illisible ne
+  cache pas les autres, un set illisible reste dans la liste `L` **marqué** (le cacher laisserait
+  croire que le fichier n'existe pas), un prompteur absent se garde en « illisible » sans paniquer,
+  et `--no-config` n'écrit rien.
+- Aucun changement de comportement : l'oracle du clavier est inchangé, et le harnais de bout en bout
+  passe aux deux tailles d'écran.
+
 ### Interne (#254)
 - **La table des touches ne tient plus dans un seul fichier de 854 lignes** : elle devient un
   module, un fichier par famille d'écrans (`stage.rs`, `windows.rs`, `set.rs`, `chain.rs`,
