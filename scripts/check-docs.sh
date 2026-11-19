@@ -183,10 +183,15 @@ fi
 # qu'un fichier suivi se termine par lui. Seuls les noms portant une extension connue sont
 # candidats : les fractions (`1/4`), les répertoires et les conventions de suffixe (`.set.toml`)
 # n'en sont pas. Les motifs à « * » sont des familles, pas des chemins.
+# Exception, et la seule : les fichiers de l'utilisateur (`library/`, `nam/`) sont **volontairement
+# non versionnés** (droits sur les modèles et IR) et absents de la CI, mais le guide et les
+# CLAUDE.md doivent les nommer — `library/overrides.toml` est le fichier que l'utilisateur édite.
+# Un chemin qui ne peut pas exister à HEAD ne se vérifie pas : on ne le compte pas non plus.
 suivis=$(git ls-files 2>/dev/null || true)
 perimees=""
 vues=0
 while IFS='|' read -r f ref; do
+  [[ $ref == library/* || $ref == nam/* ]] && continue
   vues=$((vues + 1))
   [[ -e $ref ]] && continue
   grep -qxF -- "$ref" <<<"$suivis" && continue

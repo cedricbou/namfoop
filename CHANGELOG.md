@@ -14,8 +14,12 @@ section prend le numéro de version.
   à **zéro** (410 occurrences de numéros d'issue et 31 lignes de récit au départ), et chacun est
   vérifié en échec sur un cas construit.
 - La taille d'un document reste un **avertissement** : découper `docs/guide.md` est un chantier
-  (#297), pas une correction. Une occurrence légitime se traitera en exception inscrite dans le
-  script, avec sa raison — jamais en revenant à l'avertissement.
+  (#297), pas une correction.
+- Une exception, et une seule, est inscrite dans le script avec sa raison : les chemins sous
+  `library/` et `nam/` sont les fichiers de l'utilisateur, **volontairement non versionnés** (droits
+  sur les modèles et IR) et absents de la CI, alors que le guide doit les nommer —
+  `library/overrides.toml` est le fichier qu'il édite. Un chemin qui ne peut pas exister à HEAD ne
+  se vérifie pas, et n'est donc pas compté comme vérifié.
 
 ### Documentation (#270)
 - **Connaître le comportement d'un écran demande de lire un fichier, au présent.** Les trois
