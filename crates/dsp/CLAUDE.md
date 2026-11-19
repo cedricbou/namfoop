@@ -86,7 +86,10 @@ d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.to
 enveloppe 50 ms).
 
 **Interdit** (`scripts/check-arch.sh`) : `alsa`, `clap`, `ratatui`, `libc`, `namfoop`,
-`audio-io`, `engine`.
+`audio-io`, `engine`, **`model`** — c'est ce dernier qui rend vraie la phrase « `dsp` ne connaît pas
+la config » : le type `Config` est inaccessible d'ici. En revanche `dsp` **lit et écrit** ses propres
+formats (`preset/mod.rs`, `blend.rs`), et un `grep` de `check-arch.sh` vérifie qu'il ne crée
+**aucun thread** : c'est à l'appelant de décider où le DSP tourne.
 
 ## Ajouter un effet
 

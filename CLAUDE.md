@@ -9,7 +9,7 @@ décisions [`docs/adr/`](docs/adr/) (ne pas les rouvrir sans nouvelle mesure).
 
 ```
 crates/nam-sys/   FFI C++ NeuralAmpModelerCore            interdit : tout sauf thiserror (+cc)
-crates/dsp/       étages mono, chaîne, swap, analyses     interdit : carte son, clap, ratatui, config
+crates/dsp/       étages mono, chaîne, swap, analyses     interdit : carte son, clap, ratatui, model
                   RÈGLES TEMPS RÉEL (non négociables) et rendus de référence : crates/dsp/CLAUDE.md
 crates/audio-io/  ALSA, carte simulée, priorité RT         interdit : clap, config, dsp, engine
 crates/model/     types sérialisables (config, routage)   interdit : toute crate du projet, logique
