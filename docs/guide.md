@@ -644,7 +644,7 @@ cherche un son, et la **Chaîne** (`2`), où l'on le règle.
 **l'écoute suit**, avec le fondu habituel. Chaque espace garde son état : le curseur et le son du
 banc d'un côté, la chaîne et son curseur de l'autre. Dans la Bibliothèque, **Tab** passe à l'onglet
 suivant (en boucle), **Maj+Tab** au précédent, **→ / ←** vont de proche en proche — ils ne mènent
-plus à la Chaîne, et → sur Mélange le dit. L'en-tête rappelle les deux espaces et le nombre de
+plus à la Chaîne, et → sur Mélange le dit. L'en-tête rappelle les espaces et le nombre de
 blocs de la chaîne (`2 Chaîne ● 5 blocs`).
 
 Trois règles tiennent l'ensemble :
@@ -894,8 +894,9 @@ Trois règles tiennent l'ensemble :
   (la basse passe en son direct le temps que tu ajoutes le premier bloc avec `a`), l'en-tête
   n'annonce plus de preset, et `S` proposera donc un **nom neuf** au lieu de réenregistrer par-dessus
   celui que tu viens d'écouter. C'est la façon de construire une chaîne de plus sans toucher aux
-  presets existants — avant, il fallait partir d'une chaîne en place, la vider bloc par bloc et
-  bien penser à changer son nom en l'enregistrant. `n` marche depuis les deux espaces et depuis la
+  presets existants, sans avoir à vider une chaîne en place bloc par bloc en pensant à changer son
+  nom. `n` marche depuis la Bibliothèque et la Chaîne
+  (l'espace Set l'éclipse, pour ne pas vider la chaîne depuis l'écran de concert) et depuis la
   banque (qu'il referme) ; si la chaîne en cours n'est pas enregistrée, il demande d'abord, une
   fois (`S` enregistrer puis repartir, Entrée repartir quand même, Échap rester).
 

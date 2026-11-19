@@ -43,7 +43,7 @@ impl State {
     /// Ligne de commande équivalente (affichée en quittant), quand la chaîne s'exprime en
     /// options : sinon il faut un preset (les branches ne se décrivent pas en texte).
     ///
-    /// Elle décrit **la chaîne**, pas le banc d'essai : depuis les deux espaces, le banc
+    /// Elle décrit **la chaîne**, pas le banc d'essai : quel que soit l'espace, le banc
     /// peut jouer autre chose que ce qui est dans la chaîne, et c'est la chaîne qu'on rejoue.
     pub fn command_line(&self, saved_blend_id: Option<&str>) -> Option<String> {
         if !self.fx.chain.fits_command_line() {

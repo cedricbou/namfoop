@@ -1,22 +1,24 @@
-# Spécification · `browse` en deux espaces : Bibliothèque et Chaîne
+# Spécification · les espaces de `browse`, et l'espace Bibliothèque
 
-Référence de comportement pour l'épique #131 (issues #132 à #137, née de #125). Elle **remplace le § 10** de
-[`browse-chaine.md`](browse-chaine.md) (« les onglets Modèles / IR agissent sur le bloc choisi ») et ne
-change rien d'autre à cette spécification : synoptique, vumètres, navigation 2D, édition, réglages et
-quitter restent ceux de l'épique #103.
+**Ce que couvre ce fichier** : la navigation entre les espaces de `browse`, l'espace **Bibliothèque**
+(le banc d'essai), le passage de la Bibliothèque vers la chaîne, le **sélecteur sur place** d'un bloc
+`nam` / `ir`, les tailles de terminal et l'aide à l'écran. L'espace **Chaîne** est spécifié dans
+[`browse-chaine.md`](browse-chaine.md), l'espace **Set** dans [`set.md`](set.md), et l'ordre des
+étages du clavier dans l'[ADR 0009](../adr/0009-clavier-de-browse.md).
 
-Maquette interactive validée par l'utilisateur le 12/11/2026 : [`browse-espaces.html`](browse-espaces.html),
-à ouvrir dans un navigateur (clavier, quatre chaînes de départ, trois tailles de terminal). La maquette
-fait foi pour le comportement ; son code (JavaScript) n'est pas à reprendre. Les noms de modèles et d'IR
-qu'elle montre sont fictifs. Elle ne redessine ni les vumètres, ni les réglages d'effets, ni l'éditeur
-`e` : ils sont **inchangés**, pas supprimés.
+Ce qui **fait foi** pour le comportement : le code et l'oracle du clavier
+(`crates/namfoop/src/browse/state/keyboard.ref.txt`), qui sont vérifiés à chaque commit. La maquette
+[`browse-espaces.html`](browse-espaces.html) est une **illustration** validée avec l'utilisateur : à
+ouvrir dans un navigateur pour voir l'écran et ses tailles, sans en reprendre le JavaScript. Les noms
+de modèles et d'IR qu'elle montre sont fictifs, et elle ne dessine ni les vumètres, ni les réglages
+d'effets, ni l'éditeur `e`.
 
-## 1. Le constat et les trois règles
+## 1. Le besoin et les trois règles
 
-Constat de l'utilisateur (#125) : « quand je suis sur les NAM / IR, j'ai besoin de les écouter et de les
-travailler sans les effets ; quand je suis dans les effets, c'est perturbant de retourner sur cet écran ;
-et quand j'y reviens et que je change, ça change mes effets. » Les onglets Modèles / IR servaient à deux
-activités avec le même geste : explorer la bibliothèque, et remplir un bloc de la chaîne.
+Le besoin, dans les mots de l'utilisateur : « quand je suis sur les NAM / IR, j'ai besoin de les
+écouter et de les travailler sans les effets ; quand je suis dans les effets, c'est perturbant de
+retourner sur cet écran ; et quand j'y reviens et que je change, ça change mes effets. » Un même geste
+servait alors à deux activités : explorer la bibliothèque, et remplir un bloc de la chaîne.
 
 1. **Parcourir n'écrit jamais dans la chaîne.** Écrire est un geste explicite (Entrée).
 2. **On sait toujours ce qu'on écoute** : le banc d'essai ou la chaîne.
@@ -25,36 +27,36 @@ activités avec le même geste : explorer la bibliothèque, et remplir un bloc d
 L'utilisateur mène un travail entier dans un espace ; il les fait se rencontrer à l'occasion (pousser un
 son de la Bibliothèque vers la chaîne, choisir un modèle depuis la Chaîne).
 
-## 2. Deux espaces
+## 2. Les trois espaces
 
-| | **Bibliothèque** | **Chaîne** |
-|---|---|---|
-| Contenu | onglets Modèles, IR, Mélange (inchangés) | l'ancien onglet Effets : synoptique, éditeur, réglages |
-| Ce qu'on entend | le **banc d'essai** : basse › modèle › IR, sans aucun effet | la **chaîne** éditée |
-| Couleur d'accent | magenta | cyan |
+| | **Bibliothèque** | **Chaîne** | **Set** |
+|---|---|---|---|
+| Contenu | onglets Modèles, IR, Mélange | synoptique, éditeur, réglages | la vue scène ([`set.md`](set.md)) |
+| Ce qu'on entend | le **banc d'essai** : basse › modèle › IR, sans aucun effet | la **chaîne** éditée | le son du morceau joué |
+| Couleur d'accent | magenta | cyan | — |
 
-- **`1`** va à la Bibliothèque, **`2`** à la Chaîne, depuis n'importe où sauf pendant une saisie (filtre,
-  nom) et pendant un choix en cours dans la Chaîne (§ 5 : `valide (Entrée) ou annule (Échap) le choix
-  d'abord`).
+- **`1`** va à la Bibliothèque, **`2`** à la Chaîne, **`3`** à l'espace Set, depuis n'importe où sauf
+  pendant une saisie (filtre, nom) et pendant un choix en cours dans la Chaîne (§ 5 :
+  `valide (Entrée) ou annule (Échap) le choix d'abord`).
 - Dans la Bibliothèque, **Tab / Maj+Tab** (en boucle) et **→ / ←** (de proche en proche) passent entre
   Modèles, IR et Mélange. Ils ne mènent plus à la Chaîne ; → sur Mélange le dit :
   `→ ne va pas plus loin : 2 pour la Chaîne`.
-- Dans la Chaîne, Tab garde son rôle (réglages, § 5 de `browse-chaine.md`).
+- Dans la Chaîne, Tab ouvre les réglages de l'élément sous le curseur.
 - **L'écoute suit l'espace.** Passer de l'un à l'autre change ce qu'on entend, avec le fondu habituel.
   Chaque espace garde son état : le curseur et le choix du banc d'un côté, la chaîne et son curseur de
-  l'autre.
+  l'autre, le morceau visé du troisième. **Les espaces sont indépendants** : une touche d'un espace
+  n'agit jamais sur l'objet d'un autre.
 - Au lancement, `browse` ouvre la Bibliothèque (`import --review` aussi). Si la chaîne de départ contient
   un bloc `nam` (et un `ir`), le banc démarre sur ce modèle et cette IR.
 
 En-tête, première ligne :
 
 ```
- namfoop browse  [1 Bibliothèque]  2 Chaîne ● 5 blocs                    <état d'enregistrement>
+ namfoop browse  [1 Bibliothèque]  2 Chaîne ● 5 blocs  3 Set            <état d'enregistrement>
 ```
 
-L'espace actif est en inverse, de sa couleur. `● N blocs` reste visible depuis la Bibliothèque. À droite,
-l'indicateur d'enregistrement de #110 (`preset : <nom> ✓` / `● non enregistré (S)`) ; tant que #110 n'est
-pas fait, rien.
+L'espace actif est en inverse, de sa couleur. `● N blocs` reste visible depuis la Bibliothèque. À
+droite, l'indicateur d'enregistrement (`preset : <nom> ✓` / `● non enregistré (S)`).
 
 Le cadre principal porte un **bandeau** dans son titre, de la couleur de l'espace :
 
@@ -72,15 +74,14 @@ Sous le cadre, la **ligne d'écoute** dit ce qu'on entend, en clair :
  ♪ chaîne : basse › gate -60 › ◆[ direct | nam·B7K Ultra › ir·8x10 SM57 ] › peak › reverb
 ```
 
-Elle remplace la ligne `♪ <modèle> + IR : <ir> + N effet(s)`. Les vumètres, `lim`, `dsp`, `xruns` du bas
-de l'écran ne changent pas.
+En bas de l'écran, les vumètres, `lim`, `dsp` et `xruns` valent pour tous les espaces.
 
 ## 3. Bibliothèque : le banc d'essai
 
-Tout ce que font aujourd'hui les onglets Modèles, IR et Mélange est conservé (liste de non-régression au
-§ 8). Ce qui change :
+Les onglets Modèles, IR et Mélange parcourent la bibliothèque. Ce que l'espace garantit (la liste de
+ce qui ne doit pas bouger est au § 8) :
 
-- **↑↓ écoute, et rien d'autre.** Le modèle et l'IR du banc (`State::model`, `State::ir`) ne sont plus
+- **↑↓ écoute, et rien d'autre.** Le modèle et l'IR du banc (`State::model`, `State::ir`) ne sont pas
   recopiés dans la chaîne. L'IR conseillée posée d'office pour un modèle sans baffle, et l'IR retirée
   pour une capture qui inclut le sien, ne concernent que le banc.
 - **On entend le banc à nu** : aucun bloc de la chaîne, pas même le gate. `c`, `r`, `b`, l'éditeur `e`
@@ -89,7 +90,7 @@ Tout ce que font aujourd'hui les onglets Modèles, IR et Mélange est conservé 
   C'est un rappel ; le curseur n'y touche pas.
 - `◀ écouté` (modèle) / `◀ écoutée` (IR) marque ce que joue le banc, à la place de `◀ en cours`.
 - **Entrée** : mettre dans la chaîne (§ 4).
-- **Panneau Bandes** (`z`, #183) : un égaliseur graphique des sept zones de
+- **Panneau Bandes** (`z`) : un égaliseur graphique des sept zones de
   `library::profile::ZONES`, qui dit ce que la chaîne **écoutée** (modèle nu + IR du moment) fait à
   la basse. Mesure **figée** (profils en cache, aucune reconstruction de chaîne, rien dans le
   thread audio). Écart avec la référence `◆` quand il y en a une, titre débarrassé du début commun
@@ -124,10 +125,10 @@ Mélange ; s'il n'est pas sauvé, il l'est d'abord, sous le nom proposé).
   quand le banc ne joue pas de modèle —, sans fenêtre. Message : `chaîne créée : nam·B7K Ultra ›
   ir·8x10 SM57 · 2 pour l'habiller d'effets`. C'est le parcours « j'ouvre `browse`, je choisis un
   son » : on choisit un modèle (onglet Modèles), puis son baffle (onglet IR), et Entrée installe les
-  deux, quel que soit l'onglet où l'on se trouve (**corrigé le 12/11/2026** : la règle précédente,
-  « `ir` seule depuis l'onglet IR », perdait le modèle du banc dans ce parcours).
+  **deux**, quel que soit l'onglet où l'on se trouve — sans quoi le modèle du banc serait perdu en
+  envoyant depuis l'onglet IR.
 
-  La **fenêtre**, elle, reste par type de bloc : depuis l'onglet IR elle propose les blocs `ir`.
+  La **fenêtre**, elle, est par type de bloc : depuis l'onglet IR elle propose les blocs `ir`.
 - **Sinon, toujours une fenêtre**, même s'il n'y a qu'un bloc du bon type :
 
 ```
@@ -153,10 +154,10 @@ Mélange ; s'il n'est pas sauvé, il l'est d'abord, sous le nom proposé).
   `nam·B7K Ultra (branche > 150 Hz) remplacé par nam·SVT Classic › ir·8x10 SM57 · 2 pour voir la chaîne`.
 - **Ajouter** : on passe dans la Chaîne en **mode pose**. Titre du cadre : `♪ CHAÎNE · où poser
   nam·SVT Classic › ir·8x10 SM57 ?`. ←→↑↓ déplacent le curseur comme d'habitude ; **Entrée pose après le
-  curseur** (mêmes règles que `a`, § 5 de `browse-chaine.md`) ; Échap annule et ramène à la Bibliothèque.
+  curseur** (mêmes règles que `a` dans l'éditeur) ; Échap annule et ramène à la Bibliothèque.
   Après la pose on reste dans la Chaîne : `… posé (branche …) · [ ] pour le déplacer`.
 
-Il n'y a plus de création implicite d'un bloc « à la fin de la chaîne ».
+Aucun bloc n'est jamais créé implicitement « à la fin de la chaîne » : l'endroit est toujours dit.
 
 ## 5. Chaîne : choisir un modèle ou une IR sur place
 
@@ -208,7 +209,8 @@ d'espace ni d'écran, le synoptique reste visible au-dessus.
   Bibliothèque) : courbe de l'élément sous le curseur, et l'actuel comme référence (écarts par zone,
   grain).
 - **Un essai n'est pas une modification** : tant qu'on n'a pas validé, l'état comparé par `unsaved()`
-  (et l'indicateur de #110) est celui d'avant. `q`, `1` et `2` sont refusés pendant un choix.
+  (et l'indicateur de l'en-tête) est celui d'avant. `q` et les touches d'espace sont refusées pendant
+  un choix.
 - Barre d'aide :
   `↑↓ essayer dans la chaîne  Entrée garder  Échap revenir à l'ancien  c actuel / essai  o écouter ce bloc seul  r sans effets  / filtrer`
 
@@ -218,25 +220,21 @@ Choisir `nam` ou `ir` dans le catalogue pose le bloc (`nam·(à choisir)`) et **
 sélecteur**. Échap retire le bloc (`rien n'est ajouté`, barre d'aide : `Échap ne rien ajouter`). Il n'y a
 pas d'actuel : `c` ne fait rien.
 
-## 6. Ce qui disparaît
+## 6. Ce qu'on entend, espace par espace
 
-- `fx.target`, `library_target`, `sync_from_target`, `push_to_chain` (`state/target.rs`) : plus aucun
-  onglet ne « vise » un bloc.
-- Entrée sur un bloc `nam` / `ir` n'ouvre plus l'onglet Modèles / IR (`open_library_tab`).
-- Le titre d'onglet qui nommait le bloc visé.
-- `Tab::Fx` comme quatrième onglet : la Chaîne est un espace.
+Aucun onglet ne « vise » de bloc de la chaîne, et Entrée sur un bloc `nam` / `ir` n'ouvre pas un
+onglet : le sélecteur s'ouvre sur place (§ 5). La Chaîne est un espace, pas un quatrième onglet.
 
-`plan()` devient : dans la Bibliothèque, la chaîne `nam › ir` du banc (avec l'A/B `r` / `c` / `b`
-appliqué, comme aujourd'hui `effective_model` / `effective_ir`) ; dans la Chaîne, les blocs édités, avec
-l'essai, la bascule `c`, l'isolement `o` et `r` (sans effets) appliqués.
+`plan()` est la seule réponse à « qu'est-ce qui joue » : dans la Bibliothèque, la chaîne `nam › ir` du
+banc, avec l'A/B `r` / `c` / `b` appliqué (`effective_model` / `effective_ir`) ; dans la Chaîne, les
+blocs édités, avec l'essai du sélecteur, la bascule `c`, l'isolement `o` et `r` (sans effets).
 
 ## 7. Tailles de terminal
 
 L'écran cible sur le Pi 5 est un 10,1 pouces 1280×800 : 160×50 en police 8×16, 128×40 en 10×20, 106×33
 en 12×24, 80×25 en 16×32. Le sélecteur étant contextuel, il doit rester utilisable en 80×25 : la liste
 prend la hauteur qui reste sous le synoptique, **4 lignes au moins**, et défile. Le panneau Spectre
-demande aujourd'hui 130 colonnes (`SPECTRUM_MIN_WIDTH`) ; il descend à **128** pour la police 10×20, que
-l'utilisateur pense retenir (décision du 12/11/2026, #138).
+demande **128** colonnes (`SPECTRUM_MIN_WIDTH`), la largeur de la police 10×20 retenue sur le Pi.
 
 Le **panneau Bandes** (§ 3) suit la même limite : à partir de 128 colonnes il se glisse **sous la
 courbe du Spectre**, dans la colonne de droite, donc il ne coûte aucune ligne de liste et il est
@@ -251,15 +249,15 @@ incluse / requise, `✎`, IR conseillées `★`, panneau Spectre (courbe, mélan
 grain), référence `c`, bascule `r`, `b` avec / sans IR, indicateur A/B, éditeur `e` (et `a` appliquer au
 filtre), onglet Mélange (`espace`, `+` `-`, `p`, `a`, `x`, `s`), niveau « match » à chaque bascule.
 
-Dans la Chaîne : tout `browse-chaine.md` sauf son § 10 — synoptique, vumètres, navigation 2D, `a` `i` `s`
-`+` `x` `[ ]` `{ }` `b` `m` `o` `p` `v`, réglages (Entrée et Tab), `r`, Échap qui ne quitte jamais,
-`q` avec confirmation, ligne de commande équivalente (corrigée le 12/11/2026 : elle décrit la
-**chaîne**, pas le banc d'essai — `t` cité ici par erreur n'est pas une touche de l'épique #103).
+Dans la Chaîne : tout [`browse-chaine.md`](browse-chaine.md) — synoptique, vumètres, navigation 2D,
+`a` `i` `s` `+` `x` `[ ]` `{ }` `b` `m` `o` `p` `v`, réglages (Entrée et Tab), `r`, Échap qui ne quitte
+jamais, `q` avec confirmation, et la ligne de commande équivalente, qui décrit la **chaîne** et non le
+banc d'essai.
 
-Le parcours nominal du guide (§ 6 : ouvrir `browse`, choisir un modèle et une IR, ajouter des effets,
-quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée.
+Le parcours nominal du guide — ouvrir `browse`, choisir un modèle et une IR, ajouter des effets,
+quitter avec la commande `run` — passe par Entrée.
 
-## 9. Décisions prises hors maquette (12/11/2026)
+## 9. Deux règles qui ne se voient pas sur la maquette
 
 - **Quitter avec une chaîne vide alors que le banc joue un son** : `q` le signale toujours, même s'il n'y
   a rien d'autre à enregistrer, et propose les options dans la fenêtre de confirmation :
@@ -276,21 +274,20 @@ quitter avec la commande `run`) reste possible ; il passe maintenant par Entrée
   ```
 
   Entrée fait ce que fait Entrée dans la Bibliothèque sur une chaîne vide (§ 4). Si d'autres choses ne
-  sont pas enregistrées, elles sont listées dessous, comme aujourd'hui. Banc sur `son direct` sans IR :
-  rien à signaler.
+  sont pas enregistrées, elles sont listées dessous. Banc sur `son direct` sans IR : rien à signaler.
 - **`e` n'est pas accessible depuis le sélecteur de la Chaîne** : calibrer est réservé à la
-  Bibliothèque. **Corrigé le 12/11/2026 (#148)** : « ne fait rien, sans message » rendait l'écran
-  incompréhensible ; `e` dit maintenant `calibrer (e) se fait dans la Bibliothèque (1), sur le
-  modèle`, et **aucune touche du sélecteur n'est muette** — celles qu'il ne traite pas répondent
-  `valide (Entrée) ou annule (Échap) le choix d'abord`.
-- **Seuil du panneau Spectre : 128 colonnes** (police 10×20 pressentie sur le Pi, non définitive).
+  Bibliothèque, et `e` y répond `calibrer (e) se fait dans la Bibliothèque (1), sur le modèle`.
+  **Aucune touche du sélecteur n'est muette** : celles qu'il ne traite pas répondent `valide (Entrée)
+  ou annule (Échap) le choix d'abord`. Une touche qui ne fait rien **sans le dire** rend l'écran
+  incompréhensible.
 
-## 10. Aide à l'écran (ajouté le 12/11/2026, #150)
+## 10. Aide à l'écran
 
 Deux niveaux, parce que la barre du bas ne peut pas tout dire :
 
 - **la barre permanente** (deux lignes, en bas) garde le contexte **et les touches de sortie** :
-  elle finit toujours par `h aide`, l'autre espace (`1 Bibliothèque` / `2 Chaîne`) et `q quitter`.
+  elle finit toujours par `h aide`, les autres espaces (`1 Bibliothèque` / `2 Chaîne` / `3 Set`) et
+  `q quitter`.
   Elle est coupée aux **séparateurs de touches**, jamais au milieu d'un mot ; si le terminal est
   trop étroit, les touches du milieu sautent et un `…` le signale — les trois dernières restent ;
 - **l'overlay `h`** (ou `?`) donne **toutes** les touches de l'écran où l'on est : Bibliothèque

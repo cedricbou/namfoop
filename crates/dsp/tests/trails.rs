@@ -108,13 +108,14 @@ fn what_a_tail_costs_and_how_long_it_lasts() {
     assert!(ms > 1000.0, "la réverbe par défaut annonce ~1,1 s de queue : {ms} ms");
 }
 
-/// Le fondu porte maintenant sur l'**entrée** des deux chaînes : vérifier qu'il ne creuse ni
-/// ne gonfle le son direct plus que l'ancien fondu sur la **sortie** (rejoué ici à la main). Le
-/// pire cas n'est pas la non-linéarité du modèle mais la **corrélation** : deux chaînes qui sortent
-/// le même signal s'additionnent, et un fondu à puissance constante les gonfle de +3 dB — c'était
-/// déjà vrai avant. Mesuré : l'ancien schéma gonfle de +2,97 dB, le nouveau de +3,54 dB.
+/// Le fondu porte sur l'**entrée** des deux chaînes — c'est ce qui laisse la chaîne quittée finir
+/// de sonner. Il ne doit pas creuser ni gonfler le son direct plus qu'un fondu sur la **sortie**,
+/// rejoué ici à la main comme point de comparaison. Le pire cas n'est pas la non-linéarité du
+/// modèle mais la **corrélation** : deux chaînes qui sortent le même signal s'additionnent, et un
+/// fondu à puissance constante les gonfle de +3 dB quel que soit le schéma. Mesuré : +3,54 dB sur
+/// l'entrée, +2,97 dB sur la sortie.
 #[test]
-fn the_input_fade_does_not_dip_more_than_the_old_output_fade() {
+fn the_input_fade_does_not_dip_more_than_an_output_fade() {
     const FADE: usize = 960; // 20 ms
     const START: usize = 100 * BLOCK;
     let sine = |i: usize, n: usize| -> Vec<f32> {

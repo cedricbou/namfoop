@@ -18,7 +18,7 @@ fn models_tab_shows_ids_badges_and_current() {
     let t = screen(&s);
     assert!(t.contains("m002") && t.contains("IR requise") && t.contains("IR incluse"), "{t}");
     assert!(t.contains("◀ écouté") && t.contains("Powerhouse 410"), "{t}");
-    assert!(t.contains("1 Bibliothèque") && t.contains("2 Chaîne ●"), "les deux espaces :\n{t}");
+    assert!(t.contains("1 Bibliothèque") && t.contains("2 Chaîne ●"), "les espaces :\n{t}");
     assert!(t.contains("BANC D'ESSAI") && t.contains("sans effets, la chaîne n'est pas touchée"), "{t}");
     assert!(t.contains("♪ banc : basse › 800D Modern › IR Powerhouse 410"), "ligne d'écoute :\n{t}");
     assert!(t.contains("son direct (DI, sans modèle)"), "{t}");

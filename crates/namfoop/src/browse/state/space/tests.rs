@@ -1,4 +1,4 @@
-//! Les **deux espaces** (§ 2, § 3, § 4 et § 6 de `docs/design/browse-espaces.md`) : parcourir la
+//! Les **espaces** (§ 2, § 3, § 4 et § 6 de `docs/design/browse-espaces.md`) : parcourir la
 //! Bibliothèque n'écrit jamais dans la chaîne, le banc s'entend sans aucun effet, et l'écoute suit
 //! l'espace.
 

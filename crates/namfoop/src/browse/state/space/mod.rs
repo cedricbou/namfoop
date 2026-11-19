@@ -1,7 +1,8 @@
-//! Les **deux espaces** de `browse` (§ 2 de `docs/design/browse-espaces.md`) : la **Bibliothèque**
+//! Les **trois espaces** de `browse` (§ 2 de `docs/design/browse-espaces.md`) : la **Bibliothèque**
 //! (onglets Modèles, IR, Mélange), où l'on entend le **banc d'essai** `basse › modèle › IR` sans
-//! aucun effet, et la **Chaîne**, où l'on entend la chaîne éditée. `1` et `2` changent d'espace,
-//! Tab et → / ← restent dans la Bibliothèque.
+//! aucun effet, la **Chaîne**, où l'on entend la chaîne éditée, et le **Set** (la vue scène,
+//! `docs/design/set.md`). `1`, `2` et `3` changent d'espace, Tab et → / ← restent dans la
+//! Bibliothèque.
 //!
 //! Trois règles tiennent tout : parcourir n'écrit jamais dans la chaîne, on sait toujours ce qu'on
 //! écoute, et on ne quitte pas la chaîne pour remplir un bloc (§ 5, `picker`).

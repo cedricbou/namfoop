@@ -1,10 +1,17 @@
-# Spécification · éditeur de chaîne de `browse` (espace **Chaîne**)
+# Spécification · l'espace **Chaîne** de `browse` : l'éditeur de chaîne
 
-Référence de comportement pour l'épique #103 (issues #104 à #111). Décisions : [ADR 0006](../adr/0006-chaine-en-blocs-et-parallele.md).
-Maquette interactive validée par l'utilisateur : [`browse-chaine.html`](browse-chaine.html), à ouvrir dans un navigateur
-(clavier, exemples, vumètres sur un signal simulé). La maquette fait foi pour le comportement ; son code
-(JavaScript) n'est pas à reprendre. Les noms de modèles et d'IR qu'elle montre (`b7k`, `svt`, `fuzz`,
-`sm57`, `8x10`…) sont fictifs.
+**Ce que couvre ce fichier** : la chaîne en blocs telle qu'on l'édite à l'écran — synoptique,
+vumètres, navigation, édition, réglages, enregistrement d'un preset. Décisions :
+[ADR 0006](../adr/0006-chaine-en-blocs-et-parallele.md). La navigation entre espaces, le banc d'essai
+et le **sélecteur sur place** d'un bloc `nam` / `ir` sont dans
+[`browse-espaces.md`](browse-espaces.md) ; l'espace Set dans [`set.md`](set.md).
+
+Ce qui **fait foi** pour le comportement : le code et l'oracle du clavier
+(`crates/namfoop/src/browse/state/keyboard.ref.txt`), qui sont vérifiés à chaque commit. La maquette
+[`browse-chaine.html`](browse-chaine.html) est une **illustration** validée avec l'utilisateur
+(clavier, exemples, vumètres sur un signal simulé) : à ouvrir dans un navigateur, sans en reprendre le
+JavaScript. Les noms de modèles et d'IR qu'elle montre (`b7k`, `svt`, `fuzz`, `sm57`, `8x10`…) sont
+fictifs.
 
 ## 1. Ce qu'on édite
 
@@ -13,7 +20,7 @@ Maquette interactive validée par l'utilisateur : [`browse-chaine.html`](browse-
 - Un **parallèle** (`◆`) : 2 à **4 branches**, chacune une suite de blocs (vide = son direct), avec
   gain, polarité, muet, et un nom en mode copie. Modes : **copie** ou **bandes** (2 à 4 bandes, N-1
   coupures). Pas de parallèle dans une branche. Plusieurs parallèles peuvent se suivre.
-- Le niveau, le master et le limiteur restent hors de l'éditeur (fin de chaîne, comme aujourd'hui).
+- Le niveau, le master et le limiteur sont **hors** de l'éditeur : ils sont le cadre, en fin de chaîne.
 
 ## 2. Synoptique
 
@@ -37,7 +44,7 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
 - Étiquette de branche : en copie, son nom (défaut `B1`…`B4`) ; en bandes, `< 150 Hz`,
   `150–600 Hz`, `> 600 Hz`.
 - Branche vide : `son direct` (en gris italique).
-- Sortie du parallèle : `◇` juste après la colonne des gains, sur la ligne de la branche 1 (#152).
+- Sortie du parallèle : `◇` juste après la colonne des gains, sur la ligne de la branche 1.
 - Gain : `-3 dB`, `+2 dB`, suivi de ` ø` si la polarité est inversée et de ` S` si solo ; `muet` à la
   place si muette.
 - Étiquettes de blocs : `nam·<modèle>`, `ir·<ir>`, `lpf <freq>`, `hpf <freq>`, `comp <ratio>:1`,
@@ -46,21 +53,21 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
   traits en gris. Bloc coupé : gris barré. Branche muette, ou hors solo quand une branche est en
   solo : toute la ligne assombrie. Curseur : fond cyan.
 - Chaîne vide : `IN ─ (chaîne vide : a pour ajouter) ─ OUT`.
-- **Volume du preset** (`,` / `.`, #179), en gris, **après** l'étage d'alignement et juste avant
+- **Volume du preset** (`,` / `.`), en gris, **après** l'étage d'alignement et juste avant
   `OUT` : `─ volume +3 dB ─ OUT`. C'est l'ordre du signal. Comme l'alignement, ce n'est pas un bloc
   (pas de curseur, pas de vumètre) ; il disparaît au neutre, et se lit aussi dans l'en-tête.
 - **Alignement de niveau sur le DI** (`level = "match"`), en bout de chaîne juste avant `OUT`, en
-  gris : `─ niveau DI -11.1 dB ─ OUT` (#178). Ce n'est **pas un bloc** : pas de curseur dessus, pas
+  gris : `─ niveau DI -11.1 dB ─ OUT`. Ce n'est **pas un bloc** : pas de curseur dessus, pas
   de réglage, pas de déplacement, pas de vumètre. Sa valeur est celle de la chaîne **installée**
   (elle arrive avec sa table de vumètres, comme les barres) et change à chaque reconstruction. Il
   est caché quand la chaîne est vide ou quand le volume n'est pas aligné sur le DI. Il est là parce
   qu'il **annule tout bloc `gain`** de la chaîne : sans lui à l'écran, un `gain` sans effet sur
   `OUT` est incompréhensible. Un `gain` sous le curseur ajoute en plus un avertissement sous ses
   réglages (§ 6), et l'ajout d'un `gain` le dit dans le message.
-- Titre du cadre : `chaîne — NAM actifs : N · parallèles : P`, plus ` ⚠ CPU ≈ ×N (à mesurer sur Pi 5)` en
-  jaune au-delà du seuil (#111 le fixe ; la maquette alerte dès 2). NAM actifs = blocs `nam` non coupés,
-  dans une branche audible.
-- Terminal trop étroit : défilement horizontal qui garde le curseur visible (hors maquette).
+- Titre du cadre : `chaîne — NAM actifs : N · parallèles : P`, plus ` ⚠ CPU ≈ ×N (à mesurer sur Pi 5)`
+  en jaune **dès 2 NAM actifs** (le coût est linéaire et deux modèles restent confortables sur x86 :
+  on alerte, on ne refuse pas). NAM actifs = blocs `nam` non coupés, dans une branche audible.
+- Terminal trop étroit : défilement horizontal qui garde le curseur visible.
 
 ## 3. Vumètres
 
@@ -81,8 +88,7 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
 
 Positions possibles : un bloc hors parallèle ; le `◆` d'un parallèle ; l'**en-tête** d'une branche
 (étiquette et gain, sélectionnés ensemble) ; un bloc dans une branche ; la **sortie** d'un parallèle
-(le `◇` de son bord droit, **ajouté le 12/11/2026**, #152). Un clic (souris) sur un élément le
-sélectionne si le terminal le permet.
+(le `◇` de son bord droit). Un clic (souris) sur un élément le sélectionne si le terminal le permet.
 
 | Touche | Effet |
 |---|---|
@@ -90,14 +96,14 @@ sélectionne si le terminal le permet.
 | ← | inverse ; depuis un bloc qui suit un parallèle : sa **sortie** `◇` ; depuis la sortie : dernier bloc de la branche 1 (ou son en-tête si vide) ; depuis le premier bloc d'une branche : son en-tête ; depuis un en-tête : `◆` |
 | ↓ / ↑ | dans un parallèle : branche suivante / précédente en gardant la position (bornée à la longueur de la branche, en-tête si vide) ; ↓ sur `◆` : en-tête de la branche 1 ; ↑ sur la branche 1 : `◆` ; ↑ sur la **sortie** : `◆` ; hors parallèle : rien |
 
-### La sortie d'un parallèle (`◇`, #152)
+### La sortie d'un parallèle (`◇`)
 
-Le synoptique dessinait la moitié gauche d'un parallèle (le `◆`) ; son bord droit n'était qu'un
-trait, donc **rien à viser pour ajouter après lui** — il fallait poser le bloc dans une branche puis
-l'en sortir avec `]`. Les modeleurs du marché font du point de fusion un objet sélectionnable (bloc
-**Merge** chez Line 6 Helix, **Mixer** chez Quad Cortex et Fractal), déplaçable sur le chemin
-principal. namfoop garde son modèle (**le parallèle est un bloc**, ADR 0006 : `x` sur le `◆` le
-défait, `[ ]` le déplace en entier) et ajoute simplement la case qui manquait :
+Le bord droit d'un parallèle est **une case qu'on vise**, et non un simple trait : sans elle, ajouter
+un bloc après le parallèle demanderait de le poser dans une branche puis de l'en sortir avec `]`. Les
+modeleurs du marché font de même du point de fusion un objet sélectionnable (bloc **Merge** chez
+Line 6 Helix, **Mixer** chez Quad Cortex et Fractal), déplaçable sur le chemin principal. namfoop
+garde son modèle — **le parallèle est un bloc** (ADR 0006) : `x` sur le `◆` le défait, `[ ]` le
+déplace en entier :
 
 ```
 IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ reverb ─ OUT
@@ -109,8 +115,8 @@ IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ 
   bloc est allé.
 - **Tout le reste du parallèle se règle depuis le `◆`** (`↑`) : mode et coupures, `+`, `x`, `[ ]`.
   Les autres touches sur la sortie le rappellent, sans rien faire.
-- Le panneau du bas montre ce qu'elle somme (nombre de branches, mode, gains). Ses **réglages
-  propres** (niveau de sortie, mix), eux, viendront : #153.
+- Le panneau du bas montre ce qu'elle somme (nombre de branches, mode, gains). La sortie n'a pas de
+  réglage propre : le niveau de sortie et le mix du parallèle se règlent branche par branche.
 
 ## 5. Édition (focus « chaîne »)
 
@@ -124,10 +130,10 @@ IN ─ ◆─┬─ < 150 Hz ─ son direct ──── 0 dB ─┬─ ◇ ─ 
 | `{` / `}` | bloc dans une branche : le passe dans la branche du dessus / dessous, à la même position (bornée). | |
 | `b` | bloc : coupé / actif. En-tête : muet. | `lpf 250 coupé` |
 | `m` / `o` / `p` | branche (en-tête ou bloc de la branche) : muet / solo / polarité inversée. | `solo : oui` |
-| Entrée, Tab | focus « réglages » (§ 6) si l'élément en a. Sur un bloc `nam` / `ir`, Entrée ouvre le **sélecteur sur place** (§ 5 de `browse-espaces.md`) | |
+| Entrée, Tab | focus « réglages » (§ 6) si l'élément en a. Sur un bloc `nam` / `ir`, Entrée ouvre le **sélecteur sur place** (§ 5 de [`browse-espaces.md`](browse-espaces.md)) | |
 | Échap | ne quitte **jamais**. | `Échap revient en arrière mais ne quitte jamais : q pour quitter` |
 | `v` | vumètres affichés / masqués. | `vumètres masqués` |
-| `,` / `.` | **volume du preset** (#179) : -1 dB / +1 dB, borné à [-24, +12]. Appliqué **après** l'alignement de niveau sur le DI, donc le seul gain du preset que cet alignement n'annule pas (#178). Enregistré dans le `.preset.toml`, compte comme une modification. **Vivant** : s'entend au bloc suivant, sans reconstruction (#187). | `volume du preset +3 dB — après l'alignement sur le DI, S pour l'enregistrer` / `volume du preset : -24 dB, c'est la borne` |
+| `,` / `.` | **volume du preset** : -1 dB / +1 dB, borné à [-24, +12]. Appliqué **après** l'alignement de niveau sur le DI, donc le seul gain du preset que cet alignement n'annule pas. Enregistré dans le `.preset.toml`, compte comme une modification. **Vivant** : s'entend au bloc suivant, sans reconstruction. | `volume du preset +3 dB — après l'alignement sur le DI, S pour l'enregistrer` / `volume du preset : -24 dB, c'est la borne` |
 | `t` | déplie / replie le TOML du preset (replié par défaut, une ligne `▸ preset TOML (t)`). | |
 | `S` | enregistrer le preset (§ 8). | |
 | `n` | **nouvelle chaîne vierge** (§ 8). | `nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant)` / `la chaîne est déjà vierge : a ajoute un bloc` |
@@ -138,10 +144,10 @@ filtre tapé au clavier (les noms qui **commencent** par le filtre d'abord, puis
 contiennent dans le nom ou l'aide), ↑↓, Entrée ajoute, Échap annule, Retour arrière efface. Le
 catalogue contient les effets, `nam` et `ir` ; pas de parallèle (on le crée avec `s`).
 
-Chaque changement s'écoute après le délai d'écoute actuel (reconstruction de la chaîne + fondu) —
-**sauf le volume du preset** (`,` / `.`), qui est un **paramètre vivant** ([ADR 0007](../adr/0007-parametres-vivants.md),
-#187) : la chaîne qui joue lit sa valeur une fois par bloc, donc le réglage s'entend au bloc suivant,
-lissé sur 20 ms, sans rien rebâtir.
+Chaque changement s'écoute après le délai d'écoute (reconstruction de la chaîne + fondu) — **sauf le
+volume du preset** (`,` / `.`) et le **tempo**, qui sont des **paramètres vivants**
+([ADR 0007](../adr/0007-parametres-vivants.md)) : la chaîne qui joue lit leur valeur une fois par
+bloc, donc le réglage s'entend au bloc suivant, lissé sur 20 ms, sans rien rebâtir.
 
 ## 6. Réglages (focus « réglages »)
 
@@ -149,7 +155,7 @@ lissé sur 20 ms, sans rien rebâtir.
 reviennent à la chaîne. Une barre (20 cases) montre la position dans la plage ; l'aide du réglage
 s'affiche dessous.
 
-- **Bloc** : ses paramètres (`ParamInfo`, comme aujourd'hui). `nam` : modèle (et niveau) ; `ir` : IR
+- **Bloc** : ses paramètres (`dsp::fx::ParamInfo`). `nam` : modèle (et niveau) ; `ir` : IR
   (et mix). Titre : `comp : compresseur · branche 2 (> 150 Hz)` pour un bloc dans une branche.
 - **`◆`** : titre `parallèle : 3 / 4 branches, retards alignés automatiquement`.
   - `mode` : copie / bandes (←→). Passer en bandes fixe les coupures à 150 / 600 / 2400 Hz
@@ -180,8 +186,7 @@ s'affiche dessous.
   `Modifications non enregistrées` / `Le preset « <nom> » a changé depuis le dernier enregistrement.`
   avec `S` enregistrer puis quitter, `Q` quitter sans enregistrer, `Échap` rester (défaut).
   **Toute autre touche reste** ; Maj, Ctrl, Alt seuls n'ont aucun effet.
-- Avant les presets (#104) : même fenêtre sans `S`.
-- `n` (**chaîne vierge**, #170) : la chaîne devient vide, le curseur `Empty`, et le preset courant
+- `n` (**chaîne vierge**) : la chaîne devient vide, le curseur `Empty`, et le preset courant
   est **détaché** (`preset = None`) — l'en-tête n'annonce plus de preset et `S` proposera donc un
   nom neuf au lieu de réenregistrer par-dessus l'ancien. La chaîne vide devient la référence du
   « non enregistré » (`mark_start`), et on arrive dans l'espace Chaîne (c'est là qu'on bâtit).
@@ -192,27 +197,10 @@ s'affiche dessous.
   espaces et depuis la fenêtre de la banque (qu'il referme) ; sur une chaîne déjà vide et sans
   preset, il ne fait rien et le dit.
 
-## 9. Exemples (boutons de la maquette)
+## 9. Exemples, et le format enregistré
 
-Crossover DI (cas courant) :
-```toml
-name = "crossover di"
-[[chain]]
-fx = "gate"
-[[chain]]
-split = "crossover"
-freqs = [150]
-  [[chain.branches]]
-  gain_db = -2
-  fx = []
-  [[chain.branches]]
-  gain_db = 0
-  fx = ["nam:model=b7k", "ir:file=sm57"]
-[[chain]]
-fx = "peak:gain=2"
-[[chain]]
-fx = "reverb:mix=15"
-```
+Crossover DI, le cas courant : `gate › ◆ bandes 150 [-2 dB : son direct | nam b7k › ir sm57] › peak
++2 › reverb mix 15`.
 
 Trois branches, inspiré du son de Hysteria (approximation avec le catalogue actuel : la fuzz est une
 capture NAM) : `hpf 30 › comp 4:1 › ◆ copie [propre : lpf 250 › comp 8:1 | fuzz -3 dB : nam fuzz › ir
@@ -221,12 +209,11 @@ capture NAM) : `hpf 30 › comp 4:1 › ◆ copie [propre : lpf 250 › comp 8:1
 Quatre bandes : `comp › ◆ bandes 100 / 400 / 1600 [direct | nam svt › ir 8x10 | -3 dB : nam fuzz › ir
 4x10 | -6 dB : chorus] › delay`.
 
-**Format TOML : fixé le 12/11/2026 (#157).** La proposition compacte ci-dessus est **abandonnée**
-au profit d'une forme **structurée**, écrite par `serde` (`dsp::preset`), pour une raison précise :
-la syntaxe compacte n'écrit que ce qui diffère du défaut, donc changer un jour la valeur par défaut
-d'un paramètre changerait **en silence** le son des presets déjà enregistrés. La forme retenue écrit
-**tous** les paramètres, est uniforme à l'intérieur d'une branche, et ne demande aucun analyseur
-maison. L'écran la replie de toute façon (`t`, #110).
+**Le format enregistré est structuré**, écrit par `serde` (`dsp::preset`), et non compact. La raison
+est précise : une syntaxe compacte n'écrirait que ce qui diffère du défaut, donc changer un jour la
+valeur par défaut d'un paramètre changerait **en silence** le son des presets déjà enregistrés. La
+forme retenue écrit **tous** les paramètres, est uniforme à l'intérieur d'une branche, et ne demande
+aucun analyseur maison. L'écran la replie de toute façon (`t`).
 
 ```toml
 name = "Chill verse"
@@ -260,25 +247,21 @@ freqs = [150.0]
 ```
 
 Les fichiers vivent dans `library/presets/<nom>.preset.toml` et sont **indexés comme les mélanges
-d'IR** : identifiant court `p…`, recherche par mots-clés (#157). Le solo n'est jamais enregistré ;
+d'IR** : identifiant court `p…`, recherche par mots-clés. Le solo n'est jamais enregistré ;
 le muet et la polarité d'une branche, si. Le gain d'entrée propre à un modèle reste dans
 `library/overrides.toml`, le trim et le niveau dans la config.
 
-## 10. Remplacé par l'épique #131 (deux espaces)
+## 10. La frontière avec la Bibliothèque
 
-Ce paragraphe décrivait les onglets Modèles / IR agissant sur le bloc `nam` / `ir` « visé » dans la
-chaîne, et Entrée sur un `nam` ouvrant l'onglet Modèles. **Abandonné** : voir
-[`browse-espaces.md`](browse-espaces.md) — la Bibliothèque (banc d'essai, qui n'écrit jamais dans la
-chaîne) et la Chaîne (où le modèle et l'IR d'un bloc se choisissent **sur place**, § 5). Le reste de
-cette spécification est inchangé.
-
-Les autres points laissés ouverts ici ont été tranchés ailleurs : défilement horizontal du
-synoptique dans un terminal étroit (#108, fait), seuil d'alerte de charge CPU (#111, fait),
-brouillon automatique en quittant sans enregistrer (#110, à faire).
+**Aucun onglet de la Bibliothèque n'écrit dans la chaîne**, et aucune touche de la Chaîne ne
+sélectionne dans la bibliothèque : le modèle et l'IR d'un bloc se choisissent **sur place**, par
+Entrée sur le bloc (§ 5 de [`browse-espaces.md`](browse-espaces.md)). C'est ce qui permet de
+travailler un son au banc d'essai sans toucher à la chaîne qu'on a composée.
 
 ## 11. Tests attendus
 
-Logique dans `browse::state` (pure, horloge fournie) : chaque règle des § 4 à 8. Rendu avec
-`TestBackend` / `screen_text` : les exemples du § 9, alignement des colonnes, assombrissements.
+Logique dans `browse::state` (pure, horloge fournie) : chaque règle des § 4 à 8, et l'oracle du
+clavier mesure chaque touche dans chaque contexte. Rendu avec `TestBackend` / `screen_text` : les
+exemples du § 9, alignement des colonnes, assombrissements.
 De bout en bout : pseudo-terminal, `--no-config --backend sim`, bibliothèque jetable,
 `NAMFOOP_BROWSE_TRACE` pour vérifier la chaîne réellement installée.

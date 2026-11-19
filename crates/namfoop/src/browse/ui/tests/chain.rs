@@ -1,5 +1,5 @@
 //! Rendu de l'espace **Chaîne** : synoptique, réglages, ligne de commande, catalogue, en-tête des
-//! deux espaces, sélecteur sur place et fenêtre « mettre dans la chaîne ».
+//! espaces, sélecteur sur place et fenêtre « mettre dans la chaîne ».
 
 use super::super::*;
 use super::screen;
@@ -95,7 +95,7 @@ fn the_catalog_window_filters_as_you_type() {
     assert!(screen(&s).contains("ajouter avant le curseur"), "{}", screen(&s));
 }
 
-/// L'en-tête : les deux espaces, le compte des blocs de la chaîne, et la bascule `r`.
+/// L'en-tête : les espaces, le compte des blocs de la chaîne, et la bascule `r`.
 #[test]
 fn the_header_shows_both_spaces_and_counts_the_chain_blocks() {
     let mut s = sample();
