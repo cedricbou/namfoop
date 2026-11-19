@@ -1897,7 +1897,7 @@ Et la [C]mer se tait
 | `{comment: …}` / `{c: …}` | une **cue**, en jaune |
 | `{x_namfoop_sound: <preset>}` | **lie la section à un son du morceau** : jouer ce son amène le prompteur ici |
 | `{x_namfoop_bars: 8}` | la durée de la section, en mesures |
-| `{x_namfoop_beats: 2+2+3}` | le regroupement des temps d'une mesure impaire (lu, il servira à la battue) |
+| `{x_namfoop_beats: 2+2+3}` | le regroupement des temps d'une mesure impaire ou composée (la battue le bat ainsi) |
 
 **Tout le reste est ignoré sans erreur** : un fichier écrit pour un autre logiciel s'affiche ici,
 même s'il contient des directives qu'on ne connaît pas. Et un prompteur **absent ou illisible** est
@@ -1914,7 +1914,61 @@ gras ; chacune montre sa durée en mesures et le son auquel elle est liée. La l
 
 Changer de son amène à la **prochaine** section liée à ce son : c'est ce qui fait que le texte suit
 le pied sans qu'on ait à le piloter. `Fin` / `Début` servent quand le texte et les sons ne suivent
-pas le même découpage. Le défilement **au tempo** (la battue) vient ensuite.
+pas le même découpage.
+
+### La battue et la mesure : `Espace`
+
+Aucun pédalier du marché ne tient la **mesure** : les Helix, Quad Cortex et Strymon gèrent un
+tempo, un tap et l'horloge MIDI, et l'horloge MIDI elle-même ne transmet pas la mesure. C'est donc
+namfoop qui tient la **carte des mesures** du morceau, tirée du `.set.toml` et du prompteur : la
+mesure, le tempo, le regroupement des temps, et la durée de chaque section.
+
+`Espace` lance et arrête la battue, et **l'appui est le 1** de la mesure en cours : on se raccroche
+au groupe sans compter.
+
+```sh
+namfoop browse --set concert      # 3, Entrée pour jouer le morceau, puis Espace
+```
+
+En tête de la colonne du prompteur, la **bande de battue** :
+
+```
+  1      2      3      4      ♩124 4/4   mes. 8/8 COUPLET 1   ⏵
+ → CLEAN SVT    4 · 3 · 2 · 1    REFRAIN
+```
+
+- le **temps 1 en jaune**, les autres en vert, les subdivisions en points gris ; le temps qui sonne
+  est en inversé, et à l'arrêt **rien ne s'allume** — la bande dit alors `⏸` ;
+- le tempo **entendu** et la mesure, puis `mes. n/N SECTION` ;
+- la 2ᵉ ligne annonce ce qui vient : `REFRAIN dans 4 mes.`, un changement de mesure
+  (`passe en 7/8 (2+2+3)`) ou de tempo (`♩92`) ;
+- et surtout le **compte à rebours de changement de son** : quand la section suivante est liée à un
+  **autre** son que celui qu'on joue, `→ fuzz-face dans 4 mes.`, puis sur la dernière mesure
+  `→ FUZZ-FACE` et le décompte des temps `4 · 3 · 2 · 1`. C'est ce qui prévient au bon moment.
+
+Un morceau **sans prompteur** a sa bande quand même : le tempo et la mesure du morceau, et ses
+mesures comptées.
+
+**Le BPM se compte toujours à la noire**, comme Ableton Live et l'horloge MIDI (24 tops par noire) :
+en 6/8 à ♩ 82, on bat deux noires pointées, et la bande montre les six croches groupées par trois.
+Les mesures en x/8 impaires se battent selon `{x_namfoop_beats}` — sans lui, toutes les croches,
+parce que deviner `2+2+3` plutôt que `3+2+2` se tromperait une fois sur deux.
+
+| touche | |
+|---|---|
+| `Espace` | lance / arrête la battue ; l'appui est le 1 (réglable, `[set] prompt_play`) |
+| `Fin` / `Début` | section suivante / précédente, **recalée sur son 1** |
+| `*` | tap : recale le tempo **et le temps**, pas la mesure |
+
+**En marche, la position suit le temps** : changer de son ne la déplace pas, sinon un son joué un
+temps trop tôt décalerait tout le texte. **À l'arrêt, elle suit le son.** Changer de morceau remet
+la position au début et arrête la battue. Le tempo d'une section entre dans l'arbitre de tempo
+**comme celui d'un preset** (`--tempo`, § 7) : les delays le suivent, et un tap ou une horloge MIDI
+le recouvrent.
+
+La bande est dessinée par le fil de l'interface : **rien n'entre dans le fil audio**, et un
+changement de section n'installe aucune chaîne. Le clic du métronome (`k`) reste indépendant : il
+tient sa propre grille et n'est entendu que dans les sorties in-ear.
 
 ### Construire un set à l'écran : `e`
 

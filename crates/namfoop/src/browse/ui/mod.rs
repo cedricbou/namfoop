@@ -13,6 +13,8 @@ use crate::tui::{meter_marked, meter_width};
 use library::recommend::NeedsIr;
 
 mod bands;
+/// La bande de battue (§ 11) : les temps de la mesure, et ce qui vient.
+mod beat;
 mod editor;
 mod footer;
 mod fx;
@@ -518,8 +520,15 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 Span::styled(" ♪ set : ", Style::new().fg(set::ACCENT).add_modifier(Modifier::BOLD)),
                 Span::raw(format!("{where_}basse › {}", s.chain_text())),
             ]),
+            // la **mesure** à côté du tempo (§ 11) : celle de la mesure en cours, donc celle de
+            // la section quand le morceau module
             Line::from(Span::styled(
-                format!("   ♩ {:.0} ({}){volume}", s.heard_tempo_bpm(), s.tempo_source().label()),
+                format!(
+                    "   ♩ {:.0} ({})  {}{volume}",
+                    s.heard_tempo_bpm(),
+                    s.tempo_source().label(),
+                    s.band_time_sig()
+                ),
                 Style::new().fg(Color::DarkGray),
             )),
         )

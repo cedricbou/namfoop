@@ -292,6 +292,7 @@ pub fn run(
             (read(&keys.next_song, crate::tui::Key::Right), read(&keys.prev_song, crate::tui::Key::Left));
         st.prompt_keys =
             (read(&keys.prompt_next, crate::tui::Key::End), read(&keys.prompt_prev, crate::tui::Key::Home));
+        st.play_key = read(&keys.prompt_play, crate::tui::Key::Char(' '));
     }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.

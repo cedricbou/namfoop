@@ -6,6 +6,34 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#223)
+- **La battue et la bande de mesure dans l'espace Set.** `Espace` lance et arrête la battue, et
+  **l'appui est le 1** de la mesure en cours : on se raccroche au groupe sans compter. En tête de
+  la colonne du prompteur, une bande montre les temps de la mesure — **temps 1 en jaune**, temps en
+  vert, subdivisions en points gris, le temps qui sonne en inversé —, le tempo entendu, la mesure,
+  `mes. n/N SECTION`, et ce qui vient.
+- **Le compte à rebours de changement de son** : quand la section suivante est liée à un autre son
+  que celui qu'on joue, la bande annonce `→ fuzz-face dans 4 mes.`, puis sur la dernière mesure
+  `→ FUZZ-FACE` et le décompte des temps `4 · 3 · 2 · 1`. Un changement de mesure
+  (`passe en 7/8 (2+2+3)`) ou de tempo (`♩92`) est annoncé de la même façon.
+- **namfoop tient la carte des mesures** du morceau, que ne tient aucun pédalier du marché : la
+  mesure, le tempo, le regroupement des temps et la durée de chaque section, lus dans le
+  `.set.toml` et le prompteur. Le **BPM se compte toujours à la noire**, comme Ableton Live et
+  l'horloge MIDI ; en x/8 le tick de la bande est la croche, et 6/8, 9/8, 12/8 se battent par
+  trois. Sans `{x_namfoop_bars}`, `{duration}` se répartit sur les sections.
+- Le texte du prompteur **défile au tempo** : les lignes d'une section se partagent ses mesures.
+  **En marche la position suit le temps** — changer de son ne la déplace pas —, **à l'arrêt elle
+  suit le son**. `Fin` / `Début` recalent sur le 1 de la section, `*` recale le temps mais pas la
+  mesure, et changer de morceau remet au début en arrêtant la battue.
+- Un morceau **sans prompteur** a sa bande quand même : tempo et mesure du morceau, mesures
+  comptées.
+- `Espace` est **réglable** (`[set] prompt_play`, défaut `Space`), comme les autres touches du
+  pied, et elle agit aussi sur scène (`run --set`) : elle ne change ni le son ni le set.
+- Le tempo d'une section entre dans l'arbitre de tempo **comme celui d'un preset** : les delays le
+  suivent, un tap ou une horloge MIDI le recouvrent, et le preset n'est pas marqué « non
+  enregistré ». La bande est dessinée par le fil de l'interface : **rien n'entre dans le fil
+  audio**, et le harnais de bout en bout le vérifie en comptant les chaînes installées.
+
 ### Documentation (#311)
 - **[ADR 0011](docs/adr/0011-midi-conventions-fractal.md) : le MIDI suit les conventions des
   pédaliers Fractal par défaut, et Ableton pour le transport.** Program Change = le morceau,

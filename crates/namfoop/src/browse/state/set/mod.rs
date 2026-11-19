@@ -15,6 +15,9 @@ use library::set::SetSpec;
 
 pub mod screen;
 
+/// **La battue** : la position dans le temps du morceau, et la bande qui la montre (§ 11).
+pub mod beat;
+
 /// Le prompteur à l'écran : la position dans le texte du morceau joué.
 pub mod prompt;
 
@@ -49,6 +52,9 @@ pub struct ActiveSet {
     /// section.
     pub prompt_section: usize,
     pub prompt_line: usize,
+    /// **La battue** (§ 11) : la mesure et le temps dans la section courante, et si elle avance.
+    /// La section, elle, est `prompt_section` : le texte et la battue avancent ensemble.
+    pub beat: beat::Beat,
     /// Le set **tel qu'il est sur le disque**. C'est la référence du `●` « non enregistré » : la
     /// même idée que `start_fx` pour la chaîne, et c'est ce qui fait que `unsaved()` voit
     /// l'édition sans code en plus.
@@ -72,6 +78,7 @@ impl ActiveSet {
             expanded: Vec::new(),
             prompt_section: 0,
             prompt_line: 0,
+            beat: beat::Beat::default(),
         }
     }
 
@@ -294,6 +301,13 @@ impl State {
         // le son du set est la **référence** : il ne doit pas s'afficher « non enregistré » alors
         // qu'on n'a rien touché (le volume du morceau n'appartient pas au preset)
         self.mark_start();
+    }
+
+    /// **Le tempo d'une section** (§ 11) : il entre dans l'arbitre comme celui d'un preset — un
+    /// tap ou une horloge le recouvrent ensuite. Il ne touche **pas** à `fx.chain.tempo_bpm` : un
+    /// morceau qui module n'a pas à rendre son preset « non enregistré ».
+    pub(super) fn set_section_tempo(&mut self, bpm: f32) {
+        self.tempo.preset(dsp::tempo::clamp_bpm(bpm));
     }
 }
 

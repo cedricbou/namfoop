@@ -5,11 +5,12 @@
 //! et ce qui la déplace :
 //!
 //! - **le son.** À l'arrêt, changer de son amène à la prochaine section liée à ce son
-//!   (`{x_namfoop_sound}`). En marche, la position suivra le temps et un changement de son ne
-//!   déplacera rien (US 6b) : un son joué un temps trop tôt décalerait tout le reste ;
+//!   (`{x_namfoop_sound}`). **En marche, la position suit le temps** et un changement de son ne
+//!   déplace rien : un son joué un temps trop tôt décalerait tout le reste. Ce qui fait avancer la
+//!   position au tempo est la battue, dans [`super::beat`] ;
 //! - **`Fin` / `Début`** (réglables, `[set] prompt_next` / `prompt_prev`) : la section suivante ou
-//!   précédente, **sans toucher au son**. C'est le geste du pied quand le texte et le son ne
-//!   suivent pas le même découpage.
+//!   précédente, **sans toucher au son**, et recalées sur son 1. C'est le geste du pied quand le
+//!   texte et le son ne suivent pas le même découpage.
 //!
 //! Les prompteurs eux-mêmes sont tenus par `State::prompts`, **indexés par leur chemin** et non par
 //! le numéro du morceau : l'édition d'un set ajoute, retire et déplace des morceaux, et une
@@ -91,9 +92,13 @@ impl State {
             .and_then(|p| p.sections.get(to))
             .map(|s| s.label.clone())
             .unwrap_or_default();
+        let now = self.now;
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = to;
             set.prompt_line = 0;
+            // **`Fin` / `Début` recalent sur le 1 de la section** (§ 11), en marche comme à
+            // l'arrêt : c'est le geste du pied quand le groupe n'est pas là où le texte le dit.
+            set.beat.restart(now);
         }
         self.message = Some(if label.is_empty() {
             format!("section {}/{n}", to + 1)
@@ -107,8 +112,16 @@ impl State {
     /// prochaine section qui lui est liée. Aucune section liée : on ne bouge pas — sauter au début
     /// du texte parce qu'un son a changé serait pire que de ne rien faire.
     pub(in crate::browse::state) fn follow_prompt(&mut self, at: At) {
+        let now = self.now;
         let Some(set) = self.set.as_ref() else { return };
         let same_song = set.at.map(|(i, _)| i) == Some(at.0);
+        // **en marche, la position suit le temps** (§ 10, § 14) : changer de son ne la déplace
+        // pas, sinon un son joué un temps trop tôt décalerait tout le texte. À l'arrêt seulement,
+        // elle suit le son. Changer de **morceau**, lui, remet au début et arrête la battue : c'est
+        // un autre morceau, avec sa mesure et son tempo.
+        if same_song && set.beat.running {
+            return;
+        }
         let sound = set
             .spec
             .songs
@@ -124,10 +137,13 @@ impl State {
             if !same_song {
                 set.prompt_section = 0;
                 set.prompt_line = 0;
+                set.beat.running = false;
+                set.beat.restart(now);
             }
             if let Some(i) = found {
                 set.prompt_section = i;
                 set.prompt_line = 0;
+                set.beat.restart(now);
             }
         }
     }

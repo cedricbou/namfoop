@@ -3,7 +3,8 @@
 **Responsabilité.** Tout ce qui concerne les fichiers de sons, sans jamais toucher la carte son :
 index de `library/` (identifiants courts `m…` modèles, `i…` IR, `c…` mélanges, `p…` **presets**
 (`presets/*.preset.toml`), `s…` **sets** (`sets/*.set.toml`), recherche, métadonnées
-.nam), les **sets de concert** (`set.rs`), le **prompteur ChordPro**
+.nam), les **sets de concert** (`set.rs`), la **carte des mesures** (`bars.rs`), le
+**prompteur ChordPro**
 (`prompt.rs` : lecture pure du sous-ensemble du § 10 de `docs/design/set.md` — sections,
 accords en ligne, cues, les quatre directives `x_namfoop_…` ; **tout le reste est ignoré sans
 erreur**, parce qu'un fichier écrit pour un autre logiciel doit s'afficher ici, et seule
@@ -49,6 +50,33 @@ Deux sortes de contrôles, et **la différence est une décision de scène** :
 Permis : un morceau sans son (on écrit un set par étapes) et un morceau sans `pc` (il ne se joue
 qu'au pied). `time` est gardé **tel qu'écrit** (`Option<String>`) pour que l'aller-retour ne touche
 pas au fichier ; `Song::time_sig()` le lit (`TimeSig`, déjà vérifié au chargement).
+
+## `bars.rs` — la carte des mesures
+
+Le § 11 de `docs/design/set.md`, **pur** : `Meter` (une mesure et le regroupement de ses temps),
+`Span` (une section : métrique, tempo, durée en mesures, son lié) et `BarMap`, bâtie d'un `Song` et
+de son `Prompt`. Ni écran, ni horloge — la position dans le temps est la battue
+(`crates/namfoop/src/browse/state/set/beat.rs`).
+
+Quatre contrats que le reste du code suppose :
+
+- le **BPM se compte à la noire**, toujours (Ableton, et les 24 tops par noire de l'horloge MIDI).
+  Le **tick** d'une mesure est son unité : la croche en x/8, la noire en x/4, d'où
+  `Meter::tick_ms(bpm)` qui prend le tempo en **argument** — le tempo entendu est arbitré ailleurs,
+  et la carte ne porte que ce que les fichiers déclarent ;
+- le regroupement par défaut est **par trois en x/8 à partir de 6** (6/8, 9/8, 12/8) et **temps par
+  temps** partout ailleurs. Un `{x_namfoop_beats}` dont la somme ne fait pas le nombre de temps de
+  la mesure est **ignoré** : la mesure fait foi, le regroupement l'orne ;
+- le morceau remplace la valeur **initiale** du prompteur, pas ses changements : le premier
+  `{tempo}` / `{time}` du `.cho` ne sert que si le `.set.toml` se taît, et une directive plus loin
+  dans le morceau gagne — y compris si elle revient à la valeur de départ ;
+- une section **sans durée** (`bars: None`) ne finit jamais d'elle-même : la battue y compte les
+  mesures. C'est aussi le cas d'un morceau sans prompteur, qui a une section implicite — c'est ce
+  qui garantit qu'une bande se dessine toujours.
+
+`at_sixteenths` convertit un **Song Position Pointer** de MIDI (des doubles croches depuis le début)
+en section / mesure / tick, et `sixteenths_at` fait l'inverse ; les deux rendent `None` dès qu'une
+section de durée inconnue est en travers, parce qu'on ne peut alors pas compter depuis le début.
 
 ## Faits mesurés
 

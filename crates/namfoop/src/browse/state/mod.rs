@@ -271,6 +271,9 @@ pub struct State {
     pub prompts: std::collections::HashMap<std::path::PathBuf, set::prompt::Loaded>,
     /// Les touches **réglables** du prompteur (`[set] prompt_next` / `prompt_prev`, § 10).
     pub prompt_keys: (Key, Key),
+    /// La touche **réglable** qui lance et arrête la battue (`[set] prompt_play`, défaut
+    /// `Espace`, § 11) : c'est elle que le pédalier envoie, et son appui est le 1.
+    pub play_key: Key,
     /// La dernière touche que **personne** n'a possédée (ADR 0009). La boucle l'écrit dans
     /// `NAMFOOP_BROWSE_TRACE` puis la remet à `None` : sur scène, « j'ai appuyé et rien ne s'est
     /// passé » devient diagnosticable, sans rien afficher à l'utilisateur.
@@ -348,6 +351,7 @@ impl State {
             set_edit: None,
             prompts: std::collections::HashMap::new(),
             prompt_keys: (Key::End, Key::Home),
+            play_key: Key::Char(' '),
             unhandled: None,
             locked: false,
             metronome: false,
@@ -512,6 +516,12 @@ impl State {
             return Action::None;
         }
         self.tempo.tap(self.now * 1000);
+        // **le tap recale le tempo et le temps, pas la mesure** (§ 11 du mode Set) : on se
+        // raccroche au groupe sans perdre le compte des mesures de la section.
+        let now = self.now;
+        if let Some(set) = self.set.as_mut() {
+            set.beat.realign(now);
+        }
         let bpm = self.tempo.bpm();
         if self.tempo.source() == engine::tempo::TempoSource::Tap {
             self.fx.chain.tempo_bpm = bpm;
@@ -528,6 +538,9 @@ impl State {
         self.now = now_ms;
         // une horloge MIDI qui se tait doit se voir : le tempo, lui, est gardé
         self.tempo.poll(now_ms * 1000);
+        // **la battue** (§ 11 du mode Set) : la position avance avec l'horloge fournie, et rien
+        // n'en descend dans le fil audio — la bande est dessinée par le fil de l'interface
+        self.advance_beat(now_ms);
         if let (Some(t), Some(ed)) = (self.grain_due, &self.editor) {
             if now_ms >= t + GRAIN_DELAY_MS {
                 self.grain_due = None;

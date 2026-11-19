@@ -453,7 +453,7 @@ fn all_keys() -> Vec<(String, Key)> {
     let mut chars: Vec<char> = Context::ALL
         .iter()
         .flat_map(|c| bindings(*c).iter().flat_map(|b| b.keys.iter()))
-        .filter_map(|spec| match spec.resolve(st.song_keys, st.prompt_keys) {
+        .filter_map(|spec| match spec.resolve(st.song_keys, st.prompt_keys, st.play_key) {
             Key::Char(c) => Some(c),
             _ => None,
         })
@@ -463,7 +463,13 @@ fn all_keys() -> Vec<(String, Key)> {
         .collect();
     chars.sort_unstable();
     chars.dedup();
-    v.extend(chars.into_iter().map(|c| (format!("'{c}'"), Key::Char(c))));
+    // l'espace est un caractère comme un autre pour le clavier, mais `' '` ne se lit pas dans
+    // une table : il porte son nom
+    v.extend(
+        chars
+            .into_iter()
+            .map(|c| (if c == ' ' { "Espace".to_string() } else { format!("'{c}'") }, Key::Char(c))),
+    );
     v
 }
 
@@ -500,6 +506,9 @@ fn fingerprint(s: &State) -> Vec<(&'static str, String)> {
         ("mélange", format!("{:?}", s.blend)),
         ("preset", format!("{:?}", s.preset)),
         ("set", format!("{:?}", s.set.as_ref().map(|x| (x.at, x.cursor, x.expanded.clone())))),
+        // **la battue et la position dans le texte** : sans elles, `Espace` et `Fin` / `Début`
+        // paraîtraient ne faire que parler, alors qu'elles déplacent ce qu'on lit et ce qu'on bat
+        ("battue", format!("{:?}", s.set.as_ref().map(|x| (x.beat, x.prompt_section, x.prompt_line)))),
         // la set list elle-même : sans elle, `a`, `r`, `X`, `x`, `{ }`, `, .` paraîtraient inertes
         ("set list", format!("{:?}", s.set.as_ref().map(|x| x.spec.songs.clone()))),
         // l'édition : ce qu'on vise, le texte en train d'être tapé (sinon une lettre tapée dans un
@@ -776,7 +785,7 @@ fn everything_declared_is_actually_owned() {
         for b in bindings(ctx) {
             for spec in b.keys {
                 let mut s = (case.build)();
-                let key = spec.resolve(s.song_keys, s.prompt_keys);
+                let key = spec.resolve(s.song_keys, s.prompt_keys, s.play_key);
                 s.unhandled = None;
                 s.on_key(key);
                 if s.unhandled.is_some() {
@@ -855,7 +864,7 @@ fn everything_that_acts_is_declared() {
         let s = (case.build)();
         let declared: Vec<Key> = bindings(ctx)
             .iter()
-            .flat_map(|b| b.keys.iter().map(|spec| spec.resolve(s.song_keys, s.prompt_keys)))
+            .flat_map(|b| b.keys.iter().map(|spec| spec.resolve(s.song_keys, s.prompt_keys, s.play_key)))
             .collect();
         for (name, key) in all_keys() {
             if declared.contains(&key) || (PEDAL.contains(&key) && !a_space(ctx)) {
