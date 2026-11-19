@@ -1,4 +1,4 @@
-//! `namfoop sets` : les sets de concert enregistrés (`library/sets/*.set.toml`, #217), comme
+//! `namfoop sets` : les sets de concert enregistrés (`library/sets/*.set.toml`), comme
 //! `namfoop presets` pour les chaînes. Chaque ligne donne l'identifiant court, le nom, ce que le
 //! set contient, et **ce qui ne va pas** : un set dont un preset a été renommé joue quand même,
 //! mais il faut le voir avant la scène (§ 3 de `docs/design/set.md`).

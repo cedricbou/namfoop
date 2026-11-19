@@ -41,7 +41,7 @@ pub struct Status {
     pub limiter: f32,
     pub xruns: u64,
     pub loading: bool,
-    /// Où en est le préchargement de la banque de presets (places prêtes, places en tout, #6) :
+    /// Où en est le préchargement de la banque de presets (places prêtes, places en tout) :
     /// affiché tant qu'il reste des places à bâtir.
     pub bank: Option<(usize, usize)>,
     pub device: String,
@@ -167,7 +167,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         Constraint::Length(1),
         Constraint::Length(1),
         // le filtre n'a de sens que dans la Bibliothèque, mais la **saisie d'un nom** (mélange ou
-        // preset) doit se voir depuis les deux espaces (#110)
+        // preset) doit se voir depuis les deux espaces
         Constraint::Length(u16::from(lib || s.naming.is_some())),
         Constraint::Min(5),
         Constraint::Length(4),
@@ -186,8 +186,8 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             },
         )
     };
-    // à droite, l'état d'enregistrement du preset (#110) — ou, dans la vue scène, celui du **set**
-    // (§ 6). Rien ne peut encore le modifier : l'édition est l'US 4 (#220).
+    // à droite, l'état d'enregistrement du preset — ou, dans la vue scène, celui du **set**
+    // (§ 6). Rien ne peut encore le modifier : l'édition est l'US 4.
     let (what, up_to_date) = match (s.space, s.set.as_ref()) {
         (Space::Set, Some(set)) => (format!("set : {}.set.toml", set.stem), true),
         _ => s.preset_label(),
@@ -463,7 +463,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         render_spectrum(s, f, spectrum);
     } else {
         // écran étroit : pas de colonne de droite, le panneau Bandes (z) prend des lignes à la
-        // liste — et seulement s'il en reste assez pour lire la liste (#183)
+        // liste — et seulement s'il en reste assez pour lire la liste
         let room = body.height >= bands::HEIGHT + 4;
         if s.show_bands() && room {
             let [list, panel] =
@@ -498,7 +498,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     if st.loading {
         meters.push(Span::styled("  chargement…", Style::new().fg(Color::Yellow)));
     }
-    // préchargement de la banque : visible seulement tant qu'il reste des places (#6)
+    // préchargement de la banque : visible seulement tant qu'il reste des places
     if let Some((done, total)) = st.bank.filter(|(d, t)| d < t) {
         meters.push(Span::styled(format!("  banque {done}/{total}"), Style::new().fg(Color::DarkGray)));
     }
@@ -600,7 +600,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
 /// La barre d'aide, sur les **deux lignes** du bas. Elle est coupée **aux séparateurs de touches**
 /// (trois espaces) et non au milieu d'un mot, et quand le terminal est trop étroit les touches du
 /// milieu sautent (remplacées par `…`) : les **touches de sortie** — les trois dernières, `h aide`,
-/// l'autre espace et `q quitter` — restent toujours lisibles (#150). L'overlay `h` donne le détail.
+/// l'autre espace et `q quitter` — restent toujours lisibles. L'overlay `h` donne le détail.
 fn help_bar(keys: &str, width: u16) -> Vec<Line<'static>> {
     let w = (width as usize).max(24) - 1;
     let grey = Style::new().fg(Color::DarkGray);

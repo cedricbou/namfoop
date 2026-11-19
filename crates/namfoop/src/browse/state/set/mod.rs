@@ -1,5 +1,5 @@
 //! **Le set actif** : la set list de concert chargée dans `browse` (§ 4 et § 5 de
-//! `docs/design/set.md`, épique #215, US 2).
+//! `docs/design/set.md`).
 //!
 //! Ici, rien que de la navigation : où l'on en est dans le set, quel son vient au prochain appui,
 //! et ce que ce son doit au morceau (son volume, son tempo). L'écran est l'US 3, le MIDI l'US 7.
@@ -15,7 +15,7 @@ use library::set::SetSpec;
 
 pub mod screen;
 
-/// Le prompteur à l'écran : la position dans le texte du morceau joué (#222).
+/// Le prompteur à l'écran : la position dans le texte du morceau joué.
 pub mod prompt;
 
 /// Où l'on en est dans le set : un morceau et un son.
@@ -27,7 +27,7 @@ pub mod edit;
 /// Le set chargé, et la place de chacun de ses sons dans la bibliothèque.
 #[derive(Clone, Debug)]
 pub struct ActiveSet {
-    /// Identifiant court du set (`namfoop sets`). Affiché par l'écran de scène (US 3, #219).
+    /// Identifiant court du set (`namfoop sets`). Affiché par l'écran de scène (US 3).
     #[allow(dead_code)]
     pub id: String,
     /// Nom affichable (celui du fichier, sans `.set.toml`).
@@ -50,8 +50,8 @@ pub struct ActiveSet {
     pub prompt_section: usize,
     pub prompt_line: usize,
     /// Le set **tel qu'il est sur le disque**. C'est la référence du `●` « non enregistré » : la
-    /// même idée que `start_fx` pour la chaîne (#110), et c'est ce qui fait que `unsaved()` voit
-    /// l'édition sans code en plus (#220).
+    /// même idée que `start_fx` pour la chaîne, et c'est ce qui fait que `unsaved()` voit
+    /// l'édition sans code en plus.
     pub saved: SetSpec,
 }
 
@@ -125,7 +125,7 @@ impl ActiveSet {
     }
 
     /// Le **premier son jouable** du morceau suivant ou précédent (touches réglables, défaut
-    /// — branché aux touches par l'US 3 (#219), qui crée l'espace Set où elles agissent.
+    /// — branché aux touches par l'US 3, qui crée l'espace Set où elles agissent.
     #[allow(dead_code)]
     /// `→` / `←`). Sert quand un morceau finit sur son deuxième son, et aux pédaliers à trois
     /// boutons. Pas de bouclage non plus.
@@ -145,7 +145,7 @@ impl ActiveSet {
         *self.slots.get(at.0)?.get(at.1)?
     }
 
-    /// Ce que **ce morceau** ajoute au volume du preset de ce son (#179).
+    /// Ce que **ce morceau** ajoute au volume du preset de ce son.
     pub fn volume_db(&self, at: At) -> f32 {
         self.spec.songs.get(at.0).and_then(|s| s.sounds.get(at.1)).map(|s| s.volume_db).unwrap_or(0.0)
     }
@@ -230,7 +230,7 @@ impl State {
     /// **Morceau suivant / précédent** : le premier son du morceau, pour les pédaliers à trois
     /// boutons et les morceaux qui finissent sur leur deuxième son (§ 5).
     ///
-    /// Branché aux touches par l'US 3 (#219), qui crée l'espace Set où elles agissent.
+    /// Branché aux touches par l'US 3, qui crée l'espace Set où elles agissent.
     #[allow(dead_code)]
     pub fn step_set_song(&mut self, down: bool) -> Action {
         let Some(s) = self.set.as_ref() else { return Action::None };
@@ -278,9 +278,9 @@ impl State {
         action
     }
 
-    /// Ce que le morceau ajoute au preset : son volume s'**ajoute** à celui du preset (#179), son
+    /// Ce que le morceau ajoute au preset : son volume s'**ajoute** à celui du preset, son
     /// tempo **prime** sur le sien et entre dans l'arbitre comme le ferait celui d'un preset
-    /// (#200), un tap le recouvrant ensuite.
+    ///, un tap le recouvrant ensuite.
     fn apply_set_sound(&mut self, volume_db: f32, tempo_bpm: Option<f32>) {
         if volume_db != 0.0 {
             let v = self.fx.chain.volume_db + volume_db;
@@ -288,7 +288,7 @@ impl State {
         }
         if let Some(bpm) = tempo_bpm {
             self.fx.chain.tempo_bpm = dsp::tempo::clamp_bpm(bpm);
-            // comme le tempo d'un preset : l'arbitre le prend, un tap le recouvre ensuite (#200)
+            // comme le tempo d'un preset : l'arbitre le prend, un tap le recouvre ensuite
             self.tempo.preset(self.fx.chain.tempo_bpm);
         }
         // le son du set est la **référence** : il ne doit pas s'afficher « non enregistré » alors
@@ -482,8 +482,7 @@ mod tests {
         let by_name = |q: &str| s.presets.iter().position(|p| p.name == q);
         s.set = Some(ActiveSet::new("s1".into(), "Groupe 1".into(), spec(), &|q| by_name(q)));
         s.mark_start();
-        // **dans l'espace Set** : depuis #247, la Chaîne garde sa banque, les espaces sont
-        // indépendants
+        // **dans l'espace Set** : la Chaîne garde sa banque, les espaces sont indépendants
         s.on_key(Key::Char('3'));
 
         // son 1 du morceau 1 : volume du preset (0), tempo du morceau (124, qui prime sur 100)
@@ -567,13 +566,12 @@ mod independence_tests {
         s
     }
 
-    /// **Les espaces sont indépendants** (#247). Choisir un espace, c'est travailler sur ce qu'il
+    /// **Les espaces sont indépendants**. Choisir un espace, c'est travailler sur ce qu'il
     /// représente : dans la **Chaîne** on travaille son preset, donc `PgDn` parcourt la **banque**
     /// même quand un set est actif. Le set ne se joue que dans **son** espace.
     ///
-    /// C'était l'inverse jusqu'ici — `step_preset` se détournait vers le set dès qu'il y en avait
-    /// un (#218, et la spécification le demandait) — et on ne pouvait plus travailler à la maille
-    /// preset dans l'espace fait pour ça.
+    /// Détourner `step_preset` vers le set dès qu'il y en a un enlèverait le travail à la maille
+    /// preset de l'espace fait pour ça.
     #[test]
     fn the_chain_space_steps_the_bank_even_with_a_set() {
         let mut s = staged();

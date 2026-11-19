@@ -7,7 +7,7 @@ use super::*;
 use crate::browse::state::chain::{Leaf, Mode, Spot};
 
 /// Le contenu du bloc `nam` / `ir` sous le curseur, en entier — ou, sur la **sortie** d'un
-/// parallèle, ce qu'elle somme (#152). `None` : il y a des réglages à montrer à la place.
+/// parallèle, ce qu'elle somme. `None` : il y a des réglages à montrer à la place.
 pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
     let dim = Style::new().fg(Color::DarkGray);
     let amp = Style::new().fg(Color::Green).add_modifier(Modifier::BOLD);

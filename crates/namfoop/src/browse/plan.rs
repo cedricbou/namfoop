@@ -39,7 +39,7 @@ pub(super) struct Request {
     /// Gain d'entrée en plus (essai en cours dans l'éditeur).
     pub input_db: f32,
     /// Place de la banque dont cette chaîne est **exactement** celle du preset : sa chaîne est
-    /// alors déjà bâtie et préchauffée, l'installer ne charge rien (#6). `None` : à bâtir.
+    /// alors déjà bâtie et préchauffée, l'installer ne charge rien. `None` : à bâtir.
     pub preset: Option<usize>,
 }
 
@@ -132,7 +132,7 @@ impl Request {
         }
         let blocks: Vec<String> = self.blocks.iter().map(one).collect();
         // le volume n'est plus ici : c'est un réglage **vivant**, hors de l'identité de la demande
-        // (#187). `browse` le trace à part, quand la case change.
+        //. `browse` le trace à part, quand la case change.
         format!(
             "chaîne={} entrée={:+.1}",
             if blocks.is_empty() { "-".to_string() } else { blocks.join(" > ") },

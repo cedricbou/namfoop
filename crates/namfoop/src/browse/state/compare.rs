@@ -18,7 +18,7 @@ impl State {
 
     /// Le modèle du côté A (`false` : ton choix) ou B (`true` : la référence épinglée) de l'A/B.
     /// `effective_model` n'est que le côté **écouté** ; le panneau Bandes a besoin des deux pour
-    /// montrer un écart (#183).
+    /// montrer un écart.
     pub(super) fn model_of(&self, listen_ref: bool) -> Option<usize> {
         match (listen_ref, self.ref_model) {
             (true, Some(m)) => Some(m),

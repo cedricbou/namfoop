@@ -1,7 +1,6 @@
-//! **L'oracle du clavier** (#241, épique #240) : pour chaque **(contexte × touche)**, ce qui se
-//! passe *réellement*.
+//! **L'oracle du clavier** : pour chaque **(contexte × touche)**, ce qui se passe *réellement*.
 //!
-//! Pourquoi ce fichier existe. Trois bugs de clavier (#175, #207, #238) ont été diagnostiqués par
+//! Pourquoi ce fichier existe. Trois bugs de clavier ont été diagnostiqués par
 //! lecture de code et corrigés à la main, parce qu'aucun test ne disait **qui consomme une touche
 //! et ce qu'elle change**. `on_key` est une cascade de 14 couches sur 9 fichiers : la lire ne suffit
 //! pas à savoir ce qu'elle fait. Cet oracle le **mesure**, et fige le résultat dans
@@ -89,7 +88,8 @@ fn contexts() -> Vec<Ctx> {
             check: |s| s.space == Space::Chain && s.fx.chain.blocks.len() == 3,
         },
         Ctx {
-            // le contexte qui fige #247 : un set actif ne doit **rien** changer à la Chaîne
+            // le contexte qui fige l'indépendance des espaces : un set actif ne change **rien**
+            // au clavier de la Chaîne
             name: "chaîne · un set actif (les espaces sont indépendants)",
             build: || {
                 let mut s = staged_set();
@@ -176,7 +176,7 @@ fn contexts() -> Vec<Ctx> {
                 let mut s = staged_set();
                 s.play_set_sound((0, 0));
                 s.on_key(Key::Char('e'));
-                s.on_key(Key::Char('r')); // renommer : la saisie prend TOUT le clavier (#175)
+                s.on_key(Key::Char('r')); // renommer : la saisie prend TOUT le clavier
                 s.message = None;
                 s
             },
@@ -360,8 +360,7 @@ fn staged_set() -> State {
 /// **Toutes les touches que `browse` peut recevoir** : les 14 nommées de `tui::Key`, puis les 38
 /// caractères liés quelque part dans `browse`. La liste des caractères est écrite à la main : un
 /// caractère qu'on lierait sans l'ajouter ici échapperait à l'oracle, donc l'ajouter fait partie
-/// du geste « je lie une touche » (c'est ce que la fille #243 rendra automatique en dérivant
-/// l'affichage de la même table).
+/// du geste « je lie une touche ».
 fn all_keys() -> Vec<(String, Key)> {
     let mut v: Vec<(String, Key)> = [
         ("↑", Key::Up),
@@ -377,15 +376,15 @@ fn all_keys() -> Vec<(String, Key)> {
         ("Maj+Tab", Key::BackTab),
         ("Échap", Key::Esc),
         ("Retour", Key::Backspace),
-        // Fin / Début : les sections du prompteur (#222), réglables comme les touches de morceau
+        // Fin / Début : les sections du prompteur, réglables comme les touches de morceau
         ("Fin", Key::End),
         ("Début", Key::Home),
     ]
     .iter()
     .map(|(n, k)| (n.to_string(), *k))
     .collect();
-    // `T` et `X` sont arrivées avec l'édition d'un set (#220) : une touche qu'on n'énumère pas
-    // ici n'est mesurée nulle part, et c'est exactement le trou d'où sortait #238.
+    // une touche qu'on n'énumère pas ici n'est mesurée nulle part : c'est par ce trou qu'une
+    // touche annoncée sans rien derrière passe inaperçue.
     for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStTvxXz".chars() {
         // `é` n'est lié nulle part : il est là comme témoin, pour qu'une lettre inconnue montre
         // bien ce que fait le clavier d'une touche qui ne veut rien dire.
@@ -515,7 +514,7 @@ fn table() -> String {
          #\n\
          # « inertes » = les touches qui ne changent RIEN dans ce contexte : ni action, ni message,\n\
          # ni le moindre champ d'état. Une touche annoncée par la barre du bas qui apparaît là est\n\
-         # un bug de la famille #238.\n",
+         # un mensonge : la jointure avec la table la refuse.\n",
     );
     for ctx in contexts() {
         out.push_str(&format!("\n## {}\n", ctx.name));
@@ -576,7 +575,7 @@ fn the_keyboard_does_exactly_what_the_reference_says() {
 
 /// Relire une table en `contexte -> touche -> ce qu'elle fait`, pour comparer **ce qui compte** et
 /// non des numéros de ligne. Les touches inertes y entrent explicitement : « cette touche ne fait
-/// rien ici » est une information, c'est même celle que #238 aurait dû donner.
+/// rien ici » est une information, et c'est même celle qu'on vient chercher le plus souvent.
 fn parse(table: &str) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> {
     let mut out: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> =
         Default::default();
@@ -601,7 +600,7 @@ fn parse(table: &str) -> std::collections::BTreeMap<String, std::collections::BT
 
 // ====================================================================================== JOINTURE
 // Ce qui suit lie la **table** (`bindings.rs`, ce qu'on annonce) à l'**oracle** (ci-dessus, ce qui
-// agit vraiment). C'est cette jointure qui rend #238 impossible plutôt qu'improbable : une touche
+// agit vraiment). C'est cette jointure qui rend la divergence impossible plutôt qu'improbable : une touche
 // annoncée sans rien derrière, ou un contexte qui déclare une touche qu'il ne consomme pas, fait
 // échouer le test.
 
@@ -661,10 +660,10 @@ fn every_measured_context_is_named_correctly() {
 }
 
 /// **Tout ce qui est déclaré est possédé.** C'est LA jointure : une touche annoncée que personne
-/// ne consomme, c'est exactement #238 — un `PgDn/PgUp son` affiché sans rien derrière.
+/// ne consomme — un `PgDn/PgUp son` affiché sans rien derrière — fait échouer ce test.
 ///
 /// Le prédicat n'est pas « ça change quelque chose » mais « un étage l'a prise », et c'est ce que
-/// `State::unhandled` mesure depuis #242. La différence compte : `↑` en haut d'une liste ne change
+/// `State::unhandled` mesure. La différence compte : `↑` en haut d'une liste ne change
 /// rien, mais la liste la **possède** bel et bien — la refuser ici obligerait chaque contexte à
 /// démarrer dans une position choisie, ce qui ne mesurerait plus le clavier mais le curseur.
 #[test]

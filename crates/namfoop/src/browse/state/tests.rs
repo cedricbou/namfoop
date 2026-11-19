@@ -143,7 +143,7 @@ fn build_and_save_a_blend() {
         s.on_key(Key::Char(c));
     }
     assert_eq!(s.on_key(Key::Enter), Action::SaveBlend("1970 Fender 121+b52".into()));
-    // la ligne de commande décrit **la chaîne** : vide, elle n'a rien à dire (#134)
+    // la ligne de commande décrit **la chaîne** : vide, elle n'a rien à dire
     assert_eq!(s.command_line(Some("c9zz")), None);
     s.on_key(Key::Enter); // le son du banc dans la chaîne (§ 4)
     assert_eq!(s.command_line(Some("c9zz")).unwrap(), "namfoop run -m m002 -i c9zz");
@@ -369,7 +369,7 @@ fn ab_with_reference_equal_to_current_ir_is_explained() {
 
 /// Des profils mesurés pour chaque modèle **et** chaque IR, tous différents (sinon `c` / `r` les
 /// prendraient pour des copies identiques). Les modèles reçoivent en plus leur `voicing`, la courbe
-/// du modèle nu dont le panneau Bandes a besoin (#183).
+/// du modèle nu dont le panneau Bandes a besoin.
 pub fn with_model_profiles(s: &mut State) {
     let curve = |offset: f32, slope: f32| {
         std::sync::Arc::new(dsp::profile::IrProfile {

@@ -238,10 +238,10 @@ pub enum Block {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Chain {
     pub blocks: Vec<Block>,
-    /// **Volume du preset** (dB), `,` et `.` (#179). Il vit ici, avec les blocs, pour deux raisons :
+    /// **Volume du preset** (dB), `,` et `.`. Il vit ici, avec les blocs, pour deux raisons :
     /// il s'enregistre dans le preset, et « non enregistré » (`unsaved`, qui compare deux `Chain`)
     /// le voit alors sans une ligne de plus. Appliqué **après** l'alignement de niveau sur le DI,
-    /// il est le seul gain du preset que cet alignement n'annule pas (#178).
+    /// il est le seul gain du preset que cet alignement n'annule pas.
     pub volume_db: f32,
     /// **Tempo du preset** (BPM), d'où les effets réglés en divisions rythmiques tirent leur durée
     /// (ADR 0008). Ici pour la même raison que `volume_db` : il s'enregistre dans le preset, donc
@@ -275,8 +275,8 @@ pub enum Cursor {
     /// Le bloc `j` de la branche `b`.
     Block { top: usize, b: usize, j: usize },
     /// La **sortie** du parallèle au bloc `top` : le `◇` de son bord droit, là où les branches se
-    /// somment. C'est de là qu'on ajoute **après** le parallèle (#152 ; chez Helix et Quad Cortex,
-    /// le point de fusion est un objet qu'on sélectionne).
+    /// somment. C'est de là qu'on ajoute **après** le parallèle (chez Helix et Quad Cortex, le
+    /// point de fusion est de même un objet qu'on sélectionne).
     Merge(usize),
 }
 

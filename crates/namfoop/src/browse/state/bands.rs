@@ -1,4 +1,4 @@
-//! Le panneau **Bandes** du banc d'essai (#183) : ce que la chaîne écoutée fait aux sept zones
+//! Le panneau **Bandes** du banc d'essai : ce que la chaîne écoutée fait aux sept zones
 //! nommées de la bibliothèque (`library::profile::ZONES`).
 //!
 //! Rien n'est mesuré ici. Tout vient des profils déjà calculés avec la basse de l'utilisateur et
@@ -19,7 +19,7 @@ use super::{IrChoice, State};
 pub const N: usize = 7;
 
 /// À partir de combien de colonnes l'écran est « large » : le panneau Spectre s'ouvre à droite de
-/// la liste (128 : la police 10×20 de l'écran du Pi, #138) et le panneau Bandes s'y glisse sans
+/// la liste (128 : la police 10×20 de l'écran du Pi) et le panneau Bandes s'y glisse sans
 /// coûter une seule ligne de liste — il y est donc affiché d'office. En dessous, il faudrait
 /// prendre des lignes à la liste : il attend `z`.
 pub const WIDE_COLUMNS: u16 = 128;

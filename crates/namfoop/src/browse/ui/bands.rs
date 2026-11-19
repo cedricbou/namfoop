@@ -1,4 +1,4 @@
-//! Panneau **Bandes** du banc d'essai (#183) : un égaliseur graphique des sept zones nommées
+//! Panneau **Bandes** du banc d'essai : un égaliseur graphique des sept zones nommées
 //! (`library::profile::ZONES`), pour lire d'un coup d'œil ce que la chaîne écoutée fait à la basse.
 //!
 //! Les valeurs viennent de `State::bands` (profils déjà mesurés et mis en cache) : rien n'est

@@ -1,4 +1,4 @@
-//! **Les touches de l'édition d'un set** (`e`, § 8 de `docs/design/set.md`, #220).
+//! **Les touches de l'édition d'un set** (`e`, § 8 de `docs/design/set.md`).
 //!
 //! Elles vivent à part parce qu'elles sont nombreuses et que l'écran de l'édition s'en sert
 //! **groupées** : la ligne de rappel du bas de la table montre d'abord ce qui agit sur le
@@ -6,7 +6,7 @@
 
 use super::{k, n, Binding, Key, ENTER, ESC, UP_DOWN};
 
-// ------------------------------------------------------- l'édition d'un set (`e`, § 8, #220)
+// ------------------------------------------------------- l'édition d'un set (`e`, § 8)
 //
 // La table est coupée en **quatre** parce que l'écran de l'édition l'est aussi : la ligne de
 // rappel du bas montre les touches du **morceau** puis celles du **son**, et c'est d'ici qu'elle

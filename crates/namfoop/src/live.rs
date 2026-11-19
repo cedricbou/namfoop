@@ -12,7 +12,7 @@ use engine::{Engine, EngineConfig, Routing};
 const MAX_BLOCK: usize = 1024;
 /// Fondu d'un changement de chaîne (presets à venir ; `run` n'en change pas encore).
 const FADE_MS: f32 = 20.0;
-/// Queue de preset : durée maximale pendant laquelle la chaîne quittée finit de sonner (#172).
+/// Queue de preset : durée maximale pendant laquelle la chaîne quittée finit de sonner.
 /// Elle s'arrête d'elle-même dès qu'elle est éteinte, ce plafond ne sert qu'aux delays à long
 /// feedback (mesuré : la réverbe par défaut est éteinte en 1,2 s).
 const TRAILS_MS: f32 = 2000.0;
@@ -32,9 +32,9 @@ pub struct Session {
     pub seconds: Option<f64>,
     /// Pas de vumètre.
     pub quiet: bool,
-    /// Garder la **queue de preset** (#172).
+    /// Garder la **queue de preset**.
     pub trails: bool,
-    /// Clic de métronome dans les sorties in-ear (#201).
+    /// Clic de métronome dans les sorties in-ear.
     pub click: bool,
 }
 
@@ -54,7 +54,7 @@ pub fn run(
              `namfoop setup`, ou ajoute `click = true` à une sortie de [routing] dans la config"
         );
     }
-    // la chaîne des options, ou celle d'un preset (`--preset`, #159)
+    // la chaîne des options, ou celle d'un preset (`--preset`)
     let spec = amp.chain_spec(conf, Some(Arc::clone(&limiter)))?;
     let chain = spec.build(cfg.rate, MAX_BLOCK)?;
     if spec.blocks.is_empty() {

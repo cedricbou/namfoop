@@ -1,4 +1,4 @@
-//! Les presets dans `browse` (#110) : conversion chaîne ⇄ preset (aller-retour), indicateur
+//! Les presets dans `browse` : conversion chaîne ⇄ preset (aller-retour), indicateur
 //! d'enregistrement, banque (`P`), `S`, et la bascule qui demande une fois.
 
 use super::super::chain::{Block, Branch, Cursor, Leaf, Mode, Split};
@@ -17,7 +17,7 @@ fn ir(i: usize) -> Leaf {
 }
 
 /// Une chaîne complète, en preset, puis relue : **la même chaîne**. Les sons sont cités par
-/// chemin relatif et identifiant (#157), le solo n'est pas enregistré.
+/// chemin relatif et identifiant, le solo n'est pas enregistré.
 #[test]
 fn a_chain_survives_a_round_trip_through_a_preset() {
     let mut s = with_chain(vec![
@@ -63,11 +63,11 @@ fn a_chain_survives_a_round_trip_through_a_preset() {
     assert_eq!(s.preset_line(0), s.chain_line(&back), "la banque montre la chaîne en une ligne");
 }
 
-/// `,` / `.` règlent le **volume du preset** (#179) : il s'enregistre avec la chaîne, il compte
+/// `,` / `.` règlent le **volume du preset** : il s'enregistre avec la chaîne, il compte
 /// comme une modification, il est borné, et il se lit dans la chaîne écoutée — contrairement à un
-/// bloc `gain`, que l'alignement sur le DI annule (#178).
+/// bloc `gain`, que l'alignement sur le DI annule.
 ///
-/// Il ne demande **aucune** chaîne au thread de construction : c'est un réglage **vivant** (#187),
+/// Il ne demande **aucune** chaîne au thread de construction : c'est un réglage **vivant**,
 /// que la boucle d'affichage pose dans la case que la chaîne qui joue relit à chaque bloc.
 #[test]
 fn the_preset_volume_is_adjusted_saved_and_bounded() {
@@ -75,7 +75,7 @@ fn the_preset_volume_is_adjusted_saved_and_bounded() {
     s.mark_start();
     assert!(s.unsaved().is_empty(), "rien de changé au départ");
 
-    // `.` monte, `,` baisse, d'un dB — sans rien rebâtir (#187)
+    // `.` monte, `,` baisse, d'un dB — sans rien rebâtir
     assert_eq!(s.on_key(Key::Char('.')), Action::None, "aucune chaîne redemandée");
     assert_eq!(s.fx.chain.volume_db, 1.0);
     assert_eq!(s.plan().volume_db, 1.0, "mais la chaîne écoutée le porte : la case suivra");
@@ -242,7 +242,7 @@ fn the_bank_loads_a_preset_and_asks_once_if_needed() {
     assert!(!s.confirm_switch && s.naming_preset && s.pending_switch.is_some());
 }
 
-/// La fenêtre de `q` gagne `S` : enregistrer puis quitter (#110).
+/// La fenêtre de `q` gagne `S` : enregistrer puis quitter.
 #[test]
 fn the_quit_window_can_save_first() {
     let mut s = with_chain(vec![Block::Leaf(nam(0)), fx_block("reverb")]);
@@ -276,7 +276,7 @@ fn t_unfolds_the_preset_toml() {
 }
 
 /// `PgDn` / `PgUp` : preset suivant / précédent, dans l'ordre de la banque et **en boucle** —
-/// le geste du pédalier (#158). Dans la Bibliothèque, ces touches défilent les listes.
+/// le geste du pédalier. Dans la Bibliothèque, ces touches défilent les listes.
 #[test]
 fn page_keys_step_through_the_bank() {
     let mut s = with_chain(vec![Block::Leaf(nam(0))]);
@@ -335,7 +335,7 @@ fn page_keys_step_through_the_bank() {
     assert!(lib.preset.is_none(), "aucun preset chargé depuis la Bibliothèque");
 }
 
-/// `n` : une **chaîne vierge**, détachée du preset courant (#170). C'est le seul moyen de bâtir une
+/// `n` : une **chaîne vierge**, détachée du preset courant. C'est le seul moyen de bâtir une
 /// chaîne neuve sans vider celle d'un preset — et donc sans risquer de réenregistrer par-dessus lui.
 #[test]
 fn n_starts_a_blank_chain_detached_from_the_preset() {
@@ -378,7 +378,7 @@ fn n_starts_a_blank_chain_detached_from_the_preset() {
     assert_eq!(s.preset.as_ref().unwrap().name, "Ampli");
 }
 
-/// `n` sur une chaîne non enregistrée demande **une fois**, comme une bascule de preset (#158) :
+/// `n` sur une chaîne non enregistrée demande **une fois**, comme une bascule de preset :
 /// Échap reste, Entrée repart quand même, `S` enregistre d'abord et la chaîne vierge attend
 /// l'écriture (reprise dans `browse/mod.rs`).
 #[test]
@@ -417,7 +417,7 @@ fn n_asks_once_when_the_chain_is_not_saved() {
     assert!(s.fx.chain.is_empty() && s.preset.is_none());
 }
 
-/// `n` marche aussi depuis la fenêtre de la banque (`P`), qu'elle referme (#170).
+/// `n` marche aussi depuis la fenêtre de la banque (`P`), qu'elle referme.
 #[test]
 fn n_works_from_the_bank_window() {
     let mut s = with_chain(vec![Block::Leaf(nam(0))]);

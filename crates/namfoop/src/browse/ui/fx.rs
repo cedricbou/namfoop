@@ -34,7 +34,7 @@ fn bar(frac: f32) -> String {
 pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     // le sélecteur prend toute la hauteur qui reste sous le synoptique (4 lignes de liste au
     // moins, § 7) ; sinon, la disposition habituelle (réglages, ligne de commande)
-    // `t` déplie le TOML du preset : le panneau du bas prend la place qu'il faut (#110)
+    // `t` déplie le TOML du preset : le panneau du bas prend la place qu'il faut
     let bas = if s.show_toml { 14 } else { 4 };
     let [chain, params, cmd] = if s.picker.is_some() {
         let syn = synoptic::height(s).min(area.height / 2).max(3) + 2;
@@ -62,7 +62,7 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
         (None, false) => head,
     };
     // on arrive ici depuis l'espace Set (`2`) : modifier ce son, c'est modifier son preset, donc
-    // **tous** les morceaux du set qui s'en servent. `S` enregistre partout (§ 8, #220).
+    // **tous** les morceaux du set qui s'en servent. `S` enregistre partout (§ 8).
     let head = match s.set_preset_note() {
         Some(note) if s.place.is_none() => format!("{head} · {note}"),
         _ => head,
@@ -78,7 +78,8 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     render_panel(s, f, params, cmd);
 
     // --- la fenêtre du catalogue, par-dessus tout l'écran : **toujours** dessinée quand elle est
-    // ouverte, quel que soit le panneau du bas (#148 : un `return` la sautait sur un bloc nam / ir)
+    // ouverte, quel que soit le panneau du bas — un `return` plus haut la ferait disparaître sur
+    // un bloc nam / ir
     if s.fx.catalog.is_some() {
         render_catalog(s, f.area(), f);
     }
@@ -147,7 +148,7 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
         )),
     }
     // un `gain` sous le curseur dans une chaîne alignée sur le DI : dire pourquoi la valeur qu'on
-    // tourne ne change rien à la sortie (#178)
+    // tourne ne change rien à la sortie
     if s.gain_cancelled_by_alignment() {
         lines.push(Line::styled(
             "   ⚠ volume aligné sur le DI : ce gain ne change pas la sortie, seulement la saturation",
@@ -171,7 +172,7 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
 }
 
 /// Le panneau du bas : la ligne de commande équivalente (et le TOML du preset, replié par défaut
-/// — une ligne `▸ preset TOML (t)`, #110).
+/// — une ligne `▸ preset TOML (t)`).
 fn render_command_line(s: &State, f: &mut Frame, cmd: Rect) {
     if s.show_toml {
         let text = match s.preset_toml() {
@@ -269,11 +270,10 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
 
 /// Touches affichées en bas de l'espace Chaîne, selon ce que le curseur désigne (§ 7). Chaque
 /// barre finit par les touches qui permettent d'en **sortir** (`h`, `1`, `q`) : c'est l'aide
-/// permanente, l'overlay `h` donne le détail (#150).
+/// permanente, l'overlay `h` donne le détail.
 /// **La tête de la barre du bas de la Chaîne** : où l'on est dans le synoptique, et donc ce que
 /// les flèches vont faire. C'est la seule partie qui dépend du curseur ; tout le reste vient de la
-/// table (`state/bindings.rs`) depuis #243 — avant, cette fonction portait aussi une constante
-/// `SORTIE` recopiée à la main, sixième copie des mêmes touches.
+/// table (`state/bindings.rs`), seule déclaration des touches.
 pub fn chain_head(s: &State) -> String {
     let leaf = s.fx.chain.leaf(s.fx.cursor);
     match (leaf, s.fx.chain.spot(s.fx.cursor)) {

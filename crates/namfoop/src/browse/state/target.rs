@@ -5,8 +5,8 @@
 //!   pas même le gate —, avec l'A/B appliqué (`effective_model` / `effective_ir`) ;
 //! - **Chaîne** : les blocs édités, avec l'essai du sélecteur, l'écoute isolée `o` et `r`.
 //!
-//! Les onglets ne « visent » plus de bloc : `library_target`, `sync_from_target` et `push_to_chain`
-//! ont disparu avec le § 10 de `browse-chaine.md`, remplacé par l'épique #131 (#134).
+//! Un onglet ne « vise » aucun bloc de la chaîne : ce qu'on écoute se déduit de l'espace, et de
+//! lui seul.
 
 use super::chain;
 use super::space::Space;
@@ -56,7 +56,7 @@ impl State {
         if ir != IrChoice::None {
             blocks.push(chain::Block::Leaf(chain::Leaf::Ir { ir, on: true }));
         }
-        // le banc d'essai n'est pas un preset : pas de volume propre (#179). Le tempo, lui, est
+        // le banc d'essai n'est pas un preset : pas de volume propre. Le tempo, lui, est
         // une **seule** case partagée par toutes les chaînes audibles (ADR 0007) : celui de la
         // chaîne éditée vaut aussi ici, et il n'y a rien à choisir.
         chain::Chain { blocks, volume_db: 0.0, tempo_bpm: self.fx.chain.tempo_bpm }

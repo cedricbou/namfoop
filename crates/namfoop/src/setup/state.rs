@@ -451,7 +451,7 @@ impl State {
                 .enumerate()
                 .filter(|(_, r)| **r != OutRole::Nothing)
                 .map(|(c, r)| {
-                    // le **clic du métronome** va dans les sorties déclarées **in-ear** (#201) :
+                    // le **clic du métronome** va dans les sorties déclarées **in-ear** :
                     // c'est exactement l'information que cet écran demande déjà, et c'est ce qui
                     // garantit qu'il n'atterrit jamais dans le sondier. Il reste éteint tant qu'on
                     // ne l'allume pas (`k` dans `browse`, `--click` pour `run`).

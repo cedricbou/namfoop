@@ -110,7 +110,7 @@ impl State {
     }
 
     /// L'**alignement de niveau sur le DI** de la chaîne en écoute (dB), quand il y en a un : le
-    /// dernier étage réel avant la sortie, que le synoptique montre en queue (#178). Comme les
+    /// dernier étage réel avant la sortie, que le synoptique montre en queue. Comme les
     /// barres, il décrit la chaîne **installée** : il arrive avec elle, pas à la frappe.
     pub fn level_align_db(&self) -> Option<f32> {
         self.chain_meters.as_ref().and_then(|t| t.level_db)

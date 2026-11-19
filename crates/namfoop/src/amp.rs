@@ -151,7 +151,7 @@ fn first_of(blocks: &[dsp::block::BlockSpec], nam: bool) -> Option<PathBuf> {
 }
 
 impl AmpArgs {
-    /// La chaîne à jouer : celle des options, ou celle d'un **preset** (`--preset`, #159). Le
+    /// La chaîne à jouer : celle des options, ou celle d'un **preset** (`--preset`). Le
     /// **cadre** (trim, niveau, master, limiteur) reste celui des options et de la config ; seuls
     /// les blocs viennent du preset — exactement ce que fait `browse`.
     pub fn chain_spec(
@@ -199,7 +199,7 @@ impl AmpArgs {
         frame.ir = first_of(&blocks, false).map(|p| p.display().to_string());
         let mut chain = frame.spec(conf, limiter_meter)?.to_chain_spec();
         chain.blocks = blocks;
-        // le volume du preset, appliqué après l'alignement de niveau (#179) : `run --preset` doit
+        // le volume du preset, appliqué après l'alignement de niveau : `run --preset` doit
         // sonner comme dans `browse`, où il a été réglé à l'oreille
         chain.volume = preset.volume_db.into();
         if preset.volume_db != 0.0 {
@@ -333,8 +333,9 @@ mod tests {
     use super::*;
 
     /// Le preset porte son tempo (ADR 0008) : `run --preset` doit sonner comme dans `browse`, où il
-    /// a été réglé. `--tempo` l'emporte quand il est donné. C'est la régression de #195 : sans ce
-    /// branchement, une croche pointée tombait à 375 ms (120 BPM) au lieu de 489 (92 BPM).
+    /// a été réglé, et `--tempo` l'emporte quand il est donné. Sans ce branchement, `chain_spec()`
+    /// ne reprendrait du preset que son volume, et une croche pointée tomberait à 375 ms (120 BPM)
+    /// au lieu de 489 (92 BPM).
     #[test]
     fn a_preset_brings_its_own_tempo_and_tempo_wins() {
         let dir = std::env::temp_dir().join(format!("namfoop-tempo-{}", std::process::id()));

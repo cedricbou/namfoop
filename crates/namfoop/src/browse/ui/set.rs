@@ -1,4 +1,4 @@
-//! **La vue scène** (§ 6 de `docs/design/set.md`, #219) : la set list à gauche, le cadre du
+//! **La vue scène** (§ 6 de `docs/design/set.md`) : la set list à gauche, le cadre du
 //! morceau à droite, tous deux sur toute la hauteur — la hauteur sert à **voir venir**, la largeur
 //! au texte du prompteur (son contenu est l'US 6a, sa bande de battue l'US 6b).
 //!
@@ -6,7 +6,7 @@
 //! se réduit à 30 ; sous 70 elle disparaît au profit d'une seule ligne au-dessus du cadre, qui
 //! prend alors toute la largeur. Sur scène, un écran étroit ne doit pas cacher ce qu'on joue.
 //!
-//! **L'édition** (`e`, § 8, #220) remplace les deux colonnes par **une** table pleine largeur :
+//! **L'édition** (`e`, § 8) remplace les deux colonnes par **une** table pleine largeur :
 //! on y voit les PC, les tempos, les sons et leurs volumes de **tous** les morceaux à la fois,
 //! parce que bâtir une set list, c'est comparer des lignes entre elles. Le prompteur est masqué.
 
@@ -239,11 +239,11 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     let mut lines: Vec<Line> = Vec::new();
     // la place de la bande de battue (US 6b) et du texte (US 6a) : dite, pas simulée
     lines.push(Line::styled(
-        format!("  ♩{:.0} {}   (battue : #223)", s.heard_tempo_bpm(), set.spec.songs[at.0].time_sig()),
+        format!("  ♩{:.0} {}", s.heard_tempo_bpm(), set.spec.songs[at.0].time_sig()),
         Style::new().fg(Color::DarkGray),
     ));
     lines.push(Line::raw(""));
-    // le texte du morceau (§ 10, #222) : ce qui reste de hauteur lui revient, moins la place du
+    // le texte du morceau (§ 10) : ce qui reste de hauteur lui revient, moins la place du
     // morceau suivant (4 lignes) qu'on garde pour voir venir
     let room = (area.height as usize).saturating_sub(7);
     lines.extend(prompt_lines(s, set, at, area.width.saturating_sub(4) as usize, room));
@@ -278,7 +278,7 @@ fn clip(s: &str, w: usize) -> String {
     s.chars().take(w.saturating_sub(1)).collect::<String>() + "…"
 }
 
-// ------------------------------------------------------------- l'édition (`e`, § 8, #220)
+// ------------------------------------------------------------- l'édition (`e`, § 8)
 
 /// La couleur de l'édition : **jaune**, comme tout ce qui n'est pas enregistré dans `browse`.
 const EDIT: Color = Color::Yellow;
@@ -299,7 +299,7 @@ fn render_edit(set: &ActiveSet, edit: &Edit, f: &mut Frame, area: Rect) {
         lines.push(edit_row(set, edit, i, song, title_w, untitled));
     }
     // le rappel des touches, groupé comme l'écran : ce qui agit sur le morceau, puis sur le son.
-    // Le texte vient de la table (#243) : la barre du bas, l'aide `h` et ces deux lignes ne
+    // Le texte vient de la table : la barre du bas, l'aide `h` et ces deux lignes ne
     // peuvent pas se contredire.
     let room = area.height as usize;
     if lines.len() + 4 <= room {
@@ -412,7 +412,7 @@ fn edit_row(
 }
 
 /// La **saisie** d'un titre, d'un tempo ou d'un PC : une petite fenêtre jaune, parce qu'elle prend
-/// le clavier entier (#175) et que cela doit se voir.
+/// le clavier entier et que cela doit se voir.
 pub(super) fn render_typing(s: &State, f: &mut Frame, area: Rect) {
     let Some(t) = s.set_edit.as_ref().and_then(|e| e.typing.as_ref()) else { return };
     let lines = vec![
@@ -506,7 +506,7 @@ fn window(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line<'static>>, min
     );
 }
 
-// -------------------------------------------------- le prompteur (§ 10, #222)
+// -------------------------------------------------- le prompteur (§ 10)
 
 /// Le **texte du morceau joué** : sections étiquetées, accords, cues, et la position.
 ///

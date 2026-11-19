@@ -1,15 +1,14 @@
-//! **La table des touches** (#243, épique #240) : ce que chaque contexte possède, déclaré **une
-//! fois**.
+//! **La table des touches** : ce que chaque contexte possède, déclaré **une fois**.
 //!
-//! Avant, une touche existait jusqu'à **quatre fois** : le dispatch (`keys.rs`), la barre du bas
-//! (`ui/footer.rs`), l'aide `h` (`ui/windows.rs`) et la liste blanche du verrou. Rien ne reliait
-//! les quatre, et cinq divergences y vivaient tranquillement — dont celle qui a fait #238 (un
-//! `PgDn/PgUp son` affiché sans rien derrière).
+//! Quatre endroits ont besoin de cette déclaration — le dispatch (`keys.rs`), la barre du bas
+//! (`ui/footer.rs`), l'aide `h` (`ui/windows.rs`) et la liste blanche du verrou. Une touche écrite
+//! quatre fois diverge : annoncée sans être traitée (un `PgDn/PgUp son` affiché avec rien
+//! derrière), ou traitée sans être annoncée nulle part.
 //!
 //! Cette table est la **déclaration**. Le `match` de `keys.rs` reste l'**exécuteur**, et deux tests
 //! font la **jointure** :
 //!
-//! - toute touche déclarée ici **agit** dans son contexte (jointure avec l'oracle de #241) ;
+//! - toute touche déclarée ici **agit** dans son contexte (jointure avec l'oracle du clavier) ;
 //! - toute touche que la barre du bas annonce **est déclarée** ici.
 //!
 //! On n'a volontairement **pas** fait porter un identifiant d'action au dispatch pour que le
@@ -26,8 +25,8 @@ pub mod set_edit;
 ///
 /// Les réglables le sont parce qu'un footswitch les envoie (`[set] next_song` / `prev_song` pour le
 /// morceau, `prompt_next` / `prompt_prev` pour les sections du prompteur), et c'est pour ça
-/// qu'elles ne peuvent pas être de simples `Key` `'static`. Quatre variantes nommées, et non un
-/// système de configuration : c'est ce que #222 a ajouté, comme annoncé.
+/// qu'elles ne peuvent pas être de simples `Key` `'static`. Quatre variantes **nommées**, et non un
+/// système de configuration : le besoin est le pédalier, pas la personnalisation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeySpec {
     Fixed(Key),
@@ -55,9 +54,9 @@ pub struct Binding {
     /// Le segment de la **barre du bas**, déjà compressé pour tenir sur une ligne
     /// (`↑↓ choisir`). Vide : cette touche n'est pas dans la barre — l'aide `h` la donne.
     ///
-    /// Deux rendus, **une** déclaration : c'est tout l'objet de #243. La barre garde son texte
-    /// taillé à la main (il est lu sur scène, et `help_bar` compte ses segments pour toujours
-    /// garder les trois derniers, #150), mais il ne vit plus qu'ici.
+    /// Deux rendus, **une** déclaration. La barre garde un texte taillé à la main — il est lu sur
+    /// scène, et `help_bar` compte ses segments pour toujours garder les trois derniers —, mais ce
+    /// texte ne vit qu'ici.
     pub bar: &'static str,
 }
 
@@ -75,7 +74,7 @@ pub(super) const ENTER: &[KeySpec] = &[n(Key::Enter)];
 pub(super) const ESC: &[KeySpec] = &[n(Key::Esc)];
 
 /// **Ce que ce contexte possède.** L'ordre est celui de l'aide `h` : du geste principal aux
-/// sorties, parce que c'est l'ordre dans lequel on en a besoin (#150).
+/// sorties, parce que c'est l'ordre dans lequel on en a besoin.
 // ------------------------------------------------------------------ la scène verrouillée
 const STAGE: &[Binding] = &[
     Binding {
@@ -170,7 +169,7 @@ const NAMING: &[Binding] = &[
     Binding {
         keys: &[],
         label: "tape le nom",
-        what: "les lettres vont au nom, pas aux commandes (#175)",
+        what: "les lettres vont au nom, pas aux commandes",
         bar: "tape le nom",
     },
     Binding { keys: ENTER, label: "Entrée", what: "enregistrer", bar: "Entrée enregistrer" },
@@ -181,7 +180,7 @@ const FILTERING: &[Binding] = &[
     Binding {
         keys: &[],
         label: "tape pour filtrer",
-        what: "les lettres vont au filtre (#175)",
+        what: "les lettres vont au filtre",
         bar: "tape pour filtrer",
     },
     Binding { keys: ENTER, label: "Entrée", what: "valider le filtre", bar: "Entrée valider" },
@@ -399,7 +398,7 @@ const SET: &[Binding] = &[
         keys: &[k('e')], label: "e", what: "éditer le set (la table de l'édition)", bar: "e éditer"
     },
     Binding { keys: &[k('L')], label: "L", what: "choisir le set de concert (ou aucun set)", bar: "L sets" },
-    // `n` **éclipsée** (#250) : commune ailleurs, elle vidait la chaîne et quittait cet espace.
+    // `n` **éclipsée** : commune ailleurs, elle vidait la chaîne et quittait cet espace.
     // Ici elle dit où bâtir — la barre de cet écran est pleine, l'aide `h` la porte.
     Binding {
         keys: &[k('n')], label: "n", what: "une chaîne vierge se bâtit dans la Chaîne (2)", bar: ""
@@ -427,10 +426,10 @@ const PARAMS: &[Binding] = &[
     Binding {
         keys: &[n(Key::Enter), n(Key::Esc)],
         label: "Entrée / Échap",
-        what: "revenir à la chaîne — rien ne s'édite depuis les réglages (#249)",
+        what: "revenir à la chaîne — rien ne s'édite depuis les réglages",
         bar: "Échap retour à la chaîne",
     },
-    // La **liste blanche** du panneau (#249) : il refuse ce qui **édite** la chaîne et laisse
+    // La **liste blanche** du panneau : il refuse ce qui **édite** la chaîne et laisse
     // passer ce qui **écoute** ou **montre** — c'est ce qu'on fait en réglant un paramètre.
     Binding { keys: &[k(','), k('.')], label: ", / .", what: "volume du preset (1 dB)", bar: ", . volume" },
     Binding {
@@ -628,7 +627,7 @@ const CHAIN_MERGE: &[Binding] = &[
 ];
 
 /// **Ce que ce contexte possède.** L'ordre est celui de l'aide `h` : du geste principal aux
-/// sorties, parce que c'est l'ordre dans lequel on en a besoin (#150).
+/// sorties, parce que c'est l'ordre dans lequel on en a besoin.
 pub fn bindings(ctx: Context) -> &'static [Binding] {
     use Context as C;
     match ctx {

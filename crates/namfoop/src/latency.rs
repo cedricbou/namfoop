@@ -3,7 +3,7 @@
 //!
 //! Le retour n'est **pas** cherché avec un seuil fixe : à travers PipeWire, l'impulsion d'un
 //! échantillon passe par l'étage de volume et le convertisseur, qui l'étalent — sa crête peut
-//! tomber très bas (avec la sortie à 85 %, l'ancien seuil de 0,05 ne voyait plus rien, #70). On
+//! tomber très bas (avec la sortie à 85 %, l'ancien seuil de 0,05 ne voyait plus rien). On
 //! prend donc le **maximum** de |x| dans la fenêtre d'écoute, en le comparant au **bruit de fond**
 //! mesuré juste avant : un critère relatif, qui marche à n'importe quel niveau. C'est la même idée
 //! que `dsp::split::measure_latency`, qui aligne les branches par corrélation.
@@ -225,7 +225,7 @@ mod tests {
     }
 
     /// Un retour franc : la latence trouvée est le décalage, quel que soit son niveau — même à
-    /// -40 dBFS, là où l'ancien seuil fixe de 0,05 (-26 dBFS) ne voyait plus rien (#70).
+    /// -40 dBFS, là où l'ancien seuil fixe de 0,05 (-26 dBFS) ne voyait plus rien.
     #[test]
     fn the_delay_is_found_whatever_the_return_level() {
         for amplitude in [0.7f32, 0.05, 0.01, 0.001] {

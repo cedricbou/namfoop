@@ -5,7 +5,7 @@
 #
 # « inertes » = les touches qui ne changent RIEN dans ce contexte : ni action, ni message,
 # ni le moindre champ d'état. Une touche annoncée par la barre du bas qui apparaît là est
-# un bug de la famille #238.
+# un mensonge : la jointure avec la table la refuse.
 
 ## bibliothèque · onglet Modèles
   ↓        curseur: 0 → 1

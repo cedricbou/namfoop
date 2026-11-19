@@ -40,7 +40,7 @@ pub struct Picker {
     pub iso: bool,
     /// Ce qu'on essaie (la ligne visitée avec ↑↓).
     pub trial: Option<usize>,
-    /// `c` : on réentend l'actuel sans bouger le curseur (#136).
+    /// `c` : on réentend l'actuel sans bouger le curseur.
     pub ab: bool,
 }
 
@@ -353,12 +353,12 @@ impl State {
             }
             Key::Char('/') => self.picker.as_mut().expect("ouvert").filtering = true,
             // `e` : calibrer est réservé à la Bibliothèque (§ 9, corrigé : un message plutôt que
-            // rien du tout — le silence rendait l'écran incompréhensible, #148)
+            // rien du tout — le silence rendait l'écran incompréhensible)
             Key::Char('e') => {
                 self.message = Some("calibrer (e) se fait dans la Bibliothèque (1), sur le modèle".into())
             }
             // **aucune touche muette** : le sélecteur est modal, il doit dire pourquoi il ne fait
-            // rien (#148 : `a` sans réponse donnait l'impression d'un écran bloqué)
+            // rien : une touche sans réponse donne l'impression d'un écran bloqué
             _ => self.message = Some("valide (Entrée) ou annule (Échap) le choix d'abord".into()),
         }
         Some(Action::None)

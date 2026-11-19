@@ -1,7 +1,7 @@
 //! Le **clavier** de `browse` : qui prend la main, et dans quel ordre. C'est le seul endroit où
 //! l'ordre des couches est écrit — fenêtres (quitter, bascule de preset), saisies de texte (nom,
 //! filtre des listes, **filtre du catalogue** : une saisie passe toujours avant les touches
-//! communes, #175), banque, « mettre dans la chaîne » et mode pose, sélecteur sur place, puis les
+//! communes), banque, « mettre dans la chaîne » et mode pose, sélecteur sur place, puis les
 //! touches de l'espace.
 //!
 //! Chaque couche modale rend `Some(Action)` quand elle a consommé la touche (voir `picker`,
@@ -10,7 +10,7 @@
 use super::*;
 
 impl State {
-    /// **Les étages du clavier** (ADR 0009, #242). Une touche descend les étages dans cet ordre,
+    /// **Les étages du clavier** (ADR 0009). Une touche descend les étages dans cet ordre,
     /// et le **premier qui la possède** la consomme. Trois issues possibles à chaque étage :
     /// `Some(action)` « elle est à moi », `None` « pas à moi, continue plus bas », et — pour les
     /// saisies seulement — *rejouer depuis le haut* (`on_key` récursif), qui n'est pas une
@@ -24,7 +24,7 @@ impl State {
         if self.locked {
             return self.locked_key(key);
         }
-        // les fenêtres qui prennent TOUT, les saisies de texte (gloutonnes sur les lettres, #175)
+        // les fenêtres qui prennent TOUT, les saisies de texte (gloutonnes sur les lettres)
         // et les fenêtres modales : voir `grabbing_key`.
         if let Some(a) = self.grabbing_key(key) {
             return a;
@@ -33,7 +33,7 @@ impl State {
         if let Some(a) = self.pedal_key(key) {
             return a;
         }
-        // ÉTAGE 2 — L'ESPACE où l'on est. Il passe **avant** les communes (#242) : c'est ce qui
+        // ÉTAGE 2 — L'ESPACE où l'on est. Il passe **avant** les communes : c'est ce qui
         // permet à un espace de s'approprier une touche, seule issue tenable avec 20 lettres
         // sur 26 déjà prises.
         if let Some(a) = self.space_key(key) {
@@ -49,7 +49,7 @@ impl State {
 
     /// Ce qui **prend la main avant les étages** : les fenêtres de confirmation, l'aide, l'éditeur,
     /// les saisies de texte et les fenêtres modales. Ce ne sont pas des éclipses mais des **modes**
-    /// — pendant une saisie, le clavier veut dire des lettres, et c'est la règle de #175.
+    /// — pendant une saisie, le clavier veut dire des **lettres**, pas des commandes.
     fn grabbing_key(&mut self, key: Key) -> Option<Action> {
         // la scène verrouillée (`run --set`, § 9) : le filtre passe **avant tout**, pour qu'aucune
         // couche ne puisse laisser passer un geste d'édition
@@ -130,7 +130,7 @@ impl State {
         }
         // le filtre du catalogue de blocs se tape au clavier : il prend les lettres avant les
         // touches communes, sinon `n` (chaîne vierge) mangerait le « n » de `nam` et de `gain`
-        // et effacerait la chaîne au lieu de filtrer (#175)
+        // et effacerait la chaîne au lieu de filtrer
         if let Some(a) = self.catalog_key(key) {
             return Some(a);
         }
@@ -148,14 +148,14 @@ impl State {
         if let Some(a) = self.picker_key(key) {
             return Some(a);
         }
-        // la fenêtre `L` (choisir le set) est une **modale comme les autres** (#242) : tant qu'elle
-        // est ouverte, elle prend tout. Elle vivait dans `set_key`, donc sous les communes, si bien
-        // que `n`, `P` et `S` agissaient DERRIÈRE elle — `n` effaçait la chaîne sous une fenêtre
-        // ouverte. Les modales se classent par leur priorité propre, pas par l'espace qui les tient.
+        // la fenêtre `L` (choisir le set) est une **modale comme les autres** : tant qu'elle est
+        // ouverte, elle prend tout. Une modale se classe par sa priorité propre et non par l'espace
+        // qui la tient : logée dans `set_key`, elle passerait **sous** les communes, et `n`, `P`,
+        // `S` agiraient derrière elle — `n` effacerait la chaîne sous une fenêtre ouverte.
         if let Some(a) = self.set_picker_key(key) {
             return Some(a);
         }
-        // les **sous-modes de l'édition d'un set** (§ 8, #220) : la saisie d'un titre, d'un tempo
+        // les **sous-modes de l'édition d'un set** (§ 8) : la saisie d'un titre, d'un tempo
         // ou d'un PC, la liste des presets, la confirmation de `X`. Ce sont des modes, donc ils
         // passent avant la pédale — sans quoi taper `1` dans un titre changerait d'espace et `q`
         // quitterait au milieu d'un nom (mesuré par l'oracle avant de monter ces trois-là ici).
@@ -171,7 +171,7 @@ impl State {
     /// Ce n'est pas de l'esthétique, c'est de la fiabilité : se retrouver coincé dans un espace,
     /// ou sans tap tempo, est un risque en concert. `*` et `k` sont des gestes physiques (le pied,
     /// l'oreille) qui doivent répondre pareil partout — quand ils n'ont rien à faire là, ils le
-    /// **disent** (`tap_tempo` le fait depuis #207) au lieu de ne rien faire.
+    /// **disent** (`tap_tempo` le fait) au lieu de ne rien faire.
     fn pedal_key(&mut self, key: Key) -> Option<Action> {
         Some(match key {
             Key::Char('1') => self.go_to(space::Space::Library),
@@ -193,9 +193,9 @@ impl State {
 
     /// **L'étage espace** : le clavier de l'espace où l'on est, et de lui seul.
     ///
-    /// C'est l'étage que #241 a rendu possible et que #238 réclamait : avant, le clavier de la
-    /// Bibliothèque était la dernière couche sans garde, si bien qu'une touche qu'un espace ne
-    /// consommait pas y retombait et agissait sur un écran qu'on ne regarde même pas.
+    /// Il existe pour qu'une touche qu'un espace ne consomme pas **ne retombe pas** dans le
+    /// clavier d'un autre écran : sans cet étage, le clavier de la Bibliothèque serait la dernière
+    /// couche, et une touche y agirait sur un écran qu'on ne regarde même pas.
     fn space_key(&mut self, key: Key) -> Option<Action> {
         match self.space {
             space::Space::Set => self.set_key(key),
@@ -209,7 +209,7 @@ impl State {
     fn common_key(&mut self, key: Key) -> Option<Action> {
         Some(match key {
             Key::Char('S') => self.save_preset(),
-            // `n` : repartir d'une chaîne vierge (#170)
+            // `n` : repartir d'une chaîne vierge
             Key::Char('n') => self.new_chain_or_confirm(),
             Key::Char('P') => {
                 self.bank = Some(preset::Bank::default());
@@ -230,7 +230,7 @@ impl State {
     /// Une touche que **personne** ne possède est retenue dans `unhandled` : la boucle l'écrit dans
     /// `NAMFOOP_BROWSE_TRACE`. Sur scène, « j'ai appuyé et rien ne s'est passé » devient alors
     /// diagnosticable — et rien ne s'affiche à l'écran, pour ne pas apprendre à l'utilisateur à
-    /// ignorer la zone de message, celle où #238 mentait déjà.
+    /// ignorer la zone de message — elle ne doit annoncer que ce qui est vrai.
     fn global_key(&mut self, key: Key) -> Action {
         match key {
             Key::Esc => self.message = Some("Échap ne quitte pas : q pour quitter".into()),
@@ -239,20 +239,19 @@ impl State {
         Action::None
     }
 
-    /// **Le clavier de la Bibliothèque** : les listes, le banc d'essai et le mélange. Extrait de
-    /// `on_key` par #242 — il en était la dernière couche, atteignable depuis tous les espaces.
+    /// **Le clavier de la Bibliothèque** : les listes, le banc d'essai et le mélange. C'est un
+    /// étage d'espace comme les deux autres, atteint depuis la seule Bibliothèque.
     ///
-    /// `_ => None` est **obligatoire** : sans lui, cette couche avalerait tout (c'était son
-    /// ancien `_ => {}`) et les étages du dessous — les communes, le dernier recours — mourraient
-    /// dans la Bibliothèque.
+    /// `_ => None` est **obligatoire** : cette couche rend un `Option`, et un `match` qui
+    /// consommerait tout (`_ => {}`) ferait mourir ici les étages du dessous — les communes, le
+    /// dernier recours.
     fn library_key(&mut self, key: Key) -> Option<Action> {
         let c = self.cursor();
         match key {
             // `Échap` et `q` ne sont plus ici : ils sont montés aux étages global et pédale, où
-            // ils valent **partout** (ADR 0009, #242).
-            // `z` : le panneau Bandes. Sa garde d'espace n'est plus nécessaire — cette couche
-            // n'est atteinte que depuis la Bibliothèque — mais c'est elle qui, de #183 à #241, a
-            // tenu le rôle qu'un étage tient maintenant pour toutes les touches.
+            // ils valent **partout** (ADR 0009).
+            // `z` : le panneau Bandes. Il n'a pas besoin de garde d'espace — cette couche n'est
+            // atteinte que depuis la Bibliothèque, et l'étage s'en charge pour toutes les touches.
             Key::Char('z') => self.toggle_bands(),
             Key::Char('/') => {
                 if matches!(self.tab, Tab::Models | Tab::Irs) {
@@ -409,8 +408,8 @@ impl State {
                 Action::None
             }
             _ => {
-                // la liste des touches qui marchent vient de la **table** : écrite ici, c'était
-                // une sixième copie, et elle ne nommait même pas la touche de morceau (#243)
+                // la liste des touches qui marchent vient de la **table**, seule déclaration :
+                // écrite ici, elle serait une copie de plus, à mettre à jour à la main
                 let ok: Vec<&str> = super::bindings::bindings(super::context::Context::Stage)
                     .iter()
                     .filter(|b| !b.bar.is_empty())
@@ -465,11 +464,11 @@ mod locked_tests {
 
     /// **Rien ne s'édite sur scène.** Toute touche que `browse` lie **ailleurs** et que la scène
     /// ne déclare pas doit être refusée *avec* la liste de celles qui marchent. C'est la garantie
-    /// de #221 : en concert, une touche de trop ne doit pas pouvoir enregistrer, charger ou vider.
+    /// du mode verrouillé : en concert, une touche de trop ne doit pas pouvoir enregistrer,
+    /// charger ou vider.
     ///
-    /// La liste des touches à essayer vient de la **table** (#243). Avant, c'étaient 30 touches
-    /// écrites à la main ici — une cinquième copie de l'inventaire des liaisons, que rien ne
-    /// mettait à jour quand une touche était ajoutée ailleurs.
+    /// La liste des touches à essayer vient de la **table** : écrite à la main ici, elle ne verrait
+    /// pas une touche ajoutée ailleurs dans `browse`, et ce test passerait pour rien.
     #[test]
     fn every_editing_key_is_refused() {
         use crate::browse::state::bindings::bindings;
@@ -576,9 +575,8 @@ mod tier_tests {
     use crate::browse::state::space::Space;
     use crate::browse::state::tests::{fx_block, sample, with_chain};
 
-    /// **Le piège de l'extraction** (#242) : la couche de la Bibliothèque n'était pas un `Option`
-    /// qui laisse passer, mais un `match` dont le bras `_ => {}` **avalait tout**. Si son `_`
-    /// rendait `Some(Action::None)` au lieu de `None`, les étages du dessous — les communes, le
+    /// **La couche de la Bibliothèque laisse passer.** Son `_` doit rendre `None` : s'il rendait
+    /// `Some(Action::None)`, elle avalerait tout et les étages du dessous — les communes, le
     /// dernier recours — mourraient dans la Bibliothèque. Ce test est là pour ça.
     #[test]
     fn the_library_layer_lets_the_lower_tiers_through() {
@@ -630,9 +628,9 @@ mod tier_tests {
     }
 
     /// **Une modale ne retombe jamais.** Tant qu'une fenêtre est ouverte, elle prend tout : sinon
-    /// une touche agit **derrière** elle, sur un écran que la fenêtre recouvre. C'était le cas de
-    /// `n` (qui effaçait la chaîne), `P`, `S`, `1`, `2`, `3`, `*`, `k` et `q` avec la fenêtre `L`
-    /// ouverte, parce qu'elle vivait dans `set_key`, donc **sous** les communes.
+    /// une touche agit **derrière** elle, sur un écran que la fenêtre recouvre — `n` effacerait la
+    /// chaîne, `P` ouvrirait la banque, `1` changerait d'espace. La garde ne tient que si la modale
+    /// est appelée à l'étage des modes, et non dans le clavier de l'espace qui la possède.
     #[test]
     fn an_open_window_takes_everything() {
         let mut s = with_chain(vec![fx_block("reverb")]);
@@ -666,11 +664,11 @@ mod tier_tests {
         assert!(s.set_picker.is_none());
     }
 
-    /// **Un panneau ne retombe pas non plus** (#249). Les réglages d'un effet laissaient passer
-    /// tout ce qu'ils ne traitaient pas : `Retour` et `x` retiraient le bloc dont on réglait
-    /// justement les paramètres — en laissant le focus sur un bloc qui n'en a aucun —, `s` le
-    /// mettait en parallèle, `a` ouvrait le catalogue, `n` vidait la chaîne. C'est #241 (agir sur
-    /// un écran qu'on ne regarde pas) appliqué à un quasi-modal.
+    /// **Un panneau ne retombe pas non plus**. Les réglages d'un effet sont un quasi-modal : ce
+    /// qu'ils laisseraient passer agirait sur la chaîne **derrière** eux — `Retour` et `x`
+    /// retireraient le bloc dont on règle justement les paramètres, en laissant le focus sur un
+    /// bloc qui n'en a aucun, `s` le mettrait en parallèle, `a` ouvrirait le catalogue, `n`
+    /// viderait la chaîne.
     ///
     /// La garde est une liste **blanche** : une liste de refus échouerait *ouverte*, et la
     /// prochaine touche d'édition agirait de nouveau derrière le panneau.
@@ -748,7 +746,7 @@ mod tier_tests {
     }
 
     /// Une touche que **personne** ne possède est retenue pour la trace, et **rien** ne s'affiche :
-    /// on n'apprend pas à l'utilisateur à ignorer la zone de message, celle où #238 mentait déjà.
+    /// on n'apprend pas à l'utilisateur à ignorer la zone de message, qui ne dit que du vrai.
     #[test]
     fn an_orphan_key_is_kept_for_the_trace_and_says_nothing() {
         let mut s = sample();
