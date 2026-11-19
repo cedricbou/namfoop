@@ -105,7 +105,7 @@
     </div>
     <div class="card">
       <h2>MIDI simulé (US 7)</h2>
-      <p class="sub" style="margin:0 0 6px">PC = le morceau (son 1) · CC 69 = le son du morceau joué · horloge du séquenceur.</p>
+      <p class="sub" style="margin:0 0 6px">PC = le morceau (son 1) · CC 34 = le son du morceau joué · horloge du séquenceur.</p>
       <div class="rowb" id="pcs"></div>
       <div class="rowb" id="ccs" style="margin-top:6px"></div>
       <div class="rowb" style="margin-top:6px">
@@ -119,7 +119,7 @@
     <div class="card">
       <h2>Décidé le 15/11</h2>
       <ol class="q">
-        <li>MIDI à la Helix : <code>PC n</code> = le morceau (n° unique dans le set), <code>CC 69</code> valeur k = son k+1 du morceau joué.</li>
+        <li>MIDI à la Fractal : <code>PC n</code> = le morceau (n° unique dans le set), <code>CC 34</code> valeur k = son k+1 du morceau joué.</li>
         <li>Métrique dans le ChordPro (<code>{time}</code>, <code>{tempo}</code> successifs) ; BPM toujours à la noire, comme Live.</li>
         <li>Bande de battue : temps 1 en jaune, compte à rebours avant un changement de son.</li>
       </ol>
@@ -229,14 +229,14 @@ function receivePC(n){
   if(!set()){ const i = n-1; if(i<bankIds.length){ S.bank=i; S.msg=`PC ${n} : preset n°${n} de la banque`; } else S.msg=`PC ${n} : pas de preset n°${n}`; return render(); }
   const si = songs().findIndex(s=>s.pc===n);
   if(si<0){ S.msg = `PC ${n} : aucun morceau du set n'a ce numéro (ignoré, on garde le son joué)`; return render(); }
-  play(si,0,`PC ${n} : morceau ${si+1} « ${songs()[si].title||set().name} », son 1 — un CC 69 reçu juste après choisit directement un autre son`);
+  play(si,0,`PC ${n} : morceau ${si+1} « ${songs()[si].title||set().name} », son 1 — un CC 34 reçu juste après choisit directement un autre son`);
   render();
 }
 function receiveCC(v){
-  if(!set()){ S.msg="CC 69 sans set : ignoré"; return render(); }
+  if(!set()){ S.msg="CC 34 sans set : ignoré"; return render(); }
   const so = songs()[S.song];
-  if(!so || v>=so.sounds.length){ S.msg=`CC 69 = ${v} : ce morceau n'a pas de son ${v+1} (ignoré)`; return render(); }
-  play(S.song,v,`CC 69 = ${v} : son ${v+1} du morceau joué, ${pname(so.sounds[v].p)}`); render();
+  if(!so || v>=so.sounds.length){ S.msg=`CC 34 = ${v} : ce morceau n'a pas de son ${v+1} (ignoré)`; return render(); }
+  play(S.song,v,`CC 34 = ${v} : son ${v+1} du morceau joué, ${pname(so.sounds[v].p)}`); render();
 }
 
 // ---------- prompteur ----------
@@ -344,7 +344,7 @@ function soundLines(so, i, single, withDetail){
   const isPlay = i===S.song; const out=[];
   so.sounds.forEach((sd,k)=>{
     const on = isPlay && k===S.snd;
-    const det = withDetail ? `<span class="dim"> ${pad('CC69:'+k+(sd.vol?' '+(sd.vol>0?'+':'')+sd.vol.toFixed(1)+'dB':''),14)}</span>` : '';
+    const det = withDetail ? `<span class="dim"> ${pad('CC34:'+k+(sd.vol?' '+(sd.vol>0?'+':'')+sd.vol.toFixed(1)+'dB':''),14)}</span>` : '';
     const nm = pname(sd.p);
     if(on) out.push({i, html:`${single?'  ':'     '}<span class="play"> ● ${esc(pad(nm,single?24:18))}</span>${det}`});
     else out.push({i, html:`${single?'  ':'     '}<span class="${isPlay||single?'':'dim'}"> ○ ${esc(pad(nm,single?24:18))}</span>${det}`});
@@ -447,7 +447,7 @@ function render(){
       const pcol = `<span class="${so.pc==null?'warn':'cy'}">${pad(so.pc==null?'PC —':'PC'+so.pc,5)}</span>`;
       rows.push(`<span class="${isCur && !(isPlay&&!S.edit) ? 'cur':''}"> ${isPlay?'<span class="ok b">'+mark+'</span>':mark} ${single?'':pad(i+1,2)+'  '}${esc(title)} ${pcol} ${tcol} ${prm} ${sounds}</span>`);
     });
-    if(S.edit && !run) rows.push(`\n<span class="dim">   ↑↓ morceau   a ajouter   r renommer   T tempo (♩ --- : celui des presets)   p n° de PC   X retirer   [ ] déplacer\n   ←→ son       + ajouter   Entrée remplacer   x retirer   { } déplacer (= sa valeur de CC 69)   , . volume</span>`);
+    if(S.edit && !run) rows.push(`\n<span class="dim">   ↑↓ morceau   a ajouter   r renommer   T tempo (♩ --- : celui des presets)   p n° de PC   X retirer   [ ] déplacer\n   ←→ son       + ajouter   Entrée remplacer   x retirer   { } déplacer (= sa valeur de CC 34)   , . volume</span>`);
     el("main").innerHTML = rows.join("\n");
     } else {
       el("cols").className="cols scene"; el("prmbox").style.display="";
@@ -521,7 +521,7 @@ function onKey(key){
     case "End": scrollBy("sec+"); break;
     case "Home": scrollBy("sec-"); break;
     case "L": case "l": openSets(); break;
-    case "i": if(set()){ const t = songs().length===1 && !songs()[0].title ? 0 : S.cs; S.detail.has(t)?S.detail.delete(t):S.detail.add(t); S.msg = S.detail.has(t)?"détail du morceau : son PC, ses sons (valeur de CC 69) et leurs volumes (i le replie)":""; } break;
+    case "i": if(set()){ const t = songs().length===1 && !songs()[0].title ? 0 : S.cs; S.detail.has(t)?S.detail.delete(t):S.detail.add(t); S.msg = S.detail.has(t)?"détail du morceau : son PC, ses sons (valeur de CC 34) et leurs volumes (i le replie)":""; } break;
     case "e": if(!set()){ S.msg="pas de set à éditer : L › nouveau set"; break; } S.edit = !S.edit; S.cs=S.song; S.ck=S.snd; S.msg = S.edit ? "édition du set : ↑↓ ←→ pour viser, le son visé n'est joué qu'avec Entrée" : ""; break;
     case "t": if(set()) S.msg = `ouvre prompts/…cho dans $EDITOR (ChordPro), relu au retour`; break;
     case "*": S.msg = "tap : recale le tempo entendu (le tempo du morceau reste celui du fichier)"; break;
@@ -572,7 +572,7 @@ function editKey(key){
     case ",": case ".": { if(!so||!so.sounds.length) return true; const sd=so.sounds[S.ck]; sd.vol=Math.round(((sd.vol||0)+(key==="."?0.5:-0.5))*10)/10; if(!sd.vol) delete sd.vol;
                     dirty(`volume de ${pname(sd.p)} dans ce morceau : ${sd.vol?(sd.vol>0?'+':'')+sd.vol.toFixed(1):'0.0'} dB (le preset n'est pas touché)`); return true; }
     case "p": { if(!so) return true;
-                    input(`Program Change de « ${so.title||set().name} »`,"PC (1-128)",so.pc??"","le PC choisit le morceau (son 1) ; unique dans le set. Les sons du morceau se choisissent avec le CC 69 (valeur 0, 1, 2…)",
+                    input(`Program Change de « ${so.title||set().name} »`,"PC (1-128)",so.pc??"","le PC choisit le morceau (son 1) ; unique dans le set. Les sons du morceau se choisissent avec le CC 34 (valeur 0, 1, 2…)",
                       v=>{ if(!v.trim()){ delete so.pc; dirty("morceau sans PC : il ne se joue qu'au pied"); return; } const n=+v; if(!(n>=1&&n<=128)) return "entre 1 et 128";
                            const o=songs().findIndex((x,i)=>x!==so&&x.pc===n); if(o>=0) return `PC ${n} déjà pris par « ${songs()[o].title} » (morceau ${o+1})`;
                            so.pc=n; dirty(`PC ${n} → « ${so.title||set().name} »`); }); return true; }
@@ -600,7 +600,7 @@ function popupKey(key){
     else if(key==="Escape"){ S.popup=null; S.msg="annulé : on réentend le son joué"; }
     else if(key==="Enter"){ const so=songs()[S.cs]; const id=bankIds[P.i];
       if(P.replace){ so.sounds[S.ck].p=id; } else { so.sounds.splice(so.sounds.length?S.ck+1:0,0,{p:id}); S.ck = so.sounds.length===1?0:S.ck+1; }
-      S.popup=null; S.dirty=true; S.msg=`${pname(id)} dans « ${so.title||set().name} » : son ${so.sounds.findIndex(x=>x.p===id)+1}, CC 69 = ${so.sounds.findIndex(x=>x.p===id)} — , . pour son volume dans ce morceau`; }
+      S.popup=null; S.dirty=true; S.msg=`${pname(id)} dans « ${so.title||set().name} » : son ${so.sounds.findIndex(x=>x.p===id)+1}, CC 34 = ${so.sounds.findIndex(x=>x.p===id)} — , . pour son volume dans ce morceau`; }
     return;
   }
   if(P.kind==="input"){
@@ -626,7 +626,7 @@ term.addEventListener("keydown", e=>{
 const KB = [["PgDn","PageDown"],["PgUp","PageUp"],["←","ArrowLeft"],["→","ArrowRight"],["↑","ArrowUp"],["↓","ArrowDown"],["Entrée","Enter"],["Espace"," "],["Début","Home"],["Fin","End"],["i","i"],["L","L"],["e","e"],["t","t"],["Échap","Escape"],["a","a"],["r","r"],["T","T"],["+","+"],["x","x"],["X","X"],["[","["],["]","]"],["{","{"],["}","}"],[",",","],[".","."],["p","p"],["S","S"],["q","q"],["Q","Q"]];
 KB.forEach(([l,k])=>{ const b=document.createElement("button"); b.textContent=l; b.onclick=()=>{ onKey(k); term.focus(); }; el("keybar").appendChild(b); });
 [1,2,3,4,6,9].forEach(n=>{ const b=document.createElement("button"); b.textContent="PC "+n; b.onclick=()=>{ receivePC(n); term.focus(); }; el("pcs").appendChild(b); });
-[0,1,2].forEach(v=>{ const b=document.createElement("button"); b.textContent="CC69 = "+v; b.onclick=()=>{ receiveCC(v); term.focus(); }; el("ccs").appendChild(b); });
+[0,1,2].forEach(v=>{ const b=document.createElement("button"); b.textContent="CC34 = "+v; b.onclick=()=>{ receiveCC(v); term.focus(); }; el("ccs").appendChild(b); });
 el("clk-start").onclick=()=>{ S.clock=true; S.popup=null; setSec(0); startRun("horloge MIDI : Start = le 1 de la mesure 1 du morceau ; la carte des mesures du .cho donne la suite (SPP : on s'y place)"); render(); term.focus(); };
 el("clk-stop").onclick=()=>{ S.clock=false; stopRun("horloge MIDI : Stop — la battue s'arrête"); render(); term.focus(); };
 const speed = v=>{ S.speed=v; el("sp1").classList.toggle("on",v===1); el("sp4").classList.toggle("on",v===4); term.focus(); };

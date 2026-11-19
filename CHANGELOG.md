@@ -6,6 +6,23 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#311)
+- **[ADR 0011](docs/adr/0011-midi-conventions-fractal.md) : le MIDI suit les conventions des
+  pédaliers Fractal par défaut, et Ableton pour le transport.** Program Change = le morceau,
+  **CC 34** = le son du morceau (la scene Fractal), **CC 14** = le tap (le tap Fractal), horloge
+  Beat Clock avec `Start` / `Stop` / `Continue` et Song Position Pointer. But : brancher un pédalier
+  de gabarit Fractal et Ableton **sans rien configurer** — et les numéros restent réglables.
+- Cela **amende** la décision du 15/11/2026 « MIDI à la Helix » : le son d'un morceau était appelé
+  par CC 69 (le snapshot Helix), il l'est par **CC 34**. `docs/design/set.md` et sa maquette sont à
+  jour.
+- Deux divergences volontaires, écrites avec leur raison : une valeur hors du morceau est
+  **ignorée** et le dit (Fractal écrête — jouer un autre son que celui demandé est pire qu'un
+  message), et un **tap détrône l'horloge** (Fractal, Helix et le Quad Cortex verrouillent le tap :
+  on tape justement pour rattraper le groupe).
+- L'**étape 5** est découpée : #312 l'entrée MIDI (avec une **source simulée**, un agent ne branche
+  pas de pédalier), #313 l'horloge et le tap, #314 le MIDI hors set, #224 le MIDI du set, et #315 le
+  traitement du micro — sorti du MIDI, avec lequel il n'avait rien à voir.
+
 ### Interne (#254)
 - **La table des touches porte les étages.** Les communes (`S` `P` `n`), la pédale (`*` `k`) et les
   sorties (`h`, l'autre espace, `q`) étaient recopiées dans **cinq** tables : ajouter une touche
