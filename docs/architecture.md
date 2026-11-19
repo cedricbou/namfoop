@@ -84,7 +84,7 @@ Le détail, parce que c'est la différence qui compte :
   de l'[ADR 0004](adr/0004-decoupage-en-crates.md) : `BackendArg` est un `ValueEnum` de `clap`, dont
   les commentaires de variantes **engendrent** l'aide de la CLI et `docs/cli.md`.
 - **un contexte clavier** : la variante de `Context` et son `if` (`state/context.rs`), le bras de la
-  table (`state/bindings.rs`), le dispatch (`state/keys.rs`), le fichier d'état de l'écran, le `Ctx`
+  table (`state/bindings/`), le dispatch (`state/keys/mod.rs`), le fichier d'état de l'écran, le `Ctx`
   de l'oracle (`state/keyboard.rs`), la table engendrée (`state/keyboard.ref.txt`), le titre et les
   notes (`ui/windows.rs`), la barre du bas si elle a du dynamique (`ui/footer.rs`), le dessin de
   l'écran (`ui/`).

@@ -445,13 +445,25 @@ fn all_keys() -> Vec<(String, Key)> {
     .iter()
     .map(|(n, k)| (n.to_string(), *k))
     .collect();
-    // une touche qu'on n'énumère pas ici n'est mesurée nulle part : c'est par ce trou qu'une
-    // touche annoncée sans rien derrière passe inaperçue.
-    for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStTvxXz".chars() {
-        // `é` n'est lié nulle part : il est là comme témoin, pour qu'une lettre inconnue montre
-        // bien ce que fait le clavier d'une touche qui ne veut rien dire.
-        v.push((format!("'{c}'"), Key::Char(c)));
-    }
+    // Les caractères sont **dérivés de la table** : l'union de ce que déclare chaque contexte,
+    // touches réglables résolues. Écrite à la main, cette liste serait une copie de plus, et un
+    // caractère lié sans y être ajouté échapperait à l'oracle — c'est ce que la jointure « agit
+    // ⇒ déclaré » refuse, mais seulement sur ce que l'oracle mesure.
+    let st = sample();
+    let mut chars: Vec<char> = Context::ALL
+        .iter()
+        .flat_map(|c| bindings(*c).iter().flat_map(|b| b.keys.iter()))
+        .filter_map(|spec| match spec.resolve(st.song_keys, st.prompt_keys) {
+            Key::Char(c) => Some(c),
+            _ => None,
+        })
+        // `é` n'est lié nulle part : il est là comme **témoin**, pour qu'une lettre inconnue montre
+        // ce que fait le clavier d'une touche qui ne veut rien dire.
+        .chain(['é'])
+        .collect();
+    chars.sort_unstable();
+    chars.dedup();
+    v.extend(chars.into_iter().map(|c| (format!("'{c}'"), Key::Char(c))));
     v
 }
 
@@ -672,7 +684,7 @@ fn parse(table: &str) -> std::collections::BTreeMap<String, std::collections::BT
 }
 
 // ====================================================================================== JOINTURE
-// Ce qui suit lie la **table** (`bindings.rs`, ce qu'on annonce) à l'**oracle** (ci-dessus, ce qui
+// Ce qui suit lie la **table** (`bindings/`, ce qu'on annonce) à l'**oracle** (ci-dessus, ce qui
 // agit vraiment). C'est cette jointure qui rend la divergence impossible plutôt qu'improbable : une touche
 // annoncée sans rien derrière, ou un contexte qui déclare une touche qu'il ne consomme pas, fait
 // échouer le test.

@@ -150,7 +150,7 @@ qu'elle ne changeait **que** ce qu'on voulait : l'inversion des communes et des 
 gratuite (aucun espace ne liait `1 2 3 S P n * k`), et les 8 seuls changements de comportement sont
 tous des fuites fermées.
 
-La jointure avec la **table des touches** (`state/bindings.rs`) ferme la boucle dans les deux sens :
+La jointure avec la **table des touches** (`state/bindings/`) ferme la boucle dans les deux sens :
 tout ce qui est **déclaré** est possédé, et tout ce qui **agit** est déclaré — un refus poli, lui,
 n'a pas à l'être. Et un test vérifie que **tout** contexte a son cas d'oracle, puisqu'en oublier un,
 c'est ne rien vérifier de lui.

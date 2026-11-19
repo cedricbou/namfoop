@@ -1,6 +1,6 @@
 //! **Le contexte** : qui a le clavier, en une valeur.
 //!
-//! **Une** fonction dit où l'on est, et la table de `bindings.rs` dit ce qu'on y peut faire. Trois
+//! **Une** fonction dit où l'on est, et la table de `bindings/` dit ce qu'on y peut faire. Trois
 //! cascades voulaient cette réponse — `on_key` (qui décide), `ui::footer::keys` (qui annonce) et
 //! `ui::windows::help_lines` (qui explique) : qu'elles la tirent toutes d'ici est ce qui empêche
 //! une touche d'être annoncée sans être traitée, ou traitée sans être annoncée.
