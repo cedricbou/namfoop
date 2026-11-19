@@ -107,7 +107,7 @@ $(git log --reverse --format='- %s' main..HEAD)
 
 ## Vérifications
 - [x] \`scripts/check.sh\` ${quick:+(--quick)}
-- [ ] Tests matériels si l'audio est touché : \`scripts/test-backends.sh\` (JACK **et** ALSA)
+- [ ] Tests matériels si l'audio est touché : \`scripts/test-backends.sh\` (ALSA, avec la carte)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF

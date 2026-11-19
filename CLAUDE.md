@@ -11,9 +11,9 @@ décisions [`docs/adr/`](docs/adr/) (ne pas les rouvrir sans nouvelle mesure).
 crates/nam-sys/   FFI C++ NeuralAmpModelerCore            interdit : tout sauf thiserror (+cc)
 crates/dsp/       étages mono, chaîne, swap, analyses     interdit : carte son, clap, ratatui, config
                   RÈGLES TEMPS RÉEL (non négociables) et rendus de référence : crates/dsp/CLAUDE.md
-crates/audio-io/  ALSA, JACK, sim, priorité RT             interdit : clap, config, dsp, engine
+crates/audio-io/  ALSA, carte simulée, priorité RT         interdit : clap, config, dsp, engine
 crates/model/     types sérialisables (config, routage)   interdit : toute crate du projet, logique
-crates/engine/    session audio : seule à ouvrir la carte  interdit : clap, ratatui, alsa/jack directs
+crates/engine/    session audio : seule à ouvrir la carte  interdit : clap, ratatui, alsa direct
 crates/library/   bibliothèque, import, profils            interdit : audio-io, engine, clap, ratatui
 crates/namfoop/   binaire : CLI, écrans, une fonction par commande ; anyhow
 scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, gen-cli-doc.sh,
@@ -35,7 +35,7 @@ conseillées, profils -> `library` ; option, écran, commande -> `namfoop`.
   chaque modèle de `library/` ; `--quick` sans la bibliothèque. Profil `ci`
   (`NAMFOOP_PROFILE=ci`) : ce que fait la CI (jobs `lint` et `check`, sccache).
 - Toujours `--no-config` pour des résultats reproductibles (n'écrit rien non plus).
-- Audio : tout changement doit marcher sur **JACK et ALSA** (matériel) et **sim** (agents). Un
+- Audio : tout changement doit marcher sur **ALSA** (matériel) et **sim** (agents). Un
   agent ne branche pas de câble : demander à l'utilisateur, prévenir avant de prendre la carte ;
   jamais de `run` audible sans accord (`--master-db -120`). Détails : `crates/audio-io/CLAUDE.md`.
 
@@ -82,7 +82,7 @@ avertissement, > 1 000 : échec).
 
 ## Feuille de route (`gh issue list --label roadmap`)
 
-1. ✅ Base : backends JACK + ALSA (+ sim), `setup`, `ports`, `latency`.
+1. ✅ Base : ALSA direct et carte simulée, `setup`, `latency`.
 2. ✅ NAM + IR, calibration, niveau « match », limiteur.
 3. ✅ Effets : gate, compresseur, EQ, crossover LR4, chorus, delay, reverb.
 4. ✅ Presets TOML + banque préchargée + changement de chaîne sans glitch.

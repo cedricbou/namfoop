@@ -400,8 +400,8 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
 
 Ordre : 1 → 5 (le set se joue au pied), puis 6a, 6b, puis 7. Chaque US garde le cycle habituel (issue,
 branche, PR, CI, test matériel quand l'audio est touché : US 2, 5, 7). Décision du 15/11/2026 : pour
-cette épique, les essais matériels se font **sur ALSA seulement** (JACK et sim restent couverts par
-les tests automatiques).
+cette épique, les essais matériels se font **sur la carte en ALSA** (la carte simulée reste couverte
+par les tests automatiques).
 
 ## 15. Décisions et points à valider
 

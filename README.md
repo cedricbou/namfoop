@@ -10,7 +10,7 @@ basse ─▶ entrée basse ─▶ trim ─▶ NAM ─▶ IR ─▶ niveau ─▶
                      └─────────────────────────────────────────────────────▶ sorties « DI »
 ```
 
-**Ce qui marche aujourd'hui** : chaîne NAM + IR, backends JACK (PipeWire), ALSA direct et carte
+**Ce qui marche aujourd'hui** : chaîne NAM + IR, ALSA direct et carte
 simulée, cartes multicanaux, assistant de configuration et navigateur de sons plein écran (changement sans
 coupure, IR conseillées, mélanges d'IR, éditeur de chaîne), calibration d'entrée et volume
 aligné sur la basse en direct, effets (gate, compresseur, EQ, crossover, chorus, delay, réverbe),
@@ -43,7 +43,7 @@ Si le dépôt a été cloné sans `--recurse-submodules`, la compilation s'arrê
 « NeuralAmpModelerCore absent » : lancer `git submodule update --init --recursive` à la racine du
 dépôt, puis relancer `cargo build --release`.
 
-Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : `namfoop meta`
+Autres commandes : `namfoop meta`
 (corriger les métadonnées d'un modèle : type de capture, gain d'entrée, IR préférée), `namfoop render`
 (traiter un WAV), `namfoop bench` (coût CPU), `namfoop latency` (mesure aller-retour),
 `namfoop fx` (effets à placer avant ou après le modèle avec `--pre` /
@@ -52,31 +52,29 @@ Pas besoin de `pw-jack` : namfoop trouve PipeWire tout seul. Autres commandes : 
 ## Prérequis de compilation
 
 Il faut un compilateur C++20 (le moteur NAM est compilé avec le projet), `pkg-config`, `git`, et les
-fichiers de développement d'ALSA et de JACK. Rust s'installe avec [rustup](https://rustup.rs), qui
+fichiers de développement d'ALSA. Rust s'installe avec [rustup](https://rustup.rs), qui
 prend tout seul la version fixée par `rust-toolchain.toml`.
 
 Arch Linux et dérivées (Manjaro, EndeavourOS, CachyOS) :
 
 ```sh
-sudo pacman -S --needed base-devel git rustup alsa-lib pipewire-jack
+sudo pacman -S --needed base-devel git rustup alsa-lib
 ```
 
 Ubuntu, Debian et dérivées (Mint, Pop!_OS, Raspberry Pi OS) :
 
 ```sh
-sudo apt install build-essential pkg-config git libasound2-dev libjack-jackd2-dev pipewire-jack
+sudo apt install build-essential pkg-config git libasound2-dev
 ```
 
 Fedora :
 
 ```sh
-sudo dnf install gcc-c++ pkgconf-pkg-config git alsa-lib-devel pipewire-jack-audio-connection-kit-devel
+sudo dnf install gcc-c++ pkgconf-pkg-config git alsa-lib-devel
 ```
 
-Sans ces paquets, la compilation s'arrête sur `jack-sys` ou `alsa-sys` avec « Package jack (ou alsa)
-was not found in the pkg-config search path ». Sur Arch, `pipewire-jack` (ou `jack2`) fournit à la
-fois les fichiers de développement et la bibliothèque ; sur Debian / Ubuntu, `libjack-jackd2-dev`
-sert à compiler et `pipewire-jack` à parler à PipeWire à l'exécution.
+Sans eux, la compilation s'arrête sur `alsa-sys` avec « Package alsa was not found in the
+pkg-config search path ».
 
 ## Documentation
 
@@ -91,7 +89,7 @@ sert à compiler et `pipewire-jack` à parler à PipeWire à l'exécution.
 ```sh
 scripts/check.sh            # sans matériel : format, clippy, tests, docs, rendu de la bibliothèque
 scripts/check.sh --quick    # idem sans la bibliothèque
-scripts/test-backends.sh    # avec matériel : latence + run sur JACK ET ALSA (câble sortie 1 -> entrée 2)
+scripts/test-backends.sh    # avec matériel : latence + run en ALSA (câble sortie 1 -> entrée 2)
 scripts/install-hooks.sh    # hooks : pas de commit/push direct sur main, check rapide avant commit
 ```
 

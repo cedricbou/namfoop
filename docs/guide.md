@@ -88,7 +88,7 @@ pas par les aux.
 ## 3. Installation
 
 Prérequis : un compilateur C++20, `pkg-config`, `git`, `rustup`, et les fichiers de développement
-d'ALSA et de JACK. Les paquets à installer sur Arch, Ubuntu / Debian et Fedora sont listés dans le
+d'ALSA. Les paquets à installer sur Arch, Ubuntu / Debian et Fedora sont listés dans le
 [README](../README.md#prérequis-de-compilation).
 
 ```sh
@@ -103,39 +103,22 @@ binaire : `cp target/release/namfoop ~/.local/bin/`. Les exemples de ce guide é
 
 Si le dépôt a été cloné sans `--recurse-submodules` : `git submodule update --init --recursive`.
 
-**Pas besoin de `pw-jack`.** Le backend JACK de namfoop parle à la bibliothèque JACK du système. Sur
-Arch, le paquet `pipewire-jack` remplace cette bibliothèque par celle de PipeWire : namfoop parle donc
-directement à PipeWire. Sur les distributions qui l'installent à part (Debian, Ubuntu, Raspberry Pi
-OS), namfoop la trouve et se relance tout seul avec : la commande `pw-jack` n'est jamais nécessaire.
-
 ---
 
 ## 4. Réglages du système
 
-### PipeWire (pour le backend JACK)
+### PipeWire et la carte
 
-Par défaut, PipeWire ajoute beaucoup de marge sur les cartes USB (13 ms aller-retour mesurés).
-Crée `~/.config/wireplumber/wireplumber.conf.d/51-itwo-lowlatency.conf` :
+namfoop ouvre la carte en **ALSA direct**, donc sans passer par PipeWire. Si PipeWire tient la
+carte, namfoop met son profil à « off » le temps de la session et le restaure en sortant — y
+compris si namfoop plante. Il n'y a rien à régler pour que ça marche.
 
-```
-monitor.alsa.rules = [
-  { matches = [ { node.name = "~alsa_(input|output).*AudioBox_iTwo.*" } ]
-    actions = { update-props = {
-      audio.rate = 48000
-      api.alsa.period-size = 64
-      api.alsa.period-num = 2
-      api.alsa.headroom = 0
-      api.alsa.disable-batch = true
-      session.suspend-timeout-seconds = 0 } } }
-]
-```
-
-puis passe la carte en profil **Pro Audio** et redémarre PipeWire :
+Un seul cas demande une commande : si namfoop est tué net (`SIGKILL`, coupure de courant), le
+profil reste à « off » et la carte paraît muette pour le reste du système. Pour la rendre :
 
 ```sh
 pactl list cards short                                   # repérer le nom de la carte
 pactl set-card-profile <nom de la carte> pro-audio
-systemctl --user restart wireplumber pipewire pipewire-pulse
 ```
 
 ### Temps réel
@@ -166,9 +149,8 @@ les vérifie au démarrage et avertit (il ne modifie jamais le système lui-mêm
   sudo cpupower frequency-set -g performance   # jusqu'au prochain redémarrage
   ```
 
-- **Cœur dédié** : `--cpu N` (ou `[audio] cpu = N`) épingle le thread audio sur un cœur (ALSA,
-  carte simulée ; avec JACK, le thread appartient au serveur). Utile surtout avec `isolcpus` sur
-  le Pi, qui réserve ce cœur à namfoop.
+- **Cœur dédié** : `--cpu N` (ou `[audio] cpu = N`) épingle le thread audio sur un cœur. Utile
+  surtout avec `isolcpus` sur le Pi, qui réserve ce cœur à namfoop.
 
 ```sh
 namfoop --cpu 3 run -m b7k
@@ -194,8 +176,8 @@ Un assistant plein écran, à faire une fois (et à refaire si tu changes de car
 Flèches pour naviguer, Entrée pour valider, ← pour revenir, Échap pour quitter sans rien
 enregistrer. Six étapes :
 
-1. **Backend** : ALSA direct (latence la plus basse, carte réservée à namfoop : conseillé en live),
-   JACK / PipeWire (carte partagée avec le navigateur, Ableton...), ou carte simulée (démo).
+1. **Backend** : ALSA direct (la carte, réservée à namfoop le temps de la session) ou carte
+   simulée (démo et essais sans matériel).
 2. **Carte** : la liste des cartes avec leur nombre d'entrées et de sorties. Une carte « utilisée par
    PipeWire » n'est pas un problème : namfoop la libère le temps de son utilisation.
 3. **Entrées** : un vumètre par entrée, en direct. **Joue de la basse** : l'entrée qui bouge est la
@@ -2052,26 +2034,25 @@ commande (`namfoop --backend alsa --buffer 64 run -m b7k`).
 
 ### Backends
 
-| | JACK (`--backend jack`) | ALSA direct (`--backend alsa`) | Simulé (`--backend sim`) |
-|---|---|---|---|
-| Exemple | `namfoop --backend jack --device iTwo run` | `namfoop --backend alsa --device hw:iTwo run` | `namfoop --backend sim run` |
-| Latence mesurée (iTwo) | 6,5–7 ms, varie un peu | **5,2 ms, stable** | — |
-| Partage de la carte | oui | non : namfoop la réserve | — |
-| Usage conseillé | développement, mélange avec d'autres applis | live, Raspberry Pi | tests et démo sans matériel |
+| | ALSA direct (`--backend alsa`) | Simulé (`--backend sim`) |
+|---|---|---|
+| Exemple | `namfoop --backend alsa --device hw:iTwo run` | `namfoop --backend sim run` |
+| Latence mesurée (iTwo) | **5,2 ms, stable** (48 × 3) | — |
+| Partage de la carte | non : namfoop la réserve le temps de la session | — |
+| Usage | jeu, scène, Raspberry Pi | essais et démo sans matériel |
 
-- `--device` : la carte. En JACK, son nom ou une partie (`iTwo`) ; en ALSA, le device (`hw:iTwo`,
-  `hw:MTK`) ; en simulé, les canaux (`4x6` = 4 entrées, 6 sorties).
+- `--device` : la carte. En ALSA, le device (`hw:iTwo`, `hw:MTK`) ; en simulé, les canaux
+  (`4x6` = 4 entrées, 6 sorties).
 - `--capture-device` (ALSA) : device de capture, si l'entrée n'est pas sur le même device que la
   sortie (certains HAT I2S exposent la capture sur un autre device, ou une carte sert d'entrée et
   une autre de sortie). Par défaut, le même que `--device`. Avec deux cartes différentes, leurs
   horloges ne sont pas liées : namfoop prévient, et une dérive (xruns réguliers après quelques
   minutes) est possible. Préférer une seule carte sur scène.
-- `--buffer` : taille de période en frames. JACK n'accepte que des puissances de 2 (32, 64...).
-  Avec l'iTwo : 48 en ALSA, 64 en JACK ; 32 et en dessous provoquent des xruns.
+- `--buffer` : taille de période en frames. Avec l'iTwo, 48 est le bon réglage ; 32 et en dessous
+  provoquent des xruns.
 - `--periods` : nombre de périodes côté ALSA (3 par défaut, meilleur compromis mesuré).
-- `--rate` : fréquence d'échantillonnage (48000 ; les modèles sont entraînés à 48 kHz). En JACK,
-  c'est le serveur qui décide : namfoop refuse de démarrer s'il tourne à une autre fréquence.
-- `--client-name` : nom du client JACK (pour lancer plusieurs instances).
+- `--rate` : fréquence d'échantillonnage (48000 ; les modèles sont entraînés à 48 kHz). Si la carte
+  en impose une autre, namfoop refuse de démarrer.
 
 **Formats ALSA.** namfoop essaie dans l'ordre `S32_LE`, `S24_3LE`, `S24_LE` puis `S16_LE`, pour la
 capture et la lecture séparément, et garde le premier accepté par la carte (ligne « format ALSA »
@@ -2140,8 +2121,8 @@ Ordre de priorité : option de la ligne de commande > config > profil > défaut.
 est `[audio] profile` ; sans lui, celui dont `match` apparaît dans le nom d'une carte branchée.
 
 Pièges :
-- le profil ne sert qu'en **ALSA direct** : JACK a ses propres noms de carte et n'accepte que des
-  buffers en puissance de 2 ; avec `--no-config` et en carte simulée, aucun profil n'est lu ;
+- le profil ne sert qu'en **ALSA direct**, puisqu'il décrit un device matériel : avec `--no-config`
+  ou en carte simulée, aucun profil n'est lu ;
 - un contrôle `[[mixer]]` absent ou une valeur refusée donne un avertissement, la carte s'ouvre
   quand même : vérifier le nom avec `amixer -c <carte> scontrols` ;
 - un profil inconnu dans `[audio] profile` est une erreur qui liste les profils trouvés.
@@ -2273,7 +2254,7 @@ ouverte : relance `namfoop setup`.
 **Larsen ou son « en double », filtré.** Bouton Mixer de l'iTwo pas à fond côté Playback.
 
 **« occupé par une autre application » en ALSA.** Une autre application (ou un autre namfoop)
-tient la carte. Ferme-la, ou utilise le backend JACK.
+tient la carte. Ferme-la — et si c'est PipeWire qui ne l'a pas rendue, voir le piège suivant.
 
 **Plus de son PipeWire sur l'iTwo après un plantage dur.** Le profil est resté sur « off » :
 `pactl set-card-profile <nom de la carte> pro-audio`.

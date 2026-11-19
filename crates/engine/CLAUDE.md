@@ -2,7 +2,7 @@
 
 **Responsabilité.** La seule crate qui démarre un flux audio : ouvre la carte via `audio-io`,
 vérifie le routage contre les canaux de la carte (la fréquence réelle est vérifiée par
-l'appelant : une chaîne vide de calibration s'accommode de celle du serveur JACK), route la basse dans une chaîne
+l'appelant : une chaîne vide de calibration s'accommode de celle de la carte), route la basse dans une chaîne
 `dsp` échangeable à chaud (`dsp::swap`, fondu), et publie les vumètres. La **banque de chaînes
 préchargées** (`bank.rs`, #6) vit ici ; c'est elle que MIDI (#7) pilotera. Y viendront aussi, une
 seule fois, mlock / cœur dédié (#3) et la reprise sur carte perdue (#46).
@@ -82,7 +82,7 @@ dans le callback ET refusé dans `start`. Tests : `callback_does_not_allocate` (
 `process_does_not_allocate`.
 
 **Interdit** (`scripts/check-arch.sh`) : `clap`, `ratatui`, `namfoop`, `toml`, et l'accès direct à
-`alsa` / `jack` (tout passe par `audio-io`). Les options CLI de routage restent dans le binaire
+`alsa` (tout passe par `audio-io`). Les options CLI de routage restent dans le binaire
 (`cli_routing.rs`).
 
 **Tester** : `cargo test -p engine` (chemin Engine = chaîne nue en régime établi, session `sim`
@@ -112,7 +112,7 @@ avec deux chaînes successives, routage refusé), puis
   reconstruite. Un parallèle coûte **plus** que la somme de ses branches à la construction
   (107 ms contre 2 × 19) parce que `dsp::split` mesure le retard de **chaque** branche par
   corrélation, en y faisant passer une sonde — modèles compris.
-- Dénormalisés (#78) : `audio-io` activait déjà le flush-to-zero dans les threads ALSA, JACK et sim
+- Dénormalisés (#78) : `audio-io` active le flush-to-zero dans les threads ALSA et sim
   (`rt::disable_denormals`) ; `engine` le refait au premier callback (tout backend futur couvert).
   Mesuré hors ligne (`render`, b7k + IR dg212, bloc 48) : impulsion puis 10 s de silence en
   0,36 s CPU (×28 temps réel) avant comme après, IR seule de 2 s en 0,026 s avant comme après ;

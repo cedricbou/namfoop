@@ -38,7 +38,7 @@ l'autre sens — l'audio publie, l'écran lit (`dsp::meter`, vumètre du limiteu
 - **Lecture une fois par bloc, et rampe de durée fixe** quand la valeur saute : 20 ms comptées en
   **échantillons**, qui traversent les frontières de bloc (`gain::LiveGain`, patron de
   `Delay::set_time` et de `SwapChain`). Jamais une rampe étalée sur le buffer : le son dépendrait de
-  la taille de bloc (48 en ALSA, 64 en JACK, 1000 en `render`), ce que les règles temps réel de
+  la taille de bloc (48 en ALSA, 1000 en `render`), ce que les règles temps réel de
   `crates/dsp/CLAUDE.md` interdisent.
 - **La valeur n'entre pas dans l'identité d'une demande de chaîne** : elle ne rebâtit rien et ne
   disqualifie pas une place de banque préchargée. Autrement dit, une demande décrit **le son**, pas

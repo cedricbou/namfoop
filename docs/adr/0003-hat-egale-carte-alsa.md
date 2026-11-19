@@ -1,5 +1,7 @@
 # ADR 0003 · Un HAT I2S est une carte ALSA plus un profil
 
+**Statut : adopté.**
+
 **Contexte.** Le matériel va évoluer : iTwo, puis UMC404HD, puis un HAT I2S sur le Pi. Linux
 présente tous ces matériels comme des cartes ALSA ; ils diffèrent par les formats acceptés
 (`S32_LE`, `S24_3LE`, `S16_LE`...), les réglages qui marchent et les contrôles mixer (gain du

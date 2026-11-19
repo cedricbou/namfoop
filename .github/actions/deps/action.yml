@@ -1,6 +1,6 @@
 name: Dépendances système
 description: >
-  Installe de quoi compiler audio-io (ALSA et JACK), en réessayant : un miroir Ubuntu injoignable
+  Installe de quoi compiler audio-io (ALSA), en réessayant : un miroir Ubuntu injoignable
   ne doit pas faire échouer toute la PR (#117 ; l'incident Canonical du 11/11/2026 a bloqué la CI
   plusieurs heures alors que `scripts/check.sh` n'avait même pas démarré).
 runs:

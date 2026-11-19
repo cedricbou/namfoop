@@ -85,7 +85,7 @@ garder bâtie, ce que fait `engine::bank`). `tests/` : propriétés de chaîne (
 d'allocation (assert_no_alloc), rendus de référence `golden.rs` + `golden/*.toml` (RMS, crête,
 enveloppe 50 ms).
 
-**Interdit** (`scripts/check-arch.sh`) : `alsa`, `jack`, `clap`, `ratatui`, `libc`, `namfoop`,
+**Interdit** (`scripts/check-arch.sh`) : `alsa`, `clap`, `ratatui`, `libc`, `namfoop`,
 `audio-io`, `engine`.
 
 ## Ajouter un effet
@@ -111,7 +111,7 @@ Dans tout `Stage::process`, `Processor::process`, `Router::process`, le callback
 callbacks backend :
 - aucune allocation (Vec, String, Box, format!, log!), aucun lock, aucune I/O, aucun appel système
   bloquant ; tout est préparé à la construction de l'étage ;
-- les buffers peuvent avoir **n'importe quelle longueur** (JACK 64, ALSA 48, render 1000) : découper
+- les buffers peuvent avoir **n'importe quelle longueur** (ALSA 48, render 1000, 16 en test) : découper
   en interne si besoin ; le son ne doit pas dépendre de la taille de bloc (test `chain.rs`) ;
 - pas de `panic!` possible en régime établi (`panic = "abort"` en release coupe le son en live) :
   un index de canal venu de la config est vérifié hors temps réel (`Router::validate`) ET protégé

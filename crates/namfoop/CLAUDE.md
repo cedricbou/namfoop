@@ -494,12 +494,12 @@ sans entrée de changelog.
 
 Chaque étape a son issue (label `roadmap`) : `gh issue list --label roadmap`.
 
-1. ✅ Base : backends JACK + ALSA (+ sim), canaux dynamiques, `setup`, `ports`, `latency`.
+1. ✅ Base : ALSA direct et carte simulée, canaux dynamiques, `setup`, `latency`.
 2. ✅ NAM + IR : nam-sys, dsp, `run`, `render`, `bench`, `models` ; calibration d'entrée, niveau
    « match », limiteur, compteurs d'écrêtage (prototype actuel).
-3. Effets : gate, compresseur, EQ paramétrique, crossover LR4 (blend grave clair), chorus, delay, reverb.
-4. Presets TOML + banque préchargée + changement de chaîne sans glitch (swap via `rtrb`, crossfade).
-5. MIDI (JACK MIDI / ALSA seq) : Program Change -> preset, CC -> paramètres ; entrée micro sur l'entrée 2.
+3. ✅ Effets : gate, compresseur, EQ paramétrique, crossover LR4 (blend grave clair), chorus, delay, reverb.
+4. ✅ Presets TOML + banque préchargée + changement de chaîne sans glitch (swap via `rtrb`, crossfade).
+5. MIDI (ALSA seq) : Program Change -> preset, CC -> paramètres ; entrée micro sur l'entrée 2.
 6. Live / Pi 5 : service systemd, démarrage auto, cross-compilation aarch64, bench sur Pi.
 
 ### Pistes ouvertes / dette connue
