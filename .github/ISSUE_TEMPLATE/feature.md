@@ -16,4 +16,4 @@ labels: enhancement
 
 ## Tests
 - [ ] Sans matériel : tests automatiques, `--backend sim`, `namfoop render`
-- [ ] Avec matériel (si l'audio est touché) : `scripts/test-backends.sh` (JACK **et** ALSA)
+- [ ] Avec matériel (si l'audio est touché) : `scripts/test-backends.sh` (ALSA, avec la carte)

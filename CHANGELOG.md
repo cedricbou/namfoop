@@ -16,6 +16,25 @@ section prend le numéro de version.
 - Une config qui porte encore `backend = "jack"` n'est pas un plantage : elle dit la ligne en cause
   et quoi mettre à la place.
 
+### Documentation (#264)
+- **[ADR 0010](docs/adr/0010-retrait-de-jack.md)** : un seul backend de scène, ALSA direct, plus la
+  carte simulée. Il **remplace l'ADR 0001**, qui gardait JACK « pour le développement et les essais »
+  — l'ancien texte est conservé tel qu'adopté, avec un lien dans les deux sens, et dit ce que coûte
+  de rajouter un backend pour que la question soit close.
+- Les ADR 0001 à 0003 portent enfin une ligne `Statut`, comme les suivants : on ne pouvait pas savoir
+  au premier regard si l'ADR 0001 était encore en vigueur.
+- La règle « tout changement audio doit marcher sur **JACK et ALSA** » devient « **ALSA** (avec la
+  carte) et **sim** (sans matériel) » dans ses cinq emplacements : `CLAUDE.md`,
+  `crates/audio-io/CLAUDE.md`, le gabarit de PR, celui d'issue, et le corps de PR engendré par
+  `scripts/feature.sh`.
+- Le guide : la section « PipeWire (pour le backend JACK) » et ses réglages wireplumber n'avaient
+  plus d'objet (ALSA direct ne passe pas par PipeWire). Elle dit maintenant ce qui reste vrai — la
+  carte est rendue puis restaurée toute seule — et la seule commande encore utile, celle qui répare
+  un profil resté à « off » après un plantage dur.
+- Le tableau des backends, les prérequis de compilation (plus de `libjack-jackd2-dev`, de
+  `pipewire-jack` ni de `pw-jack`) et les tableaux de mesures comparées de
+  `crates/audio-io/CLAUDE.md`, dont il ne reste que les chiffres ALSA qui servent encore.
+
 ### Interne (#263)
 - `audio_io::Kind` dérivait `Serialize` / `Deserialize` pour personne : le derive et la dépendance
   `serde` quittent `audio-io`, qui ne dépend plus que d'`alsa`, `libc`, `log` et `thiserror`. La

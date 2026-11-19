@@ -1,5 +1,7 @@
 # ADR 0002 · Moteur monolithique Rust, pas de plugins
 
+**Statut : adopté.**
+
 **Contexte.** Un hôte LV2 / VST (ou mod-host) offrirait un catalogue d'effets, mais ajoute un
 serveur, des formats, des threads et des allocations qu'on ne contrôle pas. La fiabilité en live
 et la latence priment sur tout ; un agent doit pouvoir tester toute la chaîne sans matériel.

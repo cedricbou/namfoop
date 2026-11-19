@@ -13,7 +13,7 @@ namfoop  (binaire : CLI, écrans, une fonction mince par commande)
   ├─> engine   (session audio : routeur, swap, vumètres, tap d'entrée ; raw pour les mesures)  ─> audio-io, dsp, model
   ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model
   └─> model    (types sérialisables : config, routage, profils de carte)
-audio-io (ALSA, JACK, sim, priorité RT ; ni clap, ni config, ni DSP)
+audio-io (ALSA, carte simulée, priorité RT ; ni clap, ni config, ni DSP)
 dsp      (étages mono, chaîne, swap, analyses hors ligne)  ─> nam-sys (FFI C++ NAM)
 ```
 
@@ -24,7 +24,7 @@ Les dépendances ne vont que **vers le bas**. La CLI pilote, `engine` fait sonne
 |------------|----------------------------------------------------------------------|--------------------------------------------|
 | `nam-sys`  | FFI vers le C++ NAM                                                  | tout le reste                              |
 | `dsp`      | étages audio mono, chaîne, swap, analyses hors ligne                 | carte son, config, threads, CLI            |
-| `audio-io` | ouvrir une carte (ALSA, JACK, sim), négocier format et buffer, RT    | clap, config utilisateur, DSP              |
+| `audio-io` | ouvrir une carte (ALSA, simulée), négocier format et buffer, RT      | clap, config utilisateur, DSP              |
 | `model`    | types sérialisables : config, routage, profils de carte              | toute logique, toute crate du projet       |
 | `engine`   | session audio : routeur, swap, mesures, commandes, reprise           | clap, ratatui, bibliothèque de sons        |
 | `library`  | modèles et IR, import, overrides, recommandations, profils de sons   | carte son, clap, ratatui                   |
@@ -66,10 +66,10 @@ dev-dependencies). Chaque issue qui crée une crate ajoute ses règles à la tab
 | Crate     | Règle                                                       | Depuis |
 |-----------|-------------------------------------------------------------|--------|
 | `nam-sys` | seulement `thiserror` (+ `cc` en build)                     | #49    |
-| `dsp`     | interdit `alsa`, `jack`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io`, `engine` | #49, #50, #52 |
+| `dsp`     | interdit `alsa`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io`, `engine` | #49, #50, #52 |
 | `audio-io` | interdit `clap`, `ratatui`, `dsp`, `nam-sys`, `namfoop`, `toml`, `engine` | #50, #52 |
-| `engine`  | interdit `clap`, `ratatui`, `namfoop`, `toml`, `alsa`, `jack` (la carte passe par `audio-io`) | #52 |
+| `engine`  | interdit `clap`, `ratatui`, `namfoop`, `toml`, `alsa` (la carte passe par `audio-io`) | #52 |
 | `model`   | seulement `serde`, `toml`, `thiserror` (aucune crate du projet) | #54 |
-| `library` | interdit `audio-io`, `engine`, `clap`, `ratatui`, `alsa`, `jack` | #55 |
+| `library` | interdit `audio-io`, `engine`, `clap`, `ratatui`, `alsa` | #55 |
 | tout le code | aucun `audio_io::start` / `start_with` hors d'`engine` et `audio-io` (contrôle textuel) | #53 |
 | toutes     | un `CLAUDE.md` par crate, cité dans la carte racine et ici ; `.rs` > 1 000 lignes refusé (`check-docs.sh`) | #57 |
