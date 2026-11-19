@@ -62,6 +62,38 @@ des données (`profiles/*.toml`, `model::card`) et `audio-io` ne reçoit qu'une 
 mixer dans `Settings` ; les **presets** sont des fichiers de la bibliothèque, lus par `library`, et
 non des types de `model`.
 
+## Le coût d'un ajout
+
+La bonne mesure d'une architecture n'est pas le nombre de lignes mais **ce que coûte l'ajout
+suivant** : combien de fichiers il faut toucher, et si le compilateur sait les nommer.
+
+| Ajouter… | Fichiers | Qui nomme les endroits |
+|---|---|---|
+| un **effet** | **6**, tous dans `dsp` | le `match` de `with_effect!` et le test `catalog_covers_every_variant` : le compilateur et un test refusent l'oubli (procédure dans `crates/dsp/CLAUDE.md`) |
+| un **backend** | **6** | trois `match` **exhaustifs** (`audio_io::start_with`, `setup::devices::list`, `setup::state`) : le compilateur nomme lui-même ce qui manque |
+| un **contexte clavier** | **9** | un seul `match` exhaustif (`ui::windows::help_lines`) ; l'oracle du clavier signale le contexte non mesuré, mais **cinq** endroits restent silencieux |
+
+Le détail, parce que c'est la différence qui compte :
+
+- **un effet** : `dsp/src/fx/<nom>.rs`, une variante de `FxSpec`, un bras de `with_effect!`, une
+  ligne de `catalog()`, un bras du test de couverture, une section du guide.
+- **un backend** : `audio-io/src/<nom>.rs`, le `mod` + la variante de `Kind` + le bras de
+  `start_with` dans `audio-io/src/lib.rs`, une variante de `model::BackendKind`, une variante de
+  `BackendArg` et sa conversion dans `namfoop/src/cli_audio.rs`, les tailles de buffer proposées
+  (`setup/state.rs`), la liste des cartes (`setup/devices.rs`). Trois énumérations, mais le patron
+  de l'[ADR 0004](adr/0004-decoupage-en-crates.md) : `BackendArg` est un `ValueEnum` de `clap`, dont
+  les commentaires de variantes **engendrent** l'aide de la CLI et `docs/cli.md`.
+- **un contexte clavier** : la variante de `Context` et son `if` (`state/context.rs`), le bras de la
+  table (`state/bindings.rs`), le dispatch (`state/keys.rs`), le fichier d'état de l'écran, le `Ctx`
+  de l'oracle (`state/keyboard.rs`), la table engendrée (`state/keyboard.ref.txt`), le titre et les
+  notes (`ui/windows.rs`), la barre du bas si elle a du dynamique (`ui/footer.rs`), le dessin de
+  l'écran (`ui/`).
+
+C'est donc **un écran qui coûte plus qu'un effet**, alors que le modèle d'extensibilité du projet
+est celui des effets : une déclaration unique, un `match` exhaustif, un test de couverture. Ce qui
+fait la différence est le nombre de consommateurs **silencieux** — qui ne cassent pas la compilation
+quand on les oublie.
+
 ## Règles vérifiées
 
 `scripts/check-arch.sh` (appelé par `scripts/check.sh`, donc en CI) lit `cargo metadata` et refuse

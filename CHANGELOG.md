@@ -6,6 +6,24 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#280)
+- **La relecture d'une zone coûte une commande** : la skill de projet `relire-docs`
+  (`.claude/skills/`) applique `docs/style-doc.md` à un fichier ou un répertoire et rend un **diff
+  proposé**, jamais un commit. Elle est écrite pour un contexte neuf : la marche à suivre, la liste
+  de **ce qui se garde** (en-têtes `//!`, règles temps réel, mesures actuelles, renvois `ADR 000x`),
+  les genres exemptés, et — c'est le cœur — **comment vérifier chaque fait** avant de le garder :
+  un chemin avec `git ls-files`, un nombre dans le code, une mesure en rejouant sa commande.
+- **La procédure de publication prévoit une zone relue par version**, en tournant : les `CLAUDE.md`
+  de crate, puis `docs/architecture.md` et les ADR, puis le guide et le README, puis `docs/design/`,
+  puis les commentaires d'une crate. Les contrôles au commit attrapent la dérive mécanisable ; cette
+  relecture attrape le reste.
+- **Le coût d'un ajout est inscrit dans `docs/architecture.md`**, parce que c'est lui, et non le
+  nombre de lignes, qui mesure une architecture : **6** fichiers pour un effet (tous dans `dsp`,
+  avec un `match` et un test qui refusent l'oubli), **6** pour un backend (trois `match` exhaustifs,
+  donc le compilateur nomme les endroits), **9** pour un contexte clavier — dont **cinq** que rien
+  ne signale. Un écran coûte donc plus qu'un effet, alors que le modèle qui marche est celui des
+  effets.
+
 ### Interne (#291)
 - **La dérive documentaire est refusée au commit, et plus seulement signalée.** Les quatre contrôles
   de style de `scripts/check-docs.sh` — numéro d'issue dans un commentaire, le même dans une chaîne

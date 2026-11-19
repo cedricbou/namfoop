@@ -13,7 +13,7 @@
 # Préfixe de branche : feat (défaut), fix si le label « bug » est présent, docs si « documentation »
 # est le seul label.
 #
-# Garde-fous (#128) : `start` ne réutilise jamais un nom de branche déjà pris (local ou origin),
+# Garde-fous : `start` ne réutilise jamais un nom de branche déjà pris (local ou origin),
 # `pr` ne reprend qu'une PR OUVERTE, et `merge` refuse une PR déjà fusionnée puis vérifie que le
 # commit de fusion est bien sur origin/main avant d'annoncer un succès.
 set -euo pipefail
@@ -29,7 +29,7 @@ branch_exists() {
   [[ -n $(git ls-remote --heads origin "$1" 2>/dev/null) ]]
 }
 # Numéro de la PR portant cette branche head, dans l'état demandé (open | merged | all) ; vide s'il
-# n'y en a pas. `gh pr view` sans argument prendrait aussi une PR fusionnée pour la nôtre (#128).
+# n'y en a pas. `gh pr view` sans argument prendrait aussi une PR fusionnée pour la nôtre.
 pr_of_branch() {
   gh pr list --state "$1" --head "$(branch)" --limit 1 --json number --jq '.[0].number // empty'
 }
