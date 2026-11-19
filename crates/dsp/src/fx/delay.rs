@@ -4,7 +4,7 @@
 //! cours de jeu ([`Delay::set_time`]) fond entre deux têtes de lecture : pas de glissement de hauteur.
 //!
 //! **Synchronisation au tempo** (ADR 0008) : `division` vaut `libre` par défaut, et `time` agit
-//! alors en millisecondes comme il l'a toujours fait. Dès qu'on choisit une note (`1/8.`), c'est
+//! alors en millisecondes. Dès qu'on choisit une note (`1/8.`), c'est
 //! elle qui donne le temps — `time` est ignoré, mais conservé, et retrouvé tel quel si on revient à
 //! `libre`. L'étage lit alors le tempo **une fois par bloc** et ne déplace sa tête de lecture que
 //! si le nombre d'échantillons **change** : sinon le fondu de 50 ms redémarrerait sans cesse.
@@ -22,7 +22,7 @@ pub const MAX_SECONDS: f32 = 2.0;
 const XFADE_MS: f32 = 50.0;
 /// Niveau sous lequel la queue est considérée éteinte (pour [`Effect::tail_seconds`]).
 const TAIL_DB: f32 = -140.0;
-/// Seuil de la queue **entendue** (`Stage::tail_ms`, #173) : -60 dBFS, le plancher d'audibilité.
+/// Seuil de la queue **entendue** (`Stage::tail_ms`) : -60 dBFS, le plancher d'audibilité.
 /// Bien plus haut que [`TAIL_DB`], qui sert aux tests génériques (« plus rien ne sort »).
 const AUDIBLE_DB: f32 = -60.0;
 /// Marge pour l'**étalement** d'une répétition par les filtres de boucle : une impulsion ressort
@@ -210,7 +210,7 @@ pub struct Delay {
     /// si on y revient.
     time_ms: f32,
     /// La chaîne est passée dans la **queue de preset** : l'étage ne suit plus le tempo et garde
-    /// sa tête de lecture là où elle est (#225). Levé par `reset()`.
+    /// sa tête de lecture là où elle est. Levé par `reset()`.
     ///
     /// On gèle la **tête**, et non le BPM relu dans la case : au moment où la chaîne entre dans la
     /// queue, la case contient **déjà** le tempo du preset suivant (l'écran l'écrit avant que la
@@ -270,7 +270,7 @@ impl Delay {
     #[inline]
     fn follow_tempo(&mut self) {
         if self.frozen {
-            return; // queue de preset : le rythme est celui du preset quitté (#225)
+            return; // queue de preset : le rythme est celui du preset quitté
         }
         let want = self.samples(self.wanted_ms());
         if want != self.target {
@@ -302,9 +302,8 @@ impl Stage for Delay {
     }
 
     /// Le temps d'une répétition **au tempo courant**, multiplié par le nombre de répétitions
-    /// qu'il faut pour descendre sous -60 dBFS. C'est la raison d'être de #173 : un delay
-    /// synchronisé n'a pas de temps connu d'avance, et deviner en écoutant le silence coupait la
-    /// répétition suivante dès qu'elles sont espacées de plus d'une demi-seconde.
+    /// qu'il faut pour descendre sous -60 dBFS. C'est l'étage qui sait : son temps dépend du tempo,
+    /// donc personne d'autre ne peut l'annoncer (contrat de [`crate::Stage::tail_ms`]).
     fn tail_ms(&self) -> f32 {
         let one = self.cur as f32 * 1000.0 / self.sample_rate as f32;
         // la première répétition sort à `mix` du niveau d'entrée : plus elle est discrète, moins
@@ -316,7 +315,7 @@ impl Stage for Delay {
         one * (1.0 + repeats) + FILTER_SPREAD_MS
     }
 
-    /// La chaîne passe dans la queue : la tête de lecture ne bouge plus (#225).
+    /// La chaîne passe dans la queue : la tête de lecture ne bouge plus.
     fn enter_trail(&mut self) {
         self.frozen = true;
     }

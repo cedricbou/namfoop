@@ -42,7 +42,7 @@ use scan::*;
 use validate::*;
 
 // ---------------------------------------------------------------------------------------------
-// Commande
+// La commande : zone de travail jetable, bilan par pack, et le déroulé de `run`
 
 struct Staging(PathBuf);
 

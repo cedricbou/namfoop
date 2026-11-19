@@ -54,7 +54,7 @@ fn amp_chain_does_not_allocate_in_process() {
 fn hot_swap_does_not_allocate_in_process() {
     use dsp::Stage;
     let build = |m: &str| AmpSpec { model: Some(example(m)), ..Default::default() }.build(48000, 64).unwrap();
-    // avec une queue de preset (#172) : le thread audio traite aussi la chaîne quittée, qui finit
+    // avec une queue de preset : le thread audio traite aussi la chaîne quittée, qui finit
     // de sonner, et la rend une fois éteinte — toujours sans allouer
     let (mut rt, mut ctl) = dsp::swap::swap_pair(build("wavenet.nam"), 48000, 64, 10.0, 500.0);
     let mut buf = vec![0.1f32; 64];
@@ -154,7 +154,7 @@ fn multi_band_chain(n: usize) -> dsp::block::ChainSpec {
     }
 }
 
-/// Les vumètres par bloc et par branche (#107) n'allouent pas non plus : les sondes et les
+/// Les vumètres par bloc et par branche n'allouent pas non plus : les sondes et les
 /// mesures du comp / du gate publient dans des atomiques préalloués à la construction.
 #[test]
 fn a_metered_chain_does_not_allocate_in_process() {

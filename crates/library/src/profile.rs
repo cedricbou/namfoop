@@ -125,7 +125,7 @@ pub fn tags(z: &Zones, reference: &Zones, p: &IrProfile) -> Vec<String> {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Cache
+// Le cache sur disque des profils d'IR
 
 const CACHE_VERSION: u32 = 1;
 

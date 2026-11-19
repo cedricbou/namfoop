@@ -33,7 +33,7 @@ fn k_weighting(sample_rate: u32) -> [Biquad; 2] {
 /// **Loudness pondérée K** d'un signal mono (dB), au sens d'ITU-R BS.1770 : moyenne du carré du
 /// signal pondéré, sans porte relative.
 ///
-/// Elle sert à **comparer** deux signaux (l'alignement sur le DI, #181), jamais à afficher une
+/// Elle sert à **comparer** deux signaux (l'alignement sur le DI), jamais à afficher une
 /// valeur absolue : la constante -0,691 LUFS de la norme s'annule dans un écart, elle n'est donc
 /// pas appliquée. À RMS égal, un son qui a mis son énergie vers 1–5 kHz — un fuzz — rend ici une
 /// valeur **plus grande** qu'un son dominé par son fondamental, ce qui est bien ce que l'oreille
@@ -224,7 +224,7 @@ fn cuts(centers: &[f32], db: &[f32]) -> (f32, f32) {
 mod tests {
     /// La pondération K : plateau de +4 dB dans l'aigu, passe-haut dans le grave, et **la même
     /// mesure à 48 et 96 kHz** (les coefficients sont reconstruits, pas copiés de la norme à
-    /// 48 kHz) — #181.
+    /// 48 kHz).
     #[test]
     fn the_k_weighting_follows_the_standard_at_any_sample_rate() {
         for sr in [44100u32, 48000, 96000] {

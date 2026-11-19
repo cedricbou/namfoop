@@ -1,4 +1,4 @@
-//! Banque de chaînes **déjà bâties** (#6) : changer de preset ne charge plus rien.
+//! Banque de chaînes **déjà bâties** : changer de preset ne charge plus rien.
 //!
 //! Aujourd'hui, installer un preset coûte le chargement des modèles NAM puis le préchauffage
 //! (mesuré : 19 ms + 27 ms pour `nam › ir`, 108 ms + 53 ms pour un parallèle à deux NAM). La
@@ -187,11 +187,11 @@ impl Bank {
         self.install_warm(chain)
     }
 
-    /// Préchauffe une chaîne bâtie ailleurs (0,25 s de bruit puis du silence, #3 : 26 à 54 ms).
+    /// Préchauffe une chaîne bâtie ailleurs (0,25 s de bruit puis du silence : 26 à 54 ms).
     ///
     /// C'est le gros du coût d'une installation. Le faire **à part** laisse l'appelant vérifier,
     /// juste avant d'installer, qu'une demande plus récente n'est pas arrivée entre-temps — sinon
-    /// on fait entendre une chaîne qu'on ne veut plus (#191).
+    /// on fait entendre une chaîne qu'on ne veut plus.
     pub fn prewarm(&self, chain: &mut dsp::Chain) {
         rt::prewarm(chain, self.sender.block(), self.sender.rate());
     }
@@ -247,7 +247,7 @@ mod tests {
         session_with_trails(n, 0.0)
     }
 
-    /// La même, avec une **queue de preset** (#172) : la chaîne quittée finit de sonner avant de
+    /// La même, avec une **queue de preset** : la chaîne quittée finit de sonner avant de
     /// revenir dans sa place.
     fn session_with_trails(n: usize, trails_ms: f32) -> (Engine, Bank) {
         let cfg = EngineConfig {
@@ -309,7 +309,7 @@ mod tests {
         assert!(matches!(bank.switch(0), Switch::AlreadyPlaying));
     }
 
-    /// Avec une **queue de preset** (#172), la chaîne quittée ne revient dans sa place qu'une fois
+    /// Avec une **queue de preset**, la chaîne quittée ne revient dans sa place qu'une fois
     /// éteinte : y revenir pendant ce temps donne `NotReady`, et l'appelant la rebâtit comme avant
     /// (un retard, pas une panne). C'est la limite connue de la queue, pas un accident.
     #[test]

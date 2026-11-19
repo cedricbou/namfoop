@@ -184,7 +184,7 @@ pub struct Comp {
     env: f32,
     /// Réduction de gain lissée (dB).
     gr: f32,
-    /// Vumètre d'affichage : réduction de gain max depuis la dernière lecture (#107).
+    /// Vumètre d'affichage : réduction de gain max depuis la dernière lecture.
     meter: Option<Meter>,
 }
 
@@ -197,7 +197,7 @@ impl Comp {
         self.gr
     }
 
-    /// Publie la réduction de gain pour le synoptique de `browse` (#107).
+    /// Publie la réduction de gain pour le synoptique de `browse`.
     pub fn with_meter(mut self, meter: Meter) -> Self {
         self.meter = Some(meter);
         self

@@ -81,7 +81,7 @@ impl ModelProfile {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Signal
+// Le signal de mesure : fenêtre la plus forte, basse synthétique, crête robuste
 
 /// Signal de mesure, au niveau de la carte (avant trim).
 pub struct Signal {
@@ -165,7 +165,7 @@ impl Signal {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Mesure
+// Mesurer un modèle, et composer son profil avec celui d'une IR
 
 /// Mesure un modèle : `input_db` = entrée propre du modèle (en plus du trim du signal).
 pub fn measure(model: &Path, signal: &Signal, input_db: f32) -> Result<ModelProfile> {
@@ -220,7 +220,7 @@ pub fn with_ir(voicing: &IrProfile, ir: &IrProfile) -> IrProfile {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Cache et bibliothèque
+// Le cache sur disque, et l'accès par la bibliothèque
 
 #[derive(Default, Serialize, Deserialize)]
 struct Cache {

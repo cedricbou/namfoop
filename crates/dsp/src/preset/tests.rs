@@ -66,7 +66,7 @@ fn a_preset_survives_a_round_trip_through_toml() {
     spec.save(&file).expect("écriture");
     let back = PresetSpec::load(&file).expect("lecture");
     assert_eq!(back.name, spec.name);
-    assert_eq!(back.volume_db, spec.volume_db, "le volume du preset (#179)");
+    assert_eq!(back.volume_db, spec.volume_db, "le volume du preset");
     assert_eq!(back.blocks, spec.blocks, "les blocs sont identiques");
     assert_eq!(back.base, base, "la bibliothèque est deux dossiers au-dessus du fichier");
 
@@ -83,7 +83,7 @@ fn a_preset_survives_a_round_trip_through_toml() {
     assert!(text.contains("invert = true") && text.contains("mute = true"), "{text}");
     assert!(!text.contains("solo"), "le solo ne s'enregistre jamais (ADR 0006) :\n{text}");
     // le volume est une valeur : il doit s'écrire AVANT les tableaux de blocs, sinon le TOML est
-    // invalide — et il disparaît du fichier quand il est nul (#179)
+    // invalide — et il disparaît du fichier quand il est nul
     let (vol, block) = (text.find("volume_db").expect("le volume"), text.find("[[block]]").unwrap());
     assert!(vol < block, "le volume avant les blocs :\n{text}");
     let plain = PresetSpec { volume_db: 0.0, ..spec.clone() };

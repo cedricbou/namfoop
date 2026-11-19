@@ -1,5 +1,5 @@
 //! Erreurs de la bibliothèque. Les messages sont ceux que voit l'utilisateur ; `{:#}` affiche la
-//! chaîne des causes (« message : cause : … »), comme le faisait `anyhow` avant l'extraction.
+//! chaîne des causes (« message : cause : … »), comme `anyhow` le ferait dans le binaire.
 
 use std::error::Error as StdError;
 use std::fmt;

@@ -1,5 +1,5 @@
 //! Réglages du thread temps réel : priorité SCHED_FIFO, flush-to-zero des dénormaux, cœur
-//! dédié et pile préchargée (#3).
+//! dédié et pile préchargée.
 
 /// Active FTZ/DAZ : les dénormaux font exploser le coût CPU des filtres IIR / réverbes.
 pub fn disable_denormals() {

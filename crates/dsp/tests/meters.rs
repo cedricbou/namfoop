@@ -1,4 +1,4 @@
-//! Vumètres par bloc et par branche (#107, ADR 0006) : ce que `browse` lira au-dessus de chaque
+//! Vumètres par bloc et par branche (ADR 0006) : ce que `browse` lit au-dessus de chaque
 //! bloc du synoptique. On vérifie les valeurs lues, pas l'affichage.
 
 use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};

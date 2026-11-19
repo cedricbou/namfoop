@@ -16,7 +16,7 @@
 //!
 //! La case ne décrit rien : elle ne porte ni nom, ni unité, ni plage. La **description** d'un
 //! paramètre reste `fx::ParamInfo` (ADR 0005), et c'est elle qui engendrera les cases le jour où
-//! les paramètres d'effet deviendront vivants (#6).
+//! les paramètres d'effet deviendront vivants.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;

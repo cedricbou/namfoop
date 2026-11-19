@@ -1,4 +1,4 @@
-//! Réglages temps réel du processus, appliqués une fois par `Engine::start` et `raw::start` (#3) :
+//! Réglages temps réel du processus, appliqués une fois par `Engine::start` et `raw::start` :
 //! mémoire verrouillée, avertissement sur le gouverneur CPU, préchauffage des chaînes. Hors temps
 //! réel ; jamais d'échec (un avertissement clair à la place).
 

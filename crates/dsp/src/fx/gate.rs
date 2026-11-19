@@ -154,12 +154,12 @@ pub struct Gate {
     gain: f32,
     open: bool,
     held: u32,
-    /// Vumètre d'affichage : fermeture max (0 ouvert … 1 fermé) depuis la dernière lecture (#107).
+    /// Vumètre d'affichage : fermeture max (0 ouvert … 1 fermé) depuis la dernière lecture.
     meter: Option<Meter>,
 }
 
 impl Gate {
-    /// Publie la fermeture du gate pour le synoptique de `browse` (#107) : 0 ouvert, 1 fermé.
+    /// Publie la fermeture du gate pour le synoptique de `browse` : 0 ouvert, 1 fermé.
     pub fn with_meter(mut self, meter: Meter) -> Self {
         self.meter = Some(meter);
         self

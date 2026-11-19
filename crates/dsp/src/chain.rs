@@ -1,6 +1,6 @@
 //! Chaîne d'étages mono (`Chain`), réglage du niveau de sortie, et [`AmpSpec`] : les options de la
-//! ligne de commande (`-m`, `-i`, `--pre`, `--post`, `--crossover`). Depuis l'ADR 0006, `AmpSpec`
-//! **produit une chaîne en blocs** ([`crate::block::ChainSpec`]) : c'est elle qui construit.
+//! ligne de commande (`-m`, `-i`, `--pre`, `--post`, `--crossover`). `AmpSpec` **produit une chaîne
+//! en blocs** ([`crate::block::ChainSpec`], ADR 0006) : c'est elle qui construit.
 
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
@@ -43,7 +43,7 @@ impl Chain {
         self.stages.iter().map(|s| s.as_ref())
     }
 
-    /// Passe la chaîne en **queue de preset** : chaque étage fige ses réglages de rythme (#225).
+    /// Passe la chaîne en **queue de preset** : chaque étage fige ses réglages de rythme.
     pub fn enter_trail(&mut self) {
         for s in &mut self.stages {
             s.enter_trail();
@@ -51,7 +51,7 @@ impl Chain {
     }
 
     /// Ce que la chaîne peut encore sonner (ms) une fois son entrée silencieuse : la **somme** de
-    /// ses étages (#173). Une réverbe derrière un delay continue de sonner après la dernière
+    /// ses étages. Une réverbe derrière un delay continue de sonner après la dernière
     /// répétition, donc les queues s'ajoutent le long de la série.
     pub fn tail_ms(&self) -> f32 {
         self.stages.iter().map(|s| s.tail_ms()).sum()
@@ -85,7 +85,7 @@ pub enum Level {
     Normalize { target_db: f64 },
     /// Aligne le volume traité sur le volume du DI : la référence (enregistrement de calibration
     /// du bassiste) passe dans la chaîne au chargement et un gain compense l'écart de **loudness
-    /// pondérée K** (ITU-R BS.1770, `profile::loudness_db`, #181) — et non de RMS large, qui
+    /// pondérée K** (ITU-R BS.1770, `profile::loudness_db`) — et non de RMS large, qui
     /// ignorait que l'oreille n'entend pas le fondamental d'une basse comme ses harmoniques.
     Match { reference: Arc<Vec<f32>>, sample_rate: u32 },
 }
@@ -104,7 +104,7 @@ pub enum Volume {
     Db(f32),
     /// **Vivant** : la case est lue une fois par bloc, et l'étage rampe vers chaque nouvelle valeur
     /// (`gain::LiveGain`). C'est ce que pose `browse`, pour que `,` / `.` s'entendent sans rebâtir
-    /// la chaîne (#187). L'étage est alors posé **même au neutre** : la case bougera.
+    /// la chaîne. L'étage est alors posé **même au neutre** : la case bougera.
     Live(crate::param::Control),
 }
 
@@ -151,7 +151,8 @@ impl Default for LimiterSpec {
 }
 
 /// Description d'une chaîne « ampli » : trim -> effets `pre` -> NAM -> IR -> effets `post` -> niveau
-/// -> master -> limiteur. C'est le format du proto, avant les presets TOML.
+/// -> master -> limiteur. C'est la forme **des options CLI** : la forme enregistrée d'une chaîne
+/// est `preset::PresetSpec`.
 #[derive(Clone, Debug, Default)]
 pub struct AmpSpec {
     /// Gain global d'entrée (dB) propre à l'instrument (basse + carte son), avant le modèle.
@@ -233,9 +234,9 @@ impl AmpSpec {
             trim_db: self.trim_db,
             blocks,
             level: self.level.clone(),
-            // le volume est propre au preset (#179) : les options de ligne de commande n'en ont pas,
+            // le volume est propre au preset : les options de ligne de commande n'en ont pas,
             // `--master-db` joue ce rôle pour `run`
-            // les options de ligne de commande n'ont pas de volume de preset (#179)
+            // les options de ligne de commande n'ont pas de volume de preset
             volume: Volume::Db(0.0),
             master_db: self.master_db,
             limiter: self.limiter.clone(),

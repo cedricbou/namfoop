@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{BuildCtx, Effect, ParamInfo, Unit};
 
-/// Marge de queue (ms) pour l'étalement d'une transitoire par les passe-haut de sortie (#173).
+/// Marge de queue (ms) pour l'étalement d'une transitoire par les passe-haut de sortie.
 const FILTER_SPREAD_MS: f32 = 20.0;
 use crate::biquad::{Biquad, Shape};
 use crate::{Result, Stage};
@@ -142,7 +142,7 @@ pub struct Chorus {
     mix: f32,
     hp_wet: [Biquad; 2],
     hp_dry: [Biquad; 2],
-    /// Queue entendue (ms) : le retard maximal de la voix modulée, pas de réinjection (#173).
+    /// Queue entendue (ms) : le retard maximal de la voix modulée, pas de réinjection.
     tail_ms: f32,
 }
 

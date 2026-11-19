@@ -37,7 +37,7 @@ pub struct EngineConfig {
     pub max_block: usize,
     /// Durée du fondu entre deux chaînes (ms).
     pub fade_ms: f32,
-    /// **Queue de preset** (#172) : durée maximale pendant laquelle la chaîne qu'on quitte finit de
+    /// **Queue de preset** : durée maximale pendant laquelle la chaîne qu'on quitte finit de
     /// sonner (réverbe, delay) pendant que la nouvelle attaque. 0 : pas de queue (la chaîne quittée
     /// n'est gardée que le temps de son fondu de sortie). Elle coûte une deuxième chaîne de DSP
     /// tant qu'elle sonne, et s'arrête d'elle-même dès qu'elle est éteinte.
@@ -164,7 +164,7 @@ impl ChainSender {
         self.handle.send(chain)
     }
 
-    /// Comme [`ChainSender::send`] pour une chaîne **déjà préchauffée** (banque préchargée, #6) :
+    /// Comme [`ChainSender::send`] pour une chaîne **déjà préchauffée** (banque préchargée) :
     /// le préchauffage coûte 27 à 53 ms, inutile de le repayer à chaque bascule.
     pub fn send_warm(&mut self, chain: dsp::Chain) -> std::result::Result<(), dsp::Chain> {
         if !self.handle.idle() {
@@ -432,7 +432,7 @@ mod tests {
         }
         let swapping = engine.xruns() - idle_xruns;
         if idle_xruns > 0 {
-            // la machine décroche déjà sans qu'on échange : rien à conclure (#114)
+            // la machine décroche déjà sans qu'on échange : rien à conclure
             eprintln!(
                 "machine chargée : {idle_xruns} xrun(s) sur une fenêtre de repos de même durée, \
                  {swapping} pendant les échanges — le test ne conclut pas là-dessus (#114)"

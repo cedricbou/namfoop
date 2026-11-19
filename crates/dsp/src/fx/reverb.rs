@@ -148,8 +148,8 @@ pub struct Reverb {
     out_gain: f32,
     mix: f32,
     hp: [Biquad; 2],
-    /// Queue entendue (ms) : le RT60 est par définition la chute de 60 dB, plus le predelay
-    /// (#173). Figée ici, les paramètres n'étant pas gardés sous cette forme.
+    /// Queue entendue (ms) : le RT60 est par définition la chute de 60 dB, plus le predelay.
+    /// Figée ici, les paramètres n'étant pas gardés sous cette forme.
     tail_ms: f32,
 }
 

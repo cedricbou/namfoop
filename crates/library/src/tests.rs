@@ -139,7 +139,7 @@ fn colliding_ids_are_lengthened() {
 }
 
 /// Un preset de `presets/` est indexé comme les autres : identifiant court `p…`, nom lisible,
-/// trouvable par identifiant et par mots-clés, et relu prêt à jouer (#157).
+/// trouvable par identifiant et par mots-clés, et relu prêt à jouer.
 #[test]
 fn presets_are_indexed_searchable_and_loadable() {
     let toml = concat!(
@@ -183,8 +183,8 @@ fn presets_are_indexed_searchable_and_loadable() {
 }
 
 /// Un set de `sets/` est indexé comme les presets : identifiant court `s…`, nom lisible, trouvable
-/// par identifiant et par mots-clés, et ses avertissements résolus contre **cette** bibliothèque
-/// (#217). Les trois sortes de TOML de la bibliothèque ne se mélangent pas.
+/// par identifiant et par mots-clés, et ses avertissements résolus contre **cette** bibliothèque.
+/// Les trois sortes de TOML de la bibliothèque ne se mélangent pas.
 #[test]
 fn sets_are_indexed_searchable_and_checked() {
     let set = concat!(

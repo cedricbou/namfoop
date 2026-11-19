@@ -1,6 +1,6 @@
 //! **Les sets de concert** (`library/sets/<nom>.set.toml`) : la liste ordonnée des morceaux d'un
 //! concert, chacun avec ses sons — des **presets de la bibliothèque, référencés et non copiés**
-//! (§ 3 de [`docs/design/set.md`](../../../docs/design/set.md), épique #215).
+//! (§ 3 de [`docs/design/set.md`](../../../docs/design/set.md)).
 //!
 //! ```toml
 //! name = "Groupe 1 · Live Mairie"
@@ -68,7 +68,7 @@ pub struct Song {
     /// change pas le fichier ; [`Song::time_sig`] la lit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time: Option<String>,
-    /// Prompteur ChordPro, **relatif à `library/sets/`** (§ 10, lu par #222 ; ici seul le chemin).
+    /// Prompteur ChordPro, **relatif à `library/sets/`** (§ 10 ; ici, seul le chemin).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt: Option<PathBuf>,
     #[serde(default, rename = "sound", skip_serializing_if = "Vec::is_empty")]
@@ -80,7 +80,7 @@ pub struct Song {
 pub struct Sound {
     /// Identifiant du preset, celui de `namfoop presets`.
     pub preset: String,
-    /// S'**ajoute** au volume du preset, dans ce morceau seulement (#179).
+    /// S'**ajoute** au volume du preset, dans ce morceau seulement.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub volume_db: f32,
 }

@@ -137,7 +137,7 @@ pub struct IrStage {
     gain: f32,
     name: String,
     pub len: usize,
-    /// Durée de l'IR (ms) : ce qu'elle continue de sonner après la fin du signal (#173).
+    /// Durée de l'IR (ms) : ce qu'elle continue de sonner après la fin du signal.
     tail_ms: f32,
 }
 
