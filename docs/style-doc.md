@@ -27,6 +27,9 @@ Devant une phrase, la question n'est donc pas « est-ce de l'histoire ? » — o
 « avant #N », « depuis #N », « ne … plus », « c'était », « a été retiré », « ont disparu ». Un
 ancien texte faux se **supprime** ; vrai, il se réécrit au présent.
 Modèle : `crates/dsp/src/lib.rs` (les règles temps réel du trait `Stage`).
+Deux de ces formules sont du vocabulaire du domaine ici — « l'**ancienne** chaîne » d'un fondu, « un
+son qui **ne** figure **plus** dans la bibliothèque » — donc hors du contrôle automatique et à la
+charge du relecteur.
 
 **2. Pas de numéro d'issue ni de PR dans le code ni dans un document de référence.** L'historique
 est dans git et le `CHANGELOG.md`. **Exception** : les ADR, dont le genre *est* la trace d'une
@@ -84,6 +87,27 @@ Sans cette liste, un nettoyage zélé jette le bon :
 - les renvois `ADR 000x` ;
 - une justification **durable** avec sa règle, comme dans `scripts/check-docs.sh` : « au-delà de
   ~600 lignes, un agent lit en morceaux et rate des invariants » — la raison ne vieillit pas.
+
+## Ce que la machine vérifie, et ce qu'elle ne vérifie pas
+
+`scripts/check-docs.sh` (étapes 9 à 12) tient les quatre règles qui s'écrivent en expression
+régulière :
+
+| Vérifié | Règle | Portée |
+|---|---|---|
+| numéro d'issue ou de PR | 2 | commentaires et rustdoc de `crates/**/*.rs` |
+| le même, dans une chaîne littérale | 2 | `crates/**/*.rs`, compté à part (certains s'affichent) |
+| mots-signaux temporels, errata datés | 1, 5 | les mêmes commentaires, `docs/`, les `CLAUDE.md` |
+| chemin cité qui n'existe plus | — | les `CLAUDE.md` et `docs/` |
+| taille d'un document | — | avertissement au-delà de 600 lignes |
+
+Exemptés, et pour une raison de genre : le `CHANGELOG.md` **est** de l'histoire ; un ADR dit ce qui
+était le cas pour justifier sa décision, et ne se réécrit pas — il se supersède ; ce fichier doit
+nommer les mots qu'il proscrit ; `docs/cli.md` est engendré.
+
+**Les règles 3, 4, 6, 7, 8, 10 et 11 n'ont aucun mécanisme** : la duplication, la mesure qui
+s'empile, le récit, l'état d'avancement, la paraphrase et le nombre recopié se voient à la lecture,
+pas au `grep`.
 
 ## Quand relire
 
