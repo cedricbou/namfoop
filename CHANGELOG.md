@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#291)
+- **La dérive documentaire est refusée au commit, et plus seulement signalée.** Les quatre contrôles
+  de style de `scripts/check-docs.sh` — numéro d'issue dans un commentaire, le même dans une chaîne
+  littérale, mot-signal temporel, chemin cité qui n'existe plus — **font échouer** `check.sh` et la
+  CI. Ils étaient livrés en avertissement le temps des huit nettoyages ; leurs quatre compteurs sont
+  à **zéro** (410 occurrences de numéros d'issue et 31 lignes de récit au départ), et chacun est
+  vérifié en échec sur un cas construit.
+- La taille d'un document reste un **avertissement** : découper `docs/guide.md` est un chantier
+  (#297), pas une correction. Une occurrence légitime se traitera en exception inscrite dans le
+  script, avec sa raison — jamais en revenant à l'avertissement.
+
 ### Documentation (#270)
 - **Connaître le comportement d'un écran demande de lire un fichier, au présent.** Les trois
   spécifications de `docs/design/` se lisaient en pile, dans l'ordre chronologique :

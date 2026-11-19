@@ -66,8 +66,9 @@ exemple ```sh), `docs/cli.md` (généré par `scripts/gen-cli-doc.sh`), `CHANGEL
 publié »). Pour une fonctionnalité visible : aide clap, cli.md, guide (+ README), changelog, dans le
 même commit. check-docs vérifie aussi les exemples, l'absence de sons versionnés, un `CLAUDE.md`
 par crate cité ici et dans `docs/architecture.md`, la taille des fichiers (> 600 lignes :
-avertissement, > 1 000 : échec) et les règles mécanisables de `docs/style-doc.md` : numéro d'issue
-dans un commentaire, mot-signal temporel, chemin cité qui n'existe plus.
+avertissement, > 1 000 : échec) et les règles mécanisables de `docs/style-doc.md`, qui **refusent le
+commit** : numéro d'issue dans un commentaire ou une chaîne, mot-signal temporel, chemin cité qui
+n'existe plus.
 
 **Publier une version**, dans cet ordre : rouler « Non publié » dans une section
 `## X.Y.Z — AAAA-MM-JJ`, aligner `version` de `[workspace.package]` — sans quoi `namfoop --version`

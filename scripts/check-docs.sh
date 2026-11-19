@@ -16,9 +16,8 @@
 # 11. tout chemin de fichier cité dans un CLAUDE.md ou docs/ existe à HEAD (« referential rot »)
 # 12. taille des fichiers de documentation : avertissement > 600
 #
-# Les contrôles 9 à 11 sont **provisoirement des avertissements** : le dépôt ne les passe pas
-# encore. Ils deviennent bloquants quand leurs compteurs atteignent zéro (issue de durcissement
-# #291) ; le compte affiché est ce qui mesure l'avancement, et ce paragraphe disparaît avec eux.
+# Les contrôles 9 à 11 **bloquent** : une règle qui avertit sans refuser finit ignorée. Le 12 reste
+# un avertissement, parce que découper un document est un chantier et non une correction.
 # Référence des règles : docs/style-doc.md.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -151,7 +150,7 @@ code_rs() { moities_rs 2; }
 tags=$(commentaires_rs | grep -E '#[0-9]+' || true)
 if [[ -n $tags ]]; then
   n=$(echo "$tags" | grep -oE '#[0-9]+' | wc -l)
-  warn "$(echo "$tags" | wc -l) commentaires portent un numéro d'issue ($n occurrences) : à retirer"
+  err "$(echo "$tags" | wc -l) commentaires portent un numéro d'issue ($n occurrences) : à retirer (règle 2 de docs/style-doc.md)"
   echo "$tags" | cut -d: -f1 | sort | uniq -c | sort -rn | head -5 | sed 's/^/      /'
 fi
 # Les mêmes numéros dans une **chaîne littérale** : comptés à part, parce qu'une partie d'entre eux
@@ -159,7 +158,7 @@ fi
 # un message d'erreur de `FxSpec` va au terminal, la ligne de tempo va à l'écran Set).
 chaines=$(code_rs | grep -E '#[0-9]+' || true)
 if [[ -n $chaines ]]; then
-  warn "$(echo "$chaines" | wc -l) chaînes de caractères portent un numéro d'issue (dont des textes montrés à l'utilisateur) :"
+  err "$(echo "$chaines" | wc -l) chaînes de caractères portent un numéro d'issue (certaines s'affichent) :"
   echo "$chaines" | sed 's/^/      /' | head -10
 fi
 
@@ -175,7 +174,7 @@ recit=$( { commentaires_rs
              | tr '\n' '\0' | xargs -0 grep -nH ''
          } | grep -iE "$TEMPOREL" || true)
 if [[ -n $recit ]]; then
-  warn "$(echo "$recit" | wc -l) lignes racontent le passé au lieu de décrire l'état actuel"
+  err "$(echo "$recit" | wc -l) lignes racontent le passé au lieu de décrire l'état actuel (règle 1)"
   echo "$recit" | cut -d: -f1 | sort | uniq -c | sort -rn | head -5 | sed 's/^/      /'
 fi
 
@@ -202,7 +201,7 @@ done < <(
 )
 echo "  $vues chemins cités vérifiés dans les CLAUDE.md et docs/"
 if [[ -n ${perimees%$'\n'} ]]; then
-  warn "$(echo "${perimees%$'\n'}" | wc -l) références périmées (chemin cité, fichier absent) :"
+  err "$(echo "${perimees%$'\n'}" | wc -l) références périmées (chemin cité, fichier absent) :"
   echo "${perimees%$'\n'}" | head -10 | sed 's/^/      /'
 fi
 
