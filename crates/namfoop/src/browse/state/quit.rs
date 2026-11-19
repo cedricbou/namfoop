@@ -64,7 +64,7 @@ impl State {
 
     /// **La chaîne est vide alors que le banc joue un son** : `q` le signale toujours, même s'il n'y
     /// a rien d'autre à enregistrer — la commande affichée en quittant ne jouerait pas ce son
-    /// (§ 9 de `docs/design/browse-espaces.md`, décision du 12/11/2026). Banc sur « son direct »
+    /// (§ 9 de `docs/design/browse-espaces.md`). Banc sur « son direct »
     /// sans IR : rien à signaler.
     pub fn empty_chain_warning(&self) -> Option<String> {
         if !self.fx.chain.is_empty() {
@@ -279,7 +279,7 @@ mod tests {
 
     /// `q` avec une **chaîne vide** alors que le banc joue un son : la fenêtre le signale toujours,
     /// même s'il n'y a rien d'autre à enregistrer, et propose les trois issues (§ 9 de
-    /// `docs/design/browse-espaces.md`, décision du 12/11/2026).
+    /// `docs/design/browse-espaces.md`).
     #[test]
     fn q_signals_an_empty_chain_while_the_bench_plays() {
         // banc sur « son direct » sans IR : rien à signaler, `q` quitte

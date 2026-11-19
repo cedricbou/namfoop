@@ -105,8 +105,8 @@ impl State {
         let mut send = Send { nam, what, model, ir, with_ir, checked: with_ir, opts: Vec::new(), cursor: 0 };
         if self.fx.chain.is_empty() {
             // Chaîne vide : elle devient **ce qu'on entend au banc**, depuis n'importe quel onglet
-            // (décision du 12/11/2026, § 4) — sinon Entrée depuis l'onglet IR perdait le modèle du
-            // banc, alors que c'est le parcours « j'ouvre browse, je choisis un son ».
+            // (§ 4) — autrement, Entrée depuis l'onglet IR perdrait le modèle du banc, alors que
+            // c'est le parcours « j'ouvre browse, je choisis un son ».
             let items = self.bench_items();
             let labels: Vec<String> = items.iter().map(|l| self.leaf_label(l)).collect();
             self.fx.chain.blocks = items.into_iter().map(Block::Leaf).collect();
