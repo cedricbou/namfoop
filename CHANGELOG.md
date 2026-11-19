@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#277)
+- **Les `CLAUDE.md` de crate ne recopient plus le racine.** Les quatre « Carte détaillée (reprise
+  du `CLAUDE.md` racine) » qui restaient — `model`, `nam-sys`, `audio-io`, `library` — reproduisaient
+  une version **antérieure** de la carte : celle de `model` omettait `card.rs` que le corps du même
+  fichier décrit, sur 24 % de son volume. Supprimées ; chaque fichier renvoie à la carte racine et à
+  `docs/architecture.md`.
+- **`docs/architecture.md` décrit l'architecture sans raconter comment elle a été faite** : la
+  section « Où en est-on », instantané périmé par construction, devient une table **des décisions**
+  (une ligne par ADR, avec ce que chacune fixe) ; la colonne « Depuis » de la table des règles, dix
+  lignes de numéros de PR, disparaît ; et la table dit maintenant exactement ce que
+  `scripts/check-arch.sh` vérifie (`dsp` interdit aussi `model`, `audio-io` aussi `serde`).
+- Le `CLAUDE.md` racine garde la **règle** de publication — rouler, aligner la version, taguer —
+  sans le récit de l'incident qui l'a motivée. Même traitement pour les alternatives abandonnées de
+  `crates/library/CLAUDE.md`, dont la mesure reste, au présent.
+
 ### Documentation (#276)
 - **La règle qui évite de conclure sur une machine lente est écrite une fois.** Le récit de la
   stabilisation de `sim_session_swaps_chains` existait en **trois exemplaires** — deux fois dans

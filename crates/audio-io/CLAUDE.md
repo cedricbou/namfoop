@@ -27,11 +27,11 @@ matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-
 
 ## Faits mesurés
 
-- Priorité du thread audio (#3, iTwo, ALSA 48×3, b7k 8 canaux + IR, 3 × 60 s) : rtkit (FIFO 20) ->
+- Priorité du thread audio (iTwo, ALSA 48×3, b7k 8 canaux + IR, 3 × 60 s) : rtkit (FIFO 20) ->
   p99 20–31 %, p99,9 32–64 %, jusqu'à 9 buffers > 100 % par minute (max 237 %) ; groupe
   `realtime` (FIFO 80) -> p99 10–11 %, p99,9 13–16 %, aucun buffer > 50 % (max 19–49 %), 0 xrun.
   C'est le seul réglage qui compte sur ce PC : gouverneur `performance`, `mlockall`, cœur dédié
-  (`--cpu`) et `cpu_dma_latency` = 0 (essayé, retiré) ne changent rien de mesurable. Médiane 8 %
+  (`--cpu`) et `cpu_dma_latency` = 0 ne changent rien de mesurable. Médiane 8 %
   dans tous les cas (34 µs au bench, ~80 µs en jeu : non expliqué, sans conséquence).
 - Latence aller-retour iTwo (PC), **ALSA 48×3 : 5,2 ms** (`latency`, boucle sortie 1 -> entrée 2,
   impulsion émise à 0,7 = -3,1 dBFS : 256 frames, écart min–max **18 frames**). Plancher matériel
@@ -39,7 +39,7 @@ matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-
   **maximum** du retour et non un seuil fixe, parce que le niveau d'arrivée dépend du gain du chemin
   et non seulement de la latence.
 - ALSA : format négocié dans `alsa/format.rs` (S32_LE > S24_3LE > S24_LE > S16_LE, chaque sens
-  séparément ; iTwo = S32_LE, conversion S32 identique à l'ancienne, test à l'appui) ; côté
+  séparément ; iTwo = S32_LE, conversion S32 vérifiée par un test) ; côté
   capture, au moins 4 périodes (n'ajoute pas de latence, absorbe les à-coups).
 - `start_with` attend 500 ms puis remet les xruns à zéro : les premiers callbacks sont à froid, et
   les xruns comptés ensuite sont ceux du régime établi.
@@ -61,11 +61,5 @@ Deux, et le DSP leur est commun (trait `audio_io::Io`, nombre de canaux de la ca
 - Ne pas lancer `run` avec un gain audible sans l'accord de l'utilisateur (utiliser
   `--master-db -120` pour les tests de fumée).
 
-## Carte détaillée (reprise du `CLAUDE.md` racine)
-
-```
-crates/audio-io/  accès à la carte, sans clap, config ni DSP :
-                  lib.rs (trait Io : canaux dynamiques ; Processor ; Settings ; start), error.rs
-                  (thiserror), alsa.rs (direct, streams liés, probe, PipeWire « off » ; alsa/format.rs : S32 / S24_3 / S24 / S16),
-                  sim.rs (carte simulée), rt.rs (SCHED_FIFO, dénormaux)
-```
+La place de cette crate dans le graphe des dépendances : la carte du `CLAUDE.md` racine et
+[`docs/architecture.md`](../../docs/architecture.md).

@@ -19,18 +19,11 @@ sont dans le binaire et se convertissent).
 
 **Compatibilité ascendante des fichiers.** Une config écrite par une version précédente doit
 toujours se relire : nouveaux champs avec `#[serde(default)]` (et `skip_serializing_if` pour les
-optionnels), jamais de renommage ni de changement de type sans alias serde. `tests/files.rs` relit
-`tests/config-full.toml` et `config-default.toml` (écrits par l'ancien code) et les réécrit à
-l'octet près : un échec veut dire que le format a changé.
+optionnels), jamais de renommage ni de changement de type sans alias serde.
+`tests/config-full.toml` et `config-default.toml` sont les **témoins de format** : `tests/files.rs`
+les relit et les réécrit à l'octet près, et un échec veut dire que le format a changé.
 
 **Tester** : `cargo test -p model`.
 
-## Carte détaillée (reprise du `CLAUDE.md` racine)
-
-```
-crates/model/     types sérialisables, aucune logique : config.rs
-                  (~/.config/namfoop/config.toml : trim_db, level, target_db, limiter, calibration_wav,
-                  [audio] backend / device / buffer..., [routing]), routing.rs (Routing, OutputRoute,
-                  Source), card.rs (CardProfile, MixerSetting, profils livrés de profiles/*.toml) ;
-                  tests/ : fichiers de config versionnés relus à l'octet près
-```
+La place de cette crate dans le graphe des dépendances : la carte du `CLAUDE.md` racine et
+[`docs/architecture.md`](../../docs/architecture.md).
