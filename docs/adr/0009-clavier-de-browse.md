@@ -61,6 +61,15 @@ Ce n'est pas de l'esthétique, c'est de la fiabilité en concert : se retrouver 
 un risque. `*` et `k` sont des **gestes physiques** — le pied, l'oreille — qui doivent répondre
 pareil partout.
 
+**Pareil partout veut dire aussi devant une fenêtre.** La pédale passe donc au-dessus des **fenêtres
+modales** (la banque, « mettre dans la chaîne », le mode pose, le sélecteur sur place, le choix du
+set) : la touche **referme** la fenêtre — avec l'annulation que cette fenêtre connaît, exactement
+comme `Échap` — **puis** agit. Elle n'agit jamais *derrière* elle, donc la règle des modales tient.
+Deux familles restent au-dessus d'elle : les **saisies de texte**, où une lettre est une lettre, et
+les **murs** (confirmations, aide, éditeur, sous-modes de l'édition d'un set), qui attendent leur
+réponse — une confirmation à laquelle `q` échapperait ne confirmerait plus rien. Aucune de ces
+fenêtres ne lie `1 2 3 q * k` : rien ne leur est volé.
+
 Quand une touche de la pédale n'a rien à faire là, elle le **dit** au lieu de ne rien faire. C'est ce
 que `tap_tempo` fait depuis #207 (« le tap tempo est dans l'espace Chaîne (2) »), et ce précédent
 devient la règle.
@@ -75,9 +84,9 @@ filtre ne rend `Tab`, `Maj+Tab`, `↑` et `↓`).
 
 ### Une modale ne retombe jamais
 
-Tant qu'une fenêtre est ouverte, **elle prend tout**. Une touche qui la traverse agit derrière elle,
-sur un écran qu'elle recouvre — `n` effacerait la chaîne sous la fenêtre `L`, `P` ouvrirait la
-banque.
+Tant qu'une fenêtre est ouverte, **elle prend tout** — sauf les touches de la pédale, qui la
+**referment** d'abord (ci-dessus). Une touche qui la *traverse* agit derrière elle, sur un écran
+qu'elle recouvre : `n` effacerait la chaîne sous la fenêtre `L`, `P` ouvrirait la banque.
 
 Les modales se classent par leur **priorité propre**, pas par l'espace qui les possède : le catalogue
 de blocs appartient à la Chaîne mais passe avant tout, parce que son filtre se tape au clavier.

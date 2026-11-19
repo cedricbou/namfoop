@@ -315,17 +315,29 @@
 ## bibliothèque · fenêtre « mettre dans la chaîne »
   Entrée   « nam·800D Modern remplacé par nam·B7K Ultra  ·  2 pour voir la chaîne »   send: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true }), …
   Échap    « rien n'est changé dans la chaîne »   send: true → false
+  '*'      « le tap tempo est dans l'espace Chaîne (2) »   send: true → false
   '?'      aide: false → true
+  '1'      « tu es déjà dans la Bibliothèque »   send: true → false
+  '2'      → Play   espace: Library → Chain   send: true → false
+  '3'      → Play   espace: Library → Set   send: true → false
   'h'      aide: false → true
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   send: true → false
+  'q'      → Quit   send: true → false
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'i' 'L' 'm' 'n' 'o' 'P' 'p' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## chaîne · mode pose
   →        curseur chaîne: Top(0) → Top(1)
   Entrée   → Play   « nam·B7K Ultra posé  ·  [ ] pour le déplacer »   pose: true → false   curseur chaîne: Top(0) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   Échap    → Play   « rien n'est changé dans la chaîne »   espace: Chain → Library   pose: true → false
+  '*'      « le tap tempo est dans l'espace Chaîne (2) »   espace: Chain → Library   pose: true → false
   '?'      aide: false → true
+  '1'      « tu es déjà dans la Bibliothèque »   espace: Chain → Library   pose: true → false
+  '2'      → Play   pose: true → false
+  '3'      → Play   espace: Chain → Set   pose: true → false
   'h'      aide: false → true
-  inertes : ↑ ↓ ← Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   espace: Chain → Library   pose: true → false
+  'q'      → Quit   espace: Chain → Library   pose: true → false
+  inertes : ↑ ↓ ← Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'i' 'L' 'm' 'n' 'o' 'P' 'p' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## set · aucun set actif
   ↑        « aucun set : L pour en choisir un »
@@ -540,19 +552,31 @@
 
 ## set · fenêtre L (choisir le set)
   Échap    fenêtre L: true → false
+  '*'      « tempo 120.0 BPM — tape encore pour le donner »   fenêtre L: true → false
   '?'      aide: false → true
+  '1'      → Play   espace: Set → Library   fenêtre L: true → false
+  '2'      → Play   espace: Set → Chain   fenêtre L: true → false
+  '3'      « tu es déjà dans le Set »   fenêtre L: true → false
   'h'      aide: false → true
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   fenêtre L: true → false
   'L'      fenêtre L: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'm' 'n' 'o' 'P' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+  'q'      → Quit   fenêtre L: true → false
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Entrée Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'i' 'm' 'n' 'o' 'P' 'p' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## banque de presets (P)
   Entrée   → Play   « preset « Chill verse » chargé (1/2) »   banque: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true })],…   preset: None → Some(PresetRef { name: "Chill verse", path: "/x/b.preset.…
   Échap    banque: true → false
+  '*'      « tempo 120.0 BPM — tape encore pour le donner »   banque: true → false
   '?'      aide: false → true
+  '1'      → Play   espace: Chain → Library   banque: true → false
+  '2'      « tu es déjà dans la Chaîne »   banque: true → false
+  '3'      → Play   espace: Chain → Set   banque: true → false
   'h'      aide: false → true
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   banque: true → false
   'n'      → Play   « nouvelle chaîne vierge : a ajoute un bloc (son direct en attendant) »   banque: true → false   curseur chaîne: Top(0) → Empty   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [], volume_db: 0.0, tempo_bpm: 120.0 }
   'P'      banque: true → false
-  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '*' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' '1' '2' '3' 'a' 'b' 'c' 'e' 'é' 'i' 'k' 'L' 'm' 'o' 'p' 'q' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
+  'q'      → Quit   banque: true → false
+  inertes : ↑ ↓ ← → Maj+← Maj+→ PgUp PgDn Tab Maj+Tab Retour Fin Début ' ' '+' ',' '-' '.' '/' '=' '[' ']' '{' '}' 'a' 'b' 'c' 'e' 'é' 'i' 'L' 'm' 'o' 'p' 'Q' 'r' 's' 'S' 't' 'T' 'v' 'x' 'X' 'z'
 
 ## chaîne · sélecteur sur place (Entrée sur un nam)
   ←        « valide (Entrée) ou annule (Échap) le choix d'abord »
@@ -567,7 +591,7 @@
   Fin      « valide (Entrée) ou annule (Échap) le choix d'abord »
   Début    « valide (Entrée) ou annule (Échap) le choix d'abord »
   ' '      « valide (Entrée) ou annule (Échap) le choix d'abord »
-  '*'      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  '*'      « tempo 120.0 BPM — tape encore pour le donner »   sélecteur: true → false
   '+'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   ','      « valide (Entrée) ou annule (Échap) le choix d'abord »
   '-'      « valide (Entrée) ou annule (Échap) le choix d'abord »
@@ -578,9 +602,9 @@
   ']'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   '{'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   '}'      « valide (Entrée) ou annule (Échap) le choix d'abord »
-  '1'      « valide (Entrée) ou annule (Échap) le choix d'abord »
-  '2'      « valide (Entrée) ou annule (Échap) le choix d'abord »
-  '3'      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  '1'      → Play   espace: Chain → Library   sélecteur: true → false
+  '2'      « tu es déjà dans la Chaîne »   sélecteur: true → false
+  '3'      → Play   espace: Chain → Set   sélecteur: true → false
   'a'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'b'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'c'      « c compare l'actuel et l'essai : choisis d'abord un autre modèle avec ↑↓ »
@@ -588,14 +612,14 @@
   'é'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'h'      aide: false → true
   'i'      « valide (Entrée) ou annule (Échap) le choix d'abord »
-  'k'      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  'k'      « aucune sortie ne reçoit le clic : déclare une sortie « in-ear » dans namfoop setup »   sélecteur: true → false
   'L'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'm'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'n'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'o'      « écoute isolée : ce bloc et son voisin, sans les effets (o pour revenir) »
   'P'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'p'      « valide (Entrée) ou annule (Échap) le choix d'abord »
-  'q'      « valide (Entrée) ou annule (Échap) le choix d'abord »
+  'q'      → Quit   sélecteur: true → false
   'Q'      « valide (Entrée) ou annule (Échap) le choix d'abord »
   'r'      « A/B : sans effets (r) »
   's'      « valide (Entrée) ou annule (Échap) le choix d'abord »

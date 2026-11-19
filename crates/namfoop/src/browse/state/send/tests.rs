@@ -189,12 +189,10 @@ fn place_mode_only_moves_and_poses() {
     s.on_key(Key::Enter);
     s.on_key(Key::Enter); // « ajouter » (aucun bloc nam)
     let before = s.fx.chain.clone();
-    for key in
-        [Key::Char('x'), Key::Char('a'), Key::Char('s'), Key::Char('b'), Key::Char('q'), Key::Char('2')]
-    {
+    for key in [Key::Char('x'), Key::Char('a'), Key::Char('s'), Key::Char('b')] {
         s.on_key(key);
         assert_eq!(s.fx.chain, before, "{key:?} n'édite rien en mode pose");
-        assert!(s.place.is_some() && !s.confirm_quit, "{key:?} ne sort pas du mode pose");
+        assert!(s.place.is_some(), "{key:?} ne sort pas du mode pose");
     }
     // ↓↓ puis → : dans la deuxième branche, sur son bloc
     s.on_key(Key::Down);

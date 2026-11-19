@@ -201,24 +201,24 @@ fn the_listen_line_describes_the_parallel_and_skips_what_is_cut() {
     assert_eq!(s.chain_text(), "(vide)");
 }
 
-/// `1` / `2` sont refusés pendant une saisie (filtre, nom) et pendant un choix en cours (§ 2, § 5).
+/// `1` / `2` **attendent la fin d'une saisie** (filtre, nom), où une lettre est une lettre. Devant
+/// une **fenêtre**, en revanche, elles passent : l'étage pédale ne se laisse pas éclipser, et la
+/// fenêtre se referme avant que la touche agisse (§ 2, § 5, ADR 0009).
 #[test]
-fn the_space_keys_wait_for_a_typing_or_a_choice_to_end() {
+fn the_space_keys_wait_for_a_typing_but_not_for_a_window() {
     let mut s = sample();
     s.on_key(Key::Char('/'));
     s.on_key(Key::Char('2'));
     assert_eq!(s.space, Space::Library, "dans le filtre, 2 s'écrit");
     assert_eq!(s.filter, "2");
     s.on_key(Key::Esc);
-    // un choix en cours dans la Chaîne : valider ou annuler d'abord
+    // un choix en cours dans la Chaîne : la touche d'espace le referme, puis change d'espace
     let mut s = with_chain(vec![Block::Leaf(nam(0))]);
     s.fx.cursor = chain::Cursor::Top(0);
     s.on_key(Key::Enter);
-    s.on_key(Key::Char('1'));
-    assert_eq!(s.space, Space::Chain);
-    assert!(s.message.as_deref().is_some_and(|m| m.contains("valide (Entrée) ou annule (Échap)")));
-    s.on_key(Key::Esc);
+    assert!(s.picker.is_some(), "le sélecteur est ouvert");
     assert!(matches!(s.on_key(Key::Char('1')), Action::Play { .. }));
+    assert!(s.picker.is_none(), "la fenêtre est refermée, pas traversée");
     assert_eq!(s.space, Space::Library);
 }
 
