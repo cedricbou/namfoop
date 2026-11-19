@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#275)
+- **Le guide dit ce que fait namfoop, et plus comment il en est venu là.** Trois passages
+  s'adressaient au développeur plutôt qu'au bassiste : l'alignement de niveau racontait son
+  changement de mesure et une pondération écartée, la queue de preset expliquait d'où elle tire sa
+  durée, et le volume du preset citait les millisecondes qu'il coûtait avant d'être vivant. Ils
+  disent maintenant ce qu'on **entend**.
+- Les numéros d'issue disparaissent du guide : un manque s'annonce sans renvoyer à un dépôt que le
+  lecteur n'ouvrira pas. Chaque sous-commande, chaque option et les 75 exemples vérifiés par
+  `check-docs.sh` sont inchangés.
+
 ### Documentation (#277)
 - **Les `CLAUDE.md` de crate ne recopient plus le racine.** Les quatre « Carte détaillée (reprise
   du `CLAUDE.md` racine) » qui restaient — `model`, `nam-sys`, `audio-io`, `library` — reproduisaient
