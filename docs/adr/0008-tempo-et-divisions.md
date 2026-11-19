@@ -159,7 +159,8 @@ commune, elle passe **après** les couches de saisie de texte (#175).
 ### L'horloge MIDI (mise en œuvre confiée à #7)
 
 Les deux, comme tout le marché : **horloge** Beat Clock (`0xF8`, 24 tops par noire) avec
-`Start` / `Stop` / `Continue`, **et** un CC de tap (le Quad Cortex utilise CC#44, Helix CC#64).
+`Start` / `Stop` / `Continue`, **et** un CC de tap. Ce CC vaut **14**, celui du tap Fractal
+([ADR 0011](0011-midi-conventions-fractal.md) ; le Quad Cortex utilise CC#44, Helix CC#64).
 
 Un top isolé est inexploitable : à 120 BPM un top vaut 20,833 ms, et 21 ms donne déjà 119 BPM.
 Donc : moyenne glissante sur 24 tops, rejet des intervalles hors de ±25 %, **publication seulement

@@ -61,9 +61,9 @@ pc = 2                               # facultatif : Program Change 1-128 qui app
 tempo_bpm = 124                      # facultatif : prime sur le tempo de chaque preset du morceau (à la noire)
 time = "4/4"                         # facultatif : mesure par défaut ; les changements sont dans le prompteur
 prompt = "prompts/le-phare.cho"      # facultatif : ChordPro, relatif à library/sets/ (§ 10)
-  [[song.sound]]                     # son 1 : CC 69 valeur 0
+  [[song.sound]]                     # son 1 : CC 34 valeur 0
   preset = "fuzz-face"               # identifiant du preset (celui de `namfoop presets`)
-  [[song.sound]]                     # son 2 : CC 69 valeur 1
+  [[song.sound]]                     # son 2 : CC 34 valeur 1
   preset = "clean-svt"
   volume_db = -1.5                   # facultatif : s'ajoute au volume du preset, dans ce morceau
 
@@ -93,7 +93,7 @@ pc = 1
 ```
 
 Un son n'a **pas** de n° de PC : il est désigné par sa place dans le morceau (§ 5), comme les
-snapshots Helix ou les scènes du Quad Cortex. Réordonner les sons d'un morceau change donc leur
+scenes Fractal ou les snapshots Helix. Réordonner les sons d'un morceau change donc leur
 valeur de CC.
 
 Contrôles à la lecture (`namfoop sets`, ouverture d'un set) :
@@ -135,17 +135,20 @@ et plus.
 **↑↓ puis Entrée** (espace 3 seulement) : viser un morceau sans changer le son, puis le jouer (son 1).
 Rien ne change à l'oreille tant qu'on n'a pas appuyé sur Entrée.
 
-**MIDI** (§ 12) : adressage hiérarchique, comme tous les pédaliers du marché — Helix :
-CC32 setlist › PC preset › CC69 snapshot ; Quad Cortex : CC0/32 › PC › CC43 scène ; Fractal : bank ›
-PC › CC de scène ; Kemper : PC Performance › CC 50-54 slot.
+**MIDI** (§ 12) : adressage hiérarchique, comme tous les pédaliers du marché — Fractal : bank
+(CC#0) › PC preset › CC 34 scene ; Helix : CC 32 setlist › PC › CC 69 snapshot ; Quad Cortex :
+CC 0/32 › PC › CC 43 scène ; Kemper : PC Performance › CC 50-54 slot. namfoop suit **Fractal** par
+défaut ([ADR 0011](../adr/0011-midi-conventions-fractal.md)) : c'est le gabarit que parlent les
+pédaliers de l'utilisateur, et les numéros restent réglables.
 
 - **PC n → le morceau dont le `pc` vaut n**, sur son son 1. Le n° est fixe : réordonner le set ne le
   change pas, et un rappel joué au milieu du set (PC 2 → « Le Phare ») tombe toujours juste. Un PC
   qu'aucun morceau ne porte est ignoré et le message le dit.
-- **CC 69 valeur k → le son k+1 du morceau joué** (n° de CC réglable, 69 par défaut comme les
-  snapshots Helix). Valeur hors du morceau : ignorée, message.
+- **CC 34 valeur k → le son k+1 du morceau joué** (n° de CC réglable, **34** par défaut, comme les
+  scenes Fractal). Valeur hors du morceau : **ignorée**, message — Fractal écrête, namfoop préfère
+  le dire que de jouer un autre son (ADR 0011).
 - **PC suivi d'un CC** (Ableton envoie souvent les deux en tête de clip) : après un PC, namfoop attend
-  une courte fenêtre (≈ 10 ms) un CC 69 éventuel et ne fait **qu'un** changement de son.
+  une courte fenêtre (≈ 10 ms) un CC 34 éventuel et ne fait **qu'un** changement de son.
 
 ## 6. L'espace 3 : vue scène (deux colonnes)
 
@@ -161,8 +164,8 @@ PC › CC de scène ; Kemper : PC Performance › CC 50-54 slot.
 │      ○ Clean SVT                         ││ ▸ INTRO       4 mes.  → Fuzz Face                                  │
 │   3 Néon                  ♩100     ≡     ││   ›  basse seule, 4 mesures, fuzz plein pot                        │
 │   4 Marée basse           ♩82  6/8 ≡     ││      | E5 . . . | E5 . . . | G5 . E5 . | D5 C5 B4 . |             │
-│      ○ Clean SVT    CC69:0               ││   COUPLET 1   8 mes.                                               │
-│      ○ Drive B7K    CC69:1               ││      | E5 . . E5 | G5 . E5 . | D5 . C5 . | B4 . . . |  ×2         │
+│      ○ Clean SVT    CC34:0               ││   COUPLET 1   8 mes.                                               │
+│      ○ Drive B7K    CC34:1               ││      | E5 . . E5 | G5 . E5 . | D5 . C5 . | B4 . . . |  ×2         │
 │      PC 4 · prompteur : 3 sections       ││   REFRAIN     8 mes.  → Clean SVT                                  │
 │   5 Sur le fil            ♩117           ││   COUPLET 2   8 mes.  → Fuzz Face                                  │
 │   6 Rappel                ♩110           ││   FIN         2 mes.                                               │
@@ -184,7 +187,7 @@ PC › CC de scène ; Kemper : PC Performance › CC 50-54 slot.
   autres. La liste commence **un morceau avant** celui qu'on joue : tout le reste de la hauteur montre
   ce qui vient ; `… N lignes plus bas` quand elle déborde. Le curseur ↑↓ est surligné.
 - **`i` (détail)** déplie ou replie le morceau visé (le morceau joué dans `run --set`) : son n° de PC,
-  ses sons avec leur valeur de CC 69 et leur volume propre, et la présence d'un prompteur. Plusieurs morceaux peuvent rester dépliés.
+  ses sons avec leur valeur de CC 34 et leur volume propre, et la présence d'un prompteur. Plusieurs morceaux peuvent rester dépliés.
 - **Colonne prompteur** (le reste de la largeur) : en tête, la **bande de battue** (§ 11) ; titre `n · morceau · son k/N <preset> · PgDn :
   ensuite <…>` — ce que fera le prochain appui —, puis le texte à partir de deux lignes avant la
   position (§ 10). Les sections passées sont grisées, la courante `▸` en vert, les suivantes en gras.
@@ -228,7 +231,7 @@ preset (comme le sélecteur de la Chaîne, § 5 de `browse-espaces.md`).
 | `+` | | ajouter un son après (liste des presets, ↑↓ écoute) |
 | Entrée | | remplacer le preset (même liste) |
 | `x` | | retirer (sans confirmation, le preset reste dans la banque) |
-| `{` `}` | | déplacer dans le morceau (change sa valeur de CC 69) |
+| `{` `}` | | déplacer dans le morceau (change sa valeur de CC 34) |
 | `,` `.` | | volume propre au morceau, ±0,5 dB |
 | `t` | ouvrir le prompteur du morceau dans `$EDITOR` (§ 10) | |
 
@@ -358,13 +361,13 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
 
 ## 12. MIDI
 
-- **PC / CC 69** : § 5 (PC = morceau, CC 69 = son du morceau, fenêtre PC + CC). Sans set : PC n =
+- **PC / CC 34** : § 5 (PC = morceau, CC 34 = son du morceau, fenêtre PC + CC). Sans set : PC n =
   n-ième preset de la banque.
 - **Horloge** : Start lance la battue sur le 1 de la mesure 1, Stop l'arrête, le tempo reçu devient
   le tempo entendu.
 - **Song Position Pointer** (Ableton l'envoie en mode « Song ») : position en doubles croches,
   convertie en section / mesure / temps par la carte des mesures (§ 11).
-- Plus tard, hors épique : CC32 pour choisir le set (comme les setlists Helix), CC « son / morceau
+- Plus tard, hors épique : **Bank Select CC#0** pour choisir le set (la banque Fractal), CC « son / morceau
   suivant / précédent » pour les pédaliers MIDI simples, OSC (AbleSet publie le morceau et la section
   en cours), CC de slot à la Kemper.
 
@@ -388,7 +391,7 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
 
 1. **Vue scène en deux colonnes**, set list compacte à gauche, `i` pour le détail (§ 6) : sur scène,
    on cherche d'un coup d'œil où l'on en est, pas la liste complète.
-2. **MIDI à la Helix** : PC = morceau (unique dans le set), CC 69 = son du morceau (§ 5) — c'est
+2. **MIDI à la Fractal** : PC = morceau (unique dans le set), CC 34 = son du morceau (§ 5) — c'est
    l'adressage hiérarchique de tous les pédaliers du marché (§ 2), donc celui que les pieds
    connaissent déjà.
 3. **Métrique dans le ChordPro**, BPM toujours à la noire, bande de battue avec temps 1 et compte à

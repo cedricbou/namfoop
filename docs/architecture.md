@@ -56,6 +56,7 @@ Chacune a son ADR dans [`docs/adr/`](adr/), qui porte le contexte, les alternati
 | [0008](adr/0008-tempo-et-divisions.md) | le **tempo** : trois sources (preset, tap, horloge MIDI), un arbitre dans `engine` qui les hiérarchise, une case, et des **divisions rythmiques** dont la valeur « libre » rend la main aux millisecondes |
 | [0009](adr/0009-clavier-de-browse.md) | le **clavier de `browse`** : quatre étages (la pédale, l'espace, le commun, le dernier recours), un **propriétaire par touche**, une modale qui ne retombe jamais, et un **oracle** qui mesure chaque touche dans chaque contexte |
 | [0010](adr/0010-retrait-de-jack.md) | deux backends, ALSA et sim, et aucun autre (elle supersède l'ADR 0001) |
+| [0011](adr/0011-midi-conventions-fractal.md) | le **MIDI** : les conventions des pédaliers **Fractal** par défaut (PC = morceau, CC 34 = son, CC 14 = tap), **Ableton** pour le transport (horloge, `Start` / `Stop`, SPP) ; les numéros restent réglables |
 
 Deux conséquences structurelles qui ne se lisent nulle part ailleurs : les **profils de carte** sont
 des données (`profiles/*.toml`, `model::card`) et `audio-io` ne reçoit qu'une liste de contrôles
