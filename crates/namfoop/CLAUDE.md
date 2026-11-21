@@ -39,10 +39,12 @@ live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre
 offline.rs      `render` (WAV -> chaîne -> WAV), `bench` et `bench --fx`
 latency/        mesure de latence par impulsion (câble de bouclage ; engine::raw). mod.rs : les
                 options, la session, le tableau des passes ; rt.rs : ce qui tourne dans le callback
-                — `Detector`, dont le retour est le maximum du signal dans la fenêtre d'écoute,
-                comparé au bruit de fond mesuré juste avant (pas de seuil fixe : PipeWire atténue et
-                étale l'impulsion), et `Runner`, qui enchaîne les passes des chaînes de référence
-                (`dsp::bench`). Deux machines à états pures, testées sans carte
+                — `Detector`, où la crête de la fenêtre d'écoute dit qu'un retour est là (comparée
+                au bruit de fond mesuré juste avant : pas de seuil fixe, PipeWire atténue et étale
+                l'impulsion) et son DÉBUT donne la latence (l'instant de la crête saute d'un lobe à
+                l'autre), et `Runner`, qui enchaîne les passes des chaînes de référence
+                (`dsp::bench`) en n'en comptant pas les premières fenêtres. Deux machines à états
+                pures, testées sans carte
 calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le
                 niveau « match »
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;

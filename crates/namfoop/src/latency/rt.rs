@@ -4,10 +4,16 @@
 //!
 //! Le retour n'est **pas** cherché avec un seuil fixe : à travers PipeWire, l'impulsion d'un
 //! échantillon passe par l'étage de volume et le convertisseur, qui l'étalent — sa crête peut
-//! tomber très bas — à 85 % de volume de sortie, sous 0,05, soit -26 dBFS. On prend donc le
-//! **maximum** de |x| dans la fenêtre d'écoute, en le comparant au **bruit de fond** mesuré juste
-//! avant : un critère relatif, qui marche à n'importe quel niveau. C'est la même idée que
-//! `dsp::split::measure_latency`, qui aligne les branches par corrélation.
+//! tomber très bas — à 85 % de volume de sortie, sous 0,05, soit -26 dBFS. Le critère est donc
+//! **relatif** : la crête de la fenêtre d'écoute dit si quelque chose est revenu (comparée au bruit
+//! de fond mesuré juste avant), et c'est le **début** de ce retour qui donne la latence — le
+//! premier échantillon qui monte à [`ONSET_FRAC`] de cette crête.
+//!
+//! Chercher la **crête** elle-même rendrait la mesure bistable : un retour qui sonne a plusieurs
+//! lobes de hauteur voisine, et l'instant du maximum saute de l'un à l'autre d'une passe à la
+//! suivante (mesuré : 42 frames d'écart sur une sortie AUX, alors que chaque passe était stable).
+//! Le début, lui, ne dépend pas de la forme de la réponse — et c'est aussi la définition de la
+//! latence : le délai entre la note et le son.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -19,8 +25,28 @@ const AMPLITUDE: f32 = 0.7;
 const MIN_RATIO: f32 = 5.0;
 /// Bruit de fond plancher : évite de diviser par zéro sur une entrée parfaitement muette.
 const NOISE_FLOOR: f32 = 1e-7;
+/// Fraction de la crête de la fenêtre à laquelle le retour est jugé commencé (-12 dB).
+const ONSET_FRAC: f32 = 0.25;
 /// Fenêtres sans retour au bout desquelles une passe est abandonnée.
 pub(super) const MAX_WEAK: u32 = 5;
+/// Durée d'écoute après l'impulsion : elle borne la latence mesurable.
+const WINDOW_S: f64 = 0.25;
+/// Silence entre la fin d'une fenêtre et l'impulsion suivante.
+const INTERVAL_S: f64 = 0.5;
+/// Un cycle de mesure : la fenêtre d'écoute, puis l'intervalle.
+pub(super) const CYCLE_S: f64 = WINDOW_S + INTERVAL_S;
+/// Attente avant la **première** impulsion. Le flux met quelques secondes à s'établir : mesuré sur
+/// une carte USB, l'aller-retour part de 269 frames, passe par 311 et ne se fixe à 305 qu'au bout
+/// de 3 à 4 s. Une mesure prise pendant ce temps est fausse, et si c'est celle du trajet nu, c'est
+/// la référence de tout le tableau qui est fausse.
+pub(super) const SETTLE_FIRST_S: f64 = 3.0;
+/// Attente après un changement de passe : la queue de la chaîne quittée (celle d'une réverbe) doit
+/// s'éteindre avant qu'on mesure un bruit de fond.
+pub(super) const SETTLE_PASS_S: f64 = 1.0;
+/// Fenêtres émises **et affichées**, mais non comptées, en tête de chaque passe : elles absorbent
+/// ce qui reste du transitoire, au démarrage comme au changement de chaîne. Les compter est le
+/// piège — c'est ce qui faisait mentir la ligne témoin d'une chaîne.
+pub(super) const WARMUP: u32 = 2;
 /// Taille max de bloc pour laquelle les chaînes sont préparées (comme `run`). Le callback découpe
 /// ce qu'il reçoit à cette taille, pour garder des tampons préalloués.
 pub(super) const MAX_BLOCK: usize = 1024;
@@ -45,8 +71,12 @@ struct Detector {
     /// Frames entre deux impulsions.
     interval: u64,
     next_emit: u64,
-    /// Émission en cours : frame de l'impulsion, plus grande valeur vue et sa position.
-    emitted: Option<(u64, f32, u64)>,
+    /// Émission en cours : frame de l'impulsion, et nombre d'échantillons déjà écoutés.
+    emitted: Option<(u64, usize)>,
+    /// La fenêtre d'écoute, en valeurs absolues : `heard[j]` est la frame `impulsion + 1 + j`.
+    /// Préallouée une fois pour toutes — la conclusion la relit, ce qu'un calcul au fil de l'eau ne
+    /// permet pas : le seuil du début dépend de la crête, qu'on ne connaît qu'à la fin.
+    heard: Vec<f32>,
     /// Bruit de fond : somme des carrés et nombre d'échantillons, avant l'impulsion.
     noise_sum: f64,
     noise_n: u32,
@@ -61,6 +91,7 @@ impl Detector {
             interval,
             next_emit: first_emit,
             emitted: None,
+            heard: vec![0.0; window.max(1) as usize],
             noise_sum: 0.0,
             noise_n: 0,
             noise: 0.0,
@@ -72,24 +103,20 @@ impl Detector {
     #[inline]
     fn sample(&mut self, t: u64, x: f32) -> (f32, Option<Event>) {
         match self.emitted {
-            // on écoute le retour : on garde le maximum
-            Some((at, peak, peak_at)) => {
-                let a = x.abs();
-                let (peak, peak_at) = if a > peak { (a, t) } else { (peak, peak_at) };
-                if t - at >= self.window {
+            // on écoute le retour : on enregistre la fenêtre, on conclut à la fin
+            Some((at, n)) => {
+                if let Some(slot) = self.heard.get_mut(n) {
+                    *slot = x.abs();
+                }
+                let n = n + 1;
+                if n as u64 >= self.window {
                     self.emitted = None;
                     self.next_emit = t + self.interval;
                     self.noise_sum = 0.0;
                     self.noise_n = 0;
-                    let noise = self.noise;
-                    let event = if peak > noise.max(NOISE_FLOOR) * MIN_RATIO {
-                        Event::Measured { frames: peak_at - at, peak, noise }
-                    } else {
-                        Event::TooWeak { peak, noise }
-                    };
-                    return (0.0, Some(event));
+                    return (0.0, Some(self.conclude()));
                 }
-                self.emitted = Some((at, peak, peak_at));
+                self.emitted = Some((at, n));
                 (0.0, None)
             }
             // avant l'impulsion : on écoute le bruit de fond
@@ -98,12 +125,28 @@ impl Detector {
                 self.noise_n += 1;
                 if t >= self.next_emit {
                     self.noise = (self.noise_sum / self.noise_n.max(1) as f64).sqrt() as f32;
-                    self.emitted = Some((t, 0.0, t));
+                    self.emitted = Some((t, 0));
                     return (AMPLITUDE, None);
                 }
                 (0.0, None)
             }
         }
+    }
+
+    /// Conclut la fenêtre écoutée. La **crête** dit si quelque chose est revenu — elle doit sortir
+    /// de `MIN_RATIO` fois le bruit de fond —, et c'est le **début** du retour qui donne la
+    /// latence : le premier échantillon qui monte à `ONSET_FRAC` de cette crête, jamais sous le
+    /// plancher du bruit.
+    fn conclude(&self) -> Event {
+        let (peak, noise) = (self.heard.iter().copied().fold(0.0f32, f32::max), self.noise);
+        let floor = noise.max(NOISE_FLOOR) * MIN_RATIO;
+        if peak <= floor {
+            return Event::TooWeak { peak, noise };
+        }
+        let threshold = (peak * ONSET_FRAC).max(floor);
+        let onset = self.heard.iter().position(|a| *a >= threshold).unwrap_or(0);
+        // `heard[j]` est la frame impulsion + 1 + j
+        Event::Measured { frames: onset as u64 + 1, peak, noise }
     }
 
     /// Repart à zéro, la prochaine impulsion au plus tôt à `at`. Entre deux passes, la chaîne
@@ -160,8 +203,9 @@ pub(super) fn plan(chains: usize) -> Vec<Pass> {
 /// Ce qui remonte du temps réel au thread d'affichage.
 #[derive(Debug, PartialEq)]
 pub(super) enum Report {
-    /// Une fenêtre d'écoute conclue, dans la passe `pass`.
-    Window { pass: usize, event: Event },
+    /// Une fenêtre d'écoute conclue, dans la passe `pass`. `counted` est faux pour une fenêtre
+    /// d'échauffement : elle s'affiche, elle ne compte pas.
+    Window { pass: usize, event: Event, counted: bool },
     /// Le plan est fini : plus rien ne viendra.
     Done,
 }
@@ -179,9 +223,10 @@ pub(super) struct Runner {
     pass: usize,
     done: u32,
     weak: u32,
-    /// Frames d'attente après un changement de passe : la queue de la chaîne quittée (une réverbe)
-    /// doit s'éteindre avant qu'on mesure un bruit de fond.
+    /// Frames d'attente après un changement de passe ([`SETTLE_PASS_S`]).
     settle: u64,
+    /// Fenêtres restant à ne pas compter dans la passe courante.
+    warmup: u32,
     /// Tampons préalloués : le bloc de travail, et le bruit interne du mode « à côté ».
     buf: Vec<f32>,
     noise: Vec<f32>,
@@ -199,9 +244,8 @@ impl Runner {
         chains: Vec<dsp::Chain>,
         loads: Arc<Vec<LoadHistogram>>,
     ) -> Self {
-        let sr = rate as u64;
-        // écoute 250 ms, une impulsion toutes les 500 ms, après 1 s de stabilisation
-        let det = Detector::new(sr / 4, sr / 2, sr);
+        let frames = |seconds: f64| (rate as f64 * seconds) as u64;
+        let det = Detector::new(frames(WINDOW_S), frames(INTERVAL_S), frames(SETTLE_FIRST_S));
         let mut seed = 0x1234_5678u32;
         let noise = (0..NOISE_LEN)
             .map(|_| {
@@ -218,7 +262,8 @@ impl Runner {
             pass: 0,
             done: 0,
             weak: 0,
-            settle: sr,
+            settle: frames(SETTLE_PASS_S),
+            warmup: WARMUP,
             buf: vec![0.0; MAX_BLOCK],
             noise,
             noise_at: 0,
@@ -252,11 +297,20 @@ impl Runner {
             self.buf[k] = emit;
             *o = emit;
             if let Some(event) = event {
-                match event {
-                    Event::Measured { .. } => self.done += 1,
-                    Event::TooWeak { .. } => self.weak += 1,
+                // une fenêtre sans retour compte toujours pour l'abandon : un câble débranché ne
+                // doit pas faire durer la passe plus longtemps qu'avant
+                if matches!(event, Event::TooWeak { .. }) {
+                    self.weak += 1;
                 }
-                push(Report::Window { pass, event });
+                let counted = self.warmup == 0;
+                if counted {
+                    if matches!(event, Event::Measured { .. }) {
+                        self.done += 1;
+                    }
+                } else {
+                    self.warmup -= 1;
+                }
+                push(Report::Window { pass, event, counted });
                 if self.done >= self.count || self.weak >= MAX_WEAK {
                     self.next_pass(self.frame + k as u64, push);
                 }
@@ -291,6 +345,7 @@ impl Runner {
         self.pass += 1;
         self.done = 0;
         self.weak = 0;
+        self.warmup = WARMUP;
         self.det.restart(at + self.settle);
         if self.finished() {
             push(Report::Done);
@@ -353,9 +408,10 @@ mod tests {
     }
 
     /// Une impulsion **étalée** (ce que PipeWire renvoie quand son étage de volume la filtre) :
-    /// c'est sa crête qui donne la latence, pas le premier échantillon qui dépasse un seuil.
+    /// c'est son **début** qui donne la latence, et non sa crête — qui arrive ici 8 frames plus
+    /// tard, et qui sauterait d'un lobe à l'autre sur un retour qui sonne.
     #[test]
-    fn a_smeared_return_is_measured_at_its_peak() {
+    fn a_smeared_return_is_measured_at_its_onset() {
         let events = run_detector(200, 400, 800, |t, emits| {
             let Some(e) = emits.iter().find(|e| t >= **e && t < **e + 200) else { return 1e-6 };
             // sinc étalé sur ~20 frames, culminant 50 frames après l'impulsion
@@ -363,7 +419,8 @@ mod tests {
             0.02 * (-(d * d) / 50.0).exp()
         });
         match &events[0] {
-            Event::Measured { frames, .. } => assert_eq!(*frames, 50),
+            // crête à 50, début (-12 dB de la crête) à 42
+            Event::Measured { frames, .. } => assert_eq!(*frames, 42),
             other => panic!("{other:?}"),
         }
     }
@@ -411,7 +468,7 @@ mod tests {
     /// Fait tourner l'automate bloc par bloc, en renvoyant sur l'entrée, `delay` frames plus tard,
     /// ce qui sort de la sortie : le câble de bouclage, simulé. `rate` est petit exprès — les
     /// fenêtres du détecteur en découlent, donc une passe tient en quelques milliers de frames.
-    fn drive(chains: Vec<dsp::Chain>, count: u32, delay: Option<u64>) -> Vec<Report> {
+    fn drive(chains: Vec<dsp::Chain>, count: u32, delays: &[u64]) -> Vec<Report> {
         let passes = plan(chains.len());
         let loads = Arc::new((0..passes.len()).map(|_| LoadHistogram::default()).collect::<Vec<_>>());
         let mut runner = Runner::new(400, count, passes.clone(), chains, loads);
@@ -420,18 +477,20 @@ mod tests {
         let (block, mut reports) = (32usize, Vec::new());
         let mut back: BTreeMap<u64, f32> = BTreeMap::new();
         let (mut inp, mut out) = (vec![0.0f32; block], vec![0.0f32; block]);
-        let mut t = 0u64;
+        let (mut t, mut emits) = (0u64, 0usize);
         for _ in 0..4000 {
             for (k, x) in inp.iter_mut().enumerate() {
                 *x = back.remove(&(t + k as u64)).unwrap_or(1e-6);
             }
             out.fill(0.0);
             runner.block(&inp, &mut out, &mut |r| reports.push(r));
-            if let Some(d) = delay {
-                for (k, y) in out.iter().enumerate() {
-                    if y.abs() > 0.1 {
-                        back.insert(t + k as u64 + d, 0.5);
-                    }
+            for (k, y) in out.iter().enumerate() {
+                if y.abs() > 0.1 && !delays.is_empty() {
+                    // le retard de la n-ième impulsion : la dernière valeur tient pour la suite,
+                    // ce qui permet de simuler une dérive au démarrage puis un flux établi
+                    let d = delays[emits.min(delays.len() - 1)];
+                    back.insert(t + k as u64 + d, 0.5);
+                    emits += 1;
                 }
             }
             t += block as u64;
@@ -442,15 +501,16 @@ mod tests {
         reports
     }
 
-    /// Les passes de chaque rapport, dans l'ordre, et si le plan s'est bien terminé.
-    fn passes_of(reports: &[Report]) -> (Vec<usize>, bool) {
+    /// Les passes de chaque fenêtre, dans l'ordre, et si le plan s'est bien terminé. `only_counted`
+    /// écarte les fenêtres d'échauffement.
+    fn passes_of(reports: &[Report], only_counted: bool) -> (Vec<usize>, bool) {
         let done = matches!(reports.last(), Some(Report::Done));
         (
             reports
                 .iter()
                 .filter_map(|r| match r {
-                    Report::Window { pass, .. } => Some(*pass),
-                    Report::Done => None,
+                    Report::Window { pass, counted, .. } if *counted || !only_counted => Some(*pass),
+                    _ => None,
                 })
                 .collect(),
             done,
@@ -475,12 +535,12 @@ mod tests {
     /// Chaque passe prend ses mesures puis cède la place, et le plan se termine de lui-même.
     #[test]
     fn every_pass_takes_its_measures_then_hands_over() {
-        let reports = drive(vec![dsp::Chain::new(), dsp::Chain::new()], 3, Some(37));
-        let (passes, done) = passes_of(&reports);
+        let reports = drive(vec![dsp::Chain::new(), dsp::Chain::new()], 3, &[37]);
+        let (passes, done) = passes_of(&reports, true);
         assert!(done, "le plan n'a pas annoncé sa fin : {} rapports", reports.len());
         assert_eq!(passes, [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]);
         for r in &reports {
-            if let Report::Window { pass, event } = r {
+            if let Report::Window { pass, event, .. } = r {
                 assert!(matches!(event, Event::Measured { frames: 37, .. }), "passe {pass} : {event:?}");
             }
         }
@@ -491,8 +551,8 @@ mod tests {
     /// simulée, où rien ne boucle.
     #[test]
     fn a_pass_without_return_does_not_stop_the_others() {
-        let reports = drive(vec![dsp::Chain::new()], 3, None);
-        let (passes, done) = passes_of(&reports);
+        let reports = drive(vec![dsp::Chain::new()], 3, &[]);
+        let (passes, done) = passes_of(&reports, false);
         assert!(done);
         assert_eq!(passes.len() as u32, 3 * MAX_WEAK);
         assert_eq!(passes.iter().copied().collect::<std::collections::BTreeSet<_>>(), [0, 1, 2].into());
@@ -507,14 +567,44 @@ mod tests {
         let mut chain = dsp::Chain::new();
         let fx: dsp::fx::FxSpec = "gain:db=-60".parse().unwrap();
         chain.push_boxed(fx.build(&dsp::fx::BuildCtx::new(400, MAX_BLOCK)).unwrap());
-        let reports = drive(vec![chain], 2, Some(37));
+        let reports = drive(vec![chain], 2, &[37]);
         let measured: Vec<usize> = reports
             .iter()
             .filter_map(|r| match r {
-                Report::Window { pass, event: Event::Measured { .. } } => Some(*pass),
+                Report::Window { pass, event: Event::Measured { .. }, counted: true } => Some(*pass),
                 _ => None,
             })
             .collect();
         assert_eq!(measured, [0, 0, 2, 2], "mesuré nu et à côté, rien dans le trajet : {reports:?}");
+    }
+    /// Les premières fenêtres d'une passe s'affichent mais ne comptent pas.
+    #[test]
+    fn the_first_windows_of_a_pass_are_not_counted() {
+        let reports = drive(Vec::new(), 2, &[37]);
+        let counted: Vec<bool> = reports
+            .iter()
+            .filter_map(|r| match r {
+                Report::Window { counted, .. } => Some(*counted),
+                Report::Done => None,
+            })
+            .collect();
+        let attendu: Vec<bool> = (0..WARMUP).map(|_| false).chain([true, true]).collect();
+        assert_eq!(counted, attendu);
+    }
+
+    /// Le cas qui faisait mentir le tableau : l'aller-retour **dérive** le temps que le flux
+    /// s'établisse. Les fenêtres d'échauffement l'absorbent, et les mesures comptées sont toutes
+    /// celles du régime établi — donc une dispersion nulle, et une référence juste.
+    #[test]
+    fn a_drifting_start_does_not_pollute_the_counted_measures() {
+        let reports = drive(Vec::new(), 3, &[30, 41, 48]);
+        let frames: Vec<u64> = reports
+            .iter()
+            .filter_map(|r| match r {
+                Report::Window { event: Event::Measured { frames, .. }, counted: true, .. } => Some(*frames),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(frames, [48, 48, 48], "la dérive du démarrage a été comptée");
     }
 }

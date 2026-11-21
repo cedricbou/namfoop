@@ -35,22 +35,22 @@ matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-
   C'est le seul réglage qui compte sur ce PC : gouverneur `performance`, `mlockall`, cœur dédié
   (`--cpu`) et `cpu_dma_latency` = 0 ne changent rien de mesurable. Médiane 8 %
   dans tous les cas (34 µs au bench, ~80 µs en jeu : non expliqué, sans conséquence).
-- Latence aller-retour iTwo (PC), **ALSA 48×3 : 5,2 ms** (`latency`, boucle sortie 1 -> entrée 2,
-  impulsion émise à 0,7 = -3,1 dBFS : 256 frames, écart min–max **18 frames**). Plancher matériel
-  ~1–2 ms (USB + convertisseurs). 32 et 16 frames : xruns massifs avec l'iTwo. `latency` cherche le
-  **maximum** du retour et non un seuil fixe, parce que le niveau d'arrivée dépend du gain du chemin
-  et non seulement de la latence.
-- **Latence sous charge** (`latency --chains`, Soundcraft Signature 12 MTK, ALSA buffer 64 /
-  3 périodes, boucle sortie 3 (AUX) -> entrée 2, modèle d'exemple WaveNet 3 canaux) : aller-retour
-  **305 frames = 6,35 ms**, et **la chaîne ne le décale pas** — les dix passes « à côté » donnent
-  305 frames, **dispersion 0**, quelle que soit la charge (jusqu'à 5 % de médiane et 8 % de p99,9
-  pour quatre `nam › ir` en parallèle), **0 xrun**. La passe nue, elle, disperse de 42 frames parce
-  qu'elle tombe dans le transitoire de démarrage du flux : c'est la ligne « à côté », mesurée plus
-  tard, qui donne la valeur établie. « Dans le trajet », la crête du retour arrive 16 à 68 frames
-  (0,3 à 1,4 ms) plus tard selon la chaîne : c'est la réponse du modèle et de la convolution à un
-  transitoire, pas un retard ajouté — et les deux lignes mises côte à côte sont ce qui permet de le
-  dire. Charge par bloc : `nam` 1 / 2 %, `nam › ir` 2 / 4 %, avec effets 2 / 4 %, deux `nam › ir`
-  3 / 6 %, quatre 5 / 8 % (médiane / p99,9).
+- Buffer de l'iTwo : **48 frames tient**, 32 et 16 donnent des xruns massifs. Plancher matériel de
+  l'aller-retour ~1–2 ms (USB + convertisseurs). Sa latence aller-retour **n'est pas mesurée** :
+  seule la MTK l'est, ci-dessous.
+- **Latence sous charge** (`latency --chains --count 10`, Soundcraft Signature 12 MTK, ALSA
+  buffer 64 / 3 périodes, boucle sortie 3 (AUX) -> entrée 2, modèle d'exemple WaveNet 3 canaux) :
+  aller-retour **262 frames = 5,46 ms**, **dispersion 0** sur les dix mesures comptées, **0 xrun**.
+  **La charge ne décale pas la latence** : les cinq lignes « à côté » donnent 262 frames, à la frame
+  près, jusqu'à quatre `nam › ir` en parallèle (5 % de médiane, 10 % de p99,9 par bloc). Le retard
+  **ajouté par la chaîne** est de 17 frames pour un modèle seul et de 19 (0,4 ms) pour tout le
+  reste du catalogue — c'est le temps que l'attaque monte, et il ne dépend pas du nombre de modèles.
+  Charge par bloc : `nam` 1 / 2 %, `nam › ir` 2 / 3 %, avec effets 2 / 4 %, deux `nam › ir` 3 / 5 %,
+  quatre 5 / 10 % (médiane / p99,9).
+  Deux conditions à cette stabilité, toutes deux nécessaires : **attendre que le flux soit établi**
+  (3 s, plus deux fenêtres d'échauffement non comptées ; sans elles la référence dispersait de
+  42 frames) et chercher le **début** du retour et non sa crête (l'instant du maximum sautait d'un
+  lobe à l'autre, 42 frames d'écart, alors que chaque passe était stable).
 - ALSA : format négocié dans `alsa/format.rs` (S32_LE > S24_3LE > S24_LE > S16_LE, chaque sens
   séparément ; iTwo = S32_LE, conversion S32 vérifiée par un test) ; côté
   capture, au moins 4 périodes (n'ajoute pas de latence, absorbe les à-coups).

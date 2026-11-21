@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Mesures (#341)
+- **La mesure de latence tient maintenant à la frame près.** Deux défauts se cumulaient : les
+  premières mesures étaient comptées avant que le flux de la carte soit établi, et la latence était
+  cherchée à la **crête** du retour, dont l'instant saute d'une bosse à l'autre quand le retour
+  sonne. Résultat sur la Signature 12 MTK : la ligne témoin de chaque chaîne annonçait jusqu'à
+  **+42 frames d'écart** au lieu de +0, et la référence du tableau pouvait être fausse.
+- La mesure attend donc **3 s** que le flux s'établisse, puis chaque passe commence par deux
+  fenêtres marquées « (stabilisation) », affichées mais non comptées ; et c'est le **début** du
+  retour — le premier échantillon qui monte au quart de la crête — qui donne la latence. Vérifié sur
+  la carte : aller-retour 262 frames (5,46 ms), **dispersion 0**, les cinq lignes « à côté » à
+  **+0 frame**, et de +17 à +19 frames de retard réellement ajouté par les chaînes.
+- Les latences affichées baissent donc un peu : elles disaient quand la crête du retour arrivait,
+  elles disent maintenant quand le son arrive. `namfoop latency` sans option en profite aussi.
+
 ### Mesures (#339)
 - **`namfoop latency --chains` mesure la latence avec des chaînes d'effets**, sur le même câble de
   bouclage et dans la même session : d'abord le trajet nu, puis, pour chacune des cinq chaînes de
