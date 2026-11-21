@@ -15,7 +15,27 @@ use std::thread::JoinHandle;
 
 use crate::{rt, Processor, Settings, Stats, Stream, VecIo};
 
-const DEFAULT_DEVICE: &str = "hw:iTwo";
+/// Les cartes ALSA vues et la marche à suivre : le message d'une carte qui manque.
+/// `again` : la carte était nommée (relancer `setup`) et non absente de la config (le lancer).
+fn no_card_message(what: &str, cards: &[(String, String)], again: bool) -> String {
+    let seen = if cards.is_empty() {
+        "aucune carte son ALSA visible".to_string()
+    } else {
+        let list: Vec<String> = cards.iter().map(|(id, name)| format!("{id} ({name})")).collect();
+        format!("cartes vues : {}", list.join(", "))
+    };
+    let setup = if again { "relancer" } else { "lancer" };
+    format!(
+        "{what}\n  {seen}\n  {setup} « namfoop setup », ou nommer la carte : --device hw:<id>\
+         \n  sans carte : --backend sim --device 4x6"
+    )
+}
+
+/// Carte nommée mais introuvable : débranchée, ou nom ALSA changé (à distinguer d'`EBUSY`,
+/// qui est une carte présente et tenue par une autre application).
+fn is_absent(e: &Error) -> bool {
+    e.alsa().is_some_and(|a| a.errno() == libc::ENODEV || a.errno() == libc::ENOENT)
+}
 
 pub struct AlsaStream {
     running: Arc<AtomicBool>,
@@ -188,7 +208,9 @@ fn prime_and_start(p: &Pcms, io: &alsa::pcm::IO<u8>, silence: &[u8]) -> alsa::Re
 
 impl AlsaStream {
     pub fn start(cfg: &Settings, mut processor: impl Processor) -> Result<Self> {
-        let device = cfg.device.clone().unwrap_or_else(|| DEFAULT_DEVICE.into());
+        let Some(device) = cfg.device.clone() else {
+            bail!("{}", no_card_message("aucune carte son configurée", &cards(), false));
+        };
         let capture_device = cfg.capture_device.clone().unwrap_or_else(|| device.clone());
         mixer::apply(&device, &cfg.mixer);
         if capture_device != device {
@@ -210,6 +232,13 @@ impl AlsaStream {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));
                 open(&device, &capture_device, cfg).with_context(|| format!("ouverture de {device}"))?
+            }
+            Err(e) if is_absent(&e) => {
+                let what = match &cfg.capture_device {
+                    Some(c) if *c != device => format!("cartes « {device} » / « {c} » absentes"),
+                    _ => format!("carte « {device} » absente : pas branchée, ou son nom ALSA a changé"),
+                };
+                return Err(e).context(no_card_message(&what, &cards(), true));
             }
             Err(e) => return Err(e).with_context(|| format!("ouverture de {device}")),
         };
@@ -422,4 +451,24 @@ pub fn alsa_card_index(device: &str) -> Option<u32> {
     }
     let link = std::fs::read_link(format!("/proc/asound/{id}")).ok()?;
     link.to_str()?.strip_prefix("card")?.parse().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Une carte qui manque nomme les cartes vues et la marche à suivre : c'est tout ce que
+    /// l'utilisateur a pour s'en sortir, puisque namfoop ne choisit aucune carte à sa place.
+    #[test]
+    fn a_missing_card_lists_what_is_there_and_what_to_do() {
+        let cards = vec![("hw:PCH".to_string(), "HDA Intel PCH".to_string())];
+        let m = no_card_message("aucune carte son configurée", &cards, false);
+        assert!(m.contains("hw:PCH (HDA Intel PCH)"), "{m}");
+        assert!(m.contains("lancer « namfoop setup »") && !m.contains("relancer"), "{m}");
+        assert!(m.contains("--device hw:<id>") && m.contains("--backend sim --device 4x6"), "{m}");
+        let m = no_card_message("carte « hw:iTwo » absente", &cards, true);
+        assert!(m.contains("relancer « namfoop setup »"), "{m}");
+        let m = no_card_message("aucune carte son configurée", &[], false);
+        assert!(m.contains("aucune carte son ALSA visible"), "{m}");
+    }
 }
