@@ -2087,9 +2087,9 @@ pédaliers **Fractal**, celles que répètent les gabarits des pédaliers tiers
 ([ADR 0011](adr/0011-midi-conventions-fractal.md)) : un **Program Change** choisit le morceau ou le
 preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, et l'horloge vient d'Ableton.
 
-**Ce que namfoop fait des messages se construit marche par marche** : un Program Change choisit un
-preset de la banque, l'horloge d'Ableton et le tap au pied donnent le tempo, et le set piloté depuis
-Ableton (le morceau, le son, la mesure) vient ensuite.
+Ce que namfoop écoute, selon qu'un set est ouvert ou non : **sans set**, un Program Change choisit un
+preset de la banque ; **avec un set**, il choisit un morceau et le CC 34 son son, et le transport
+place la battue. L'horloge et le tap donnent le tempo dans les deux cas.
 
 **namfoop numérote les Program Change de 1 à 128**, comme le `pc` d'un morceau dans un set. Beaucoup
 d'éditeurs de pédalier (Morningstar, Fractal) comptent de 0 à 127, c'est-à-dire **un de moins** : le
@@ -2185,6 +2185,45 @@ continue de répondre :
 clock = false     # ne pas écouter l'horloge ; le tap (CC 14) marche toujours
 cc_tap = 14       # le CC du tap, si le pédalier en envoie un autre
 ```
+
+### Un concert piloté par Ableton
+
+Avec un **set ouvert** (`browse --set`, ou l'écran de scène `run --set`), les mêmes messages
+parlent du set et non de la banque — l'adressage hiérarchique de tous les pédaliers du marché :
+
+| Ce qu'Ableton envoie | Ce que namfoop fait |
+|---|---|
+| **Program Change n** | le morceau dont le `pc` vaut n, sur son **premier son** |
+| **CC 34, valeur k** | le **son k+1** du morceau joué (son 1 = valeur 0) |
+| **Start** | la battue repart du 1 de la **mesure 1** du morceau, et elle avance |
+| **Stop** | la battue s'arrête ; le tempo est gardé |
+| **Song Position Pointer** | la position dans le morceau, convertie en mesure et en temps par la carte des mesures — juste même après un changement de mesure |
+| horloge | le tempo entendu (voir plus haut) |
+
+Le numéro de PC d'un morceau est **fixe** (`pc` dans son fichier de set) : réordonner la set list ne
+le change pas, et un rappel joué en fin de concert tombe toujours juste. Un son, lui, est désigné
+par sa **place** dans le morceau : réordonner les sons change leur valeur de CC.
+
+**Côté Ableton**, trois choses à régler, et rien d'autre :
+
+1. un clip MIDI en tête de chaque morceau qui envoie son **Program Change** (le numéro `pc` du
+   morceau dans le set, de 1 à 128) ;
+2. un clip (ou une automation) qui envoie **CC 34** à chaque changement de son, avec la valeur de la
+   place du son **moins un** ;
+3. l'horloge et le transport : « Sync » activé vers le port MIDI de namfoop, et le mode **Song** si
+   l'on veut que la position suive les sauts dans l'arrangement.
+
+Ce qui se passe quand la demande ne correspond à rien — jamais un autre son que celui demandé :
+
+- un PC qu'aucun morceau ne porte : ignoré, message ;
+- un CC au-delà des sons du morceau : ignoré, message (un Fractal écrêterait sur le dernier son) ;
+- un PC **suivi** d'un CC (Ableton envoie souvent les deux en tête de clip) : namfoop attend 15 ms
+  que le CC précise le son, et ne fait **qu'un** changement. Un changement de morceau demandé par
+  MIDI arrive donc jusqu'à 15 ms, plus un rafraîchissement d'écran, après le message ;
+- un Song Position Pointer au-delà de ce que le morceau déclare : ignoré, message.
+
+**Sans set**, ces mêmes messages gardent leur sens de la banque : un PC appelle une place de presets,
+et le CC 34 n'a rien à désigner.
 
 ### Choisir le port : `--midi-in`, `--no-midi`
 

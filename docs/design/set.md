@@ -350,7 +350,7 @@ dans l'arbitre : un tap ou l'horloge le recouvrent.
 | Pied, `Espace` | lance / arrête ; l'appui est le 1 de la mesure en cours |
 | `Fin` / `Début` | section suivante / précédente, recalée sur son 1 (en marche comme à l'arrêt) |
 | Tap `*` | recale le tempo et le temps, pas la mesure |
-| Horloge MIDI (US 7) | Start = le 1 de la mesure 1 du morceau ; SPP = position, convertie en mesure et temps par la carte des mesures ; Stop arrête |
+| Transport MIDI | `Start` = le 1 de la mesure 1 du morceau, et la battue part ; `SPP` = position, convertie en mesure et temps par la carte des mesures ; `Stop` arrête |
 
 Changer de morceau remet la position au début du morceau (et arrête la battue, sauf horloge).
 

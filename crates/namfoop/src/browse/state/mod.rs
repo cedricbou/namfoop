@@ -290,6 +290,9 @@ pub struct State {
     pub metronome_routed: bool,
     /// Les **numéros de message MIDI** écoutés (ADR 0011), réglables par `[midi]` de la config.
     pub midi: midi::MidiKeys,
+    /// Un Program Change reçu qui attend son CC de son (§ 12 du mode Set) : Ableton envoie
+    /// souvent les deux en tête de clip, et deux changements de son pour un geste s'entendraient.
+    midi_pc: Option<midi::PendingPc>,
     /// **L'arbitre de tempo** (ADR 0008) : il tranche entre le preset, le tap et — plus tard —
     /// l'horloge MIDI. Le tempo **entendu** est le sien ([`State::heard_tempo_bpm`]) ; celui
     /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
@@ -347,6 +350,7 @@ impl State {
             saved_blend: (Vec::new(), true),
             now: 0,
             midi: midi::MidiKeys::default(),
+            midi_pc: None,
             tempo: engine::tempo::Arbiter::new(),
             set: None,
             song_keys: (Key::Right, Key::Left),
@@ -551,6 +555,10 @@ impl State {
         // **la battue** (§ 11 du mode Set) : la position avance avec l'horloge fournie, et rien
         // n'en descend dans le fil audio — la bande est dessinée par le fil de l'interface
         self.advance_beat(now_ms);
+        // la fenêtre PC + CC du mode Set : un Program Change seul finit par jouer son morceau
+        if let Some(a) = self.flush_midi_pc(now_ms) {
+            return a;
+        }
         if let (Some(t), Some(ed)) = (self.grain_due, &self.editor) {
             if now_ms >= t + GRAIN_DELAY_MS {
                 self.grain_due = None;

@@ -56,6 +56,13 @@ impl Beat {
         self.at_ms = now_ms;
     }
 
+    /// **Se poser** à une mesure et un temps donnés : la conversion d'un Song Position Pointer.
+    pub fn seek(&mut self, bar: u32, tick: u32, now_ms: u64) {
+        self.bar = bar;
+        self.tick = tick;
+        self.at_ms = now_ms;
+    }
+
     /// `Espace` : l'appui **est** le 1 de la mesure en cours.
     fn start(&mut self, now_ms: u64) {
         self.running = true;
@@ -141,6 +148,66 @@ impl State {
         self.message =
             Some(format!("battue : cet appui est le 1 de la mesure {} (♩{bpm:.0} {})", bar + 1, meter.time));
         Action::None
+    }
+
+    /// **`Start` du transport** (MIDI) : la battue repart du **1 de la première mesure** du
+    /// morceau joué, et elle avance. Sans set ni son joué, il n'y a rien à battre : on ne fait
+    /// rien plutôt que d'allumer une bande vide.
+    pub(in crate::browse::state) fn beat_from_start(&mut self, now_ms: u64) {
+        if self.set.as_ref().is_none_or(|s| s.at.is_none()) {
+            return;
+        }
+        let was = self.set.as_ref().map(|s| s.prompt_section).unwrap_or(0);
+        if let Some(set) = self.set.as_mut() {
+            set.prompt_section = 0;
+            set.prompt_line = 0;
+            set.beat.restart(now_ms);
+            set.beat.running = true;
+        }
+        self.section_tempo_on_jump(was, 0);
+    }
+
+    /// **`Stop` du transport** : la battue s'arrête là où elle est. Le tempo, lui, est gardé par
+    /// l'arbitre (ADR 0008) — un arrêt du transport n'est pas une raison de changer de son.
+    pub(in crate::browse::state) fn beat_stop(&mut self) {
+        if let Some(set) = self.set.as_mut() {
+            set.beat.running = false;
+        }
+    }
+
+    /// **Song Position Pointer** : une position en doubles-croches depuis le début du morceau,
+    /// convertie par la carte des mesures — c'est elle qui sait qu'une section change de mesure.
+    /// Rend faux si la position tombe au-delà de ce que le morceau déclare : on le dit alors,
+    /// plutôt que de poser la battue n'importe où.
+    pub(in crate::browse::state) fn beat_seek_sixteenths(&mut self, sixteenths: u16, now_ms: u64) -> bool {
+        if self.set.as_ref().is_none_or(|s| s.at.is_none()) {
+            return false;
+        }
+        let Some(map) = self.bar_map() else { return false };
+        let Some(pos) = map.at_sixteenths(sixteenths as u32) else { return false };
+        let was = self.set.as_ref().map(|s| s.prompt_section).unwrap_or(0);
+        let line = map.line_of(pos.section, pos.bar);
+        if let Some(set) = self.set.as_mut() {
+            set.prompt_section = pos.section;
+            set.prompt_line = line;
+            set.beat.seek(pos.bar, pos.tick, now_ms);
+        }
+        self.section_tempo_on_jump(was, pos.section);
+        true
+    }
+
+    /// Le tempo d'une section **nouvelle** entre dans l'arbitre, comme en avançant (§ 11) : même
+    /// règle pour un saut que pour le défilement, sinon un `Start` ou un SPP laisserait le tempo
+    /// de la section qu'on vient de quitter.
+    fn section_tempo_on_jump(&mut self, was: usize, now: usize) {
+        if was == now {
+            return;
+        }
+        let Some(map) = self.bar_map() else { return };
+        let before = map.span(was).and_then(|s| s.tempo_bpm);
+        if let Some(bpm) = map.span(now).and_then(|s| s.tempo_bpm).filter(|b| Some(*b) != before) {
+            self.set_section_tempo(bpm);
+        }
     }
 
     /// La métrique de la mesure en cours, celle que la bande dessine.
