@@ -162,12 +162,15 @@ Les deux, comme tout le marché : **horloge** Beat Clock (`0xF8`, 24 tops par no
 `Start` / `Stop` / `Continue`, **et** un CC de tap. Ce CC vaut **14**, celui du tap Fractal
 ([ADR 0011](0011-midi-conventions-fractal.md) ; le Quad Cortex utilise CC#44, Helix CC#64).
 
-Un top isolé est inexploitable : à 120 BPM un top vaut 20,833 ms, et 21 ms donne déjà 119 BPM.
-Donc : moyenne glissante sur 24 tops, rejet des intervalles hors de ±25 %, **publication seulement
-si l'écart dépasse 0,3 BPM** (sinon le temps du delay vibrerait en permanence), perte de verrou
-après 500 ms sans top, `Start` recale le temps 1, `Continue` reprend sans le recaler, `Stop` garde le
-dernier tempo. L'horloge se coupe par la config : une horloge bruyante en jam est un risque, pas un
-service.
+Un top isolé est inexploitable : à 120 BPM un top vaut 20,833 ms, et 21 ms donne déjà 119 BPM. On
+mesure donc sur **24 intervalles** — une noire —, en rejetant ceux qui sortent de ±25 %. Cette
+fenêtre agit en **allongeant la base de mesure**, non en moyennant du bruit : la moyenne de 24
+intervalles consécutifs se télescope en `(t₂₄ − t₀)/24` et ne dépend que des deux horodatages
+extrêmes. Pour 0,3 ms d'erreur de datation, elle fait passer l'incertitude de ±1,7 à ±0,07 BPM, ce
+qui suffit ; ce qui empêche **ensuite** le temps du delay de vibrer est la **publication seulement
+si l'écart dépasse 0,3 BPM**. Perte de verrou après 500 ms sans top, `Start` recale le temps 1,
+`Continue` reprend sans le recaler, `Stop` garde le dernier tempo. L'horloge se coupe par la
+config : une horloge bruyante en jam est un risque, pas un service.
 
 **Le rejet à ±25 % a besoin d'une porte de sortie**, sans quoi il interdit ce qu'il doit protéger :
 un vrai changement de tempo dépasse souvent 25 % (120 → 92 BPM fait 30 % d'intervalle), et tous les
@@ -220,6 +223,13 @@ sinon le fondu redémarrerait sans cesse.
   divisions, la conversion BPM → millisecondes).
 - Un paramètre peut désormais être **sans effet à cause d'un autre** (`time` quand `division` agit).
   L'écran doit le montrer, comme il montre déjà un `gain` annulé par l'alignement sur le DI (#178).
+
+**La phase, elle, n'est pas traitée ici.** Le clic et la bande de mesure avancent sur leur propre
+grille, intégrée depuis le tempo arbitré, et rien ne les réaligne sur les tops reçus entre deux
+`Start`. L'hystérésis gèle alors une erreur de mesure qui vaut 0,21 % à 142 BPM, soit une
+demi-seconde sur un morceau de quatre minutes — plus d'un temps. Mesurer la période et asservir la
+phase sont deux boucles distinctes, aux réglages opposés : un deadband pour l'une, aucun pour
+l'autre. Seule la première est décidée ci-dessus ; la seconde est confiée à #347.
 
 **Ce que cet ADR ne couvre pas** : le mode « tempo libre » (écarté ci-dessus), les signatures
 rythmiques par preset, la synchronisation des modulations entre blocs et l'automation — que
