@@ -2241,9 +2241,13 @@ plus bas). Le résultat est l'aller-retour complet (conversion de la carte compr
 retour** et le **bruit de fond** : c'est ce qui permet de voir tout de suite si le câble, le gain ou
 le bouton Mixer ne vont pas.
 
-Le retour est cherché au **maximum** du signal dans les 250 ms qui suivent l'impulsion, comparé au
-bruit de fond mesuré juste avant — pas avec un seuil fixe. Il se mesure donc à n'importe quel
-niveau, même quand PipeWire atténue et étale l'impulsion. Deux pièges :
+Le retour est écouté pendant les 250 ms qui suivent l'impulsion, et le critère est **relatif** :
+sa crête, comparée au bruit de fond mesuré juste avant, dit que quelque chose est revenu, et c'est
+le **début** de ce retour — le premier échantillon qui monte au quart de la crête — qui donne la
+latence. Pas de seuil fixe, donc la mesure marche à n'importe quel niveau, même quand PipeWire
+atténue et étale l'impulsion. Et c'est bien le début, pas la crête : un retour qui sonne a plusieurs
+bosses de hauteur voisine, et la plus haute n'est pas toujours la même d'une mesure à l'autre. Deux
+pièges :
 
 - **ne joue pas pendant la mesure** : une note plus forte que le retour serait prise pour lui. Les
   colonnes `min` / `max` et l'avertissement « mesures instables » le montrent.
@@ -2265,11 +2269,17 @@ namfoop --backend alsa latency --chain nam-ir -m b7k    # une chaîne, avec ton 
 
 Chaque chaîne donne **deux lignes** :
 
-- **dans le trajet** : l'impulsion traverse la chaîne. La latence mesurée contient donc ce que la
-  chaîne fait au signal — l'attaque d'un gate retarde la crête, la queue d'une réverbe l'étale.
+- **dans le trajet** : l'impulsion traverse la chaîne. L'écart à la référence est donc le retard que
+  la chaîne ajoute vraiment — le temps que son attaque monte : un modèle d'ampli met quelques
+  dixièmes de milliseconde à sortir sa note, un gate y ajoute son attaque.
 - **à côté** : la chaîne tourne sur un bruit interne et l'impulsion part telle quelle. La latence y
-  est celle du trajet nu : cette ligne est le **témoin** de la précédente. Deux lignes égales
-  veulent dire que la chaîne n'ajoute pas de retard ; un écart dit lequel, et d'où il vient.
+  est celle du trajet nu : cette ligne est le **témoin** de la précédente. Elle doit afficher
+  **+0 frame** — si elle s'en écarte, c'est la mesure qu'il faut refaire, pas la chaîne qu'il faut
+  accuser.
+
+Mesuré sur une Signature 12 MTK (buffer 64) : aller-retour 262 frames (5,46 ms), les cinq lignes
+« à côté » toutes à +0, et de +17 à +19 frames (0,4 ms) dans le trajet selon la chaîne — modèle
+seul, avec IR, avec effets ou à quatre modèles en parallèle, le retard ajouté est le même.
 
 Les deux donnent la **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 100 % du budget) et
 les **xruns** de la passe. C'est ce que `namfoop bench` ne peut pas voir : lui mesure hors ligne,
@@ -2280,17 +2290,21 @@ ne tiendra pas sur scène à ce buffer.
 modèle d'exemple du moteur NAM (léger) et une IR de synthèse — la mesure marche donc sans
 bibliothèque, par exemple sur une machine fraîchement installée. `--count` est le nombre de mesures
 **par passe** ; la commande annonce la durée totale avant de prendre la carte (onze passes, dix
-mesures chacune : environ une minute et demie).
+mesures chacune : un peu moins de deux minutes).
 
 Deux lignes « pas de retour » pour une chaîne ne sont pas forcément un défaut de câblage : un gate
 en tête de chaîne peut avaler une impulsion. La ligne « à côté » le dit — si elle mesure, le câble
 va bien.
 
-Lire la colonne **disp.** avant le reste : c'est l'écart entre la plus petite et la plus grande
-mesure de la passe. Le **trajet nu**, mesuré en premier, tombe dans le transitoire de démarrage du
-flux et disperse souvent de quelques dizaines de frames ; les lignes « à côté », mesurées plus tard,
-se stabilisent à la frame près et donnent la vraie référence. Si une passe disperse alors que les
-autres non, c'est elle qu'il faut refaire — ou c'est qu'on a joué pendant la mesure.
+Chaque passe commence par quelques secondes d'attente et deux mesures marquées
+« (stabilisation) », affichées mais non comptées : le flux de la carte met un instant à s'établir,
+et une mesure prise pendant ce temps est fausse. C'est ce qui permet à la ligne « à côté » de
+retrouver exactement la référence.
+
+Lire ensuite la colonne **disp.** : c'est l'écart entre la plus petite et la plus grande mesure
+comptée de la passe. À une frame ou deux près, tout va bien. Au-delà, l'avertissement « mesures
+instables » s'affiche : soit on a joué pendant la mesure, soit la carte gigue pour de bon — et c'est
+bon à savoir avant de monter sur scène.
 
 En carte simulée (`--backend sim`), rien ne boucle : aucune latence n'est mesurable, mais la charge
 DSP et les xruns, eux, sont bien là. C'est la façon de vérifier une chaîne sans matériel.

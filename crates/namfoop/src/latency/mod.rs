@@ -20,7 +20,9 @@ use std::time::{Duration, Instant};
 use audio_io::Io;
 use engine::meters::{LoadHistogram, LoadSummary};
 
-use rt::{plan, Event, Pass, Report, Runner, MAX_BLOCK, MAX_WEAK};
+use rt::{
+    plan, Event, Pass, Report, Runner, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S, WARMUP,
+};
 
 fn db(v: f32) -> f32 {
     20.0 * v.max(1e-12).log10()
@@ -139,13 +141,15 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
     let built = build(cfg, args)?;
     let names: Vec<String> = built.iter().map(|(n, _)| n.clone()).collect();
     let passes = plan(built.len());
-    // une passe = `count` mesures (fenêtre + intervalle = 750 ms) après 1 s de stabilisation
-    let per_pass = args.count as f64 * 0.75 + 1.0;
+    // une passe = l'attente, les fenêtres d'échauffement, puis `count` mesures comptées ; la
+    // première passe attend plus longtemps, le temps que le flux s'établisse
+    let pass_s = |measures: u32| (measures + WARMUP) as f64 * CYCLE_S + SETTLE_PASS_S;
+    let total_s = passes.len() as f64 * pass_s(args.count) + SETTLE_FIRST_S - SETTLE_PASS_S;
     if passes.len() > 1 {
         println!(
             "{} passes : le trajet nu, puis chaque chaîne dans le trajet et à côté — environ {:.0} s.",
             passes.len(),
-            passes.len() as f64 * per_pass
+            total_s
         );
     }
 
@@ -188,14 +192,14 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
     let mut rows: Vec<Row> = (0..passes.len()).map(|_| Row::default()).collect();
     // Une passe qui ne voit rien revenir dure MAX_WEAK fenêtres, quel que soit `--count` : c'est
     // elle qui borne l'attente, et on la double pour encaisser une carte lente.
-    let worst = args.count.max(MAX_WEAK) as f64 * 0.75 + 1.0;
-    let deadline = Instant::now() + Duration::from_secs_f64(passes.len() as f64 * worst * 2.0 + 10.0);
+    let worst = passes.len() as f64 * pass_s(args.count.max(MAX_WEAK));
+    let deadline = Instant::now() + Duration::from_secs_f64(worst * 2.0 + 10.0);
     let mut shown = usize::MAX;
     let mut xruns_before = 0u64;
     let mut done = false;
     while !done && Instant::now() < deadline {
         match rx.pop() {
-            Ok(Report::Window { pass, event }) => {
+            Ok(Report::Window { pass, event, counted }) => {
                 if pass != shown {
                     // les xruns sont cumulatifs : chaque passe en garde le delta, relevé à sa
                     // première fenêtre suivante (à quelques millisecondes près)
@@ -212,12 +216,15 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
                 match event {
                     Event::Measured { frames, peak, noise } => {
                         println!(
-                            "  {frames:>5} frames  {:>6.2} ms   retour {:>5.1} dBFS, bruit {:>5.1} dBFS",
+                            "  {frames:>5} frames  {:>6.2} ms   retour {:>5.1} dBFS, bruit {:>5.1} dBFS{}",
                             frames as f64 * 1000.0 / rate,
                             db(peak),
-                            db(noise)
+                            db(noise),
+                            if counted { "" } else { "   (stabilisation)" }
                         );
-                        rows[pass].frames.push(frames);
+                        if counted {
+                            rows[pass].frames.push(frames);
+                        }
                     }
                     Event::TooWeak { peak, noise } => {
                         println!(
