@@ -15,7 +15,7 @@ celles qui se mécanisent.
 | `bug` | un comportement incorrect | oui |
 
 Une issue porte **exactement une** de ces étiquettes. Deux autres s'y ajoutent au besoin :
-`test matériel` quand un essai sur la carte reste dû, `needs-refinement` quand l'issue est à cadrer.
+`hardware-test` quand un essai sur la carte reste dû, `needs-refinement` quand l'issue est à cadrer.
 
 ## Le titre
 

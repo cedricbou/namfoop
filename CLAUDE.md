@@ -68,7 +68,7 @@ le besoin reste flou naît ainsi (`feature.sh issue --refine …`) ; `feature.sh
 
 - jamais de commit ni de push sur `main` (`NAMFOOP_ALLOW_MAIN=1` : urgence demandée par l'utilisateur) ;
 - une branche = une issue (`feat|fix|docs/<n°>-...`) ; la PR met à jour `CHANGELOG.md` si elle
-  touche au code ; `Refs #n` tant que des tests matériels restent (label `test matériel`, à
+  touche au code ; `Refs #n` tant que des tests matériels restent (label `hardware-test`, à
   demander à l'utilisateur) ;
 - une PR de déplacement ne change aucun comportement ; une issue touche au plus deux crates (le
   cadrage technique le dit) ;
