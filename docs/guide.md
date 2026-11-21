@@ -2236,8 +2236,8 @@ namfoop latency
 namfoop --backend alsa --device hw:iTwo --buffer 48 latency --count 20
 ```
 
-`--out-ch` / `--in-ch` choisissent les canaux, `--count` le nombre de mesures. Le résultat est
-l'aller-retour complet (conversion de la carte comprise). Chaque ligne donne aussi le **niveau du
+`--out-ch` / `--in-ch` choisissent les canaux, `--count` le nombre de mesures (par passe, voir
+plus bas). Le résultat est l'aller-retour complet (conversion de la carte comprise). Chaque ligne donne aussi le **niveau du
 retour** et le **bruit de fond** : c'est ce qui permet de voir tout de suite si le câble, le gain ou
 le bouton Mixer ne vont pas.
 
@@ -2249,6 +2249,51 @@ niveau, même quand PipeWire atténue et étale l'impulsion. Deux pièges :
   colonnes `min` / `max` et l'avertissement « mesures instables » le montrent.
 - si rien ne sort du bruit, le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie)
   et propose `--backend alsa`, qui court-circuite PipeWire.
+
+### Avec des chaînes d'effets : `--chains`
+
+La mesure nue donne le trajet matériel. Pour savoir si **le son que tu vas jouer** tient le buffer
+de ta carte, `--chains` répète la mesure avec les chaînes de référence, sur le même câble et dans la
+même session : un modèle seul, l'ampli complet (modèle › IR), l'ampli entouré d'effets, puis deux et
+quatre amplis en parallèle — c'est par là que la marge se consomme, le coût étant proportionnel au
+nombre de modèles.
+
+```sh
+namfoop --backend alsa latency --chains                 # tout le catalogue
+namfoop --backend alsa latency --chain nam-ir -m b7k    # une chaîne, avec ton modèle
+```
+
+Chaque chaîne donne **deux lignes** :
+
+- **dans le trajet** : l'impulsion traverse la chaîne. La latence mesurée contient donc ce que la
+  chaîne fait au signal — l'attaque d'un gate retarde la crête, la queue d'une réverbe l'étale.
+- **à côté** : la chaîne tourne sur un bruit interne et l'impulsion part telle quelle. La latence y
+  est celle du trajet nu : cette ligne est le **témoin** de la précédente. Deux lignes égales
+  veulent dire que la chaîne n'ajoute pas de retard ; un écart dit lequel, et d'où il vient.
+
+Les deux donnent la **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 100 % du budget) et
+les **xruns** de la passe. C'est ce que `namfoop bench` ne peut pas voir : lui mesure hors ligne,
+sans carte ni thread temps réel. Une chaîne dont la p99,9 approche 100 %, ou qui compte des xruns,
+ne tiendra pas sur scène à ce buffer.
+
+`-m` et `-i` remplissent les emplacements modèle et IR des chaînes ; sans eux, namfoop prend le
+modèle d'exemple du moteur NAM (léger) et une IR de synthèse — la mesure marche donc sans
+bibliothèque, par exemple sur une machine fraîchement installée. `--count` est le nombre de mesures
+**par passe** ; la commande annonce la durée totale avant de prendre la carte (onze passes, dix
+mesures chacune : environ une minute et demie).
+
+Deux lignes « pas de retour » pour une chaîne ne sont pas forcément un défaut de câblage : un gate
+en tête de chaîne peut avaler une impulsion. La ligne « à côté » le dit — si elle mesure, le câble
+va bien.
+
+Lire la colonne **disp.** avant le reste : c'est l'écart entre la plus petite et la plus grande
+mesure de la passe. Le **trajet nu**, mesuré en premier, tombe dans le transitoire de démarrage du
+flux et disperse souvent de quelques dizaines de frames ; les lignes « à côté », mesurées plus tard,
+se stabilisent à la frame près et donnent la vraie référence. Si une passe disperse alors que les
+autres non, c'est elle qu'il faut refaire — ou c'est qu'on a joué pendant la mesure.
+
+En carte simulée (`--backend sim`), rien ne boucle : aucune latence n'est mesurable, mais la charge
+DSP et les xruns, eux, sont bien là. C'est la façon de vérifier une chaîne sans matériel.
 
 ---
 

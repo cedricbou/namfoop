@@ -975,12 +975,18 @@ Options:
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --count <COUNT>
-          Nombre de mesures
+          Nombre de mesures par passe
           
           [default: 10]
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --chains
+          Mesure aussi chaque chaîne de référence : l'impulsion la traverse, puis elle tourne à côté (charge DSP et xruns par passe)
+
+      --chain <NOM>
+          Une seule chaîne de référence, par son nom (un nom inconnu les liste)
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -988,11 +994,22 @@ Options:
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
+  -m, --model <MODEL>
+          Modèle qui remplit les chaînes de référence (défaut : le modèle d'exemple du moteur NAM)
+
+  -i, --ir <IR>
+          IR qui remplit les chaînes de référence (défaut : une IR de synthèse)
+
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --library <LIBRARY>
+          Dossier de la bibliothèque, où -m et -i sont cherchés
+          
+          [default: library]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)

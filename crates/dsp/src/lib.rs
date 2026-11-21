@@ -5,6 +5,7 @@
 //!
 //! Les tests vérifient l'absence d'allocation côté Rust avec `assert_no_alloc`.
 
+pub mod bench;
 pub mod biquad;
 pub mod blend;
 pub mod block;

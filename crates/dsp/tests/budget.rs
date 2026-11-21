@@ -13,12 +13,11 @@
 //! Régénérer (seulement pour un coût qu'on accepte, à justifier dans la PR) :
 //! `NAMFOOP_UPDATE_BUDGET=1 cargo test --release -p dsp --test budget`
 
-use dsp::block::{BlockSpec, BranchSpec, ChainSpec, SplitKind, SplitSpec};
-use dsp::chain::Level;
+use dsp::block::ChainSpec;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::hint::black_box;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
 
 const SR: u32 = 48000;
@@ -60,35 +59,6 @@ struct Budget {
     calibration_us: f64,
     /// `<chaîne>` -> `<taille de bloc>` -> seuil.
     chains: BTreeMap<String, BTreeMap<String, Entry>>,
-}
-
-fn example(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../nam-sys/vendor/NeuralAmpModelerCore/example_models")
-        .join(name)
-}
-
-/// Générateur pseudo-aléatoire à graine fixe (xorshift32), valeurs dans [-1, 1].
-struct Rng(u32);
-impl Rng {
-    fn next(&mut self) -> f32 {
-        let mut x = self.0;
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        self.0 = x;
-        (x as f64 / u32::MAX as f64 * 2.0 - 1.0) as f32
-    }
-}
-
-/// IR synthétique de 100 ms, graine fixe (même forme que `golden.rs`).
-fn synthetic_ir(tag: &str) -> PathBuf {
-    let mut rng = Rng(0x9e37_79b9);
-    let n = SR as usize / 10;
-    let ir: Vec<f32> = (0..n).map(|i| rng.next() * (-(i as f32) / (SR as f32 * 0.015)).exp()).collect();
-    let p = std::env::temp_dir().join(format!("namfoop-budget-{tag}-{}.wav", std::process::id()));
-    dsp::wav::write_mono(&p, &ir, SR).unwrap();
-    p
 }
 
 /// Le repère : une boucle flottante de taille fixe, indépendante du code du projet. `black_box`
@@ -148,55 +118,6 @@ fn cost_us(spec: &ChainSpec, block: usize) -> f64 {
     best
 }
 
-/// Les chaînes de référence : de la plus nue à celle qui tient le pire cas connu.
-fn chains(ir: &Path) -> Vec<(&'static str, ChainSpec)> {
-    let model = example("wavenet.nam");
-    let amp = || {
-        vec![
-            BlockSpec::nam(model.clone(), Default::default()),
-            BlockSpec::ir(ir.to_path_buf(), Default::default()),
-        ]
-    };
-    vec![
-        (
-            "nam",
-            ChainSpec {
-                blocks: vec![BlockSpec::nam(model.clone(), Default::default())],
-                level: Level::Raw,
-                ..Default::default()
-            },
-        ),
-        ("nam-ir", ChainSpec { blocks: amp(), level: Level::Raw, ..Default::default() }),
-        (
-            "nam-ir-fx",
-            ChainSpec {
-                blocks: {
-                    let mut b =
-                        vec![BlockSpec::Fx("gate".parse().unwrap()), BlockSpec::Fx("comp".parse().unwrap())];
-                    b.extend(amp());
-                    b.push(BlockSpec::Fx("delay".parse().unwrap()));
-                    b.push(BlockSpec::Fx("reverb".parse().unwrap()));
-                    b
-                },
-                level: Level::Raw,
-                ..Default::default()
-            },
-        ),
-        (
-            "parallele-2-nam-ir",
-            ChainSpec {
-                blocks: vec![BlockSpec::Split(SplitSpec {
-                    mode: SplitKind::Copy,
-                    freqs: vec![],
-                    branches: (0..2).map(|_| BranchSpec { blocks: amp(), ..Default::default() }).collect(),
-                })],
-                level: Level::Raw,
-                ..Default::default()
-            },
-        ),
-    ]
-}
-
 /// Le coût par bloc ne doit pas déraper. Mesuré en rapport à un repère pris dans la même
 /// exécution ; au-delà de `TOL` fois le rapport de référence, c'est une régression.
 #[test]
@@ -230,11 +151,13 @@ fn the_cost_per_block_stays_within_its_budget() {
         );
     }
 
-    let ir = synthetic_ir("cost");
+    let dir = std::env::temp_dir();
+    let model = dsp::bench::write_example_model(&dir).expect("modèle d'exemple");
+    let ir = dsp::bench::write_synthetic_ir(&dir, SR).expect("IR de synthèse");
     let mut mesure = Budget { calibration_us: (cal * 100.0).round() / 100.0, ..Default::default() };
     let mut echecs = Vec::new();
 
-    for (nom, spec) in chains(&ir) {
+    for (nom, spec) in dsp::bench::chains(&model, &ir) {
         for block in BLOCKS {
             let budget_us = block as f64 / SR as f64 * 1e6;
             let us = cost_us(&spec, block);
@@ -270,6 +193,7 @@ fn the_cost_per_block_stays_within_its_budget() {
             }
         }
     }
+    let _ = std::fs::remove_file(&model);
     let _ = std::fs::remove_file(&ir);
 
     if update {
