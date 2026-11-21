@@ -3,7 +3,7 @@
 //! recopie dans un tube pour le reproduire.
 //!
 //! ```text
-//! pc 3        Program Change 3
+//! pc 3        Program Change 3 (de 1 à 128, la numérotation de namfoop)
 //! cc 34 2     Control Change 34, valeur 2
 //! clock       un top d'horloge (24 par noire)
 //! start       Start          stop   Stop          continue   Continue
@@ -24,7 +24,10 @@ pub fn parse_line(line: &str) -> Result<Option<Event>> {
     let verbe = mots.next().unwrap_or("").to_ascii_lowercase();
     let reste: Vec<&str> = mots.collect();
     let event = match (verbe.as_str(), reste.as_slice()) {
-        ("pc", [n]) => Event::ProgramChange(sept_bits("pc", n)?),
+        ("pc", [n]) => match n.parse::<u8>() {
+            Ok(v) if (1..=128).contains(&v) => Event::ProgramChange(v),
+            _ => bail!("pc « {n} » : un Program Change de 1 à 128"),
+        },
         ("cc", [n, v]) => Event::Control { cc: sept_bits("cc", n)?, value: sept_bits("cc", v)? },
         ("clock", []) => Event::ClockTick,
         ("start", []) => Event::ClockStart,
@@ -71,8 +74,8 @@ mod tests {
     #[test]
     fn chaque_message_se_lit() {
         let cas = [
-            ("pc 0", Event::ProgramChange(0)),
-            ("PC 127", Event::ProgramChange(127)),
+            ("pc 1", Event::ProgramChange(1)),
+            ("PC 128", Event::ProgramChange(128)),
             ("cc 34 2", Event::Control { cc: 34, value: 2 }),
             ("  cc 14 127  ", Event::Control { cc: 14, value: 127 }),
             ("clock", Event::ClockTick),
@@ -96,7 +99,9 @@ mod tests {
 
     #[test]
     fn une_ligne_fausse_dit_ce_qu_elle_attendait() {
-        for ligne in ["pc", "pc 128", "pc -1", "cc 34", "cc 34 999", "clock 24", "spp 16384", "bidule"] {
+        for ligne in
+            ["pc", "pc 0", "pc 129", "pc -1", "cc 34", "cc 34 999", "clock 24", "spp 16384", "bidule"]
+        {
             let e = parse_line(ligne).expect_err(ligne).to_string();
             assert!(!e.is_empty(), "{ligne}");
             assert!(e.contains(ligne.split_whitespace().next().unwrap_or("")), "{ligne} -> {e}");

@@ -542,10 +542,15 @@ impl State {
                 })
                 .collect(),
         };
+        // Les **numéros** de message réglés à la main (ADR 0011) sont gardés : l'assistant ne
+        // choisit que le port.
+        let garde = || base.midi.clone().unwrap_or_default();
         match &self.midi {
             MidiChoice::Unchanged => {}
-            MidiChoice::Off => c.midi = Some(model::Midi { input: None, off: true }),
-            MidiChoice::Port(id) => c.midi = Some(model::Midi { input: Some(id.clone()), off: false }),
+            MidiChoice::Off => c.midi = Some(model::Midi { input: None, off: true, ..garde() }),
+            MidiChoice::Port(id) => {
+                c.midi = Some(model::Midi { input: Some(id.clone()), off: false, ..garde() })
+            }
         }
         c
     }
@@ -631,7 +636,10 @@ mod tests {
                 OutputRoute { channel: 2, source: Source::Di, click: false }
             ]
         );
-        assert_eq!(c.midi, Some(model::Midi { input: Some("28:0".into()), off: false }));
+        assert_eq!(
+            c.midi,
+            Some(model::Midi { input: Some("28:0".into()), off: false, ..Default::default() })
+        );
     }
 
     /// Sans port MIDI en vue, l'assistant **n'écrit rien** : le défaut (le premier port branché)
@@ -651,7 +659,10 @@ mod tests {
         s.step = Step::Midi;
         s.on_key(Key::Char('x'));
         assert_eq!(s.midi, MidiChoice::Off);
-        assert_eq!(s.to_config(&base, 48000).midi, Some(model::Midi { input: None, off: true }));
+        assert_eq!(
+            s.to_config(&base, 48000).midi,
+            Some(model::Midi { input: None, off: true, ..Default::default() })
+        );
         assert_eq!(s.midi_label(&base), "aucun (MIDI coupé)");
     }
 

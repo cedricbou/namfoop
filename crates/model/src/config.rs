@@ -114,7 +114,7 @@ pub struct Config {
 /// eux, sont ceux de l'[ADR 0011] et ne se règlent pas encore ici.
 ///
 /// [ADR 0011]: ../../docs/adr/0011-midi-conventions-fractal.md
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Midi {
     /// Port d'entrée : adresse du séquenceur (« 28:0 »), morceau de nom de port (« MC6 ») ou
@@ -124,6 +124,16 @@ pub struct Midi {
     /// Vrai : aucune écoute MIDI, comme `--no-midi`. Un pédalier qui fait des siennes se coupe
     /// ainsi sans débrancher de câble.
     pub off: bool,
+    /// Le CC qui choisit le **son du morceau joué** (scene chez Fractal). Défaut 34 : le numéro
+    /// que le monde Fractal utilise de fait, et que les gabarits des pédaliers tiers répètent.
+    pub cc_sound: u8,
+}
+
+impl Default for Midi {
+    /// Les numéros de l'ADR 0011 : le défaut est ce qui évite de configurer.
+    fn default() -> Self {
+        Self { input: None, off: false, cc_sound: 34 }
+    }
 }
 
 /// Le **mode Set** : les touches de scène, réglables pour coller au pédalier qu'on a sous le pied

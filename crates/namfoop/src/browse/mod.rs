@@ -297,6 +297,10 @@ pub fn run(
             (read(&keys.prompt_next, crate::tui::Key::End), read(&keys.prompt_prev, crate::tui::Key::Home));
         st.play_key = read(&keys.prompt_play, crate::tui::Key::Char(' '));
     }
+    // les numéros de message MIDI écoutés (ADR 0011), réglables par [midi]
+    if let Some(m) = conf.config.midi.as_ref() {
+        st.midi = state::midi::MidiKeys { cc_sound: m.cc_sound };
+    }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
     // `--set` d'abord, sinon **le set retenu** de la session précédente (§ 4)
@@ -359,22 +363,32 @@ pub fn run(
         ..Default::default()
     };
     let mut saved: Option<(String, Vec<BlendPart>, bool)> = None; // (id, mélange sauvé, align)
+    let mut midi_pending = Action::None; // ce qu'un message MIDI demande, en attente d'un tour libre
     let start = Instant::now();
     let mut session = tui::Session::start()?;
     let result = (|| -> Result<()> {
         loop {
-            // l'entrée MIDI, vidée à chaque tour et hors du fil audio (ADR 0011). Ce que
-            // namfoop fait des messages est l'objet des stories du pilotage MIDI ; ici ils
-            // arrivent, et la trace les montre — c'est ce qui rend « mon pédalier parle-t-il ? »
-            // vérifiable de bout en bout.
+            // l'entrée MIDI, vidée **à chaque tour** et hors du fil audio (ADR 0011) : la file
+            // se vide même quand l'action du tour est déjà prise, sinon un top d'horloge
+            // attendrait. L'action qu'un message demande, elle, patiente dans `midi_pending`
+            // jusqu'à ce que le tour soit libre — et **la dernière demande gagne**, comme pour les
+            // chaînes du thread de construction : deux appuis dans le même tour, c'est le second
+            // qu'on voulait entendre.
             if let Some(m) = &mut midi {
                 while let Some(msg) = m.try_pop() {
                     trace(&format!("midi {}", midi_io::describe(&msg.event)));
+                    let a = st.on_midi(msg.event);
+                    if a != Action::None {
+                        midi_pending = a;
+                    }
                 }
             }
             let mut action = std::mem::replace(&mut first, Action::None);
             if action == Action::None {
                 action = st.tick(start.elapsed().as_millis() as u64);
+            }
+            if action == Action::None {
+                action = std::mem::replace(&mut midi_pending, Action::None);
             }
             if action == Action::None {
                 if let Some(k) = tui::poll_key(Duration::from_millis(30))? {

@@ -113,9 +113,10 @@ pub fn run(
         if rx.recv_timeout(Duration::from_millis(500)).is_ok() {
             break;
         }
-        // L'entrée MIDI est vidée ici, hors du fil audio : `run` ne fait encore rien des messages
-        // (c'est l'objet des stories du pilotage MIDI), mais une file qu'on ne vide pas finirait
-        // par perdre ce qu'elle contient sans que personne le sache.
+        // L'entrée MIDI est vidée ici, hors du fil audio. `run` joue **une** chaîne : il n'a ni
+        // banque ni set, donc un message n'y désigne rien — c'est dans les écrans (`browse`,
+        // `run --set`) qu'un Program Change choisit un preset. On vide quand même, parce qu'une
+        // file qu'on ne vide pas finit par perdre ce qu'elle contient sans que personne le sache.
         if let Some(m) = &mut midi {
             while let Some(msg) = m.try_pop() {
                 log::debug!("MIDI : {}", midi_io::describe(&msg.event));

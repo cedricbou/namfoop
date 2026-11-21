@@ -124,10 +124,20 @@ preset d'il y a un ou deux appuis. Le préchauffage (`bank.prewarm`, 26 à 54 ms
 vérification, et l'installation passe par `bank.install_warm`.
 
 **L'entrée MIDI** arrive par `Start::midi` : un `midi_io::Input` déjà ouvert par le binaire, dont la
-boucle vide la file **à chaque tour**, hors du fil audio. Ce que namfoop fait des messages est
-l'objet des stories du pilotage MIDI ; la boucle les **trace** (`midi PC 3`), et le port écouté est
-nommé dans la ligne d'état — c'est ce qui rend « mon pédalier parle-t-il ? » vérifiable de bout en
-bout par `scripts/check-e2e.py`, qui lui écrit dans un tube.
+boucle vide la file **à chaque tour**, hors du fil audio, et dont chaque message passe par
+`State::on_midi` (`state/midi.rs`, pure — ADR 0011). Trois choses à ne pas casser :
+
+1. la file se vide **même quand l'action du tour est déjà prise** (sinon un top d'horloge
+   attendrait) ; l'action qu'un message demande patiente dans `midi_pending` jusqu'à un tour libre,
+   et **la dernière demande gagne**, comme pour les chaînes du thread de construction ;
+2. un message **n'est pas une touche** : il n'a ni contexte ni propriétaire (ADR 0009) et aucune
+   fenêtre ne le retient. La seule exception est `typing()` — on est alors au clavier, pas au pied ;
+3. un `PC` emprunte `switch_to`, **le chemin du pied sur `PgDn`** : même banque préchargée, même
+   fondu, même question quand la chaîne n'est pas enregistrée. Ne pas le court-circuiter.
+
+La boucle **trace** chaque message (`midi PC 4`) et le port écouté est nommé dans la ligne d'état :
+c'est ce qui rend « mon pédalier parle-t-il ? » vérifiable de bout en bout par
+`scripts/check-e2e.py`, qui lui écrit dans un tube.
 
 **Les paramètres vivants** (ADR 0007, ADR 0008) ne passent pas par là : la boucle tient les cases
 `dsp::param::Control` du volume, du tempo et du clic, et les écrit d'après `st.plan()` **juste
