@@ -19,7 +19,8 @@ labels: story
 ## Hors périmètre
 
 ## À trancher
-<!-- Seulement s'il reste une vraie décision à prendre ; sinon retirer la rubrique. -->
+<!-- Seulement s'il reste une vraie décision à prendre ; sinon retirer la rubrique.
+     Si l'issue ne peut pas être codée avant ces décisions : étiquette needs-refinement. -->
 
 ## Liens
 <!-- Épique #…. Dépend de #…. Débloque #…. -->

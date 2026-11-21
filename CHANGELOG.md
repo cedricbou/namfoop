@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#327)
+- **Une issue à cadrer se marque, et ne se code pas.** L'étiquette `needs-refinement` s'ajoute au
+  type d'une story ou d'une épique qui n'est pas assez approfondie ; sa rubrique « À trancher »,
+  alors obligatoire, dit ce qu'il reste à décider avec l'utilisateur.
+- `scripts/feature.sh start` **refuse** une issue à cadrer, sans passe-droit ; `issue --refine` en
+  crée une, `refine` les liste. `docs/style-issues.md`, `CLAUDE.md` et la skill `ecrire-issue`
+  décrivent le cadrage : une proposition par question, chaque décision reportée dans l'issue, puis
+  l'étiquette retirée.
+
 ### Interne (#325)
 - **Les issues s'écrivent pour le bassiste.** La backlog a été refondue en épiques, stories et
   chores lisibles sans ouvrir le code, et le harnais suit : [`docs/style-issues.md`](docs/style-issues.md)

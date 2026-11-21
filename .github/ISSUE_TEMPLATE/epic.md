@@ -16,4 +16,8 @@ labels: epic
 ## Décisions déjà prises
 <!-- En mots simples, avec un lien vers l'ADR ou la spécification. -->
 
+## À trancher
+<!-- Épique à cadrer (étiquette needs-refinement) : les questions à décider avant d'écrire
+     ses stories. Sinon retirer la rubrique. -->
+
 ## Plus tard, peut-être

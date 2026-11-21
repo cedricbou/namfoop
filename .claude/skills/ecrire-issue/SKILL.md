@@ -22,6 +22,24 @@ la lire en entier avant d'écrire.
    style et refuse ce qui s'en écarte : corriger le texte, ne pas contourner.
 5. **Mettre à jour l'épique** : une case de plus dans `## Stories`.
 
+## Une issue à cadrer
+
+Si le besoin est réel mais que des décisions manquent pour coder — ce que contient la
+fonctionnalité, son périmètre, un choix que seul l'utilisateur peut faire —, ne pas les inventer :
+écrire ces questions dans `## À trancher` et créer l'issue avec `--refine`
+(`scripts/feature.sh issue --refine story "Titre" corps.md`). Elle porte alors `needs-refinement`
+et ne se code pas.
+
+Pour **cadrer** une issue (`scripts/feature.sh refine` les liste) :
+
+1. Lire le corps, le cadrage technique et les commentaires.
+2. Poser à l'utilisateur les questions de « À trancher », peu à la fois, chacune avec une réponse
+   proposée et ce qu'elle implique. Regarder ce que font les autres multi-effets quand ça éclaire.
+3. Reporter chaque décision dans l'issue : critère de « Terminé quand », « Hors périmètre »,
+   « Décisions déjà prises » d'une épique, ou nouvelle story rattachée. Le technique va dans le
+   cadrage ; une décision d'architecture, dans un ADR.
+4. Quand « À trancher » est vide, retirer la rubrique et l'étiquette.
+
 ## Réécrire une issue existante
 
 Le corps d'origine ne se perd pas : le poster d'abord en commentaire `## Cadrage technique`, puis

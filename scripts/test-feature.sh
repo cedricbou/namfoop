@@ -43,6 +43,9 @@ case "$1 ${2:-}" in
     opt title "$@" > "$GH_STATE/title"; opt label "$@" > "$GH_STATE/labels"
     echo "https://example.invalid/issues/129" ;;
 
+  "issue list")
+    echo "  #203  Changer d'instrument sans refaire la calibration (label $(opt label "$@"))" ;;
+
   "issue comment")
     opt body "$@" > "$GH_STATE/comment" ;;
 
@@ -244,6 +247,25 @@ run_ok "issue créée : #129 (cadrage technique en commentaire)" "issue crée la
 has "$(cat "$TMP/state/labels")" "story" "l'étiquette est le type"
 has "$(cat "$TMP/state/comment")" "## Cadrage technique" "le cadrage est un commentaire titré"
 run_ok "issue #129 conforme" "lint accepte l'issue créée" scripts/feature.sh lint 129
+
+# 7. une issue à cadrer ne se code pas
+echo "== issues : à cadrer"
+setup
+echo story,needs-refinement > "$TMP/state/labels"
+run_fail "rubrique « ## À trancher »" "lint refuse une issue à cadrer qui ne dit pas quoi" scripts/feature.sh lint 128
+{ story_body; printf '\n## À trancher\n- Que contient un profil ?\n'; } > "$TMP/state/body"
+run_ok "issue #128 conforme" "lint l'accepte avec sa rubrique" scripts/feature.sh lint 128
+run_fail "est à cadrer" "start refuse une issue à cadrer" scripts/feature.sh start 128
+run_fail "est à cadrer" "NAMFOOP_ALLOW_ISSUE=1 n'y change rien" env NAMFOOP_ALLOW_ISSUE=1 scripts/feature.sh start 128
+has "$(git branch --show-current)" "main" "aucune branche n'est ouverte"
+story_body > "$TMP/corps.md"
+run_fail "rubrique « ## À trancher »" "issue --refine exige la rubrique" \
+  scripts/feature.sh issue --refine story "Changer d'instrument sans recalibrer" "$TMP/corps.md"
+cp "$TMP/state/body" "$TMP/corps.md"
+run_ok "issue créée : #129, à cadrer" "issue --refine crée l'issue à cadrer" \
+  scripts/feature.sh issue --refine story "Changer d'instrument sans recalibrer" "$TMP/corps.md"
+has "$(cat "$TMP/state/labels")" "story,needs-refinement" "elle porte les deux étiquettes"
+run_ok "label needs-refinement" "refine liste les issues à cadrer" scripts/feature.sh refine
 
 cd "$OLDPWD" 2>/dev/null || true
 if (( ko )); then echo "✗ $ko vérification(s) en échec" >&2; exit 1; fi
