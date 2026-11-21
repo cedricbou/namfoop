@@ -18,7 +18,7 @@ presets (enregistrer une chaîne, la rechercher, la rejouer, repartir d'une cha�
 la suivante en 20 ms grâce à la banque préchargée en mémoire, la réverbe du preset quitté finissant
 de sonner),
 sets de concert (set list, vue scène, prompteur ChordPro),
-rendu hors ligne, bench CPU, mesure de latence. À venir : MIDI, démarrage
+rendu hors ligne, bench CPU, mesure de latence (à vide ou sous charge). À venir : MIDI, démarrage
 automatique, Raspberry Pi.
 
 ## Démarrage rapide
@@ -45,7 +45,8 @@ dépôt, puis relancer `cargo build --release`.
 
 Autres commandes : `namfoop meta`
 (corriger les métadonnées d'un modèle : type de capture, gain d'entrée, IR préférée), `namfoop render`
-(traiter un WAV), `namfoop bench` (coût CPU), `namfoop latency` (mesure aller-retour),
+(traiter un WAV), `namfoop bench` (coût CPU), `namfoop latency`
+(mesure aller-retour, à vide ou avec les chaînes de référence : `--chains`),
 `namfoop fx` (effets à placer avant ou après le modèle avec `--pre` /
 `--post`). Sans matériel : `namfoop --backend sim run -m b7k`.
 

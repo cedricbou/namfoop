@@ -77,6 +77,12 @@ défaut, cas limites — est dans le rustdoc.
   `volume_db` déclaré **avant** `blocks` (en TOML une valeur ne s'écrit pas après un tableau de
   tables) ; `to_blocks()` donne les `BlockSpec` du temps réel.
 - `blend.rs` : les mélanges d'IR `.cab.toml` (alignement, gain, polarité), calculés au chargement.
+- `bench.rs` : les **chaînes de référence**, du modèle nu au pire cas connu (quatre `nam › ir` en
+  parallèle), avec le modèle d'exemple du moteur NAM — embarqué par `include_bytes!`, donc mesurable
+  sur une machine où seul le binaire est installé — et une IR de synthèse à graine fixe. Un seul
+  endroit les décrit, parce que deux mesures s'en servent et doivent parler des mêmes chaînes : le
+  repère de coût par bloc (`tests/budget.rs`, hors ligne) et `namfoop latency --chains`, sur la
+  carte. `Level::Raw`, aucun limiteur : rien ne doit dépendre des réglages de l'utilisateur.
 - `profile.rs` : la réponse d'une IR par tiers d'octave, étendue grave / aiguë à -12 dB,
   `from_transfer`, distorsion harmonique, et **`loudness_db`** (ITU-R BS.1770), dont se sert
   `Level::Match`.

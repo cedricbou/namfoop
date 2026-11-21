@@ -3,44 +3,54 @@
 # la part du budget sont là pour le lecteur, le test ne s'en sert pas.
 # Régénérer seulement pour un coût qu'on accepte, en le justifiant dans la PR :
 # NAMFOOP_UPDATE_BUDGET=1 cargo test --release -p dsp --test budget
-calibration_us = 32.74
+calibration_us = 32.36
 
 [chains.nam.48]
-ratio = 0.18
-us = 5.7
+ratio = 0.17
+us = 5.5
 budget_pct = 0.6
 
 [chains.nam.64]
-ratio = 0.22
-us = 7.2
+ratio = 0.21
+us = 6.9
 budget_pct = 0.5
 
 [chains.nam-ir.48]
-ratio = 0.28
+ratio = 0.29
 us = 9.3
 budget_pct = 0.9
 
 [chains.nam-ir.64]
 ratio = 0.36
-us = 11.8
+us = 11.7
 budget_pct = 0.9
 
 [chains.nam-ir-fx.48]
 ratio = 0.34
-us = 11.0
+us = 11.1
 budget_pct = 1.1
 
 [chains.nam-ir-fx.64]
-ratio = 0.42
+ratio = 0.43
 us = 13.9
 budget_pct = 1.0
 
 [chains.parallele-2-nam-ir.48]
-ratio = 0.57
-us = 18.7
+ratio = 0.59
+us = 19.0
 budget_pct = 1.9
 
 [chains.parallele-2-nam-ir.64]
-ratio = 0.72
-us = 23.5
+ratio = 0.75
+us = 24.3
 budget_pct = 1.8
+
+[chains.parallele-4-nam-ir.48]
+ratio = 1.2
+us = 38.8
+budget_pct = 3.9
+
+[chains.parallele-4-nam-ir.64]
+ratio = 1.52
+us = 49.2
+budget_pct = 3.7

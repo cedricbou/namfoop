@@ -205,9 +205,25 @@ enum Cmd {
         /// Canal d'entrée où revient le signal
         #[arg(long, default_value_t = 2)]
         in_ch: usize,
-        /// Nombre de mesures
+        /// Nombre de mesures par passe
         #[arg(long, default_value_t = 10)]
         count: u32,
+        /// Mesure aussi chaque chaîne de référence : l'impulsion la traverse, puis elle tourne à
+        /// côté (charge DSP et xruns par passe)
+        #[arg(long)]
+        chains: bool,
+        /// Une seule chaîne de référence, par son nom (un nom inconnu les liste)
+        #[arg(long, value_name = "NOM", conflicts_with = "chains")]
+        chain: Option<String>,
+        /// Modèle qui remplit les chaînes de référence (défaut : le modèle d'exemple du moteur NAM)
+        #[arg(short = 'm', long)]
+        model: Option<String>,
+        /// IR qui remplit les chaînes de référence (défaut : une IR de synthèse)
+        #[arg(short = 'i', long)]
+        ir: Option<String>,
+        /// Dossier de la bibliothèque, où -m et -i sont cherchés
+        #[arg(long, default_value = "library")]
+        library: PathBuf,
     },
 }
 
@@ -313,7 +329,10 @@ fn main() -> Result<()> {
             browse::run(&audio, &conf, &library, &routing, size, !no_trails, start)
         }
         Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),
-        Cmd::Latency { out_ch, in_ch, count } => latency::run(&audio()?.0, out_ch, in_ch, count),
+        Cmd::Latency { out_ch, in_ch, count, chains, chain, model, ir, library } => {
+            let args = latency::Args { out_ch, in_ch, count, chains, chain, model, ir, library };
+            latency::run(&audio()?.0, &args)
+        }
     }
 }
 

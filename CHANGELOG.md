@@ -6,6 +6,23 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Mesures (#339)
+- **`namfoop latency --chains` mesure la latence avec des chaînes d'effets**, sur le même câble de
+  bouclage et dans la même session : d'abord le trajet nu, puis, pour chacune des cinq chaînes de
+  référence, une passe où l'impulsion la **traverse** et une passe où elle tourne **à côté** sur un
+  bruit interne — la seconde est le témoin de la première. Chaque passe rend aussi sa charge DSP
+  (médiane, p99,9, blocs au-delà du budget) et ses xruns, ce que `bench` ne voit pas : lui mesure
+  hors ligne, sans carte. `--chain <nom>` n'en prend qu'une, `-m` / `-i` y mettent un modèle et une
+  IR de la bibliothèque. Sans eux, le modèle d'exemple du moteur NAM et une IR de synthèse : la
+  mesure marche sans bibliothèque, y compris sur une machine fraîchement installée.
+- Les chaînes de référence sont **décrites en un seul endroit** (`dsp::bench`), partagé avec le
+  repère de coût par bloc, et le catalogue gagne le pire cas connu : quatre modèles › IR en
+  parallèle.
+- `namfoop latency` sans option mesure ce qu'il mesurait : même signal, même détection, même rapport.
+- Mesuré sur la Signature 12 MTK (buffer 64) : l'aller-retour est de **305 frames (6,35 ms)** et **la
+  chaîne ne le décale pas**, même à quatre modèles en parallèle (p99,9 à 8 %, 0 xrun). Les chiffres
+  sont dans [`crates/audio-io/CLAUDE.md`](crates/audio-io/CLAUDE.md).
+
 ### Interne (#327)
 - **Une issue à cadrer se marque, et ne se code pas.** L'étiquette `needs-refinement` s'ajoute au
   type d'une story ou d'une épique qui n'est pas assez approfondie ; sa rubrique « À trancher »,
