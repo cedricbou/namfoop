@@ -14,8 +14,8 @@ celles qui se mécanisent.
 | `chore` | atelier : outillage, CI, documentation, sans effet pour le bassiste | oui |
 | `bug` | un comportement incorrect | oui |
 
-Une issue porte **exactement une** de ces étiquettes. `test matériel` s'y ajoute quand un essai sur
-la carte reste dû.
+Une issue porte **exactement une** de ces étiquettes. Deux autres s'y ajoutent au besoin :
+`test matériel` quand un essai sur la carte reste dû, `needs-refinement` quand l'issue est à cadrer.
 
 ## Le titre
 
@@ -64,6 +64,24 @@ Tout cela va dans le **cadrage technique** : un commentaire de l'issue qui comme
 tests, mesures) ; c'est là que les règles d'architecture s'appliquent — une issue touche au plus
 deux crates. Une précision qui arrive en cours de route s'ajoute en commentaire, pas dans le corps.
 
+## Une issue à cadrer
+
+Une story ou une épique qui n'est pas assez approfondie pour être codée porte, en plus de son type,
+l'étiquette `needs-refinement`. Sa rubrique `## À trancher` est alors **obligatoire** : elle liste,
+en questions courtes, ce qu'il reste à décider. Une épique à cadrer peut n'avoir encore aucune
+story : elles sortent du cadrage.
+
+- **On ne code pas dessus** : `scripts/feature.sh start` la refuse, sans passe-droit.
+- **On la cadre avec celui qui joue** : l'agent pose les questions de « À trancher », propose une
+  réponse par défaut pour chacune, et ne tranche pas seul.
+- **Chaque décision prise quitte « À trancher »** et rejoint le corps : un critère de « Terminé
+  quand », une ligne de « Hors périmètre », une entrée de « Décisions déjà prises » pour une
+  épique, ou une nouvelle story. Ce qui est technique va dans le cadrage technique.
+- **Quand « À trancher » est vide**, la rubrique et l'étiquette se retirent : l'issue se code.
+
+Une rubrique « À trancher » sans l'étiquette reste permise pour un détail qui se décide en codant.
+`scripts/feature.sh refine` liste les issues à cadrer.
+
 ## Écrire
 
 - Première personne (« je »), phrases simples, vocabulaire du musicien.
@@ -78,7 +96,8 @@ deux crates. Une précision qui arrive en cours de route s'ajoute en commentaire
 
 1. Écrire le corps dans un fichier, et le cadrage technique dans un autre.
 2. `scripts/feature.sh issue story "Titre" corps.md cadrage.md` : contrôle le style, crée l'issue
-   avec son étiquette, et poste le cadrage en commentaire.
+   avec son étiquette, et poste le cadrage en commentaire. Avec `--refine` devant le type, l'issue
+   naît à cadrer.
 3. `scripts/feature.sh start <n°>` : relit le style de l'issue avant d'ouvrir la branche.
    `scripts/feature.sh lint <n°>` fait ce contrôle seul.
 4. Une limite découverte en chemin devient une issue du même style : une story si le bassiste la
@@ -91,4 +110,5 @@ deux crates. Une précision qui arrive en cours de route s'ajoute en commentaire
 Un type inconnu ou absent ; un titre préfixé d'une crate ou portant un chemin de source ; un corps
 sans les rubriques de son type ou sans case à cocher ; un corps qui nomme une crate, un fichier
 `.rs`, un chemin `crates/…`, un chemin Rust à `::`, ou qui porte une rubrique « Crates touchées ».
-Le reste — un critère observable, un ton lisible — relève de la relecture.
+Une issue `needs-refinement` sans rubrique « À trancher », et le démarrage d'une branche sur une
+issue `needs-refinement`. Le reste — un critère observable, un ton lisible — relève de la relecture.

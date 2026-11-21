@@ -61,6 +61,11 @@ jouant. Le détail technique (crates, ADR, pistes, tests, mesures) va dans un **
 `## Cadrage technique`** : le lire avant de coder, avec les autres commentaires de l'issue.
 `feature.sh issue` et `start` refusent une issue hors style.
 
+**Une issue `needs-refinement` est à cadrer, pas à coder** : `start` la refuse. On décide avec
+l'utilisateur les points de sa rubrique « À trancher » (une proposition par question, jamais seul),
+on reporte chaque décision dans l'issue, puis on retire l'étiquette. Une story ou une épique dont
+le besoin reste flou naît ainsi (`feature.sh issue --refine …`) ; `feature.sh refine` les liste.
+
 - jamais de commit ni de push sur `main` (`NAMFOOP_ALLOW_MAIN=1` : urgence demandée par l'utilisateur) ;
 - une branche = une issue (`feat|fix|docs/<n°>-...`) ; la PR met à jour `CHANGELOG.md` si elle
   touche au code ; `Refs #n` tant que des tests matériels restent (label `test matériel`, à

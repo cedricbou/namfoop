@@ -3,9 +3,11 @@
 # La protection de branche GitHub n'est pas disponible (dépôt privé, offre gratuite) : ce script
 # et les hooks (scripts/install-hooks.sh) imposent le cycle.
 #
-#   scripts/feature.sh issue <type> "Titre" <corps.md> [cadrage.md]
+#   scripts/feature.sh issue [--refine] <type> "Titre" <corps.md> [cadrage.md]
 #                                                    crée l'issue (type : story | epic | chore | bug),
-#                                                    le cadrage technique posté en commentaire
+#                                                    le cadrage technique posté en commentaire ;
+#                                                    --refine : à cadrer (label needs-refinement)
+#   scripts/feature.sh refine                        liste les issues à cadrer avec l'utilisateur
 #   scripts/feature.sh lint <n°>                     contrôle le style d'une issue (docs/style-issues.md)
 #   scripts/feature.sh start <n°>                    reprend l'issue n° : branche feat/<n°>-<titre>
 #   scripts/feature.sh pr [--refs] [--quick]         check.sh, push, PR « Closes #n » (--refs : issue
@@ -19,6 +21,8 @@
 # Le style des issues (docs/style-issues.md) est contrôlé à la création et au démarrage d'une
 # branche : la backlog se lit sans ouvrir le code, le détail technique va en commentaire.
 # NAMFOOP_ALLOW_ISSUE=1 passe outre (issue ancienne à reprendre telle quelle, sur demande).
+# Une issue « needs-refinement » ne se code pas : `start` la refuse, sans passe-droit, tant que
+# ses points « À trancher » ne sont pas décidés avec l'utilisateur et l'étiquette retirée.
 #
 # Garde-fous : `start` ne réutilise jamais un nom de branche déjà pris (local ou origin),
 # `pr` ne reprend qu'une PR OUVERTE, et `merge` refuse une PR déjà fusionnée puis vérifie que le
@@ -48,6 +52,7 @@ slug() {
 
 # --- Style des issues (docs/style-issues.md) -----------------------------------------------------
 ISSUE_TYPES="story epic chore bug"
+REFINE=needs-refinement
 CRATES="nam-sys|dsp|audio-io|model|engine|library"
 
 # Le type d'une issue d'après ses labels (« a,b,c ») : le premier des quatre, vide s'il n'y en a pas.
@@ -57,9 +62,9 @@ type_of_labels() {
   return 0
 }
 
-# lint_issue <type> <titre> <fichier du corps> : une ligne par écart, code 1 s'il y en a.
+# lint_issue <type> <titre> <fichier du corps> [labels] : une ligne par écart, code 1 s'il y en a.
 lint_issue() {
-  local type=$1 title=$2 body=$3 ko=0 h
+  local type=$1 title=$2 body=$3 labels=${4:-} ko=0 h
   bad() { echo "  - $*"; ko=1; }
   [[ " $ISSUE_TYPES " == *" $type "* ]] ||
     { bad "type « ${type:-aucun} » : l'issue porte une étiquette parmi story, epic, chore, bug"; return 1; }
@@ -76,6 +81,8 @@ lint_issue() {
   esac
   for h in "${need[@]}"; do grep -qF -- "$h" "$body" || bad "rubrique absente : « $h »"; done
   [[ $type == bug ]] || grep -qE '^ *- \[[ x]\]' "$body" || bad "aucune case à cocher (- [ ])"
+  [[ ,$labels, != *,$REFINE,* ]] || grep -qE '^## À trancher' "$body" ||
+    bad "issue à cadrer ($REFINE) sans rubrique « ## À trancher » : dire ce qu'il reste à décider"
   grep -qiE '^#+ *crates? touchées?' "$body" && bad "rubrique « Crates touchées » : elle va dans le cadrage technique"
   h=$(grep -nE "crates/|[a-z_]\.rs\b|[A-Za-z_]::[A-Za-z_]|\`($CRATES)\`" "$body" | head -3 || true)
   [[ -z $h ]] || bad "nom de crate, fichier source ou chemin Rust dans le corps (cadrage technique) :
@@ -90,7 +97,7 @@ check_issue() {
   labels=$(gh issue view "$n" --json labels --jq '[.labels[].name] | join(",")')
   type=$(type_of_labels "$labels")
   tmp=$(mktemp); gh issue view "$n" --json body --jq .body > "$tmp"
-  if out=$(lint_issue "$type" "$title" "$tmp"); then rm -f "$tmp"; return 0; fi
+  if out=$(lint_issue "$type" "$title" "$tmp" "$labels"); then rm -f "$tmp"; return 0; fi
   rm -f "$tmp"
   echo "l'issue #$n ne suit pas docs/style-issues.md :"; echo "$out"
   return 1
@@ -101,19 +108,27 @@ cmd_lint() {
   check_issue "$1" && echo "✓ issue #$1 conforme"
 }
 
+cmd_refine() {
+  echo "issues à cadrer avec l'utilisateur (rubrique « À trancher ») :"
+  gh issue list --label "$REFINE" --state open --limit 100 --json number,title \
+    --jq '.[] | "  #\(.number)  \(.title)"'
+}
+
 cmd_issue() {
-  [[ $# -ge 3 ]] || die "usage : issue <story|epic|chore|bug> \"Titre\" <corps.md> [cadrage.md]"
+  local labels=""
+  [[ ${1:-} == --refine ]] && { labels=$REFINE; shift; }
+  [[ $# -ge 3 ]] || die "usage : issue [--refine] <story|epic|chore|bug> \"Titre\" <corps.md> [cadrage.md]"
   local type=$1 title=$2 body=$3 frame=${4:-} out n
   [[ -f $body ]] || die "corps introuvable : $body"
   [[ -z $frame || -f $frame ]] || die "cadrage introuvable : $frame"
-  out=$(lint_issue "$type" "$title" "$body") ||
+  out=$(lint_issue "$type" "$title" "$body" "$labels") ||
     die "issue refusée (docs/style-issues.md) :
 $out"
-  n=$(gh issue create --title "$title" --label "$type" --body-file "$body" | grep -oE '[0-9]+$')
+  n=$(gh issue create --title "$title" --label "$type${labels:+,$labels}" --body-file "$body" | grep -oE '[0-9]+$')
   [[ -z $frame ]] || gh issue comment "$n" --body "## Cadrage technique
 
 $(cat "$frame")" >/dev/null
-  echo "issue créée : #$n${frame:+ (cadrage technique en commentaire)}"
+  echo "issue créée : #$n${frame:+ (cadrage technique en commentaire)}${labels:+, à cadrer}"
 }
 
 cmd_start() {
@@ -127,6 +142,9 @@ cmd_start() {
   labels=$(gh issue view "$n" --json labels --jq '[.labels[].name] | join(",")')
   [[ $(type_of_labels "$labels") != epic ]] ||
     die "l'issue #$n est une épique : on démarre une de ses stories, pas l'épique"
+  [[ ,$labels, != *,$REFINE,* ]] ||
+    die "l'issue #$n est à cadrer ($REFINE) : décider avec l'utilisateur les points de sa rubrique
+  « À trancher », les reporter dans l'issue, puis retirer l'étiquette"
   if [[ -z ${NAMFOOP_ALLOW_ISSUE:-} ]]; then
     check_issue "$n" || die "réécrire l'issue avant de coder (skill ecrire-issue), ou NAMFOOP_ALLOW_ISSUE=1 sur demande"
   fi
@@ -265,9 +283,10 @@ cmd_status() {
 case ${1:-} in
   issue) shift; cmd_issue "$@" ;;
   lint) shift; cmd_lint "$@" ;;
+  refine) shift; cmd_refine "$@" ;;
   start) shift; cmd_start "$@" ;;
   pr) shift; cmd_pr "$@" ;;
   merge) shift; cmd_merge "$@" ;;
   status) shift; cmd_status "$@" ;;
-  *) sed -n '2,25p' "$0"; exit 1 ;;
+  *) sed -n '2,30p' "$0"; exit 1 ;;
 esac
