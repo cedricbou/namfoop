@@ -39,7 +39,7 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -101,7 +101,7 @@ Options:
           Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
@@ -246,7 +246,7 @@ Options:
           Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
@@ -384,7 +384,7 @@ Options:
           [default: 64]
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --seconds <SECONDS>
           Secondes d'audio simulées par modèle
@@ -450,7 +450,7 @@ Options:
           Nom du pack (dossier dans la bibliothèque) [défaut : nom du zip ou du dossier]
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --dry-run
           Vérifie et affiche le résultat sans rien écrire
@@ -514,7 +514,7 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --type <GEAR_TYPE>
           Type de capture (décide s'il faut une IR)
@@ -591,7 +591,7 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -640,7 +640,7 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -689,7 +689,7 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -738,7 +738,7 @@ Options:
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -786,7 +786,7 @@ Options:
           [default: 15]
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --target <TARGET>
           Crête robuste visée à l'entrée des modèles (dBFS)
@@ -845,7 +845,7 @@ Options:
           [default: library]
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -916,7 +916,7 @@ Options:
           [default: library]
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
@@ -964,7 +964,7 @@ Options:
           [default: 1]
 
       --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon 1ère carte / hw:iTwo]
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --in-ch <IN_CH>
           Canal d'entrée où revient le signal

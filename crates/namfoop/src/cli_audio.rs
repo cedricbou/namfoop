@@ -46,7 +46,7 @@ pub struct AudioArgs {
     #[arg(long, value_enum, global = true)]
     pub backend: Option<BackendArg>,
     /// Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6")
-    /// [défaut : config, sinon 1ère carte / hw:iTwo]
+    /// [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
     #[arg(long, global = true)]
     pub device: Option<String>,
     /// Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la

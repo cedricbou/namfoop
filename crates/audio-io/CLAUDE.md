@@ -10,10 +10,12 @@ binaire (`crates/namfoop/src/cli_audio.rs`), qui produit un `Settings`. Erreurs 
 (`error.rs`) ; les messages sont ceux que voit l'utilisateur, ne pas les changer au passage.
 
 **Fichiers.** `lib.rs` (traits `Io`, `Processor`, `Stream`, `VecIo`, `Stats`, `Settings`, `start`,
-`start_with`), `alsa.rs` (streams liés, `--capture-device` séparé, `alsa/mixer.rs` : contrôles `Settings.mixer` réglés à
-l'ouverture, avertissement si absents, sonde `cards` / `probe_channels` / `proc_usb_channels`,
-profil PipeWire mis à « off » puis restauré, y compris sur panic), `sim.rs` (basse synthétique sur
-l'entrée 1, bruit sur la 2), `rt.rs` (SCHED_FIFO 80, RLIMIT_RTTIME, dénormaux, `setup_audio_thread` : cœur `Settings.cpu`
+`start_with`), `alsa.rs` (streams liés, `--capture-device` séparé, `alsa/mixer.rs` : contrôles
+`Settings.mixer` réglés à l'ouverture, avertissement si absents, sonde `cards` / `probe_channels` /
+`proc_usb_channels`, profil PipeWire mis à « off » puis restauré, y compris sur panic ; **aucun
+device par défaut** — pas de carte configurée, ou carte absente (`ENODEV` / `ENOENT`), rend
+`no_card_message` : les cartes vues et la marche à suivre, et jamais une carte choisie à la place de
+l'utilisateur), `sim.rs` (basse synthétique sur l'entrée 1, bruit sur la 2), `rt.rs` (SCHED_FIFO 80, RLIMIT_RTTIME, dénormaux, `setup_audio_thread` : cœur `Settings.cpu`
 et pile préchargée, appelé au démarrage des threads ALSA et sim). Le flush-to-zero a un bloc
 **d'assembleur aarch64** qu'aucune compilation x86 ne regarde : `scripts/check-aarch64.sh` le
 compile (en `cargo build`, un `cargo check` ne validant pas le contenu d'un `asm!`).

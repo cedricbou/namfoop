@@ -2106,6 +2106,16 @@ commande (`namfoop --backend alsa --buffer 64 run -m b7k`).
 - `--rate` : fréquence d'échantillonnage (48000 ; les modèles sont entraînés à 48 kHz). Si la carte
   en impose une autre, namfoop refuse de démarrer.
 
+**La carte qui manque.** namfoop n'ouvre **aucune carte par défaut**. Sans carte dans la config ni
+en option, ou si celle de la config n'est pas branchée (ou si son nom ALSA a changé), il s'arrête en
+listant les cartes qu'il voit et la marche à suivre : `namfoop setup`, `--device hw:<id>`, ou
+`--backend sim --device 4x6` pour travailler sans matériel. Il ne choisit jamais une carte à votre
+place : sur scène, jouer dans la mauvaise sortie est pire qu'un refus.
+
+```sh
+namfoop --device hw:MTK browse     # la carte, le temps d'une session
+```
+
 **Formats ALSA.** namfoop essaie dans l'ordre `S32_LE`, `S24_3LE`, `S24_LE` puis `S16_LE`, pour la
 capture et la lecture séparément, et garde le premier accepté par la carte (ligne « format ALSA »
 au démarrage). L'iTwo reste en `S32_LE` ; beaucoup de cartes USB Behringer n'acceptent que

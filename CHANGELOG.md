@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#318)
+- **Sans carte branchée, namfoop ne part plus sur « hw:iTwo ».** Sur une machine sans config — le
+  portable, un PC prêté, le Pi avant son HAT —, toute commande qui ouvre la carte s'arrêtait sur
+  `ouverture de hw:iTwo` : la carte de l'auteur, device par défaut en dur depuis la 0.1.0, devenue
+  atteignable au retrait du backend JACK, qui choisissait lui-même la première carte de la machine.
+  namfoop ne choisit **aucune** carte à votre place : il liste les cartes qu'il voit et dit quoi
+  faire — `namfoop setup`, `--device hw:<id>`, ou `--backend sim --device 4x6` pour travailler sans
+  matériel. Même message et même liste quand la carte de la config n'est pas branchée, ou que son
+  nom ALSA a changé.
+- L'aide de `--device` promettait « sinon 1ère carte / hw:iTwo » : ce repli était celui de JACK et
+  n'existe plus.
+
 ### Ajouté (#223)
 - **La battue et la bande de mesure dans l'espace Set.** `Espace` lance et arrête la battue, et
   **l'appui est le 1** de la mesure en cours : on se raccroche au groupe sans compter. En tête de
