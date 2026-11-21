@@ -14,11 +14,18 @@ section prend le numéro de version.
   l'horloge reçue (#347).
 
 ### MIDI (#347)
-- **Le clic se cale sur l'horloge reçue.** Jusqu'ici il tournait sur une grille ancrée au démarrage
-  de namfoop : il avait le bon tempo mais tombait à contretemps. Le **premier top d'un flux** est
-  désormais une frontière de temps et recale le temps 1 — ce qui marche avec une source qui
-  n'envoie aucun message de transport, comme le métronome d'un clavier, et c'est la seule position
-  de temps qu'un flux d'horloge nu donne.
+- **Le clic tombe sur le temps de l'horloge reçue.** Il avait le bon tempo mais tombait à
+  contretemps : sa grille était ancrée au démarrage de namfoop, et seuls un tap ou un `Start` la
+  recalaient. Il **compte maintenant les tops** de l'horloge — une noire en vaut 24 — au lieu de
+  compter des échantillons. Sa position est donc absolue : rien ne dérive (0,3 BPM d'écart valaient
+  une demi-seconde en quatre minutes) et un changement de tempo ne le décale plus, ni une
+  accélération progressive ni les `+` / `-` d'un clavier.
+- **Quel top porte le temps** s'apprend d'un `Start` ou d'un Song Position Pointer, du début d'un
+  flux quand namfoop écoutait déjà, ou d'un appui sur `*`. Comme la grille reste ensuite verrouillée
+  sur les tops, **un seul appui suffit** pour toute la session.
+- **L'en-tête dit quand le temps est deviné.** Raccroché au milieu d'un flux déjà en cours, namfoop
+  ne peut que deviner lequel des 24 tops porte le temps : il affiche alors
+  `♩ 142 (MIDI, temps à confirmer : *)`, parce que c'est à l'oreille indiscernable d'un tempo faux.
 - **`namfoop run --click` suit l'horloge et le tap** (CC 14), alors qu'il les ignorait : un clic qui
   ne sait rien de l'horloge branchée est un piège. Le tempo de la **chaîne**, lui, reste figé dans
   `run` — c'est ce qui garde `run` et `render` reproductibles.

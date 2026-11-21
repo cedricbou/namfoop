@@ -146,6 +146,13 @@ pub struct Arbiter {
     /// Le prochain top doit prendre la phase **sans** recaler le temps 1 : un `Start` vient déjà
     /// de le faire, ou un `Continue` a justement demandé qu'on n'y touche pas.
     anchor_silently: bool,
+    /// Un top est-il déjà passé ? Ce qui distingue une ancre **observée** (on a vu le flux se
+    /// taire puis reprendre) d'une ancre **devinée** (on est arrivé au milieu d'un flux en cours,
+    /// et le premier top reçu n'est alors un début de temps que par chance : un sur vingt-quatre).
+    ever_ticked: bool,
+    /// La phase est-elle digne de foi ? Vrai après un transport, un tap, ou une reprise dont on a
+    /// observé le silence. Faux quand on s'est raccroché au milieu d'un flux.
+    phase_confirmed: bool,
     /// Intervalles d'horloge rejetés **de suite** : au-delà de
     /// [`CLOCK_REJECTS_BEFORE_RESTART`], ce n'est plus de la gigue mais un changement de tempo.
     rejects: u32,
@@ -175,6 +182,8 @@ impl Arbiter {
             ticks_since_beat: 0,
             beat_at_us: None,
             anchor_silently: false,
+            ever_ticked: false,
+            phase_confirmed: false,
             rejects: 0,
             clock_locked: false,
             beat_epoch: 0,
@@ -194,6 +203,45 @@ impl Arbiter {
     /// Compteur de recalage du temps 1 (voir le champ `beat_epoch`).
     pub fn beat_epoch(&self) -> u64 {
         self.beat_epoch
+    }
+
+    /// **Quel top porte le temps**, modulo [`TICKS_PER_BEAT`], d'après un compteur de tops
+    /// (`midi_io::Input::clock_ticks`) lu à l'instant `now_us`. `NaN` : la phase n'est pas connue,
+    /// et la grille du clic doit tourner sur le tempo.
+    ///
+    /// C'est le pont entre deux mondes, et il se calcule **ici**, hors temps réel, pour une
+    /// raison : les deux termes sont justes alors que la boucle qui appelle est lente. Le compteur
+    /// lu à `now_us` vaut exactement le nombre de tops reçus à cet instant (le fil de lecture
+    /// l'incrémente à quelques microsecondes du top), et [`Arbiter::clock_beat_at_us`] est
+    /// l'instant d'une frontière de temps à ±0,5 ms. Le nombre de tops qui les sépare est donc un
+    /// **entier** qu'un arrondi retrouve sans erreur, et le fil audio n'a plus qu'à compter — ce
+    /// qui ne dérive pas et ne glisse pas quand le tempo change.
+    ///
+    /// Le résultat se recalcule à chaque tour : une frontière fraîche étant publiée toutes les
+    /// noires, l'écart mesuré reste court et une erreur de tempo n'a pas le temps de fausser
+    /// l'arrondi.
+    pub fn clock_phase(&self, ticks: u64, now_us: u64) -> f32 {
+        // **Pas de phase sans verrou** : l'arrondi se fait avec la période publiée, et tant que
+        // l'horloge n'est pas verrouillée c'est encore celle du preset. Une noire de tops suffit à
+        // verrouiller ; d'ici là, le clic tourne sur le tempo, comme sans horloge.
+        let Some(beat_at) = self.beat_at_us.filter(|_| self.clock_locked) else {
+            return f32::NAN;
+        };
+        let tick_us = 60_000_000.0 / clamp_bpm(self.bpm) / TICKS_PER_BEAT as f32;
+        if tick_us.is_nan() || tick_us <= 0.0 {
+            return f32::NAN; // un tempo non fini ne doit pas inventer une phase
+        }
+        let since = now_us.saturating_sub(beat_at) as f32;
+        let elapsed = (since / tick_us).round() as i64;
+        (ticks as i64 - elapsed).rem_euclid(TICKS_PER_BEAT as i64) as f32
+    }
+
+    /// La phase est-elle **digne de foi** ? Vrai quand le transport l'a dite, qu'un tap l'a posée,
+    /// ou qu'on a observé le flux se taire puis reprendre. Faux quand on s'est raccroché au milieu
+    /// d'un flux déjà en cours : le premier top reçu n'y est un début de temps que par chance, une
+    /// fois sur vingt-quatre, et l'écran doit le dire au lieu de laisser croire que c'est juste.
+    pub fn clock_phase_confirmed(&self) -> bool {
+        self.clock_locked && self.beat_at_us.is_some() && self.phase_confirmed
     }
 
     /// Instant (µs) de la dernière **frontière de temps de l'horloge reçue**, pour qui veut caler
@@ -219,25 +267,40 @@ impl Arbiter {
     /// **Recaler le temps 1, sans rien dire du tempo.** C'est la moitié « phase » d'un tap, pour
     /// qui veut l'une sans l'autre : depuis le banc d'essai, par exemple, où écrire un tempo de
     /// preset n'aurait pas de sens alors que recaler le clic en a tout.
-    pub fn realign_downbeat(&mut self) {
+    pub fn realign_downbeat(&mut self, now_us: u64) {
         self.beat_epoch += 1;
+        self.set_phase(now_us);
+    }
+
+    /// **La moitié « phase » d'un recalage** : ce qui vient de se passer *est* un début de temps,
+    /// et la grille de l'horloge s'y raccroche — remettre le comptage à zéro fait que les
+    /// frontières suivantes, comptées tous les [`TICKS_PER_BEAT`] tops, tombent sur **cette**
+    /// grille-là et non sur celle d'avant. C'est ce qui rend un tap définitif : on tape une fois,
+    /// l'horloge tient ensuite la mesure.
+    fn set_phase(&mut self, now_us: u64) {
+        self.ticks_since_beat = 0;
+        if self.clock_locked {
+            self.beat_at_us = Some(now_us);
+            self.phase_confirmed = true;
+        }
     }
 
     /// Une frappe, à `now_us` microsecondes. Deux suffisent à donner un tempo ; à partir de la
     /// troisième, c'est la moyenne des [`TAP_WINDOW`] derniers intervalles. Une frappe recale aussi
     /// le **temps 1**.
     pub fn tap(&mut self, now_us: u64) {
+        // Un rebond de touche n'est pas une frappe : ni tempo, ni temps 1, ni phase, et la
+        // séquence en cours n'est pas cassée. Traité d'abord, pour qu'il ne pose rien du tout.
+        if self.last_tap.is_some_and(|last| ms_between(last, now_us) < TAP_BOUNCE_MS as f32) {
+            return;
+        }
         self.beat_epoch += 1;
+        // on tape sur le premier temps : c'est aussi ce qui dit à l'horloge où tombe le temps
+        self.set_phase(now_us);
         let Some(last) = self.last_tap.replace(now_us) else {
             return; // première frappe : rien à mesurer encore
         };
         let dt = ms_between(last, now_us);
-        if dt < TAP_BOUNCE_MS as f32 {
-            // rebond de touche : ne compte pas, et ne casse pas la séquence en cours
-            self.last_tap = Some(last);
-            self.beat_epoch -= 1;
-            return;
-        }
         if dt > TAP_TIMEOUT_MS as f32 {
             self.taps.clear(); // nouvelle séquence : cette frappe n'est qu'un point de départ
             return;
@@ -262,7 +325,13 @@ impl Arbiter {
             //
             // Après un `Start` ou un `Continue`, en revanche, le transport a déjà dit ce qu'il
             // fallait faire du temps 1 : on prend la phase sans y toucher.
+            // Une ancre n'est **observée** que si l'on a vu le flux se taire puis reprendre.
+            // Sinon on est arrivé au milieu d'un flux : ce top n'a qu'une chance sur vingt-quatre
+            // d'être un début de temps, et il faut le dire plutôt que de faire comme s'il l'était.
+            self.phase_confirmed = self.ever_ticked;
+            self.ever_ticked = true;
             if std::mem::take(&mut self.anchor_silently) {
+                self.phase_confirmed = true; // le transport, lui, dit où tombe le temps
                 self.cross_beat(now_us);
             } else {
                 self.anchor_beat(now_us);
@@ -390,6 +459,7 @@ impl Arbiter {
         self.ticks_since_beat = 0;
         self.beat_at_us = None;
         self.anchor_silently = false;
+        self.phase_confirmed = false;
         // le tempo est gardé tel quel : une panne d'horloge ne change jamais le son
         if was_locked && self.source == TempoSource::MidiClock {
             self.source = TempoSource::ClockLost;
@@ -704,6 +774,118 @@ mod tests {
         for s in [TempoSource::Preset, TempoSource::Tap, TempoSource::MidiClock, TempoSource::ClockLost] {
             assert!(!s.label().is_empty(), "{s:?}");
         }
+    }
+
+    /// **Le pont entre le compteur de tops et la grille du clic.** La phase dit quel top porte le
+    /// temps, modulo 24 : ancrée sur le top n° 1, elle vaut 1 — et elle vaut **toujours** 1,
+    /// qu'on la demande juste après une frontière ou vingt-trois tops plus tard. C'est cette
+    /// stabilité qui permet au fil audio de ne faire que compter.
+    #[test]
+    fn the_clock_phase_says_which_tick_carries_the_beat() {
+        let mut a = Arbiter::new();
+        let bpm = 142.0;
+        let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
+        let mut ticks = 0u64;
+        let mut t = ms(10);
+
+        // l'ancre, puis deux noires de tops : il faut une noire pour verrouiller le tempo, et sans
+        // verrou il n'y a pas de phase (l'arrondi se ferait sur la période du preset)
+        a.clock_tick(t);
+        ticks += 1;
+        assert!(a.clock_phase(ticks, t).is_nan(), "pas encore de verrou");
+        for _ in 1..(TICKS_PER_BEAT as u64 * 2) {
+            t += step;
+            a.clock_tick(t);
+            ticks += 1;
+        }
+        assert_eq!(a.source(), TempoSource::MidiClock, "verrouillé");
+        assert_eq!(a.clock_phase(ticks, t), 1.0, "ancré sur le top n° 1");
+
+        // trois noires de plus : la phase ne doit pas bouger d'un iota
+        for _ in 0..(TICKS_PER_BEAT as u64 * 3) {
+            t += step;
+            a.clock_tick(t);
+            ticks += 1;
+            assert_eq!(a.clock_phase(ticks, t), 1.0, "au top {ticks}");
+            // et entre deux tops non plus
+            assert_eq!(a.clock_phase(ticks, t + step / 3), 1.0, "entre les tops {ticks}");
+        }
+
+        // ce que le clic en déduit : les frontières tombent sur 1, 25, 49…
+        let off = a.clock_phase(ticks, t) as u64;
+        for c in [1u64, 25, 49, 73] {
+            assert_eq!((c - off) % TICKS_PER_BEAT as u64, 0, "le top {c} porte un temps");
+        }
+    }
+
+    /// Sans horloge ancrée, il n'y a pas de phase : le clic doit alors tourner sur le tempo, et
+    /// c'est `NaN` qui le lui dit.
+    #[test]
+    fn no_clock_means_no_phase() {
+        let mut a = Arbiter::new();
+        assert!(a.clock_phase(0, 0).is_nan(), "aucun top reçu");
+        a.preset(120.0);
+        assert!(a.clock_phase(42, ms(1000)).is_nan(), "un preset ne donne pas de phase");
+        let last = feed_clock(&mut a, 0, 120.0, 2);
+        assert!(a.clock_phase(48, last).is_finite(), "l'horloge, elle, en donne une");
+        a.poll(last + ms(CLOCK_LOST_MS + 1));
+        assert!(a.clock_phase(48, last).is_nan(), "et l'horloge perdue la retire");
+    }
+
+    /// **Une phase devinée doit se dire.** Entré au milieu d'un flux, le premier top reçu n'est un
+    /// début de temps qu'une fois sur vingt-quatre : l'écran doit l'annoncer, parce que c'est
+    /// indiscernable d'un tempo faux à l'oreille. Observer le flux se taire puis reprendre, un
+    /// transport, ou un tap la confirment.
+    #[test]
+    fn a_guessed_phase_is_not_a_confirmed_one() {
+        let mut a = Arbiter::new();
+        let last = feed_clock(&mut a, 0, 120.0, 2);
+        assert!(a.clock_beat_at_us().is_some());
+        assert!(!a.clock_phase_confirmed(), "on est arrivé au milieu d'un flux : phase devinée");
+
+        // un tap la confirme (et la pose)
+        a.tap(last + ms(10));
+        assert!(a.clock_phase_confirmed(), "un tap dit où tombe le temps");
+
+        // un silence observé puis une reprise la confirment aussi
+        let mut b = Arbiter::new();
+        let last = feed_clock(&mut b, 0, 120.0, 2);
+        assert!(!b.clock_phase_confirmed());
+        b.poll(last + ms(CLOCK_LOST_MS + 1));
+        assert!(!b.clock_phase_confirmed(), "sans phase du tout, rien à confirmer");
+        // la reprise ancre dès son premier top, et le verrou revient après une noire de tops —
+        // la confirmation ne s'affiche qu'une fois les deux acquis
+        feed_clock(&mut b, last + ms(CLOCK_LOST_MS + 100), 120.0, 2);
+        assert!(b.clock_phase_confirmed(), "le début d'un flux observé est une vraie ancre");
+
+        // un transport la confirme sans attendre de silence
+        let mut c = Arbiter::new();
+        c.clock_start();
+        feed_clock(&mut c, ms(5), 120.0, 2);
+        assert!(c.clock_phase_confirmed(), "Start dit où tombe le temps");
+    }
+
+    /// **Un tap raccroche la grille de l'horloge à la sienne.** Sans cela, la frontière suivante
+    /// retomberait sur l'ancienne grille et le tap serait annulé une noire plus tard.
+    #[test]
+    fn a_tap_moves_the_clock_grid_onto_its_own() {
+        let mut a = Arbiter::new();
+        let bpm = 120.0;
+        let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
+        let last = feed_clock(&mut a, 0, bpm, 2);
+
+        // on tape à un tiers de noire de la grille de l'horloge
+        let tap_at = last + beat_us(bpm) / 3;
+        a.tap(tap_at);
+        assert_eq!(a.clock_beat_at_us(), Some(tap_at), "le tap EST la frontière");
+
+        // la frontière suivante tombe 24 tops après le tap, pas après l'ancienne grille
+        let mut t = tap_at;
+        for _ in 0..TICKS_PER_BEAT {
+            t += step;
+            a.clock_tick(t);
+        }
+        assert_eq!(a.clock_beat_at_us(), Some(t), "la grille suit le tap");
     }
 
     /// **Le cas d'un métronome de clavier** : des tops, aucun message de transport. Le premier top

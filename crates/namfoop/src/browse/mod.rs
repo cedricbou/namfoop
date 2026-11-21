@@ -219,12 +219,21 @@ pub fn run(
     let click_gain = dsp::param::Control::new(0.0);
     let downbeat = dsp::param::Control::new(0.0);
     let click_level_db = conf.config.metronome.unwrap_or_default().level_db;
+    // La **phase** du clic est à part : le tempo ne suffit pas à placer un temps (une période
+    // juste à 0,2 % près dérive d'une demi-seconde en quatre minutes, et un changement de tempo
+    // décale la grille pour de bon). Quand une horloge tourne, le clic compte donc les tops reçus
+    // au lieu de compter des échantillons — compteur tenu par le fil de lecture MIDI, lu ici dans
+    // le fil audio.
+    let clock_phase = dsp::param::Control::new(f32::NAN);
+    let clock_ticks = start_with.midi.as_ref().map(midi_io::Input::clock_ticks);
     let metronome = engine::metronome::MetronomeConfig {
         gain: click_gain.clone(),
         tempo: tempo.clone(),
         downbeat: downbeat.clone(),
         beats_per_bar: conf.config.metronome.unwrap_or_default().beats_per_bar,
         sound: conf.config.metronome.unwrap_or_default().sound,
+        clock_ticks: clock_ticks.clone(),
+        clock_phase: clock_phase.clone(),
     };
     let click_routed = routing.outputs.iter().any(|o| o.click);
     let mut engine = Engine::start(
@@ -443,6 +452,18 @@ pub fn run(
             let epoch = st.beat_epoch() as f32;
             if epoch != downbeat.get() {
                 downbeat.set(epoch);
+            }
+            // **La phase du clic** : quel top porte le temps. Calculée ici parce que les deux
+            // termes y sont justes — le compteur lu maintenant vaut les tops reçus maintenant, et
+            // l'arbitre tient l'instant d'une frontière de temps à ±0,5 ms —, alors que le fil
+            // audio, lui, n'a plus qu'à compter. Une phase inconnue (`NaN`) rend la grille au
+            // tempo, comme avant l'horloge.
+            if let Some(c) = &clock_ticks {
+                let ticks = c.load(std::sync::atomic::Ordering::Relaxed);
+                let phase = st.clock_phase(ticks, start.elapsed().as_micros() as u64);
+                if phase != clock_phase.get() {
+                    clock_phase.set(phase);
+                }
             }
             // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008). C'est
             // celui de l'**arbitre** et non celui du preset : dès qu'une horloge MIDI tournera

@@ -308,6 +308,8 @@ mod click_tests {
             downbeat: Control::new(0.0),
             beats_per_bar: 4,
             sound: crate::metronome::ClickSound::default(),
+            clock_ticks: None,
+            clock_phase: Control::new(f32::NAN),
         }
     }
 

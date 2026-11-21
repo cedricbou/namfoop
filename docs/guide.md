@@ -1566,17 +1566,30 @@ premier temps, et `*` le fait depuis **n'importe quel écran** — depuis le ban
 que le temps, le tempo se tapant dans l'espace Chaîne. Changer de tempo ne redémarre pas la mesure :
 seul l'écart entre deux temps change.
 
-**Avec une horloge MIDI, le clic se cale tout seul** : le **premier top du flux** est pris pour une
-frontière de temps et recale le temps 1. C'est ce qui marche avec une source qui n'envoie aucun
-message de transport — le métronome d'un clavier, par exemple —, et c'est la seule position de temps
-qu'une horloge nue donne, ses 24 tops par noire étant des octets identiques. Un `Start` d'Ableton,
-lui, dit explicitement où tombe le temps 1.
+**Avec une horloge MIDI, le clic compte les tops** au lieu de compter le temps. Une noire valant
+24 tops, il sonne au vingt-quatrième : sa position est donc **absolue**, si bien que rien ne peut
+dériver et qu'un changement de tempo ne le décale pas — ni une accélération progressive, ni les
+`+` / `-` d'un clavier.
 
-Deux limites à connaître. Sans `Start` ni Song Position Pointer, le **temps 1 de la mesure** reste
-inconnaissable : l'accent peut tomber sur un autre temps de la mesure, et `beats_per_bar = 1`
-l'évite en supprimant l'accent. Et le clic ne se recale **pas en continu** sur l'horloge : il repart
-de son ancre au tempo mesuré, si bien qu'un écart peut se creuser sur un morceau long — un appui sur
-`*` le remet en place.
+Reste à savoir **lequel** des 24 tops porte le temps, ce qu'une horloge nue ne dit pas : ses tops
+sont des octets identiques. Trois façons de le lui apprendre, par ordre de fiabilité :
+
+- un `Start` ou un Song Position Pointer, qu'Ableton envoie et qu'un clavier n'envoie pas ;
+- **le début d'un flux**, quand namfoop écoutait déjà : arrête puis relance le métronome de la
+  source, et le temps tombe juste à la milliseconde ;
+- **un appui sur `*`**, qui dit « ce temps-ci ». La grille restant ensuite verrouillée sur les tops,
+  on tape **une fois** et c'est fini — rien ne glisse après.
+
+Si namfoop se raccroche au milieu d'un flux déjà en cours, il ne peut que deviner : le premier top
+reçu n'est un début de temps qu'une fois sur vingt-quatre. L'en-tête le dit alors —
+`♩ 142 (MIDI, temps à confirmer : *)` —, parce que c'est à l'oreille indiscernable d'un tempo faux.
+
+Une limite qui reste : sans `Start` ni Song Position Pointer, le **temps 1 de la mesure** est
+inconnaissable, donc l'accent peut tomber sur un autre temps de la mesure. `beats_per_bar = 1`
+l'évite en supprimant l'accent.
+
+Le verrou demande une noire de tops : pendant cette première noire, et si l'horloge se tait, le clic
+tourne sur le tempo comme sans horloge.
 
 `run --click` suit lui aussi l'horloge et le tap au pied (CC 14). Le tempo de la **chaîne**, en
 revanche, reste celui du preset ou de `--tempo` dans `run` : c'est ce qui garde `run` et `render`

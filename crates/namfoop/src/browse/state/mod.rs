@@ -470,6 +470,19 @@ impl State {
         self.tempo.beat_epoch()
     }
 
+    /// Quel top d'horloge porte le temps (`engine::tempo::Arbiter::clock_phase`) : la boucle le
+    /// pose dans la case que lit le clic.
+    pub fn clock_phase(&self, ticks: u64, now_us: u64) -> f32 {
+        self.tempo.clock_phase(ticks, now_us)
+    }
+
+    /// La phase de l'horloge est-elle confirmée ? Faux quand on s'est raccroché au milieu d'un
+    /// flux : l'en-tête le dit, parce que c'est ce qui indique qu'il faut taper `*` ou relancer la
+    /// source.
+    pub fn clock_phase_confirmed(&self) -> bool {
+        self.tempo.clock_phase_confirmed()
+    }
+
     /// `k` : allume ou éteint le clic. S'il n'a nulle part où aller, on le dit au lieu de laisser
     /// croire à une panne.
     fn toggle_metronome(&mut self) -> Action {
@@ -529,7 +542,7 @@ impl State {
         // preset : le clic n'est enregistré nulle part et `k` l'allume depuis n'importe quel écran
         // (étage pédale). Le refuser entièrement laissait un clic qu'on ne pouvait plus recaler.
         if self.space == space::Space::Library {
-            self.tempo.realign_downbeat();
+            self.tempo.realign_downbeat(now_ms * 1000);
             if let Some(set) = self.set.as_mut() {
                 set.beat.realign(now_ms);
             }

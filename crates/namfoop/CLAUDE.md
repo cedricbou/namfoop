@@ -45,7 +45,8 @@ live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre
                 La boucle attend donc POLL_MS = 20 ms (un top vaut 20,8 ms à 120 BPM) et le vumètre
                 est lu par tranches de DISPLAY_MS : `Engine::meters` remet les crêtes à zéro. Le
                 tempo de la CHAÎNE reste figé ici : c'est ce qui garde `run` et `render`
-                reproductibles ;
+                reproductibles. La PHASE du clic a ses propres cases (compteur de tops du port MIDI
+                + Arbiter::clock_phase), comme dans browse ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit

@@ -72,6 +72,10 @@ pub fn run(
     // `render` doivent rester reproductibles (ADR 0008), donc seul le clic suit l'horloge.
     let click_tempo = dsp::param::Control::new(spec.tempo.bpm());
     let click_downbeat = dsp::param::Control::new(0.0);
+    // la phase, à part du tempo : le clic compte les tops reçus plutôt que des échantillons dès
+    // qu'une horloge tourne, sans quoi un changement de tempo décalerait sa grille pour de bon
+    let clock_phase = dsp::param::Control::new(f32::NAN);
+    let clock_ticks = midi.as_ref().map(midi_io::Input::clock_ticks);
     let mut tempo = engine::tempo::Arbiter::new();
     tempo.preset(spec.tempo.bpm());
 
@@ -95,6 +99,8 @@ pub fn run(
                 downbeat: click_downbeat.clone(),
                 beats_per_bar: metronome.beats_per_bar,
                 sound: metronome.sound,
+                clock_ticks: clock_ticks.clone(),
+                clock_phase: clock_phase.clone(),
             }),
         },
         chain,
@@ -168,6 +174,15 @@ pub fn run(
             let epoch = tempo.beat_epoch() as f32;
             if epoch != click_downbeat.get() {
                 click_downbeat.set(epoch);
+            }
+            if let Some(c) = &clock_ticks {
+                let now_us = start.elapsed().as_micros() as u64;
+                let phase = tempo.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed), now_us);
+                // `NaN != NaN` : une phase inconnue se réécrit à chaque tour, ce qui ne coûte
+                // qu'un store relâché et évite une comparaison à cas particulier
+                if phase != clock_phase.get() {
+                    clock_phase.set(phase);
+                }
             }
         }
         if seconds.is_some_and(|s| start.elapsed().as_secs_f64() >= s) {

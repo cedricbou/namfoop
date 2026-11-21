@@ -226,9 +226,17 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         head.push(Span::raw("  "));
         head.push(Span::styled(
             format!(
-                "♩ {:.0} ({}){}",
+                "♩ {:.0} ({}{}){}",
                 s.heard_tempo_bpm(),
                 src.label(),
+                // Une horloge nue ne dit pas lequel de ses 24 tops porte le temps : entré au
+                // milieu d'un flux, on l'a deviné. Le dire, parce que c'est à l'oreille
+                // indiscernable d'un tempo faux, et que la réponse est de taper `*`.
+                if src == TempoSource::MidiClock && !s.clock_phase_confirmed() {
+                    ", temps à confirmer : *"
+                } else {
+                    ""
+                },
                 if s.metronome { " ·clic" } else { "" }
             ),
             match src {

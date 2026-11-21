@@ -47,12 +47,26 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   pas la position du temps (24 octets identiques par noire) et que beaucoup de sources n'envoient
   aucun transport ; les frontières suivantes se comptent sans recaler le temps 1, sinon le clic
   suivrait la granularité de la boucle d'écran. `realign_downbeat` est la moitié « phase » d'un tap,
-  pour qui veut recaler sans rien dire du tempo.
+  pour qui veut recaler sans rien dire du tempo. `clock_phase` est le **pont** vers le fil audio :
+  il se calcule ici, hors temps réel, parce que les deux termes y sont justes (le compteur lu à
+  l'instant *t* vaut les tops reçus à *t*, et `clock_beat_at_us` est une frontière à ±0,5 ms) alors
+  que la boucle qui appelle est lente — le nombre de tops entre les deux est un entier qu'un
+  arrondi retrouve. Pas de phase sans verrou : l'arrondi se ferait sinon sur la période du preset.
+  `clock_phase_confirmed` distingue une ancre **observée** (silence puis reprise, transport, tap)
+  d'une ancre **devinée** (on s'est raccroché au milieu d'un flux, et le premier top n'y est un
+  début de temps qu'une fois sur vingt-quatre) : l'écran doit le dire, c'est indiscernable d'un
+  tempo faux à l'oreille.
 - `metronome.rs` : **le clic** (ADR 0008), trois sons dont ce qui les distingue est l'**attaque**
   (`bois` 0,62 ms, `tic` 0,29 ms, `bip` 12,62 ms — c'est son attaque lente qui le noyait dans un
   retour de basse). Toutes les enveloppes commencent à zéro, donc le premier échantillon non nul
   arrive un cran après le temps : piège de test. Éteint, la **grille des temps continue d'avancer**,
-  si bien que rallumer tombe juste.
+  si bien que rallumer tombe juste. **Quand une horloge MIDI donne le temps, la grille vient d'elle**
+  et non du tempo : `clock_ticks` (le compteur de `midi_io::Input`) et `clock_phase` (quel top porte
+  le temps) suffisent à placer le clic au top près, position **absolue** donc insensible à la dérive
+  comme aux changements de tempo. Compter des échantillons depuis le temps précédent accumulait au
+  contraire la moindre erreur de période — 0,3 BPM à 142 BPM font une demi-seconde en quatre
+  minutes — et décalait la grille pour de bon à chaque changement de tempo. Sans compteur ou sans
+  phase connue, la grille au tempo reprend la main, à l'identique.
 - `router.rs` : `Routing`, `OutputRoute`, `Source`, `Router`. `with_metronome` **ajoute** le clic
   aux seules sorties qui portent `click = true`, jamais substitué à leur source, et sans générateur
   du tout si aucune ne le demande : un clic parti dans le sondier en concert est une catastrophe, et
