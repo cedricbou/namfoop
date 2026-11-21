@@ -32,27 +32,64 @@ pub struct MidiKeys {
     /// Le CC qui choisit le **son du morceau joué** (scene chez Fractal). Sans set, il n'a rien à
     /// désigner.
     pub cc_sound: u8,
+    /// Le CC du **tap tempo** : il fait exactement ce que fait la touche `*`.
+    pub cc_tap: u8,
+    /// Écouter l'horloge et le transport ? Coupée, le tempo ne vient plus que du preset et du tap
+    /// — et le tap, lui, marche toujours : ce n'est pas le MIDI qu'on coupe, c'est l'horloge.
+    pub clock: bool,
 }
 
 impl Default for MidiKeys {
     fn default() -> Self {
-        Self { cc_sound: model::Midi::default().cc_sound }
+        let m = model::Midi::default();
+        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, clock: m.clock }
     }
 }
 
 impl State {
-    /// Un message MIDI reçu, hors du fil audio. Rend l'action à exécuter, ou `Action::None`.
-    pub fn on_midi(&mut self, event: Event) -> Action {
+    /// Un message MIDI reçu, hors du fil audio, avec **l'instant où le fil de lecture l'a vu**
+    /// (microsecondes de la même ligne de temps que [`State::tick`]). Rend l'action à exécuter.
+    ///
+    /// L'instant vient du message et non de la boucle : celle-ci ne repasse que toutes les 30 ms,
+    /// et un top d'horloge vaut 20,8 ms à 120 BPM — l'horodater au tour de boucle rendrait toute
+    /// mesure de tempo fausse (ADR 0008).
+    pub fn on_midi(&mut self, event: Event, at_us: u64) -> Action {
         match event {
             Event::ProgramChange(n) => self.midi_program(n),
-            Event::Control { cc, value } => self.midi_control(cc, value),
-            // L'horloge et le transport vont à l'arbitre de tempo, qui attend ses événements :
-            // c'est la story suivante du pilotage MIDI.
-            Event::ClockTick
-            | Event::ClockStart
-            | Event::ClockStop
-            | Event::ClockContinue
-            | Event::SongPosition(_) => Action::None,
+            Event::Control { cc, value } => self.midi_control(cc, value, at_us),
+            // L'horloge et le transport vont à l'arbitre de tempo (ADR 0008), qui tranche entre
+            // le preset, le tap et l'horloge. Coupée par la config, on ne lui dit rien du tout —
+            // c'est ce qui garde le dernier tempo au lieu de le faire sauter.
+            Event::ClockTick if self.midi.clock => {
+                self.tempo.clock_tick(at_us);
+                Action::None
+            }
+            Event::ClockStart if self.midi.clock => {
+                self.tempo.clock_start();
+                self.realign_beat(at_us);
+                Action::None
+            }
+            Event::ClockContinue if self.midi.clock => {
+                self.tempo.clock_continue();
+                Action::None
+            }
+            Event::ClockStop if self.midi.clock => {
+                self.tempo.clock_stop();
+                Action::None
+            }
+            // La position dans le morceau (SPP) demande la carte des mesures : c'est le pilotage
+            // du set, la story suivante.
+            Event::SongPosition(_) => Action::None,
+            Event::ClockTick | Event::ClockStart | Event::ClockContinue | Event::ClockStop => Action::None,
+        }
+    }
+
+    /// `Start` recale le **temps 1** : l'arbitre avance son compteur (le clic le suit), et la
+    /// battue d'un set se remet sur l'appui, comme pour un tap (§ 11 du mode Set).
+    fn realign_beat(&mut self, at_us: u64) {
+        let at_ms = at_us / 1000;
+        if let Some(set) = self.set.as_mut() {
+            set.beat.realign(at_ms);
         }
     }
 
@@ -83,7 +120,11 @@ impl State {
 
     /// Les CC que namfoop connaît. Les autres ne disent rien ici et sont ignorés sans bruit : un
     /// pédalier en envoie à chaque pression, et noyer la ligne d'état les rendrait inutiles tous.
-    fn midi_control(&mut self, cc: u8, value: u8) -> Action {
+    fn midi_control(&mut self, cc: u8, value: u8, at_us: u64) -> Action {
+        if cc == self.midi.cc_tap {
+            // le tap du pédalier EST la touche `*` : mêmes règles, même message, même recalage
+            return self.tap_tempo_at(at_us / 1000);
+        }
         if cc == CC_BANK_SELECT {
             self.message =
                 Some(format!("Bank Select (CC 0 = {value}) ignoré : le choix du set par MIDI viendra"));
@@ -103,6 +144,7 @@ mod tests {
     use super::super::tests::{fx_block, with_chain};
     use super::super::*;
     use crate::tui::Key;
+    use engine::tempo::TempoSource;
     use midi_io::Event;
 
     fn nam(m: usize) -> Leaf {
@@ -131,12 +173,12 @@ mod tests {
             s.presets.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
             ["Chill verse", "Punk chorus"]
         );
-        assert!(matches!(s.on_midi(Event::ProgramChange(2)), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::ProgramChange(2), 0), Action::Play { .. }));
         assert_eq!(s.preset.as_ref().map(|p| p.name.clone()), Some("Punk chorus".into()));
         assert!(s.message.as_deref().is_some_and(|m| m.contains("Punk chorus")), "{:?}", s.message);
         assert!(s.unsaved().is_empty(), "le preset chargé est la référence");
         // et le premier aussi : la place 1 est bien la première, pas la seconde
-        assert!(matches!(s.on_midi(Event::ProgramChange(1)), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::ProgramChange(1), 0), Action::Play { .. }));
         assert_eq!(s.preset.as_ref().map(|p| p.name.clone()), Some("Chill verse".into()));
     }
 
@@ -146,7 +188,7 @@ mod tests {
     fn a_program_change_asks_once_when_the_chain_is_not_saved() {
         let mut s = bank();
         s.on_key(Key::Char('x')); // la chaîne change
-        s.on_midi(Event::ProgramChange(2));
+        s.on_midi(Event::ProgramChange(2), 0);
         assert!(s.confirm_switch && s.pending_switch.is_some(), "la fenêtre s'ouvre");
         assert!(matches!(s.on_key(Key::Enter), Action::Play { .. }), "Entrée charge quand même");
         assert_eq!(s.preset.as_ref().map(|p| p.name.clone()), Some("Punk chorus".into()));
@@ -158,12 +200,12 @@ mod tests {
     fn a_program_change_out_of_the_bank_is_ignored_and_said() {
         let mut s = bank();
         for n in [3, 128] {
-            assert_eq!(s.on_midi(Event::ProgramChange(n)), Action::None);
+            assert_eq!(s.on_midi(Event::ProgramChange(n), 0), Action::None);
             assert!(s.message.as_deref().is_some_and(|m| m.contains("2 place")), "{:?}", s.message);
             assert!(s.preset.is_none(), "aucun preset n'a été installé");
         }
         let mut vide = with_chain(vec![Block::Leaf(nam(0))]);
-        assert_eq!(vide.on_midi(Event::ProgramChange(1)), Action::None);
+        assert_eq!(vide.on_midi(Event::ProgramChange(1), 0), Action::None);
         assert!(vide.message.as_deref().is_some_and(|m| m.contains("aucun preset")), "{:?}", vide.message);
     }
 
@@ -173,7 +215,7 @@ mod tests {
         let mut s = bank();
         s.presets[0].chain = None;
         s.presets[0].broken = Some("modèle introuvable".into());
-        assert_eq!(s.on_midi(Event::ProgramChange(1)), Action::None);
+        assert_eq!(s.on_midi(Event::ProgramChange(1), 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("Chill verse") && m.contains("modèle introuvable"), "{m}");
         assert!(s.preset.is_none(), "rien n'a été installé");
@@ -186,7 +228,7 @@ mod tests {
         let mut s = bank();
         s.on_key(Key::Char('S')); // nommer le preset
         assert!(s.typing());
-        assert_eq!(s.on_midi(Event::ProgramChange(2)), Action::None);
+        assert_eq!(s.on_midi(Event::ProgramChange(2), 0), Action::None);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("saisie")), "{:?}", s.message);
         assert!(s.preset.is_none());
     }
@@ -196,11 +238,11 @@ mod tests {
     #[test]
     fn the_known_ccs_say_why_they_do_nothing_without_a_set() {
         let mut s = bank();
-        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 2 }), Action::None);
+        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 2 }, 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("CC 34") && m.contains("sans set"), "{m}");
 
-        assert_eq!(s.on_midi(Event::Control { cc: super::CC_BANK_SELECT, value: 1 }), Action::None);
+        assert_eq!(s.on_midi(Event::Control { cc: super::CC_BANK_SELECT, value: 1 }, 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("Bank Select") && m.contains("set"), "{m}");
         assert!(s.preset.is_none(), "aucun de ces CC n'installe quoi que ce soit");
@@ -210,27 +252,135 @@ mod tests {
     #[test]
     fn the_sound_cc_number_is_configurable() {
         let mut s = bank();
-        s.midi = super::MidiKeys { cc_sound: 69 };
-        s.on_midi(Event::Control { cc: 69, value: 2 });
+        s.midi = super::MidiKeys { cc_sound: 69, ..Default::default() };
+        s.on_midi(Event::Control { cc: 69, value: 2 }, 0);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("CC 69")), "{:?}", s.message);
         s.message = None;
-        s.on_midi(Event::Control { cc: 34, value: 2 });
+        s.on_midi(Event::Control { cc: 34, value: 2 }, 0);
         assert_eq!(s.message, None, "34 ne veut plus rien dire : ignoré sans bruit");
     }
 
-    /// L'horloge et le transport ne demandent **rien** ici : ils vont à l'arbitre de tempo.
-    #[test]
-    fn the_clock_and_the_transport_ask_for_nothing_yet() {
-        let mut s = bank();
-        for e in [
-            Event::ClockTick,
-            Event::ClockStart,
-            Event::ClockStop,
-            Event::ClockContinue,
-            Event::SongPosition(64),
-        ] {
-            assert_eq!(s.on_midi(e), Action::None, "{e:?}");
+    /// Une horloge de `beats` noires à `bpm`, en partant de `from_us`. Rend l'instant du dernier
+    /// top. 24 tops par noire (constante du protocole) : deux noires suffisent à verrouiller.
+    fn clock(s: &mut State, bpm: f32, from_us: u64, beats: u32) -> u64 {
+        let step = (60_000_000.0 / bpm / engine::tempo::TICKS_PER_BEAT as f32) as u64;
+        let mut at = from_us;
+        for _ in 0..(beats * engine::tempo::TICKS_PER_BEAT) {
+            at += step;
+            s.on_midi(Event::ClockTick, at);
         }
-        assert_eq!(s.message, None, "et ils n'écrivent rien à l'écran");
+        at
+    }
+
+    /// **L'horloge d'Ableton donne le tempo entendu**, et le suit quand il change — sans que
+    /// l'arbitre republie pour un écart insignifiant (ADR 0008).
+    #[test]
+    fn an_ableton_clock_gives_the_heard_tempo() {
+        let mut s = bank();
+        let at = clock(&mut s, 120.0, 0, 3);
+        assert_eq!(s.tempo_source(), TempoSource::MidiClock);
+        assert!((s.heard_tempo_bpm() - 120.0).abs() < 0.5, "{} BPM", s.heard_tempo_bpm());
+        // le morceau suivant est à 92 : le tempo entendu suit
+        let at = clock(&mut s, 92.0, at + 1, 4);
+        assert_eq!(s.tempo_source(), TempoSource::MidiClock);
+        assert!((s.heard_tempo_bpm() - 92.0).abs() < 0.5, "{} BPM", s.heard_tempo_bpm());
+        // le tempo ENREGISTRÉ du preset, lui, n'a pas bougé : une horloge n'est pas un réglage
+        assert_eq!(s.fx.chain.tempo_bpm, dsp::tempo::DEFAULT_BPM);
+        assert!(s.unsaved().is_empty(), "une horloge ne rend pas la chaîne « non enregistrée »");
+        let _ = at;
+    }
+
+    /// Une horloge qui **se tait** garde son dernier tempo et le dit : jamais de retour silencieux
+    /// au tempo du preset, qui serait un changement de son causé par une panne.
+    #[test]
+    fn a_clock_that_stops_keeps_its_tempo_and_says_so() {
+        let mut s = bank();
+        let at = clock(&mut s, 120.0, 0, 3);
+        let bpm = s.heard_tempo_bpm();
+        // 600 ms sans top : plus de verrou (CLOCK_LOST_MS = 500)
+        s.tick(at / 1000 + 600);
+        assert_eq!(s.tempo_source(), TempoSource::ClockLost);
+        assert_eq!(s.heard_tempo_bpm(), bpm, "le tempo est gardé");
+        assert_eq!(TempoSource::ClockLost.label(), "horloge perdue");
+    }
+
+    /// `Start` recale le **temps 1** (le clic le suit) ; `Stop` garde le tempo.
+    #[test]
+    fn start_recalls_beat_one_and_stop_keeps_the_tempo() {
+        let mut s = bank();
+        let at = clock(&mut s, 120.0, 0, 3);
+        let (epoch, bpm) = (s.beat_epoch(), s.heard_tempo_bpm());
+        s.on_midi(Event::ClockStart, at + 1);
+        assert_eq!(s.beat_epoch(), epoch + 1, "Start recale le temps 1");
+        assert_eq!(s.heard_tempo_bpm(), bpm);
+        // `Continue` reprend sans recaler : c'est tout ce qui le distingue de `Start`
+        let epoch = s.beat_epoch();
+        s.on_midi(Event::ClockContinue, at + 2);
+        assert_eq!(s.beat_epoch(), epoch, "Continue ne recale pas");
+        s.on_midi(Event::ClockStop, at + 3);
+        assert_eq!(s.heard_tempo_bpm(), bpm, "Stop garde le dernier tempo");
+    }
+
+    /// **Le tap du pédalier est la touche `*`** : même mesure, même message, et il **détrône**
+    /// l'horloge (ADR 0008) — on tape justement pour rattraper une désynchro du groupe.
+    #[test]
+    fn a_foot_tap_is_exactly_the_star_key() {
+        let mut s = bank();
+        let at = clock(&mut s, 92.0, 0, 3);
+        assert_eq!(s.tempo_source(), TempoSource::MidiClock);
+        let tap = |s: &mut State, at: u64| s.on_midi(Event::Control { cc: 14, value: 127 }, at);
+        tap(&mut s, at + 1);
+        tap(&mut s, at + 1 + 400_000); // deux frappes à 400 ms = 150 BPM
+        assert_eq!(s.tempo_source(), TempoSource::Tap, "le tap passe devant l'horloge");
+        assert!((s.heard_tempo_bpm() - 150.0).abs() < 1.0, "{} BPM", s.heard_tempo_bpm());
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("(tap)")), "{:?}", s.message);
+        // comme `*`, il modifie le preset : l'étoile « non enregistré » apparaît (ADR 0008)
+        assert!(!s.unsaved().is_empty());
+        // et l'horloge ne reprend la main que sur un événement net
+        clock(&mut s, 92.0, at + 2_000_000, 3);
+        assert_eq!(s.tempo_source(), TempoSource::Tap, "l'horloge suit sans écrire");
+        s.on_midi(Event::ClockStart, at + 4_000_000);
+        clock(&mut s, 92.0, at + 4_000_001, 3);
+        assert_eq!(s.tempo_source(), TempoSource::MidiClock, "Start lui rend la main");
+    }
+
+    /// `[midi] clock = false` : l'horloge ne dit plus rien — mais le **tap marche toujours**. Ce
+    /// n'est pas le MIDI qu'on coupe pour une jam, c'est l'horloge.
+    #[test]
+    fn the_clock_can_be_switched_off_without_losing_the_tap() {
+        let mut s = bank();
+        s.midi = super::MidiKeys { clock: false, ..Default::default() };
+        let at = clock(&mut s, 120.0, 0, 3);
+        assert_eq!(s.tempo_source(), TempoSource::Preset, "l'horloge est ignorée");
+        assert_eq!(s.heard_tempo_bpm(), dsp::tempo::DEFAULT_BPM);
+        s.on_midi(Event::ClockStart, at + 1);
+        s.on_midi(Event::ClockStop, at + 2);
+        assert_eq!(s.tempo_source(), TempoSource::Preset);
+        let tap = |s: &mut State, at: u64| s.on_midi(Event::Control { cc: 14, value: 127 }, at);
+        tap(&mut s, at + 1_000_000);
+        tap(&mut s, at + 1_500_000);
+        assert_eq!(s.tempo_source(), TempoSource::Tap, "le tap, lui, répond");
+    }
+
+    /// Le CC du tap est **réglable** (`[midi] cc_tap`).
+    #[test]
+    fn the_tap_cc_number_is_configurable() {
+        let mut s = bank();
+        s.midi = super::MidiKeys { cc_tap: 64, ..Default::default() };
+        s.on_midi(Event::Control { cc: 64, value: 127 }, 0);
+        s.on_midi(Event::Control { cc: 64, value: 127 }, 500_000);
+        assert_eq!(s.tempo_source(), TempoSource::Tap);
+        s.midi = super::MidiKeys::default();
+        s.message = None;
+        s.on_midi(Event::Control { cc: 64, value: 127 }, 1_000_000);
+        assert_eq!(s.message, None, "64 ne veut plus rien dire : ignoré sans bruit");
+    }
+
+    /// La position dans le morceau (SPP) ne demande rien encore : il lui faut la carte des mesures.
+    #[test]
+    fn the_song_position_asks_for_nothing_yet() {
+        let mut s = bank();
+        assert_eq!(s.on_midi(Event::SongPosition(64), 0), Action::None);
+        assert_eq!(s.message, None);
     }
 }

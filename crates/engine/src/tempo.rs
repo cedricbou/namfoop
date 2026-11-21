@@ -38,6 +38,12 @@ pub const CLOCK_LOST_MS: u64 = 500;
 pub const CLOCK_HYSTERESIS_BPM: f32 = 0.3;
 /// Intervalle d'horloge rejeté au-delà de cet écart relatif à la moyenne (gigue, octet retardé).
 const CLOCK_TOLERANCE: f32 = 0.25;
+/// Après autant de rejets **de suite**, ce n'est plus de la gigue : le tempo de la source a
+/// vraiment changé, et la fenêtre repart de lui. Sans cette porte de sortie, un saut de plus de
+/// [`CLOCK_TOLERANCE`] (120 -> 92 BPM en fait 30 %) serait rejeté indéfiniment et le tempo resterait
+/// bloqué sur l'ancien. Un tiers de noire : assez long pour ignorer une vraie gigue, assez court
+/// pour qu'on ne joue pas un morceau entier au tempo du précédent.
+const CLOCK_REJECTS_BEFORE_RESTART: u32 = 8;
 
 /// Intervalles de tap moyennés. Le Helix en moyenne jusqu'à dix et demande « at least 10 taps » :
 /// trop lent à réagir quand on rattrape une désynchro au milieu d'un morceau. Le Quad Cortex ne
@@ -123,6 +129,9 @@ pub struct Arbiter {
     taps: Window<TAP_WINDOW>,
     last_tick: Option<u64>,
     ticks: Window<{ TICKS_PER_BEAT as usize }>,
+    /// Intervalles d'horloge rejetés **de suite** : au-delà de
+    /// [`CLOCK_REJECTS_BEFORE_RESTART`], ce n'est plus de la gigue mais un changement de tempo.
+    rejects: u32,
     clock_locked: bool,
     /// Incrémenté chaque fois que le **temps 1** est recalé (un tap, un `Start`) : le métronome n'a
     /// qu'à suivre ce compteur pour se remettre en phase, sans rien savoir d'ici.
@@ -146,6 +155,7 @@ impl Arbiter {
             taps: Window::new(),
             last_tick: None,
             ticks: Window::new(),
+            rejects: 0,
             clock_locked: false,
             beat_epoch: 0,
         }
@@ -219,8 +229,16 @@ impl Arbiter {
         // un intervalle isolé est inexploitable (à 120 BPM un top vaut 20,833 ms, et 21 ms donne
         // déjà 119 BPM) : on moyenne, et on rejette la gigue franche
         if self.ticks.mean().is_some_and(|m| (dt - m).abs() > CLOCK_TOLERANCE * m) {
-            return;
+            self.rejects += 1;
+            if self.rejects < CLOCK_REJECTS_BEFORE_RESTART {
+                return;
+            }
+            // la source a changé de tempo : on repart d'une fenêtre neuve, **sans** toucher au
+            // tempo publié ni annoncer une horloge perdue — le son ne doit pas sauter pendant
+            // qu'on remesure, et il n'y a pas de panne.
+            self.ticks.clear();
         }
+        self.rejects = 0;
         self.ticks.push(dt);
         if !self.ticks.full() {
             return;
@@ -243,8 +261,15 @@ impl Arbiter {
     /// `Start` MIDI : l'horloge reprend la main, et le **temps 1** est recalé.
     pub fn clock_start(&mut self) {
         self.beat_epoch += 1;
+        self.clock_continue();
+    }
+
+    /// `Continue` MIDI : l'horloge reprend la main **sans** recaler le temps 1 — c'est tout ce qui
+    /// le distingue de `Start`, et c'est le sens du message : on repart d'où l'on s'était arrêté.
+    pub fn clock_continue(&mut self) {
         self.forget_tap();
         self.ticks.clear();
+        self.rejects = 0;
         self.last_tick = None;
         self.clock_locked = false;
         if self.source == TempoSource::Tap {
@@ -278,6 +303,7 @@ impl Arbiter {
         let was_locked = self.clock_locked;
         self.clock_locked = false;
         self.ticks.clear();
+        self.rejects = 0;
         self.last_tick = None;
         // le tempo est gardé tel quel : une panne d'horloge ne change jamais le son
         if was_locked && self.source == TempoSource::MidiClock {
@@ -427,6 +453,49 @@ mod tests {
         // un vrai changement, lui, passe
         feed_clock(&mut a, t, 132.0, 4);
         assert!((a.bpm() - 132.0).abs() < 0.3, "{} BPM", a.bpm());
+    }
+
+    /// Un **gros** changement de tempo (120 -> 92 BPM : 30 % d'intervalle, au-delà de la gigue
+    /// tolérée) est suivi au lieu d'être rejeté indéfiniment. Sans la porte de sortie, le tempo
+    /// resterait bloqué sur l'ancien tant qu'Ableton n'arrête pas son horloge.
+    #[test]
+    fn a_big_tempo_change_is_followed_instead_of_rejected_forever() {
+        let mut a = Arbiter::new();
+        let t = feed_clock(&mut a, 0, 120.0, 2);
+        assert!((a.bpm() - 120.0).abs() < 0.2, "{} BPM", a.bpm());
+
+        // pendant la remesure, le tempo publié ne saute pas et l'horloge n'est pas « perdue »
+        let step = beat_us(92.0) / TICKS_PER_BEAT as u64;
+        let mut at = t;
+        for _ in 0..CLOCK_REJECTS_BEFORE_RESTART {
+            at += step;
+            a.clock_tick(at);
+        }
+        assert_eq!((a.bpm(), a.source()), (120.0, TempoSource::MidiClock), "aucun saut, aucune panne");
+
+        feed_clock(&mut a, at, 92.0, 2);
+        assert_eq!(a.source(), TempoSource::MidiClock);
+        assert!((a.bpm() - 92.0).abs() < 0.3, "{} BPM", a.bpm());
+    }
+
+    /// `Continue` reprend la main comme `Start`, **sans** recaler le temps 1 : c'est son sens, on
+    /// repart d'où l'on s'était arrêté.
+    #[test]
+    fn continue_resumes_without_recalling_beat_one() {
+        let mut a = Arbiter::new();
+        let t = tap_at(&mut a, 0, 90.0, 3);
+        let (bpm, epoch) = (a.bpm(), a.beat_epoch());
+        assert_eq!(a.source(), TempoSource::Tap);
+
+        a.clock_continue();
+        assert_eq!(a.beat_epoch(), epoch, "Continue ne touche pas au temps 1");
+        assert_eq!(a.bpm(), bpm, "et ne change jamais le tempo");
+        // comme `Start`, il rend la main à l'horloge
+        feed_clock(&mut a, t + ms(1000), 120.0, 2);
+        assert_eq!(a.source(), TempoSource::MidiClock);
+
+        a.clock_start();
+        assert_eq!(a.beat_epoch(), epoch + 1, "Start, lui, recale");
     }
 
     /// **Un tap détrône l'horloge**, et on n'y revient que sur un événement net. C'est la décision

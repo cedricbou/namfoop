@@ -37,7 +37,10 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
 - `tempo.rs` : **l'arbitre de tempo** (ADR 0008), machine à états pure, horloge fournie par
   l'appelant. Priorité **tap > horloge > preset** ; une horloge qui meurt garde le dernier tempo et
   passe en `ClockLost` — jamais de saut de son causé par une panne. L'ADR 0007 n'autorisant qu'un
-  **seul** écrivain par case, c'est `browse` qui écrit le tempo arbitré.
+  **seul** écrivain par case, c'est `browse` qui écrit le tempo arbitré. Le rejet de gigue à ±25 %
+  a une **porte de sortie** (8 rejets de suite = la source a changé de tempo, la fenêtre repart) :
+  sans elle, un saut de 120 à 92 BPM serait rejeté indéfiniment. `clock_start` recale le temps 1,
+  `clock_continue` fait tout le reste sans le recaler.
 - `metronome.rs` : **le clic** (ADR 0008), trois sons dont ce qui les distingue est l'**attaque**
   (`bois` 0,62 ms, `tic` 0,29 ms, `bip` 12,62 ms — c'est son attaque lente qui le noyait dans un
   retour de basse). Toutes les enveloppes commencent à zéro, donc le premier échantillon non nul

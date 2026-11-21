@@ -74,7 +74,16 @@ impl Source for SimPort {
                     reste.push_str(&String::from_utf8_lossy(&tampon[..n]));
                     false
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => false,
+                // rien à lire, ou un signal reçu pendant la lecture : on repasse, on n'abandonne
+                // pas — une écoute qui s'arrête en silence ne se diagnostique pas
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted
+                    ) =>
+                {
+                    false
+                }
                 Err(e) => {
                     log::warn!("port MIDI simulé {} : lecture interrompue ({e})", self.path.display());
                     return;

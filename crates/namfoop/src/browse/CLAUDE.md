@@ -135,6 +135,12 @@ boucle vide la file **à chaque tour**, hors du fil audio, et dont chaque messag
 3. un `PC` emprunte `switch_to`, **le chemin du pied sur `PgDn`** : même banque préchargée, même
    fondu, même question quand la chaîne n'est pas enregistrée. Ne pas le court-circuiter.
 
+Le **tempo** vient de là aussi (ADR 0008) : les tops d'horloge, `Start` / `Continue` / `Stop` vont à
+l'arbitre, et le CC de tap appelle `tap_tempo_at` — **la touche `*`, au message près**. Chaque
+message porte **son** instant (`on_midi(event, at_us)`), et c'est vital : la boucle ne repasse que
+toutes les 30 ms, alors qu'un top vaut 20,8 ms à 120 BPM et qu'un tap horodaté au tour de boucle se
+tromperait de 7 BPM. `[midi] clock = false` coupe l'horloge **sans** couper le tap.
+
 La boucle **trace** chaque message (`midi PC 4`) et le port écouté est nommé dans la ligne d'état :
 c'est ce qui rend « mon pédalier parle-t-il ? » vérifiable de bout en bout par
 `scripts/check-e2e.py`, qui lui écrit dans un tube.

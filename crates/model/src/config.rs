@@ -127,12 +127,18 @@ pub struct Midi {
     /// Le CC qui choisit le **son du morceau joué** (scene chez Fractal). Défaut 34 : le numéro
     /// que le monde Fractal utilise de fait, et que les gabarits des pédaliers tiers répètent.
     pub cc_sound: u8,
+    /// Le CC du **tap tempo** (défaut 14, le tap Fractal) : il agit comme la touche `*`.
+    pub cc_tap: u8,
+    /// Écouter l'**horloge** MIDI (Beat Clock, `Start` / `Stop`) ? Faux : le tempo ne vient plus
+    /// que du preset et du tap. Une horloge bruyante en jam est un risque, pas un service
+    /// (ADR 0008).
+    pub clock: bool,
 }
 
 impl Default for Midi {
     /// Les numéros de l'ADR 0011 : le défaut est ce qui évite de configurer.
     fn default() -> Self {
-        Self { input: None, off: false, cc_sound: 34 }
+        Self { input: None, off: false, cc_sound: 34, cc_tap: 14, clock: true }
     }
 }
 

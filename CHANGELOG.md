@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#313)
+- **Les effets suivent l'horloge d'Ableton.** Le Beat Clock donne le tempo entendu dès qu'il est
+  verrouillé (une noire de tops cohérents) ; `Start` remet la battue sur le temps 1, `Continue`
+  reprend sans la recaler, `Stop` garde le dernier tempo. Une horloge qui se tait (500 ms sans top)
+  **garde son tempo** et l'en-tête passe en « horloge perdue » en jaune : jamais de retour
+  silencieux au tempo du preset, qui serait un changement de son causé par une panne de câble.
+- **Le tap au pied**, sur le CC 14 (le tap Fractal), fait exactement ce que fait la touche `*` — et
+  comme elle, il passe devant l'horloge jusqu'au prochain événement net. Chaque message porte
+  l'instant où il est arrivé, sans quoi un tap se tromperait de 7 BPM à 120.
+- **Un grand changement de tempo est suivi.** Le rejet de gigue à ±25 % de l'arbitre bloquait tout
+  saut plus grand (120 → 92 BPM fait 30 % d'intervalle) : le tempo restait sur l'ancien jusqu'à
+  l'arrêt de l'horloge. Après huit rejets de suite, la fenêtre repart du nouvel intervalle, sans que
+  le tempo publié bouge pendant la remesure ni qu'une panne soit annoncée.
+- `[midi] clock = false` coupe l'écoute de l'horloge **sans** couper le tap : en jam, une horloge
+  qui traîne est un risque, pas un service. `[midi] cc_tap` règle le numéro du tap.
+
 ### MIDI (#314)
 - **Un Program Change choisit un preset.** Sans set list, `PC n` installe le preset de la place `n`
   de la banque — celle que `P` montre et que `PgDn` / `PgUp` parcourent —, par le même chemin que le
