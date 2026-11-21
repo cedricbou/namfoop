@@ -403,6 +403,12 @@ pub fn run(
                     let phase = st.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed));
                     if phase != clock_phase.get() {
                         clock_phase.set(phase);
+                        // tracée parce qu'elle doit être **immobile** : une phase qui bouge fait
+                        // reculer puis avancer le temps, et le clic double. C'est ce que vérifie
+                        // `scripts/check-e2e.py`, et ce qu'on lit quand un clic sonne faux.
+                        if phase.is_finite() {
+                            trace(&format!("phase={phase:.0}"));
+                        }
                     }
                 }
             }

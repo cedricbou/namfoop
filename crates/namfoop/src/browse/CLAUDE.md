@@ -332,6 +332,13 @@ pilote l'écran dans un pseudo-terminal (`--no-config --backend sim`, bibliothè
 `--library <tmp>` : `browse` écrit les mélanges dans `<library>/cabs/`, ne jamais polluer la
 bibliothèque de l'utilisateur) ; les pièges du pilotage y sont **implémentés**.
 
+**La boucle elle-même se teste de bout en bout**, et c'est neuf : deux défauts de phase lui ont
+échappé parce que les tests unitaires pilotaient le clic avec une phase déjà propre, alors que le
+défaut était dans le calcul qui la produit et dans l'ordre de la boucle. `scenario_midi_horloge`
+nourrit un port simulé depuis un **fil à part** (25 ms, soit 100 BPM : au rythme de la boucle de
+lecture d'écran, la cadence allait de 40 à 120 ms selon la charge et l'horloge ne se verrouillait
+pas) et exige une phase immobile. Faute de verrou, il **ne conclut pas** au lieu d'échouer.
+
 La **bande de battue** est testée aux deux tailles d'écran du projet (80×25 et 160×50) dans
 `ui/tests/beat.rs` : un écran à deux colonnes mêle les deux dans chaque ligne, et la set list
 contient elle aussi le tempo du morceau — chercher `♩124` dans la ligne entière mesure donc la
@@ -339,8 +346,12 @@ mauvaise colonne. Les bordures `│` les séparent, et c'est le **dernier** segm
 bande.
 
 `NAMFOOP_BROWSE_TRACE=<fichier>` écrit chaque chaîne réellement installée dans le thread audio
-(modèle, IR, entrée, effets pré / post, taille de la table de vumètres) et chaque grain mesuré par
-l'éditeur. **Pour ce qu'on entend, c'est elle qui fait foi** — ratatui n'écrit que les cellules
+(modèle, IR, entrée, effets pré / post, taille de la table de vumètres), chaque grain mesuré par
+l'éditeur, et les cases vivantes quand elles changent — dont `phase=N`, le top qui porte le temps.
+Celle-là se trace parce qu'elle doit être **immobile** : une phase qui bouge fait reculer puis
+avancer le temps déduit du compteur, et le clic double. C'est ce que vérifie le scénario
+`scenario_midi_horloge` de `scripts/check-e2e.py`, et ce qu'on lit en premier quand un clic sonne
+faux. **Pour ce qu'on entend, c'est elle qui fait foi** — ratatui n'écrit que les cellules
 modifiées, donc chercher une valeur à l'écran retrouve l'ancienne. Chaque ligne est **horodatée**
 (ms depuis la première) et écrite en **un seul** appel, sinon les lignes des deux threads se
 coupent ; le fichier n'est lu dans l'environnement qu'**une fois**. Une chaîne bâtie puis **jetée**

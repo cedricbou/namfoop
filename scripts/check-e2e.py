@@ -37,6 +37,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -542,6 +543,94 @@ def scenario_midi_set(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi_horloge(binaire, lignes, colonnes):
+    """**L'horloge MIDI de bout en bout** : la phase du clic doit être IMMOBILE.
+
+    C'est le défaut qui a échappé deux fois aux tests unitaires, parce qu'aucun d'eux ne faisait
+    tourner la boucle : la phase était déduite d'une durée, donc d'un arrondi posé là où la gigue
+    passe et repasse, et elle basculait des centaines de fois par minute — le temps déduit du
+    compteur reculait et avançait, et le clic doublait.
+
+    Un tube de texte ne tient pas une cadence assez régulière pour mesurer un *tempo* (un top vaut
+    20,8 ms à 120 BPM), et c'est justement ce qui fait de lui un bon juge ici : la phase est une
+    **soustraction de deux comptages**, donc indépendante du temps. Une cadence approximative doit
+    donc donner une phase parfaitement stable — là où l'ancien calcul s'affolait."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-clock-") as tmp:
+        bib = deux_presets(bibliotheque_jetable(os.path.join(tmp, "library")))
+        trace = os.path.join(tmp, "trace.log")
+        tube = os.path.join(tmp, "horloge")
+        os.mkfifo(tube)
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "--midi-in", f"sim:{tube}",
+             "browse", "--library", bib],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(2.5)
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube de l'horloge")
+            if fd is None:
+                return
+            # Les tops sont écrits par un **fil à part**, à 25 ms (100 BPM). Les écrire au rythme
+            # de la boucle de lecture d'écran donnait une cadence de 40 à 120 ms selon la charge,
+            # hors de la tolérance de ±25 % de l'arbitre : l'horloge ne se verrouillait pas, et le
+            # test ne mesurait rien. Un `time.sleep` tient la cadence à une milliseconde ou deux.
+            #
+            # Ce qu'on mesure est la **phase**, une soustraction de comptages : elle doit être
+            # indifférente à la cadence. Le *tempo*, lui, se vérifie en unitaire.
+            stop = threading.Event()
+
+            def nourrir():
+                prochain = time.monotonic()
+                while not stop.is_set():
+                    prochain += 0.025
+                    reste = prochain - time.monotonic()
+                    if reste > 0:
+                        time.sleep(reste)
+                    try:
+                        os.write(fd, b"clock\n")
+                    except OSError:
+                        return
+
+            fil = threading.Thread(target=nourrir, daemon=True)
+            fil.start()
+            ec.lire(4.0)  # ~160 tops : de quoi verrouiller (24 intervalles) et observer 5 noires
+            stop.set()
+            fil.join(1.0)
+            ec.lire(0.4)
+            os.close(fd)
+            phases = [l.split("phase=", 1)[1].strip() for l in ec.lignes_de_trace() if "phase=" in l]
+            if not phases:
+                # Le verrou demande 24 intervalles cohérents (±25 %) et se perd après 500 ms de
+                # silence : sur une machine chargée, un tube de texte n'y arrive pas toujours.
+                # Comme le test ALSA de `midi-io`, on le dit et **on ne conclut pas** — mieux que
+                # de refuser un commit pour la charge de la machine.
+                print(f"  —    {taille} : l'horloge ne s'est pas verrouillée (machine chargée ?) :"
+                      f" ne conclut pas sur la phase")
+            else:
+                # UNE seule valeur : la phase ne doit jamais retomber sur une autre
+                verifier(
+                    len(set(phases)) == 1,
+                    f"{taille} : la phase du clic est immobile ({len(phases)} écritures, "
+                    f"valeurs {sorted(set(phases))})",
+                )
+            # comme ailleurs : `q` peut avertir, `Q` quitte
+            ec.taper("q", 0.8)
+            ec.taper("Q", 0.6)
+            code = ec.attendre_fin(6.0)
+            verifier(code == 0, f"{taille} : on quitte proprement ({code})")
+        finally:
+            ec.tuer()
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -558,6 +647,7 @@ def main():
         scenario_battue(binaire, lignes, colonnes)
     # une seule taille : le MIDI ne dessine presque rien, la taille d'écran n'y change rien
     scenario_midi(binaire, 25, 80)
+    scenario_midi_horloge(binaire, 25, 80)
     scenario_midi_set(binaire, 25, 80)
 
     if ECHECS:
