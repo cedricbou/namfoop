@@ -74,6 +74,12 @@ pub struct Metronome {
     /// Le numéro du temps d'horloge déjà sonné. `None` : on n'est pas (ou plus) raccroché à
     /// l'horloge, et la grille tourne sur le tempo.
     clock_beat: Option<u64>,
+    /// Le top qui porte le temps, **verrouillé**. La case de phase est une *référence*, pas un
+    /// signal continu : une fois prise, on s'y tient jusqu'à ce qu'un recalage du temps 1 demande
+    /// de la reprendre. La relire à chaque bloc rendrait le clic sensible au moindre tremblement
+    /// de la case — et un tremblement d'un top fait reculer puis avancer le temps, donc sonner
+    /// deux fois.
+    clock_off: Option<u64>,
     /// Échantillons restants de la salve en cours (0 : aucune).
     burst_left: u32,
     burst_len: u32,
@@ -96,6 +102,7 @@ impl Metronome {
         Self {
             last_downbeat: cfg.downbeat.get(),
             clock_beat: None,
+            clock_off: None,
             cfg,
             sample_rate: sr,
             pos: 0,
@@ -121,13 +128,18 @@ impl Metronome {
 
     /// Le numéro du temps que l'horloge MIDI désigne, si elle en désigne un : un **comptage de
     /// tops**, donc une position absolue qui ne peut ni dériver ni glisser.
-    fn clock_beat_index(&self) -> Option<u64> {
-        let counter = self.cfg.clock_ticks.as_ref()?;
+    fn clock_beat_index(&mut self) -> Option<u64> {
+        let Some(counter) = self.cfg.clock_ticks.as_ref() else {
+            self.clock_off = None;
+            return None;
+        };
         let phase = self.cfg.clock_phase.get();
         if !phase.is_finite() || phase < 0.0 {
+            self.clock_off = None; // plus d'horloge : la grille au tempo reprend la main
             return None;
         }
-        let off = (phase as u64) % TICKS_PER_BEAT as u64;
+        // la référence se **prend une fois**, et ne se reprend qu'au recalage suivant
+        let off = *self.clock_off.get_or_insert((phase as u64) % TICKS_PER_BEAT as u64);
         let ticks = counter.load(Ordering::Relaxed);
         Some(ticks.saturating_sub(off) / TICKS_PER_BEAT as u64)
     }
@@ -146,7 +158,10 @@ impl Metronome {
             self.pos = 0;
             self.beat = 0;
             self.burst_left = 0;
-            self.clock_beat = None; // la grille d'horloge se raccrochera au prochain temps
+            // un recalage demandé reprend la référence de phase : c'est le seul moment où on la
+            // relit, et c'est exactement ce qu'un tap ou un `Start` veut dire
+            self.clock_beat = None;
+            self.clock_off = None;
         }
 
         // **Quand une horloge donne le temps, c'est elle qui mène.** On ne compte plus des
@@ -164,11 +179,18 @@ impl Metronome {
                 self.burst_left = 0;
                 true
             }
+            // **Seul un franchissement vers l'avant sonne.** Un temps qui recule n'existe pas :
+            // c'est la phase qui a bougé, et sonner là doublerait le clic. On se réaligne alors en
+            // silence, comme au premier raccrochage.
             (Some(prev), Some(idx)) => {
-                if prev != idx {
+                if idx > prev {
                     self.clock_beat = Some(idx);
                     self.beat = (self.beat + 1) % bars;
                     self.pos = 0; // `pos == 0` déclenche la salve dans la boucle ci-dessous
+                    self.burst_left = 0;
+                } else if idx < prev {
+                    self.clock_beat = Some(idx);
+                    self.pos = 1;
                     self.burst_left = 0;
                 }
                 true
@@ -436,6 +458,34 @@ mod tests {
         let count = |v: usize| steps.iter().filter(|s| **s == v).count();
         assert!(count(slow * 24) >= 6, "le régime lent tient : {steps:?}");
         assert!(count(fast * 24) >= 6, "le régime rapide tient : {steps:?}");
+    }
+
+    /// **Une phase qui tremble ne doit pas doubler les clics.** La case de phase est réécrite à
+    /// chaque tour de boucle ; si sa valeur varie d'un top, le temps déduit du compteur recule et
+    /// avance, et chaque aller-retour sonne. C'est le défaut entendu sur le matériel : des doubles
+    /// clics, d'autant plus nombreux que le tempo est élevé.
+    #[test]
+    fn a_jittery_phase_does_not_double_click() {
+        let (mut m, ticks) = on_clock(120.0, 1);
+        let per_tick = 200usize;
+        let n = 8 * TICKS_PER_BEAT as u64;
+        let mut buf = vec![0.0f32; per_tick * n as usize];
+        for k in 0..n {
+            ticks.store(k + 1, Ordering::Relaxed);
+            // La phase tremble d'un tour à l'autre, et de la façon la plus méchante : 0 et 23
+            // encadrent un multiple de 24, donc le temps déduit du compteur **recule** une fois
+            // sur deux. Sans garde-fou, chaque aller-retour sonne.
+            m.cfg.clock_phase.set(if k % 2 == 0 { 0.0 } else { 23.0 });
+            let from = k as usize * per_tick;
+            m.render(&mut buf[from..from + per_tick]);
+        }
+        let burst = (BURST_MS * 1e-3 * m.sample_rate) as usize;
+        let found = onsets(&buf, burst.max(1));
+        assert!(
+            found.len() <= 9,
+            "{} clics pour 8 temps : la phase qui tremble en double — {found:?}",
+            found.len()
+        );
     }
 
     /// Sans compteur, ou avec une phase inconnue, **rien ne change** : la grille tourne sur le

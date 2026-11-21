@@ -23,6 +23,11 @@ section prend le numéro de version.
 - **Quel top porte le temps** s'apprend d'un `Start` ou d'un Song Position Pointer, du début d'un
   flux quand namfoop écoutait déjà, ou d'un appui sur `*`. Comme la grille reste ensuite verrouillée
   sur les tops, **un seul appui suffit** pour toute la session.
+- **Le clic ne double plus et ne décale plus.** Premier essai sur le matériel : des doubles clics,
+  d'autant plus nombreux que le tempo montait, et des décalages qui persistaient. La position du
+  temps était déduite d'une durée, donc d'un arrondi posé là où la gigue du câble passe et repasse
+  — 656 basculements en 20 secondes à 142 BPM. Elle est maintenant une soustraction de deux nombres
+  de tops, donc exacte, et le clic la verrouille au lieu de la relire à chaque bloc.
 - **L'en-tête dit quand le temps est deviné.** Raccroché au milieu d'un flux déjà en cours, namfoop
   ne peut que deviner lequel des 24 tops porte le temps : il affiche alors
   `♩ 142 (MIDI, temps à confirmer : *)`, parce que c'est à l'oreille indiscernable d'un tempo faux.

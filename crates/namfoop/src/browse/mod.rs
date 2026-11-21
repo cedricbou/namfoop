@@ -395,6 +395,16 @@ pub fn run(
                         midi_pending = a;
                     }
                 }
+                // **La phase du clic, ici et pas plus loin.** Le compteur de tops et le comptage
+                // de l'arbitre doivent être au même point : la file vient d'être vidée, donc ils
+                // le sont. Plus bas dans le tour, des tops seraient arrivés sans être drainés et
+                // la soustraction se tromperait d'autant.
+                if let Some(c) = &clock_ticks {
+                    let phase = st.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed));
+                    if phase != clock_phase.get() {
+                        clock_phase.set(phase);
+                    }
+                }
             }
             let mut action = std::mem::replace(&mut first, Action::None);
             if action == Action::None {
@@ -452,18 +462,6 @@ pub fn run(
             let epoch = st.beat_epoch() as f32;
             if epoch != downbeat.get() {
                 downbeat.set(epoch);
-            }
-            // **La phase du clic** : quel top porte le temps. Calculée ici parce que les deux
-            // termes y sont justes — le compteur lu maintenant vaut les tops reçus maintenant, et
-            // l'arbitre tient l'instant d'une frontière de temps à ±0,5 ms —, alors que le fil
-            // audio, lui, n'a plus qu'à compter. Une phase inconnue (`NaN`) rend la grille au
-            // tempo, comme avant l'horloge.
-            if let Some(c) = &clock_ticks {
-                let ticks = c.load(std::sync::atomic::Ordering::Relaxed);
-                let phase = st.clock_phase(ticks, start.elapsed().as_micros() as u64);
-                if phase != clock_phase.get() {
-                    clock_phase.set(phase);
-                }
             }
             // le tempo écouté, posé au même endroit et pour la même raison (ADR 0008). C'est
             // celui de l'**arbitre** et non celui du preset : dès qu'une horloge MIDI tournera

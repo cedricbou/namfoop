@@ -34,7 +34,7 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   plus. Une place en échec ne bloque pas la banque ; une chaîne en **queue de preset** ne revient
   qu'une fois éteinte, et y revenir entre-temps donne `NotReady` (l'appelant la rebâtit, ~80 ms :
   un retard, pas une panne).
-- `tempo.rs` : **l'arbitre de tempo** (ADR 0008), machine à états pure, horloge fournie par
+- `tempo/` (`mod.rs`, `tests.rs`) : **l'arbitre de tempo** (ADR 0008), machine à états pure, horloge fournie par
   l'appelant. Priorité **tap > horloge > preset** ; une horloge qui meurt garde le dernier tempo et
   passe en `ClockLost` — jamais de saut de son causé par une panne. L'ADR 0007 n'autorisant qu'un
   **seul** écrivain par case, c'est `browse` qui écrit le tempo arbitré. Le rejet de gigue à ±25 %
@@ -47,11 +47,15 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   pas la position du temps (24 octets identiques par noire) et que beaucoup de sources n'envoient
   aucun transport ; les frontières suivantes se comptent sans recaler le temps 1, sinon le clic
   suivrait la granularité de la boucle d'écran. `realign_downbeat` est la moitié « phase » d'un tap,
-  pour qui veut recaler sans rien dire du tempo. `clock_phase` est le **pont** vers le fil audio :
-  il se calcule ici, hors temps réel, parce que les deux termes y sont justes (le compteur lu à
-  l'instant *t* vaut les tops reçus à *t*, et `clock_beat_at_us` est une frontière à ±0,5 ms) alors
-  que la boucle qui appelle est lente — le nombre de tops entre les deux est un entier qu'un
-  arrondi retrouve. Pas de phase sans verrou : l'arrondi se ferait sinon sur la période du preset.
+  pour qui veut recaler sans rien dire du tempo. `clock_phase` est le **pont** vers le fil audio, et
+  il est **tout entier** : le numéro du top qui porte le temps est la différence de deux nombres de
+  tops (le compteur de `midi-io` moins le comptage de l'arbitre depuis sa dernière frontière). Donc
+  rien à arrondir — ce qui est le fond de l'affaire. Le déduire d'une durée
+  (`(maintenant − frontière) / période`) plaçait une limite de décision là où la gigue du câble
+  passe et repasse : **656 basculements en 20 s** à 142 BPM, mesurés, et autant de temps qui
+  reculaient puis avançaient. Contrepartie : l'appelant doit lire le compteur **juste après** avoir
+  vidé la file des messages, sans quoi les deux comptages ne sont plus au même point. Pas de phase
+  sans verrou : le tempo ne serait pas encore celui de la source.
   `clock_phase_confirmed` distingue une ancre **observée** (silence puis reprise, transport, tap)
   d'une ancre **devinée** (on s'est raccroché au milieu d'un flux, et le premier top n'y est un
   début de temps qu'une fois sur vingt-quatre) : l'écran doit le dire, c'est indiscernable d'un
@@ -63,8 +67,11 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   si bien que rallumer tombe juste. **Quand une horloge MIDI donne le temps, la grille vient d'elle**
   et non du tempo : `clock_ticks` (le compteur de `midi_io::Input`) et `clock_phase` (quel top porte
   le temps) suffisent à placer le clic au top près, position **absolue** donc insensible à la dérive
-  comme aux changements de tempo. Compter des échantillons depuis le temps précédent accumulait au
-  contraire la moindre erreur de période — 0,3 BPM à 142 BPM font une demi-seconde en quatre
+  comme aux changements de tempo. La phase est une **référence verrouillée**, relue au seul
+  recalage du temps 1 : la relire à chaque bloc rendrait le clic sensible au moindre tremblement de
+  la case, et un tremblement d'un top fait reculer puis avancer le temps, donc sonner deux fois.
+  Compter des échantillons depuis le temps précédent accumulait au contraire la moindre erreur de
+  période — 0,3 BPM à 142 BPM font une demi-seconde en quatre
   minutes — et décalait la grille pour de bon à chaque changement de tempo. Sans compteur ou sans
   phase connue, la grille au tempo reprend la main, à l'identique.
 - `router.rs` : `Routing`, `OutputRoute`, `Source`, `Router`. `with_metronome` **ajoute** le clic

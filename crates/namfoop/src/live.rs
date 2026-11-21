@@ -176,8 +176,9 @@ pub fn run(
                 click_downbeat.set(epoch);
             }
             if let Some(c) = &clock_ticks {
-                let now_us = start.elapsed().as_micros() as u64;
-                let phase = tempo.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed), now_us);
+                // la file vient d'être vidée : le compteur de tops et le comptage de l'arbitre
+                // sont au même point, ce que la soustraction exige
+                let phase = tempo.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed));
                 // `NaN != NaN` : une phase inconnue se réécrit à chaque tour, ce qui ne coûte
                 // qu'un store relâché et évite une comparaison à cas particulier
                 if phase != clock_phase.get() {

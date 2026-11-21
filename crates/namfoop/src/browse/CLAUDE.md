@@ -168,8 +168,10 @@ les pose en `Volume::Live` / `Tempo::Live` dans **toutes** les chaînes, banque 
 le compteur de tops que tient le fil de lecture MIDI (`midi_io::Input::clock_ticks`), et
 `clock_phase`, écrite à chaque tour par `Arbiter::clock_phase`. Dès qu'une horloge est verrouillée,
 le clic **compte les tops** au lieu de compter des échantillons : sa position devient absolue, donc
-insensible à la dérive et aux changements de tempo. La phase se calcule dans la boucle — lente mais
-avec des instants justes — et le fil audio n'a plus qu'à compter. `State::clock_phase_confirmed` dit
+insensible à la dérive et aux changements de tempo. La phase se calcule dans la boucle, **juste après
+le drain de la file** : c'est une soustraction de deux nombres de tops, et elle n'est juste que si
+les deux comptages sont au même point. Le clic, lui, la **verrouille** et ne la relit qu'au recalage
+suivant. `State::clock_phase_confirmed` dit
 si l'ancre a été observée ou devinée, et l'en-tête l'annonce (« temps à confirmer : * »). `k` le bascule (`State::metronome`, éteint au démarrage, jamais dans un
 preset : `unsaved()` ne le voit pas) et il ne va que dans les sorties déclarées **in-ear** par
 `setup` (`OutputRoute::click`, posé par `setup/state.rs` d'après `OutRole::InEar`) : c'est ce qui

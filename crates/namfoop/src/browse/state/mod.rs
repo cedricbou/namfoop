@@ -471,9 +471,10 @@ impl State {
     }
 
     /// Quel top d'horloge porte le temps (`engine::tempo::Arbiter::clock_phase`) : la boucle le
-    /// pose dans la case que lit le clic.
-    pub fn clock_phase(&self, ticks: u64, now_us: u64) -> f32 {
-        self.tempo.clock_phase(ticks, now_us)
+    /// pose dans la case que lit le clic. À appeler **juste après** avoir vidé la file MIDI, pour
+    /// que le compteur de tops et le comptage de l'arbitre soient au même point.
+    pub fn clock_phase(&self, ticks: u64) -> f32 {
+        self.tempo.clock_phase(ticks)
     }
 
     /// La phase de l'horloge est-elle confirmée ? Faux quand on s'est raccroché au milieu d'un
