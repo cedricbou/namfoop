@@ -288,6 +288,8 @@ pub struct State {
     /// Une sortie reçoit-elle le clic (`click = true` dans le routage) ? Sinon l'allumer ne
     /// s'entendrait nulle part, et il faut le **dire** plutôt que de laisser croire à une panne.
     pub metronome_routed: bool,
+    /// Les **numéros de message MIDI** écoutés (ADR 0011), réglables par `[midi]` de la config.
+    pub midi: midi::MidiKeys,
     /// **L'arbitre de tempo** (ADR 0008) : il tranche entre le preset, le tap et — plus tard —
     /// l'horloge MIDI. Le tempo **entendu** est le sien ([`State::heard_tempo_bpm`]) ; celui
     /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
@@ -344,6 +346,7 @@ impl State {
             start_fx: chain::Chain::default(),
             saved_blend: (Vec::new(), true),
             now: 0,
+            midi: midi::MidiKeys::default(),
             tempo: engine::tempo::Arbiter::new(),
             set: None,
             song_keys: (Key::Right, Key::Left),
@@ -601,6 +604,8 @@ mod keys;
 mod label;
 mod lists;
 pub mod meters;
+/// Ce que namfoop fait d'un message MIDI (ADR 0011).
+pub mod midi;
 pub mod picker;
 pub mod preset;
 mod quit;

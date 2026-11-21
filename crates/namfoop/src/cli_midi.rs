@@ -60,7 +60,7 @@ mod tests {
 
     fn conf(input: Option<&str>, off: bool) -> FileConfig {
         FileConfig {
-            midi: Some(model::Midi { input: input.map(str::to_string), off }),
+            midi: Some(model::Midi { input: input.map(str::to_string), off, ..Default::default() }),
             ..FileConfig::default()
         }
     }

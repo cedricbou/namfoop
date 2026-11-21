@@ -39,7 +39,8 @@ setup/          `setup` plein écran : state.rs (logique pure, testée ; l'étap
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par
                 backend)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP), vide la
-                file MIDI à chaque tour (rien n'en est encore fait, mais une file non vidée perd) ;
+                file MIDI à chaque tour, sans rien en faire : `run` joue UNE chaîne, il n'a ni
+                banque ni set, et c'est dans les écrans qu'un PC choisit un preset ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit

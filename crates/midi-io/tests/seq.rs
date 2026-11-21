@@ -55,7 +55,7 @@ fn un_message_envoye_au_port_arrive_dans_la_file() {
     };
     let p = Pedalier::new(&addr);
     let ctrl = |param: u32, value: i32| EvCtrl { channel: 0, param, value };
-    p.envoyer(EventType::Pgmchange, &ctrl(0, 3));
+    p.envoyer(EventType::Pgmchange, &ctrl(0, 3)); // câble 3 = PC 4 chez namfoop
     p.envoyer(EventType::Controller, &ctrl(34, 2));
     // `Clock`, `Start`, `Stop` et `Continue` portent un contrôle de file, pas un contrôleur.
     let file = alsa::seq::EvQueueControl { queue: 0, value: () };
@@ -66,7 +66,7 @@ fn un_message_envoye_au_port_arrive_dans_la_file() {
     p.envoyer(EventType::Controller, &ctrl(1000, 2));
 
     let attendu = [
-        Event::ProgramChange(3),
+        Event::ProgramChange(4),
         Event::Control { cc: 34, value: 2 },
         Event::ClockTick,
         Event::ClockStart,

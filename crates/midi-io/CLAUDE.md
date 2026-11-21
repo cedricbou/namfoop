@@ -37,6 +37,10 @@ l'ordre d'arrêt en 200 ms au pire, le délai de son `poll`).
 
 **Choix dont la raison ne se lit pas dans le code.**
 
+- **Un Program Change est numéroté de 1 à 128**, et non 0 à 127 comme le câble : c'est la
+  numérotation du `pc` d'un set (`library::set::PC_MIN`), donc la seule que namfoop montre. La
+  conversion est faite à l'entrée, une fois — `seq.rs` ajoute 1, le format texte lit 1 à 128 — pour
+  qu'aucun consommateur n'ait à y penser.
 - **Tous les canaux MIDI sont acceptés** et le canal n'est pas transmis : namfoop est un seul
   instrument, et un pédalier sur son canal d'usine doit marcher sans réglage. Le jour où une piste
   de la table parlera sur le même port, le filtre se posera ici (un champ de `Settings`).

@@ -2087,8 +2087,13 @@ pédaliers **Fractal**, celles que répètent les gabarits des pédaliers tiers
 ([ADR 0011](adr/0011-midi-conventions-fractal.md)) : un **Program Change** choisit le morceau ou le
 preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, et l'horloge vient d'Ableton.
 
-**Ce que namfoop fait des messages se construit marche par marche** : l'écoute est là, elle affiche
-et trace ce qui arrive. Le choix du preset, le tap et l'horloge sont les marches suivantes.
+**Ce que namfoop fait des messages se construit marche par marche** : un Program Change choisit un
+preset de la banque, et le reste — le tap, l'horloge, le set piloté depuis Ableton — vient ensuite.
+
+**namfoop numérote les Program Change de 1 à 128**, comme le `pc` d'un morceau dans un set. Beaucoup
+d'éditeurs de pédalier (Morningstar, Fractal) comptent de 0 à 127, c'est-à-dire **un de moins** : le
+bouton réglé sur « PC 3 » dans l'éditeur appelle la place **4** de la banque, et `namfoop midi`
+affiche « PC 4 ». Le numéro que namfoop montre est toujours celui qu'on écrit dans un set.
 
 ### Vérifier que le pédalier parle : `namfoop midi`
 
@@ -2114,6 +2119,39 @@ Ports d'entrée MIDI (2) :
 
 Les tops d'horloge ne défilent pas un par un (il en passe 24 par noire) : une ligne par noire, avec
 le tempo mesuré. `namfoop midi --list` s'arrête après la liste des ports, sans écouter.
+
+### Changer de preset au pied : le Program Change
+
+Sans set list — en répétition, ou pour jouer la banque telle quelle —, **un Program Change installe
+le preset de la place correspondante** : celle que la fenêtre `P` de `browse` montre, et que
+`PgDn` / `PgUp` parcourent. C'est le geste de base de tous les multi-effets, et il passe par le même
+chemin que le pied sur `PgDn` : la banque est préchargée, le son ne se coupe pas, et la réverbe du
+preset quitté finit de sonner.
+
+Pour régler un pédalier de gabarit Fractal, il n'y a donc rien à faire côté namfoop : un bouton par
+preset, chacun envoyant son Program Change sur le canal du pédalier (namfoop écoute **tous** les
+canaux). `namfoop presets` donne l'ordre de la banque, qui est l'ordre des places :
+
+```sh
+namfoop presets
+```
+
+Ce qui ne change **jamais** le son sans le dire :
+
+- une place vide (`PC 9` dans une banque de trois presets) : message, et le son reste ;
+- un preset illisible (un modèle effacé depuis) : le message le nomme, et le son reste ;
+- un Program Change pendant qu'on **tape** un nom ou un filtre : ignoré, on est au clavier ;
+- un Program Change alors qu'un **set est ouvert** : ignoré, parce qu'un PC y appellera un morceau —
+  c'est la marche suivante ([épique MIDI](https://github.com/cedricbou/namfoop/issues/7)).
+
+Deux autres messages que namfoop connaît et qui n'ont rien à désigner sans set, donc ignorés avec
+une explication : le **CC 34** (le son du morceau joué) et le **Bank Select** (CC 0, réservé au
+choix du set). Le numéro du CC du son se règle, si le pédalier en envoie un autre :
+
+```toml
+[midi]
+cc_sound = 69     # le CC qui choisira le son du morceau (défaut 34, convention Fractal)
+```
 
 ### Choisir le port : `--midi-in`, `--no-midi`
 
@@ -2434,6 +2472,7 @@ source = "di"
 [midi]                               # — setup, étape « pédalier MIDI » ([§ 12](#12-piloter-namfoop-au-pied--le-midi))
 in = "28:0"                          # port d'entrée : adresse, nom, ou "sim:CHEMIN"
 off = false                          # true : aucune écoute MIDI (comme --no-midi)
+cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
 ```
 
 Les options de la ligne de commande priment toujours sur ce fichier.

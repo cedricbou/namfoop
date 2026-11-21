@@ -6,6 +6,21 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#314)
+- **Un Program Change choisit un preset.** Sans set list, `PC n` installe le preset de la place `n`
+  de la banque — celle que `P` montre et que `PgDn` / `PgUp` parcourent —, par le même chemin que le
+  pied sur `PgDn` : banque préchargée, aucune coupure, et la réverbe du preset quitté qui finit de
+  sonner. Un pédalier de gabarit Fractal n'a donc rien à régler de particulier.
+- **Rien ne change le son sans le dire** (ADR 0011) : une place vide, un preset illisible, un
+  Program Change reçu pendant une saisie ou alors qu'un set est ouvert sont **ignorés** avec un
+  message. Le **CC 34** (son du morceau) et le **Bank Select** (CC 0) le sont aussi hors set, et un
+  Bank Select n'est jamais pris pour autre chose.
+- Les **numéros de message se règlent** : `[midi] cc_sound` (défaut 34). Le défaut évite de
+  configurer, il ne l'interdit pas.
+- **Les Program Change se comptent de 1 à 128**, comme le `pc` d'un morceau dans un set : une seule
+  numérotation dans namfoop. Un éditeur de pédalier qui compte de 0 à 127 affiche donc un numéro de
+  moins — le guide le dit.
+
 ### MIDI (#312)
 - **namfoop écoute le MIDI.** Un pédalier branché en USB ou une application comme Ableton sont lus
   dès le démarrage : sans rien préciser, c'est le **premier port d'entrée** de la machine, et

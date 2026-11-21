@@ -213,6 +213,21 @@ def set_de_concert(dossier):
     return dossier
 
 
+def deux_presets(dossier):
+    """Deux presets **reconnaissables dans la trace** : le second porte une réverbe. C'est ce qui
+    permet de dire quelle place de la banque un Program Change a installée."""
+    presets = os.path.join(dossier, "presets")
+    os.makedirs(presets, exist_ok=True)
+    base = (
+        '[[block]]\nkind = "nam"\nfile = "nam/wavenet.nam"\n'
+        '[[block]]\nkind = "ir"\nfile = "ir/essai/essai.wav"\n'
+    )
+    for nom, extra in (("a-sec", ""), ("b-reverb", '[[block]]\nkind = "fx"\n[block.fx]\ntype = "reverb"\n')):
+        with open(os.path.join(presets, f"{nom}.preset.toml"), "w", encoding="utf-8") as f:
+            f.write(f'name = "{nom}"\n' + base + extra)
+    return dossier
+
+
 ECHECS = []
 
 
@@ -335,14 +350,14 @@ def scenario_battue(binaire, lignes, colonnes):
 
 
 def scenario_midi(binaire, lignes, colonnes):
-    """**L'entrée MIDI** de bout en bout, sans pédalier : un port simulé lit un tube de texte, et
-    ce qu'on y écrit doit arriver jusqu'à la boucle de `browse`.
+    """**Le MIDI** de bout en bout, sans pédalier : un port simulé lit un tube de texte, et ce
+    qu'on y écrit doit arriver jusqu'à la boucle de `browse` — puis **changer le son**.
 
     C'est exactement ce que fait un pédalier (ADR 0011), le câble en moins. La vérification porte
-    sur la **trace** : l'écran ne montre pas les messages, c'est l'objet des stories suivantes."""
+    sur la **trace** : elle seule dit quelle chaîne est entrée dans le thread audio."""
     taille = f"{lignes}×{colonnes}"
     with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-") as tmp:
-        bib = bibliotheque_jetable(os.path.join(tmp, "library"))
+        bib = deux_presets(bibliotheque_jetable(os.path.join(tmp, "library")))
         trace = os.path.join(tmp, "trace.log")
         tube = os.path.join(tmp, "pedalier")
         os.mkfifo(tube)
@@ -367,15 +382,36 @@ def scenario_midi(binaire, lignes, colonnes):
             verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
             if fd is None:
                 return
-            os.write(fd, b"pc 3\ncc 34 2\nstart\nspp 64\n")
+            os.write(fd, b"cc 34 2\nstart\nspp 64\n")
             os.write(fd, b"nawak\n")  # une ligne fausse : signalée, et elle n'arrête pas l'écoute
-            os.write(fd, b"pc 7\n")
             time.sleep(1.2)
             recus = [l.split(" midi ", 1)[1] for l in ec.lignes_de_trace() if " midi " in l]
             verifier(
-                recus == ["PC 3", "CC 34 2", "start", "SPP 64", "PC 7"],
+                recus == ["CC 34 2", "start", "SPP 64"],
                 f"{taille} : les messages du tube arrivent dans l'ordre, la ligne fausse exceptée "
                 f"({recus})",
+            )
+
+            # **PC 2 installe la place 2 de la banque** : la trace dit la chaîne entrée dans le
+            # thread audio, et seule celle-là porte une réverbe.
+            avant = len(ec.lignes_de_trace())
+            os.write(fd, b"pc 2\n")
+            time.sleep(1.5)
+            tr = ec.lignes_de_trace()
+            chaines = [l for l in tr if "wavenet.nam" in l and " midi " not in l]
+            verifier(
+                chaines and "reverb" in chaines[-1],
+                f"{taille} : PC 2 installe le preset de la place 2 ({chaines[-1:]})",
+            )
+            # une place qui n'existe pas ne change RIEN : aucune chaîne de plus dans la trace
+            avant = len(tr)
+            os.write(fd, b"pc 9\n")
+            time.sleep(1.0)
+            tr = ec.lignes_de_trace()
+            nouvelles = [l for l in tr[avant:] if " midi " not in l]
+            verifier(
+                not nouvelles,
+                f"{taille} : PC 9 (place absente) n'installe aucune chaîne ({nouvelles})",
             )
             os.close(fd)
             ec.taper("q", 0.8)

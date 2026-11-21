@@ -170,7 +170,8 @@ impl Source for SeqPort {
 /// Un événement du séquenceur -> un [`Event`] de namfoop, ou rien (note, SysEx, annonce de port…).
 fn convertir(ev: &alsa::seq::Event) -> Option<Event> {
     match ev.get_type() {
-        EventType::Pgmchange => Some(Event::ProgramChange(sept_bits(ev.get_data::<EvCtrl>()?.value)?)),
+        // +1 : le câble compte de 0 à 127, namfoop de 1 à 128 (voir `Event::ProgramChange`)
+        EventType::Pgmchange => Some(Event::ProgramChange(sept_bits(ev.get_data::<EvCtrl>()?.value)? + 1)),
         EventType::Controller => {
             let c = ev.get_data::<EvCtrl>()?;
             Some(Event::Control { cc: sept_bits(c.param as i32)?, value: sept_bits(c.value)? })

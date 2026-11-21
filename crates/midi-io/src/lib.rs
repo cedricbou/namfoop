@@ -35,8 +35,10 @@ const QUEUE: usize = 1024;
 /// Un message MIDI reçu, réduit à ce dont namfoop se sert.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Event {
-    /// Program Change (0-127), tel qu'il arrive : la numérotation affichée par les pédaliers
-    /// (1-128) est l'affaire de celui qui affiche.
+    /// Program Change, **numéroté de 1 à 128** : la numérotation de namfoop, celle du `pc` d'un
+    /// set et celle qu'affiche `namfoop midi`. Le câble, lui, transporte 0 à 127 — la conversion
+    /// est faite ici, une fois, pour que namfoop ne parle qu'une seule langue (un pédalier dont
+    /// l'éditeur compte de 0 à 127 affiche donc un numéro de moins : le guide le dit).
     ProgramChange(u8),
     /// Control Change : numéro de contrôleur et valeur, 0-127 tous les deux.
     Control { cc: u8, value: u8 },
