@@ -109,6 +109,7 @@ struct Sink {
     tx: rtrb::Producer<Message>,
     dropped: Arc<AtomicU64>,
     stop: Arc<std::sync::atomic::AtomicBool>,
+    clock_ticks: Arc<AtomicU64>,
 }
 
 impl Sink {
@@ -117,7 +118,14 @@ impl Sink {
     }
 
     /// Pousse un message ; une file pleine compte une perte et ne bloque jamais le fil.
+    ///
+    /// Un top d'horloge est **compté avant** d'être poussé, et donc compté même si la file
+    /// débordait : le top a bien eu lieu, et c'est son numéro qui porte la phase. Perdre le
+    /// message coûte une mesure de tempo ; perdre le comptage décalerait la grille pour de bon.
     fn push(&mut self, event: Event) {
+        if event == Event::ClockTick {
+            self.clock_ticks.fetch_add(1, Ordering::Relaxed);
+        }
         let msg = Message { at: Instant::now(), event };
         if self.tx.push(msg).is_err() {
             self.dropped.fetch_add(1, Ordering::Relaxed);
@@ -133,6 +141,7 @@ pub struct Input {
     stop: Arc<std::sync::atomic::AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
     description: String,
+    clock_ticks: Arc<AtomicU64>,
 }
 
 impl Input {
@@ -149,6 +158,26 @@ impl Input {
     /// Messages perdus parce que la file était pleine (l'appelant ne la vidait plus).
     pub fn dropped(&self) -> u64 {
         self.dropped.load(Ordering::Relaxed)
+    }
+
+    /// **Le compteur de tops d'horloge**, incrémenté par le fil de lecture à chaque top reçu.
+    ///
+    /// Il est là parce qu'une file vidée au rythme d'une boucle d'affichage (20 à 30 ms) arrive
+    /// dix fois trop tard pour placer un temps : un top vaut 20,8 ms à 120 BPM. Ce fil-ci, lui, se
+    /// réveille sur **chaque** top. Qui a besoin de la position du temps à la milliseconde — le
+    /// clic du métronome, dans le fil audio — lit donc ce compteur directement, sans passer par la
+    /// file.
+    ///
+    /// C'est un `Arc<AtomicU64>`, un type **standard** : le lecteur n'a pas à dépendre de cette
+    /// crate, et la lecture côté temps réel n'est qu'un `load` relâché — aucune allocation, aucun
+    /// verrou.
+    ///
+    /// **Il compte des tops, rien de plus** : il croît indéfiniment et ne se remet à zéro ni sur
+    /// `Start`, ni sur `Stop`, ni après un silence. Diviser par 24 pour obtenir des noires, décider
+    /// qu'un silence invalide la phase, placer le temps 1 — tout cela demande de savoir ce qu'un
+    /// message *veut dire*, ce que cette crate ignore par construction.
+    pub fn clock_ticks(&self) -> Arc<AtomicU64> {
+        self.clock_ticks.clone()
     }
 }
 
@@ -181,12 +210,13 @@ pub fn open(cfg: &Settings) -> Result<Input> {
     let (tx, rx) = rtrb::RingBuffer::new(QUEUE);
     let dropped = Arc::new(AtomicU64::new(0));
     let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let sink = Sink { tx, dropped: dropped.clone(), stop: stop.clone() };
+    let clock_ticks = Arc::new(AtomicU64::new(0));
+    let sink = Sink { tx, dropped: dropped.clone(), stop: stop.clone(), clock_ticks: clock_ticks.clone() };
     let thread = std::thread::Builder::new()
         .name("namfoop-midi".into())
         .spawn(move || source.run(sink))
         .map_err(|e| Error::Msg(format!("fil de lecture MIDI : {e}")))?;
-    Ok(Input { rx, dropped, stop, thread: Some(thread), description })
+    Ok(Input { rx, dropped, stop, thread: Some(thread), description, clock_ticks })
 }
 
 #[cfg(test)]
@@ -221,6 +251,51 @@ mod tests {
         assert_eq!(input.dropped(), 0, "rien ne doit se perdre");
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    /// Le **compteur de tops** avance de 24 par noire, et aucun autre message ne le touche. C'est
+    /// lui que le fil audio lira pour placer le temps : une erreur de comptage décalerait la
+    /// grille pour de bon.
+    #[test]
+    fn le_compteur_de_tops_ne_compte_que_les_tops() {
+        let dir = std::env::temp_dir().join(format!("namfoop-tops-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dossier");
+        let path = dir.join("noire.txt");
+        // une noire de tops, avec des messages qui ne sont pas de l'horloge mêlés dedans
+        let mut lignes = String::from("pc 3\nstart\n");
+        for k in 0..TICKS_PAR_NOIRE {
+            lignes.push_str("clock\n");
+            if k == 7 {
+                lignes.push_str("cc 34 2\nspp 64\n");
+            }
+        }
+        lignes.push_str("stop\n");
+        std::fs::write(&path, &lignes).expect("écriture");
+
+        let mut input = open(&Settings { port: Some(format!("sim:{}", path.display())) }).expect("ouverture");
+        let tops = input.clock_ticks();
+        // on attend le dernier message, pas le compteur : c'est ainsi qu'on vérifie qu'il est
+        // à jour **quand tout est arrivé**, et non qu'on s'arrête dès qu'il nous plaît
+        let limite = Instant::now() + std::time::Duration::from_secs(2);
+        let mut dernier = None;
+        while dernier != Some(Event::ClockStop) && Instant::now() < limite {
+            while let Some(m) = input.try_pop() {
+                dernier = Some(m.event);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert_eq!(dernier, Some(Event::ClockStop), "la séquence doit être arrivée en entier");
+        assert_eq!(
+            tops.load(Ordering::Relaxed),
+            TICKS_PAR_NOIRE as u64,
+            "24 tops par noire, et rien d'autre ne compte"
+        );
+        assert_eq!(input.dropped(), 0);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Tops d'horloge par noire (protocole MIDI) : la crate ne s'en sert pas — elle ne sait pas ce
+    /// qu'une noire est —, mais le test, lui, compte en noires.
+    const TICKS_PAR_NOIRE: u32 = 24;
 
     #[test]
     fn un_port_introuvable_est_une_erreur_pas_une_panique() {
