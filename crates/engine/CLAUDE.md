@@ -40,7 +40,14 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   **seul** écrivain par case, c'est `browse` qui écrit le tempo arbitré. Le rejet de gigue à ±25 %
   a une **porte de sortie** (8 rejets de suite = la source a changé de tempo, la fenêtre repart) :
   sans elle, un saut de 120 à 92 BPM serait rejeté indéfiniment. `clock_start` recale le temps 1,
-  `clock_continue` fait tout le reste sans le recaler.
+  `clock_continue` fait tout le reste sans le recaler. Il tient **deux** choses distinctes : la
+  période (lissée, publiée à 0,3 BPM près) et la **phase** (`clock_beat_at_us`, où tombe le temps),
+  qui ne se déduit pas d'elle — une période juste à 0,2 % près dérive d'une demi-seconde en quatre
+  minutes. L'**ancre** de phase est le **premier top d'un flux**, parce qu'une horloge nue ne porte
+  pas la position du temps (24 octets identiques par noire) et que beaucoup de sources n'envoient
+  aucun transport ; les frontières suivantes se comptent sans recaler le temps 1, sinon le clic
+  suivrait la granularité de la boucle d'écran. `realign_downbeat` est la moitié « phase » d'un tap,
+  pour qui veut recaler sans rien dire du tempo.
 - `metronome.rs` : **le clic** (ADR 0008), trois sons dont ce qui les distingue est l'**attaque**
   (`bois` 0,62 ms, `tic` 0,29 ms, `bip` 12,62 ms — c'est son attaque lente qui le noyait dans un
   retour de basse). Toutes les enveloppes commencent à zéro, donc le premier échantillon non nul

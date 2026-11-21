@@ -198,8 +198,11 @@ que `unsaved()` compare ; seuls un tap et un chargement de preset le changent), 
 `State::heard_tempo_bpm()` le tempo **entendu**, celui de l'arbitre `engine::tempo::Arbiter` que
 `State` possède. C'est l'entendu qui va dans la case et à l'écran, et les deux diffèrent dès qu'une
 horloge MIDI tourne. `*` = tap (`State::tap_tempo`), et `tick()` appelle `Arbiter::poll` pour voir
-une horloge qui se tait. `*` n'agit que dans l'espace **Chaîne** : le banc d'essai n'est pas un
-preset.
+une horloge qui se tait. `*` fait **deux** choses, qui ne se refusent pas ensemble : écrire le tempo
+(seulement hors du banc d'essai — la Bibliothèque n'est pas un preset) et recaler le **temps 1**, qui
+ne touche à aucun preset et agit donc **partout** (`Arbiter::realign_downbeat`). Les refuser tous
+deux laissait un clic qu'on ne pouvait plus recaler, le clic s'allumant lui depuis n'importe quel
+écran.
 
 ## Le set — `state/set/`
 

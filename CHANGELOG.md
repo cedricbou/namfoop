@@ -13,6 +13,19 @@ section prend le numéro de version.
   120 BPM. Rien de visible pour l'instant : c'est la pièce qui manquait pour caler le clic sur
   l'horloge reçue (#347).
 
+### MIDI (#347)
+- **Le clic se cale sur l'horloge reçue.** Jusqu'ici il tournait sur une grille ancrée au démarrage
+  de namfoop : il avait le bon tempo mais tombait à contretemps. Le **premier top d'un flux** est
+  désormais une frontière de temps et recale le temps 1 — ce qui marche avec une source qui
+  n'envoie aucun message de transport, comme le métronome d'un clavier, et c'est la seule position
+  de temps qu'un flux d'horloge nu donne.
+- **`namfoop run --click` suit l'horloge et le tap** (CC 14), alors qu'il les ignorait : un clic qui
+  ne sait rien de l'horloge branchée est un piège. Le tempo de la **chaîne**, lui, reste figé dans
+  `run` — c'est ce qui garde `run` et `render` reproductibles.
+- **`*` recale le temps 1 depuis n'importe quel écran**, banc d'essai compris. Il y était refusé en
+  entier pour une raison qui ne concerne que le tempo du preset, alors que le clic s'allume partout :
+  on se retrouvait avec un clic impossible à recaler. Le tempo, lui, se tape toujours dans la Chaîne.
+
 ### MIDI (#224)
 - **Ableton peut mener le concert.** Avec un set ouvert (dans `browse` comme sur l'écran de scène
   `run --set`), un **Program Change** appelle le morceau dont le `pc` vaut ce numéro — sur son

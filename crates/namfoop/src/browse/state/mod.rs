@@ -523,10 +523,17 @@ impl State {
     /// pédalier porte l'instant où le message est arrivé — à 30 ms près, un tap à 120 BPM se
     /// tromperait de 7 BPM.
     fn tap_tempo_at(&mut self, now_ms: u64) -> Action {
-        // le banc d'essai n'est pas un preset : il n'a ni volume ni tempo propres, et y taper
-        // ferait apparaître « non enregistré » alors qu'on écoute seulement des modèles
+        // Le banc d'essai n'est pas un preset : il n'a ni volume ni tempo propres, et y taper un
+        // **tempo** ferait apparaître « non enregistré » alors qu'on écoute seulement des modèles.
+        // Mais un tap fait deux choses, et la seconde — recaler le temps 1 — ne touche à aucun
+        // preset : le clic n'est enregistré nulle part et `k` l'allume depuis n'importe quel écran
+        // (étage pédale). Le refuser entièrement laissait un clic qu'on ne pouvait plus recaler.
         if self.space == space::Space::Library {
-            self.message = Some("le tap tempo est dans l'espace Chaîne (2)".into());
+            self.tempo.realign_downbeat();
+            if let Some(set) = self.set.as_mut() {
+                set.beat.realign(now_ms);
+            }
+            self.message = Some("temps 1 recalé — le tempo se tape dans l'espace Chaîne (2)".into());
             return Action::None;
         }
         self.tempo.tap(now_ms * 1000);

@@ -39,8 +39,13 @@ setup/          `setup` plein écran : state.rs (logique pure, testée ; l'étap
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par
                 backend)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP), vide la
-                file MIDI à chaque tour, sans rien en faire : `run` joue UNE chaîne, il n'a ni
-                banque ni set, et c'est dans les écrans qu'un PC choisit un preset ;
+                file MIDI à chaque tour. Un PC n'y désigne rien — `run` joue UNE chaîne, il n'a ni
+                banque ni set, et c'est dans les écrans qu'un PC choisit un preset — mais l'horloge
+                et le tap (CC 14) vont à un `engine::tempo::Arbiter` et le CLIC les suit (ADR 0008).
+                La boucle attend donc POLL_MS = 20 ms (un top vaut 20,8 ms à 120 BPM) et le vumètre
+                est lu par tranches de DISPLAY_MS : `Engine::meters` remet les crêtes à zéro. Le
+                tempo de la CHAÎNE reste figé ici : c'est ce qui garde `run` et `render`
+                reproductibles ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit

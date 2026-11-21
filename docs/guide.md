@@ -1560,9 +1560,27 @@ beats_per_bar = 4
 sound = "bois"
 ```
 
-Le clic suit le **même tempo** que les effets de temps : il suit donc le tap (`*`), le tempo du
-preset, et l'horloge MIDI quand elle arrivera. Taper recale le **temps 1** : on tape sur le premier
-temps. Changer de tempo ne redémarre pas la mesure — seul l'écart entre deux temps change.
+Le clic suit le **même tempo** que les effets de temps : le tap (`*`), le tempo du preset ou
+l'horloge MIDI reçue, dans cet ordre de priorité. Taper recale le **temps 1** : on tape sur le
+premier temps, et `*` le fait depuis **n'importe quel écran** — depuis le banc d'essai il ne recale
+que le temps, le tempo se tapant dans l'espace Chaîne. Changer de tempo ne redémarre pas la mesure :
+seul l'écart entre deux temps change.
+
+**Avec une horloge MIDI, le clic se cale tout seul** : le **premier top du flux** est pris pour une
+frontière de temps et recale le temps 1. C'est ce qui marche avec une source qui n'envoie aucun
+message de transport — le métronome d'un clavier, par exemple —, et c'est la seule position de temps
+qu'une horloge nue donne, ses 24 tops par noire étant des octets identiques. Un `Start` d'Ableton,
+lui, dit explicitement où tombe le temps 1.
+
+Deux limites à connaître. Sans `Start` ni Song Position Pointer, le **temps 1 de la mesure** reste
+inconnaissable : l'accent peut tomber sur un autre temps de la mesure, et `beats_per_bar = 1`
+l'évite en supprimant l'accent. Et le clic ne se recale **pas en continu** sur l'horloge : il repart
+de son ancre au tempo mesuré, si bien qu'un écart peut se creuser sur un morceau long — un appui sur
+`*` le remet en place.
+
+`run --click` suit lui aussi l'horloge et le tap au pied (CC 14). Le tempo de la **chaîne**, en
+revanche, reste celui du preset ou de `--tempo` dans `run` : c'est ce qui garde `run` et `render`
+reproductibles. Pour des effets calés sur l'horloge, c'est `browse` ou `run --set`.
 
 **Si `k` ne fait rien**, c'est qu'aucune sortie ne reçoit le clic : le message le dit, et la réponse
 est `namfoop setup` (déclarer une sortie « in-ear »). `run --click` refuse de démarrer dans ce cas
