@@ -18,8 +18,9 @@ presets (enregistrer une chaîne, la rechercher, la rejouer, repartir d'une cha�
 la suivante en 20 ms grâce à la banque préchargée en mémoire, la réverbe du preset quitté finissant
 de sonner),
 sets de concert (set list, vue scène, prompteur ChordPro),
-rendu hors ligne, bench CPU, mesure de latence (à vide ou sous charge). À venir : MIDI, démarrage
-automatique, Raspberry Pi.
+entrée MIDI (pédalier ou Ableton écoutés, port réglable, port simulé pour essayer sans matériel),
+rendu hors ligne, bench CPU, mesure de latence (à vide ou sous charge). À venir : ce que namfoop
+fait des messages MIDI (preset, tap, horloge), démarrage automatique, Raspberry Pi.
 
 ## Démarrage rapide
 
@@ -33,6 +34,7 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant (S enregistre un preset, n repart de zéro)
 ./target/release/namfoop presets              # les presets enregistrés
 ./target/release/namfoop sets                 # les sets de concert (morceaux et leurs sons)
+./target/release/namfoop midi                 # les ports MIDI, et ce qu'y envoie le pédalier
 ./target/release/namfoop run --set concert    # JOUER UN CONCERT : écran de scène verrouillé
 ./target/release/namfoop run --preset chill   # rejouer un preset
 ./target/release/namfoop run -m b7k           # jouer

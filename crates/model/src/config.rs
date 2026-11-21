@@ -104,6 +104,26 @@ pub struct Config {
     /// rien n'est écrit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub set: Option<Set>,
+    /// Entrée **MIDI** (ADR 0011) : quel port écouter. Absent : le premier port d'entrée trouvé, et
+    /// rien n'est écrit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub midi: Option<Midi>,
+}
+
+/// L'entrée **MIDI** : le port qu'on écoute, écrit par `namfoop setup`. Les numéros de message,
+/// eux, sont ceux de l'[ADR 0011] et ne se règlent pas encore ici.
+///
+/// [ADR 0011]: ../../docs/adr/0011-midi-conventions-fractal.md
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Midi {
+    /// Port d'entrée : adresse du séquenceur (« 28:0 »), morceau de nom de port (« MC6 ») ou
+    /// `sim:<chemin>` pour le port simulé. Absent : le premier port d'entrée trouvé.
+    #[serde(rename = "in", skip_serializing_if = "Option::is_none")]
+    pub input: Option<String>,
+    /// Vrai : aucune écoute MIDI, comme `--no-midi`. Un pédalier qui fait des siennes se coupe
+    /// ainsi sans débrancher de câble.
+    pub off: bool,
 }
 
 /// Le **mode Set** : les touches de scène, réglables pour coller au pédalier qu'on a sous le pied
@@ -205,6 +225,7 @@ impl Default for Config {
             routing: Routing::default(),
             metronome: None,
             set: None,
+            midi: None,
         }
     }
 }

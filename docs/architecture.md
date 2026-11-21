@@ -12,26 +12,35 @@ C'est l'état réel du code (vérifié par `scripts/check-arch.sh`), pas une cib
 namfoop  (binaire : CLI, écrans, une fonction mince par commande)
   ├─> engine   (session audio : routeur, swap, vumètres, tap d'entrée ; raw pour les mesures)  ─> audio-io, dsp, model
   ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model
+  ├─> midi-io  (entrée MIDI : port ALSA seq, port simulé ; ni clap, ni config, ni DSP)
   └─> model    (types sérialisables : config, routage, profils de carte)
 audio-io (ALSA, carte simulée, priorité RT ; ni clap, ni config, ni DSP)
 dsp      (étages mono, chaîne, swap, analyses hors ligne)  ─> nam-sys (FFI C++ NAM)
 ```
 
 Les dépendances ne vont que **vers le bas**. La CLI pilote, `engine` fait sonner, `audio-io` parle
-à la carte, `dsp` calcule.
+à la carte, `midi-io` écoute le pédalier, `dsp` calcule.
+
+**Pourquoi `midi-io` ne passe pas par `engine`** alors que la carte son, elle, y passe : le MIDI
+n'entre pas dans le fil audio. Il est lu par un fil à part, consommé par la **boucle d'écran**, et
+remis à des machines pures — l'arbitre de tempo (`engine::tempo`) et la banque de chaînes. Mettre la
+porte dans `engine` n'aurait ajouté qu'un passage obligé ; la règle « une seule porte » est tenue
+par la crate elle-même et par le contrôle textuel ci-dessous.
 
 | Crate      | Responsabilité                                                       | Interdit                                   |
 |------------|----------------------------------------------------------------------|--------------------------------------------|
 | `nam-sys`  | FFI vers le C++ NAM                                                  | tout le reste                              |
 | `dsp`      | étages audio mono, chaîne, swap, analyses hors ligne                 | carte son, `model` (donc la config), threads, CLI |
 | `audio-io` | ouvrir une carte (ALSA, simulée), négocier format et buffer, RT      | clap, `toml`/`serde` (donc la config), DSP |
+| `midi-io`  | ouvrir un port MIDI (séquenceur ALSA, simulé), livrer des messages typés | clap, la config, DSP, toute crate du projet |
 | `model`    | types sérialisables : config, routage, profils de carte              | toute logique, toute crate du projet       |
 | `engine`   | session audio : routeur, swap, mesures, commandes, reprise           | clap, ratatui, bibliothèque de sons        |
 | `library`  | modèles et IR, import, overrides, recommandations, profils de sons   | carte son, clap, ratatui                   |
 | `namfoop`  | CLI, écrans plein écran, une fonction mince par commande             | logique audio, accès direct à un backend   |
 
-Règles clés : `dsp` et `audio-io` ne se connaissent pas ; seule `engine` ouvre la carte ; `model`
-ne dépend d'aucune crate du projet ; aucune crate de bibliothèque n'utilise `clap` ni `ratatui`.
+Règles clés : `dsp` et `audio-io` ne se connaissent pas ; seule `engine` ouvre la carte ; seule
+`midi-io` ouvre un port MIDI ; `model` ne dépend d'aucune crate du projet ; aucune crate de
+bibliothèque n'utilise `clap` ni `ratatui`.
 
 **Ce que « ne connaît pas la config » veut dire exactement**, parce que la formulation courte était
 fausse : `dsp` **lit et écrit des fichiers** — ses propres formats, les presets (`.preset.toml`) et
@@ -105,9 +114,11 @@ dev-dependencies). Une crate nouvelle ajoute ses règles à la table du script *
 |-----------|-------------------------------------------------------------|
 | `nam-sys` | seulement `thiserror` (+ `cc` en build)                     |
 | `dsp`     | interdit `alsa`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io`, `engine`, `model` |
-| `audio-io` | interdit `clap`, `ratatui`, `dsp`, `nam-sys`, `namfoop`, `toml`, `engine`, `serde` |
-| `engine`  | interdit `clap`, `ratatui`, `namfoop`, `toml`, `alsa` (la carte passe par `audio-io`) |
+| `audio-io` | interdit `clap`, `ratatui`, `dsp`, `nam-sys`, `namfoop`, `toml`, `engine`, `serde`, `midi-io` |
+| `midi-io` | seulement `alsa`, `libc`, `log`, `rtrb`, `thiserror` (aucune crate du projet) |
+| `engine`  | interdit `clap`, `ratatui`, `namfoop`, `toml`, `alsa` (la carte passe par `audio-io`), `midi-io` |
 | `model`   | seulement `serde`, `toml`, `thiserror` (aucune crate du projet) |
 | `library` | interdit `audio-io`, `engine`, `clap`, `ratatui`, `alsa` |
 | tout le code | aucun `audio_io::start` / `start_with` hors d'`engine` et `audio-io` (contrôle textuel) |
+| tout le code | aucun `midi_io::open` hors de `cli_midi.rs` et `midi_cmd.rs` (contrôle textuel) : ailleurs, on reçoit un port déjà ouvert, et la règle « un port absent n'empêche jamais de démarrer » tient en un endroit |
 | toutes     | un `CLAUDE.md` par crate, cité dans la carte racine et ici ; `.rs` > 1 000 lignes refusé (`check-docs.sh`) |

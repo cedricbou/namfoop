@@ -30,12 +30,13 @@ Sommaire :
 9. [Régler le son et le volume](#9-régler-le-son-et-le-volume)
 10. [Effets](#10-effets)
 11. [Le mode Set : la set list de concert](#11-le-mode-set--la-set-list-de-concert)
-12. [Backends, carte et routage en ligne de commande](#12-backends-carte-et-routage-en-ligne-de-commande)
-13. [Travailler sans jouer : rendu, bench, inventaire](#13-travailler-sans-jouer--rendu-bench-inventaire)
-14. [Mesurer la latence](#14-mesurer-la-latence)
-15. [Le fichier de configuration](#15-le-fichier-de-configuration)
-16. [Dépannage](#16-dépannage)
-17. [Limites actuelles](#17-limites-actuelles)
+12. [Piloter namfoop au pied : le MIDI](#12-piloter-namfoop-au-pied--le-midi)
+13. [Backends, carte et routage en ligne de commande](#13-backends-carte-et-routage-en-ligne-de-commande)
+14. [Travailler sans jouer : rendu, bench, inventaire](#14-travailler-sans-jouer--rendu-bench-inventaire)
+15. [Mesurer la latence](#15-mesurer-la-latence)
+16. [Le fichier de configuration](#16-le-fichier-de-configuration)
+17. [Dépannage](#17-dépannage)
+18. [Limites actuelles](#18-limites-actuelles)
 
 ---
 
@@ -189,7 +190,7 @@ enregistrer. Six étapes :
 5. **Buffer** : chaque taille est testée 5 s, en silence, avec un vrai modèle de ta bibliothèque
    comme charge. La plus petite taille sans xrun est présélectionnée.
 6. **Résumé** : Entrée enregistre les sections `[audio]` et `[routing]` de la config
-   ([§ 15](#15-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
+   ([§ 16](#16-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
 
 Ensuite, `namfoop run`, `calibrate` et `latency` utilisent cette carte et ce routage sans aucune
 option. `--library` indique où chercher le modèle utilisé comme charge au test des buffers.
@@ -596,7 +597,7 @@ Pour un modèle qui en a besoin, namfoop **conseille des IR**. Il cherche d'abor
 guitare (4x12, V30…). Une seule IR par pack figure en tête de liste. `-i auto` prend la première
 conseillée (ou aucune si le baffle est inclus). `run` sans `-i` sur un tel modèle affiche les
 trois meilleures suggestions. Pour imposer ta préférée partout, mets `default_ir` dans la config
-([§ 15](#15-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
+([§ 16](#16-le-fichier-de-configuration)). Pour un seul modèle, utilise `namfoop meta <id> --ir …`
 (l'IR préférée du modèle passe avant tout le reste).
 
 ```sh
@@ -978,7 +979,7 @@ Trois règles tiennent l'ensemble :
 En quittant, le navigateur affiche la commande pour rejouer le même son, effets compris, par
 exemple `namfoop run -m m4jn -i c7k2 --pre gate --post delay:time=300`. Options : `--library`, `--size` (modèles légers), `--filter`
 (filtre de départ, ex. `--filter PopPunk`), et le routage
-`--bass-in`, `--mic-in`, `--route` ([§ 12](#12-backends-carte-et-routage-en-ligne-de-commande)).
+`--bass-in`, `--mic-in`, `--route` ([§ 13](#13-backends-carte-et-routage-en-ligne-de-commande)).
 Sans matériel : `namfoop --backend sim --no-config browse`.
 
 #### Modifier et calibrer un modèle (`e`)
@@ -1062,7 +1063,7 @@ namfoop run -m "800d modern" -i <id du mélange>
 Les modèles récents (format NAM 0.7, « slimmable ») contiennent plusieurs tailles du même son :
 `--size 0` choisit la plus légère (ex. 3 canaux), `--size 1` (défaut) la complète (ex. 8 canaux).
 La version légère coûte environ deux fois moins de CPU : utile sur Raspberry Pi. Voir
-`namfoop bench --all-sizes` ([§ 13](#13-travailler-sans-jouer--rendu-bench-inventaire)).
+`namfoop bench --all-sizes` ([§ 14](#14-travailler-sans-jouer--rendu-bench-inventaire)).
 
 ---
 
@@ -1085,7 +1086,7 @@ namfoop calibrate
    Trim d'entrée proposé : -18.0 dB (crête robuste visée -30 dBFS à l'entrée des modèles)
    ```
 3. Il sauve le trim, ton enregistrement et le mode de volume **match** dans
-   `~/.config/namfoop/` ([§ 15](#15-le-fichier-de-configuration)). Toutes les commandes `run` et
+   `~/.config/namfoop/` ([§ 16](#16-le-fichier-de-configuration)). Toutes les commandes `run` et
    `render` les utilisent ensuite.
 
 Options :
@@ -1198,7 +1199,7 @@ au son, il le décrit.
 |---|---|
 | `-m`, `--model` | modèle NAM ([§ 6](#6-la-bibliothèque-de-sons)) |
 | `-i`, `--ir` | IR de baffle |
-| `--bass-in`, `--mic-in`, `--route` | routage pour cette session ([§ 12](#12-backends-carte-et-routage-en-ligne-de-commande)) |
+| `--bass-in`, `--mic-in`, `--route` | routage pour cette session ([§ 13](#13-backends-carte-et-routage-en-ligne-de-commande)) |
 | `--seconds` | arrêt automatique (tests) |
 | `-q`, `--quiet` | pas de ligne d'état |
 
@@ -1634,7 +1635,7 @@ est coupée (24 dB/oct), la fondamentale reste nette.
 - `damping` : amortissement des aigus dans la queue (plus : plus sombre, plus naturel).
 - `lowcut` : 150–300 Hz pour une basse ; `mix` : niveau de la réverbe, **bas** (10–20 %), le son
   direct reste à 100 %.
-- Piège : changer un paramètre reconstruit la chaîne et coupe la queue ([§ 17](#17-limites-actuelles)).
+- Piège : changer un paramètre reconstruit la chaîne et coupe la queue ([§ 18](#18-limites-actuelles)).
 
 ```sh
 namfoop run -m b7k -i "dg212 sm57" --post reverb:decay=1.2,predelay=20,lowcut=250,mix=15
@@ -2078,7 +2079,92 @@ avant même de prendre la carte son. C'est ce qu'il faut pour un service de dém
 
 `--set` et `--preset` s'excluent : un set choisit déjà ses presets, morceau par morceau.
 
-## 12. Backends, carte et routage en ligne de commande
+## 12. Piloter namfoop au pied : le MIDI
+
+Un pédalier MIDI sous le pied, Ableton sur la table : namfoop **écoute** ce qu'ils envoient, sans
+rien avoir à configurer dans le cas courant. Les numéros de message suivent les conventions des
+pédaliers **Fractal**, celles que répètent les gabarits des pédaliers tiers
+([ADR 0011](adr/0011-midi-conventions-fractal.md)) : un **Program Change** choisit le morceau ou le
+preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, et l'horloge vient d'Ableton.
+
+**Ce que namfoop fait des messages se construit marche par marche** : l'écoute est là, elle affiche
+et trace ce qui arrive. Le choix du preset, le tap et l'horloge sont les marches suivantes.
+
+### Vérifier que le pédalier parle : `namfoop midi`
+
+C'est la commande à lancer avant un concert, et elle n'ouvre pas la carte son :
+
+```sh
+namfoop midi
+```
+
+Elle liste les ports d'entrée vus par la machine, puis affiche chaque message qui arrive — appuie
+sur une pédale, et la ligne s'écrit :
+
+```text
+Ports d'entrée MIDI (2) :
+  14:0  Midi Through Port-0
+  28:0  MC6 MKII MIDI 1
+
+Écoute 28:0  MC6 MKII MIDI 1 — Ctrl+C pour sortir :
+     1.84 s  PC 3
+     2.31 s  CC 34 2
+     4.02 s  horloge  120.0 BPM
+```
+
+Les tops d'horloge ne défilent pas un par un (il en passe 24 par noire) : une ligne par noire, avec
+le tempo mesuré. `namfoop midi --list` s'arrête après la liste des ports, sans écouter.
+
+### Choisir le port : `--midi-in`, `--no-midi`
+
+Sans rien préciser, namfoop prend **le premier port d'entrée** et dit lequel. Pour en désigner un,
+l'adresse du séquenceur (`28:0`) ou un morceau de son nom suffit :
+
+```sh
+namfoop --midi-in "MC6" browse
+```
+
+- `--midi-in PORT` : le port à écouter pour cette session.
+- `--no-midi` : aucune écoute, quoi qu'en dise la configuration — de quoi faire taire un pédalier
+  qui fait des siennes au milieu d'un concert.
+
+Le port retenu s'enregistre dans la configuration : `namfoop setup` le propose à son étape
+« pédalier MIDI », ou à la main ([§ 16](#16-le-fichier-de-configuration)) :
+
+```toml
+[midi]
+in = "28:0"
+off = false
+```
+
+**Un pédalier débranché n'empêche jamais de démarrer.** Port absent, nom introuvable, séquenceur
+indisponible : namfoop le dit dans un message, et tout le reste marche. Un concert ne s'arrête pas
+pour un câble MIDI.
+
+### Essayer sans pédalier : le port simulé
+
+Un port `sim:CHEMIN` lit des **lignes de texte** dans un fichier ou un tube nommé, une ligne par
+message. C'est ce qui permet d'essayer le MIDI sans matériel — et c'est aussi ce dont se servent les
+tests automatiques :
+
+```sh
+mkfifo /tmp/m
+namfoop --midi-in sim:/tmp/m midi
+```
+
+Puis, depuis un autre terminal :
+
+```sh
+echo 'pc 3' > /tmp/m
+echo 'cc 34 2' > /tmp/m
+echo 'start' > /tmp/m
+```
+
+Le vocabulaire est celui qu'affiche `namfoop midi` : `pc N`, `cc N V`, `clock`, `start`, `stop`,
+`continue`, `spp N` (position en doubles-croches), et `#` pour un commentaire. Ce qu'on lit à
+l'écran se recopie donc dans un tube pour le rejouer.
+
+## 13. Backends, carte et routage en ligne de commande
 
 L'assistant ([§ 5](#5-configurer-la-carte--lassistant)) enregistre ces réglages ; les options
 ci-dessous les remplacent pour une session. Les **options globales** se placent **avant** la
@@ -2129,7 +2215,7 @@ namfoop --backend alsa --device hw:1,0 --capture-device hw:1,1 --buffer 48 laten
 
 **En ALSA, si PipeWire utilise la carte**, namfoop coupe son profil le temps de la session et le
 remet à l'arrêt, y compris en cas de plantage. Seul un `kill -9` peut laisser le profil sur « off »
-([§ 16](#16-dépannage)).
+([§ 17](#17-dépannage)).
 
 ### Routage
 
@@ -2191,7 +2277,7 @@ Pièges :
 
 ---
 
-## 13. Travailler sans jouer : rendu, bench, inventaire
+## 14. Travailler sans jouer : rendu, bench, inventaire
 
 ### `namfoop render` : traiter un fichier
 
@@ -2226,7 +2312,7 @@ modèles slimmable. À lancer sur la machine de scène (ex. le Pi) pour savoir q
 
 ---
 
-## 14. Mesurer la latence
+## 15. Mesurer la latence
 
 Relie une **sortie** à une **entrée** avec un câble (par défaut sortie 1 -> entrée 2), gain de
 l'entrée bas, bouton Mixer côté Playback, casque bas (la mesure émet des clics) :
@@ -2311,7 +2397,7 @@ DSP et les xruns, eux, sont bien là. C'est la façon de vérifier une chaîne s
 
 ---
 
-## 15. Le fichier de configuration
+## 16. Le fichier de configuration
 
 `~/.config/namfoop/config.toml`, écrit par `setup` et `calibrate`, modifiable à la main :
 
@@ -2344,13 +2430,17 @@ source = "processed"
 [[routing.outputs]]
 channel = 2
 source = "di"
+
+[midi]                               # — setup, étape « pédalier MIDI » ([§ 12](#12-piloter-namfoop-au-pied--le-midi))
+in = "28:0"                          # port d'entrée : adresse, nom, ou "sim:CHEMIN"
+off = false                          # true : aucune écoute MIDI (comme --no-midi)
 ```
 
 Les options de la ligne de commande priment toujours sur ce fichier.
 
 ---
 
-## 16. Dépannage
+## 17. Dépannage
 
 **Le son est beaucoup plus saturé que la démo Tone3000.** Niveau d'entrée trop chaud : lance
 `namfoop calibrate`, ou essaie `--input-db -12`.
@@ -2402,7 +2492,7 @@ une issue avec le nom du pack.
 
 ---
 
-## 17. Limites actuelles
+## 18. Limites actuelles
 
 Changer le réglage d'un effet **reconstruit la chaîne** : les queues de delay et de réverbe en
 cours sont coupées. Le volume du preset et le tempo, eux, sont vivants — en changer ne coupe rien.

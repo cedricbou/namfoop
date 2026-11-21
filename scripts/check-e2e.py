@@ -334,6 +334,57 @@ def scenario_battue(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi(binaire, lignes, colonnes):
+    """**L'entrée MIDI** de bout en bout, sans pédalier : un port simulé lit un tube de texte, et
+    ce qu'on y écrit doit arriver jusqu'à la boucle de `browse`.
+
+    C'est exactement ce que fait un pédalier (ADR 0011), le câble en moins. La vérification porte
+    sur la **trace** : l'écran ne montre pas les messages, c'est l'objet des stories suivantes."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-") as tmp:
+        bib = bibliotheque_jetable(os.path.join(tmp, "library"))
+        trace = os.path.join(tmp, "trace.log")
+        tube = os.path.join(tmp, "pedalier")
+        os.mkfifo(tube)
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "--midi-in", f"sim:{tube}",
+             "browse", "--library", bib],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(2.5)
+            verifier("MIDI" in ec.voir(), f"{taille} : l'écran dit qu'il écoute un port MIDI")
+            # O_NONBLOCK : l'ouverture en écriture échoue tant que personne ne lit le tube, ce qui
+            # dit aussi si namfoop l'a bien ouvert. On réessaie le temps qu'il démarre.
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    time.sleep(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+            os.write(fd, b"pc 3\ncc 34 2\nstart\nspp 64\n")
+            os.write(fd, b"nawak\n")  # une ligne fausse : signalée, et elle n'arrête pas l'écoute
+            os.write(fd, b"pc 7\n")
+            time.sleep(1.2)
+            recus = [l.split(" midi ", 1)[1] for l in ec.lignes_de_trace() if " midi " in l]
+            verifier(
+                recus == ["PC 3", "CC 34 2", "start", "SPP 64", "PC 7"],
+                f"{taille} : les messages du tube arrivent dans l'ordre, la ligne fausse exceptée "
+                f"({recus})",
+            )
+            os.close(fd)
+            ec.taper("q", 0.8)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : on quitte proprement avec un port MIDI ouvert ({code})")
+        finally:
+            ec.tuer()
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -348,6 +399,8 @@ def main():
     for lignes, colonnes in ((25, 80), (50, 160)):
         scenario_browse(binaire, lignes, colonnes)
         scenario_battue(binaire, lignes, colonnes)
+    # une seule taille : l'entrée MIDI ne dessine rien, la taille d'écran n'y change rien
+    scenario_midi(binaire, 25, 80)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")

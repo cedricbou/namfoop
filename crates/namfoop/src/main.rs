@@ -2,6 +2,7 @@ mod amp;
 mod browse;
 mod calibrate;
 mod cli_audio;
+mod cli_midi;
 mod cli_routing;
 mod config;
 mod fx_cmd;
@@ -9,6 +10,7 @@ mod import_cmd;
 mod latency;
 mod live;
 mod meta_cmd;
+mod midi_cmd;
 mod models_cmd;
 mod offline;
 mod presets_cmd;
@@ -46,6 +48,9 @@ use crate::config::LoadedConfig;
 struct Cli {
     #[command(flatten)]
     audio: cli_audio::AudioArgs,
+
+    #[command(flatten)]
+    midi: cli_midi::MidiArgs,
 
     /// Fichier de config [défaut : ~/.config/namfoop/config.toml]
     #[arg(long, global = true)]
@@ -191,6 +196,11 @@ enum Cmd {
         #[command(flatten)]
         routing: cli_routing::RoutingArgs,
     },
+    /// Liste les ports MIDI d'entrée, puis affiche en clair ce qui en arrive (pédalier, Ableton)
+    Midi {
+        #[command(flatten)]
+        args: midi_cmd::MidiCmdArgs,
+    },
     /// Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
     Setup {
         /// Dossier de la bibliothèque (un modèle sert de charge réaliste au test des buffers)
@@ -263,6 +273,7 @@ fn main() -> Result<()> {
                 let start = browse::Start {
                     set: (!query.is_empty()).then_some(query.as_str()),
                     locked: true,
+                    midi: cli.midi.open(&conf.config),
                     ..Default::default()
                 };
                 // la bibliothèque est celle de `--library`, que `AmpArgs` porte déjà
@@ -271,7 +282,7 @@ fn main() -> Result<()> {
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             let session = live::Session { seconds, quiet, trails: !no_trails, click };
-            live::run(&audio, &conf, &amp, &routing, session)
+            live::run(&audio, &conf, &amp, &routing, cli.midi.open(&conf.config), session)
         }
         Cmd::Render { amp, input, output, block } => {
             let input = input.unwrap_or_else(offline::default_input);
@@ -297,7 +308,12 @@ fn main() -> Result<()> {
                     println!("--review : aucun nouveau modèle à revoir");
                     return Ok(());
                 }
-                let start = browse::Start { only: Some(&imported), edit: true, ..Default::default() };
+                let start = browse::Start {
+                    only: Some(&imported),
+                    edit: true,
+                    midi: cli.midi.open(&conf.config),
+                    ..Default::default()
+                };
                 let (audio, profile) = audio()?;
                 let routing = cli_audio::base_routing(&conf, profile.as_ref());
                 browse::run(&audio, &conf, &args.library, &routing, 1.0, true, start)?;
@@ -324,10 +340,15 @@ fn main() -> Result<()> {
         Cmd::Browse { library, size, filter, set, no_trails, routing } => {
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
-            let start =
-                browse::Start { filter: filter.as_deref(), set: set.as_deref(), ..Default::default() };
+            let start = browse::Start {
+                filter: filter.as_deref(),
+                set: set.as_deref(),
+                midi: cli.midi.open(&conf.config),
+                ..Default::default()
+            };
             browse::run(&audio, &conf, &library, &routing, size, !no_trails, start)
         }
+        Cmd::Midi { args } => midi_cmd::run(&args, &cli.midi, &conf),
         Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),
         Cmd::Latency { out_ch, in_ch, count, chains, chain, model, ir, library } => {
             let args = latency::Args { out_ch, in_ch, count, chains, chain, model, ir, library };
