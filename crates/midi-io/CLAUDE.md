@@ -54,6 +54,17 @@ l'ordre d'arrêt en 200 ms au pire, le délai de son `poll`).
   de temps (la boucle de `browse` compte en millisecondes depuis son départ) et c'est lui qui
   convertit. Deux lignes de temps dériveraient.
 
+## Faits mesurés
+
+- **Gigue de l'horloge entrante** (Clavinova en DIN sur l'entrée MIDI de l'iTwo, PC de
+  développement, `namfoop midi`, 142 BPM) : moyenne **142,03 BPM** sans dérive, dispersion
+  **1,5 ms crête à crête sur la noire** (0,35 %), soit ±0,25 BPM sur la ligne affichée — qui est une
+  mesure brute, noire par noire, sans filtrage. S'expliquent par la quantification du timer de
+  l'instrument (17,6056 ms par top n'est pas entier), les trames USB de 1 ms de l'iTwo, les 320 µs
+  par octet du DIN et le réveil du fil de lecture — l'horodatage étant pris quand ce fil voit le
+  message, comme dit plus haut. `engine::tempo` l'absorbe entièrement : en deçà de 0,3 BPM le tempo
+  publié ne bouge pas.
+
 ## Tester
 
 `cargo test -p midi-io` : le format texte, le port simulé de bout en bout (fichier), un port absent
