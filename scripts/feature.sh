@@ -3,15 +3,22 @@
 # La protection de branche GitHub n'est pas disponible (dépôt privé, offre gratuite) : ce script
 # et les hooks (scripts/install-hooks.sh) imposent le cycle.
 #
+#   scripts/feature.sh issue <type> "Titre" <corps.md> [cadrage.md]
+#                                                    crée l'issue (type : story | epic | chore | bug),
+#                                                    le cadrage technique posté en commentaire
+#   scripts/feature.sh lint <n°>                     contrôle le style d'une issue (docs/style-issues.md)
 #   scripts/feature.sh start <n°>                    reprend l'issue n° : branche feat/<n°>-<titre>
-#   scripts/feature.sh start "Titre" [labels]        crée l'issue (labels séparés par des virgules)
 #   scripts/feature.sh pr [--refs] [--quick]         check.sh, push, PR « Closes #n » (--refs : issue
 #                                                    laissée ouverte, ex. tests matériels à faire)
 #   scripts/feature.sh merge                         attend la CI, squash merge, nettoie, main à jour
 #   scripts/feature.sh status                        branche, issue, PR, CI
 #
-# Préfixe de branche : feat (défaut), fix si le label « bug » est présent, docs si « documentation »
-# est le seul label.
+# Préfixe de branche : feat (défaut), fix si le label « bug » est présent, docs si le label
+# « documentation » l'est.
+#
+# Le style des issues (docs/style-issues.md) est contrôlé à la création et au démarrage d'une
+# branche : la backlog se lit sans ouvrir le code, le détail technique va en commentaire.
+# NAMFOOP_ALLOW_ISSUE=1 passe outre (issue ancienne à reprendre telle quelle, sur demande).
 #
 # Garde-fous : `start` ne réutilise jamais un nom de branche déjà pris (local ou origin),
 # `pr` ne reprend qu'une PR OUVERTE, et `merge` refuse une PR déjà fusionnée puis vérifie que le
@@ -39,23 +46,92 @@ slug() {
     | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40 | sed -E 's/-+$//'
 }
 
+# --- Style des issues (docs/style-issues.md) -----------------------------------------------------
+ISSUE_TYPES="story epic chore bug"
+CRATES="nam-sys|dsp|audio-io|model|engine|library"
+
+# Le type d'une issue d'après ses labels (« a,b,c ») : le premier des quatre, vide s'il n'y en a pas.
+type_of_labels() {
+  local t
+  for t in $ISSUE_TYPES; do [[ ,$1, == *,$t,* ]] && { echo "$t"; return; }; done
+  return 0
+}
+
+# lint_issue <type> <titre> <fichier du corps> : une ligne par écart, code 1 s'il y en a.
+lint_issue() {
+  local type=$1 title=$2 body=$3 ko=0 h
+  bad() { echo "  - $*"; ko=1; }
+  [[ " $ISSUE_TYPES " == *" $type "* ]] ||
+    { bad "type « ${type:-aucun} » : l'issue porte une étiquette parmi story, epic, chore, bug"; return 1; }
+  grep -qiE "^($CRATES|namfoop|browse|ci|docs?|scripts?)[a-z/._-]* ?:" <<<"$title" &&
+    bad "titre préfixé d'une zone du code : dire ce que le bassiste peut faire, ou le résultat visé"
+  grep -qE 'crates/|\.rs\b|::' <<<"$title" && bad "titre : pas de chemin de source ni de chemin Rust"
+  (( ${#title} <= 100 )) || bad "titre de ${#title} caractères : 100 au plus"
+  local -a need
+  case $type in
+    story) need=('**En tant que**' '## Aujourd' '## Terminé quand') ;;
+    epic)  need=('## Où on en est' '## Stories') ;;
+    chore) need=('## Pourquoi' '## Terminé quand') ;;
+    bug)   need=('## Ce qui se passe' '## Ce qui devrait se passer') ;;
+  esac
+  for h in "${need[@]}"; do grep -qF -- "$h" "$body" || bad "rubrique absente : « $h »"; done
+  [[ $type == bug ]] || grep -qE '^ *- \[[ x]\]' "$body" || bad "aucune case à cocher (- [ ])"
+  grep -qiE '^#+ *crates? touchées?' "$body" && bad "rubrique « Crates touchées » : elle va dans le cadrage technique"
+  h=$(grep -nE "crates/|[a-z_]\.rs\b|[A-Za-z_]::[A-Za-z_]|\`($CRATES)\`" "$body" | head -3 || true)
+  [[ -z $h ]] || bad "nom de crate, fichier source ou chemin Rust dans le corps (cadrage technique) :
+$(sed 's/^/      /' <<<"$h")"
+  return $ko
+}
+
+# Contrôle une issue existante ; `start` s'en sert avant d'ouvrir une branche.
+check_issue() {
+  local n=$1 title labels type tmp out
+  title=$(gh issue view "$n" --json title --jq .title)
+  labels=$(gh issue view "$n" --json labels --jq '[.labels[].name] | join(",")')
+  type=$(type_of_labels "$labels")
+  tmp=$(mktemp); gh issue view "$n" --json body --jq .body > "$tmp"
+  if out=$(lint_issue "$type" "$title" "$tmp"); then rm -f "$tmp"; return 0; fi
+  rm -f "$tmp"
+  echo "l'issue #$n ne suit pas docs/style-issues.md :"; echo "$out"
+  return 1
+}
+
+cmd_lint() {
+  [[ ${1:-} =~ ^[0-9]+$ ]] || die "usage : lint <n° d'issue>"
+  check_issue "$1" && echo "✓ issue #$1 conforme"
+}
+
+cmd_issue() {
+  [[ $# -ge 3 ]] || die "usage : issue <story|epic|chore|bug> \"Titre\" <corps.md> [cadrage.md]"
+  local type=$1 title=$2 body=$3 frame=${4:-} out n
+  [[ -f $body ]] || die "corps introuvable : $body"
+  [[ -z $frame || -f $frame ]] || die "cadrage introuvable : $frame"
+  out=$(lint_issue "$type" "$title" "$body") ||
+    die "issue refusée (docs/style-issues.md) :
+$out"
+  n=$(gh issue create --title "$title" --label "$type" --body-file "$body" | grep -oE '[0-9]+$')
+  [[ -z $frame ]] || gh issue comment "$n" --body "## Cadrage technique
+
+$(cat "$frame")" >/dev/null
+  echo "issue créée : #$n${frame:+ (cadrage technique en commentaire)}"
+}
+
 cmd_start() {
-  [[ $# -ge 1 ]] || die "usage : start <n° d'issue> | start \"Titre\" [labels]"
+  [[ ${1:-} =~ ^[0-9]+$ ]] || die "usage : start <n° d'issue>
+  Pour créer l'issue : scripts/feature.sh issue <type> \"Titre\" corps.md [cadrage.md]"
   need_clean
-  local n
-  if [[ $1 =~ ^[0-9]+$ ]]; then
-    n=$1
-    gh issue view "$n" --json state --jq .state | grep -q OPEN || die "l'issue #$n n'est pas ouverte"
-  else
-    local labels=${2:-enhancement}
-    n=$(gh issue create --title "$1" --label "$labels" --body "À préciser : besoin, attendu, tests." | grep -oE '[0-9]+$')
-    echo "issue créée : #$n"
-  fi
+  local n=$1
+  gh issue view "$n" --json state --jq .state | grep -q OPEN || die "l'issue #$n n'est pas ouverte"
   local title labels prefix=feat
   title=$(gh issue view "$n" --json title --jq .title)
   labels=$(gh issue view "$n" --json labels --jq '[.labels[].name] | join(",")')
+  [[ $(type_of_labels "$labels") != epic ]] ||
+    die "l'issue #$n est une épique : on démarre une de ses stories, pas l'épique"
+  if [[ -z ${NAMFOOP_ALLOW_ISSUE:-} ]]; then
+    check_issue "$n" || die "réécrire l'issue avant de coder (skill ecrire-issue), ou NAMFOOP_ALLOW_ISSUE=1 sur demande"
+  fi
   [[ ,$labels, == *,bug,* ]] && prefix=fix
-  [[ $labels == documentation ]] && prefix=docs
+  [[ ,$labels, == *,documentation,* ]] && prefix=docs
   git checkout -q main
   git pull -q --ff-only
   local base="$prefix/$n-$(slug "$title")" b k=2
@@ -187,9 +263,11 @@ cmd_status() {
 }
 
 case ${1:-} in
+  issue) shift; cmd_issue "$@" ;;
+  lint) shift; cmd_lint "$@" ;;
   start) shift; cmd_start "$@" ;;
   pr) shift; cmd_pr "$@" ;;
   merge) shift; cmd_merge "$@" ;;
   status) shift; cmd_status "$@" ;;
-  *) sed -n '2,20p' "$0"; exit 1 ;;
+  *) sed -n '2,25p' "$0"; exit 1 ;;
 esac

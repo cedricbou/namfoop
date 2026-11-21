@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#325)
+- **Les issues s'écrivent pour le bassiste.** La backlog a été refondue en épiques, stories et
+  chores lisibles sans ouvrir le code, et le harnais suit : [`docs/style-issues.md`](docs/style-issues.md)
+  fixe le titre, les rubriques de chaque type et ce qui n'entre pas dans le corps ; le détail
+  technique (crates, ADR, tests, mesures) va dans un commentaire « Cadrage technique ».
+- `scripts/feature.sh issue <type> "Titre" corps.md [cadrage.md]` crée l'issue avec son étiquette et
+  poste le cadrage en commentaire ; `lint <n°>` contrôle une issue existante. La création et
+  `start` **refusent** un titre préfixé d'une crate, un corps sans les rubriques de son type, ou qui
+  nomme une crate, un fichier source ou un chemin Rust ; `start` refuse aussi une épique.
+  `start "Titre"`, qui créait une issue vide étiquetée `enhancement`, renvoie à `issue`.
+- Les modèles d'issue de GitHub deviennent story, épique, chore et bug ; la skill `ecrire-issue`
+  porte la méthode ; la feuille de route de `CLAUDE.md` renvoie aux issues `epic`.
+
 ### Corrigé (#318)
 - **Sans carte branchée, namfoop ne part plus sur « hw:iTwo ».** Sur une machine sans config — le
   portable, un PC prêté, le Pi avant son HAT —, toute commande qui ouvre la carte s'arrêtait sur
