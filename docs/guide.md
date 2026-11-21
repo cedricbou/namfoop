@@ -2088,7 +2088,8 @@ pédaliers **Fractal**, celles que répètent les gabarits des pédaliers tiers
 preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, et l'horloge vient d'Ableton.
 
 **Ce que namfoop fait des messages se construit marche par marche** : un Program Change choisit un
-preset de la banque, et le reste — le tap, l'horloge, le set piloté depuis Ableton — vient ensuite.
+preset de la banque, l'horloge d'Ableton et le tap au pied donnent le tempo, et le set piloté depuis
+Ableton (le morceau, le son, la mesure) vient ensuite.
 
 **namfoop numérote les Program Change de 1 à 128**, comme le `pc` d'un morceau dans un set. Beaucoup
 d'éditeurs de pédalier (Morningstar, Fractal) comptent de 0 à 127, c'est-à-dire **un de moins** : le
@@ -2151,6 +2152,38 @@ choix du set). Le numéro du CC du son se règle, si le pédalier en envoie un a
 ```toml
 [midi]
 cc_sound = 69     # le CC qui choisira le son du morceau (défaut 34, convention Fractal)
+```
+
+### Le tempo : l'horloge d'Ableton, ou le tap au pied
+
+Les effets calés sur le tempo (delay en `1/8.`, chorus) suivent le tempo **entendu**, et l'en-tête
+de `browse` dit toujours d'où il vient : `♩ 120 (MIDI)`, `(tap)`, `(preset)` ou `(horloge perdue)`.
+
+**L'horloge d'Ableton** (Beat Clock, 24 tops par noire) donne ce tempo dès qu'elle est verrouillée,
+c'est-à-dire après une noire de tops cohérents. Ce qui se passe ensuite est fait pour la scène :
+
+- le tempo ne bouge **pas** pour moins de 0,3 BPM : sans cela, le temps du delay vibrerait en
+  permanence et son fondu recommencerait à chaque top ;
+- un vrai changement de tempo est suivi, même un grand saut (120 → 92 BPM), le temps d'une noire de
+  remesure pendant laquelle le son ne bouge pas ;
+- `Start` remet la battue sur le **temps 1**, `Continue` reprend sans la recaler, `Stop` **garde** le
+  dernier tempo ;
+- l'horloge qui **se tait** (500 ms sans top) garde son dernier tempo, et l'en-tête passe en
+  « horloge perdue » **en jaune**. Jamais de retour silencieux au tempo du preset : ce serait un
+  changement de son causé par une panne de câble.
+
+**Le tap au pied** est le **CC 14** (le tap Fractal) : il fait exactement ce que fait la touche `*`
+— deux appuis donnent le tempo, et il devient celui du preset (l'étoile « non enregistré »
+apparaît). Un **tap passe devant l'horloge** et garde la main jusqu'à un événement net (changement
+de preset, `Start` ou `Stop`) : on tape justement pour rattraper une désynchronisation du groupe.
+
+Pour une jam où l'horloge ferait plus de mal que de bien, elle se coupe seule — le tap, lui,
+continue de répondre :
+
+```toml
+[midi]
+clock = false     # ne pas écouter l'horloge ; le tap (CC 14) marche toujours
+cc_tap = 14       # le CC du tap, si le pédalier en envoie un autre
 ```
 
 ### Choisir le port : `--midi-in`, `--no-midi`
@@ -2473,6 +2506,8 @@ source = "di"
 in = "28:0"                          # port d'entrée : adresse, nom, ou "sim:CHEMIN"
 off = false                          # true : aucune écoute MIDI (comme --no-midi)
 cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
+cc_tap = 14                          # le CC du tap tempo (convention Fractal)
+clock = true                         # false : ne pas écouter l'horloge MIDI (le tap reste actif)
 ```
 
 Les options de la ligne de commande priment toujours sur ce fichier.

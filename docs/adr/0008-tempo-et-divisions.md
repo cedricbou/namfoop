@@ -165,8 +165,16 @@ Les deux, comme tout le marché : **horloge** Beat Clock (`0xF8`, 24 tops par no
 Un top isolé est inexploitable : à 120 BPM un top vaut 20,833 ms, et 21 ms donne déjà 119 BPM.
 Donc : moyenne glissante sur 24 tops, rejet des intervalles hors de ±25 %, **publication seulement
 si l'écart dépasse 0,3 BPM** (sinon le temps du delay vibrerait en permanence), perte de verrou
-après 500 ms sans top, `Start` recale le temps 1, `Stop` garde le dernier tempo. L'horloge se coupe
-par la config : une horloge bruyante en jam est un risque, pas un service.
+après 500 ms sans top, `Start` recale le temps 1, `Continue` reprend sans le recaler, `Stop` garde le
+dernier tempo. L'horloge se coupe par la config : une horloge bruyante en jam est un risque, pas un
+service.
+
+**Le rejet à ±25 % a besoin d'une porte de sortie**, sans quoi il interdit ce qu'il doit protéger :
+un vrai changement de tempo dépasse souvent 25 % (120 → 92 BPM fait 30 % d'intervalle), et tous les
+tops suivants seraient rejetés sans fin — le tempo resterait bloqué sur l'ancien jusqu'à l'arrêt de
+l'horloge. Après **8 rejets de suite** (un tiers de noire), ce n'est plus de la gigue : la fenêtre
+repart du nouvel intervalle. Pendant la remesure, le tempo publié **ne bouge pas** et l'horloge
+n'est pas déclarée perdue — il n'y a pas de panne, et le son n'a pas à sauter.
 
 ### Le métronome audible
 

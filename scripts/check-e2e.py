@@ -21,7 +21,10 @@ Ce que ce harnais sait, et qui coûte une demi-journée à redécouvrir :
 4. Un emoji occupe DEUX cellules du tampon ratatui : ne jamais coller une assertion à droite d'un
    emoji (« 🔒 SET » se lit « 🔒  SET »). `voir()` normalise les espaces pour cette raison.
 5. Dans un écran à deux colonnes, chercher une ligne attrape les DEUX colonnes mêlées.
-6. Ne pas scruter l'écran pour une valeur qui CHANGE : ratatui n'écrit que les cellules modifiées,
+6. **Dormir n'est pas attendre** : seul `lire()` vide le pseudo-terminal. Un `time.sleep()` le
+   laisse se remplir, et namfoop **se bloque** en écrivant son écran — l'écran se figerait au
+   milieu du scénario, sans erreur, et ce qu'on lui envoie ensuite semblerait perdu.
+7. Ne pas scruter l'écran pour une valeur qui CHANGE : ratatui n'écrit que les cellules modifiées,
    si bien qu'une valeur arrive en morceaux épars. Pour « ce qu'on entend », la source de vérité est
    la trace (`NAMFOOP_BROWSE_TRACE`), pas l'écran.
 """
@@ -244,7 +247,7 @@ def scenario_browse(binaire, lignes, colonnes):
 
     La vérification qui compte porte sur la **trace** : elle dit quelle chaîne est entrée dans le
     thread audio. L'écran, lui, ne sert qu'à vérifier qu'on dessine — ratatui n'écrivant que les
-    cellules modifiées, y chercher une valeur qui change retrouve l'ancienne (piège 6)."""
+    cellules modifiées, y chercher une valeur qui change retrouve l'ancienne (piège 7)."""
     taille = f"{lignes}×{colonnes}"
     with tempfile.TemporaryDirectory(prefix="namfoop-e2e-") as tmp:
         bib = bibliotheque_jetable(os.path.join(tmp, "library"))
@@ -303,7 +306,7 @@ def scenario_battue(binaire, lignes, colonnes):
     """**La bande de battue** (§ 11), de bout en bout : elle se dessine, `Espace` la lance, elle
     avance au tempo jusqu'au changement de mesure, et **rien n'entre dans le fil audio**.
 
-    Toutes les assertions portent sur du texte qui **apparaît** (piège 6 : le tampon ratatui est
+    Toutes les assertions portent sur du texte qui **apparaît** (piège 7 : le tampon ratatui est
     cumulatif, donc « a disparu » ne se vérifie pas en le scrutant) et sur le **compte** des lignes
     de trace, qui dit ce qui est entré dans le thread audio."""
     taille = f"{lignes}×{colonnes}"
@@ -378,13 +381,13 @@ def scenario_midi(binaire, lignes, colonnes):
                     fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
                     break
                 except OSError:
-                    time.sleep(0.1)
+                    ec.lire(0.1)
             verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
             if fd is None:
                 return
             os.write(fd, b"cc 34 2\nstart\nspp 64\n")
             os.write(fd, b"nawak\n")  # une ligne fausse : signalée, et elle n'arrête pas l'écoute
-            time.sleep(1.2)
+            ec.lire(1.2)
             recus = [l.split(" midi ", 1)[1] for l in ec.lignes_de_trace() if " midi " in l]
             verifier(
                 recus == ["CC 34 2", "start", "SPP 64"],
@@ -396,7 +399,7 @@ def scenario_midi(binaire, lignes, colonnes):
             # thread audio, et seule celle-là porte une réverbe.
             avant = len(ec.lignes_de_trace())
             os.write(fd, b"pc 2\n")
-            time.sleep(1.5)
+            ec.lire(1.5)
             tr = ec.lignes_de_trace()
             chaines = [l for l in tr if "wavenet.nam" in l and " midi " not in l]
             verifier(
@@ -406,15 +409,33 @@ def scenario_midi(binaire, lignes, colonnes):
             # une place qui n'existe pas ne change RIEN : aucune chaîne de plus dans la trace
             avant = len(tr)
             os.write(fd, b"pc 9\n")
-            time.sleep(1.0)
+            ec.lire(1.0)
             tr = ec.lignes_de_trace()
             nouvelles = [l for l in tr[avant:] if " midi " not in l]
             verifier(
                 not nouvelles,
                 f"{taille} : PC 9 (place absente) n'installe aucune chaîne ({nouvelles})",
             )
+            # **Le tap au pied** (CC 14) : deux appuis à 400 ms donnent 150 BPM, et la trace dit
+            # le tempo entendu avec sa source. L'horloge, elle, se vérifie en unitaire (un top
+            # vaut 20,8 ms à 120 BPM : la cadence d'un tube de texte ne la mesure pas) et sur le
+            # matériel, avec Ableton.
+            avant = len(ec.lignes_de_trace())
+            os.write(fd, b"cc 14 127\n")
+            ec.lire(0.4)  # 400 ms = 150 BPM : différent du tempo par défaut, donc visible
+            os.write(fd, b"cc 14 127\n")
+            ec.lire(0.8)
+            tempos = [l for l in ec.lignes_de_trace()[avant:] if "tempo=" in l]
+            verifier(
+                tempos and "(tap)" in tempos[-1],
+                f"{taille} : deux appuis sur le CC 14 donnent le tempo au pied ({tempos[-1:]})",
+            )
             os.close(fd)
+            # le tap a donné son tempo au preset : `q` AVERTIT (comme après n'importe quel
+            # réglage), `Q` quitte quand même
             ec.taper("q", 0.8)
+            verifier(ec.fini() is None, f"{taille} : `q` avertit, le tap ayant modifié le preset")
+            ec.taper("Q", 0.6)
             code = ec.attendre_fin(4.0)
             verifier(code == 0, f"{taille} : on quitte proprement avec un port MIDI ouvert ({code})")
         finally:

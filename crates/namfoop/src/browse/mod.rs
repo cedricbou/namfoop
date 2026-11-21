@@ -299,7 +299,7 @@ pub fn run(
     }
     // les numéros de message MIDI écoutés (ADR 0011), réglables par [midi]
     if let Some(m) = conf.config.midi.as_ref() {
-        st.midi = state::midi::MidiKeys { cc_sound: m.cc_sound };
+        st.midi = state::midi::MidiKeys { cc_sound: m.cc_sound, cc_tap: m.cc_tap, clock: m.clock };
     }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
@@ -377,7 +377,11 @@ pub fn run(
             if let Some(m) = &mut midi {
                 while let Some(msg) = m.try_pop() {
                     trace(&format!("midi {}", midi_io::describe(&msg.event)));
-                    let a = st.on_midi(msg.event);
+                    // l'instant du message, sur la ligne de temps de la boucle : c'est lui qui
+                    // mesure le tempo, pas le tour de boucle (`saturating_duration_since` parce
+                    // qu'un message peut précéder le départ de la boucle)
+                    let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
+                    let a = st.on_midi(msg.event, at_us);
                     if a != Action::None {
                         midi_pending = a;
                     }

@@ -512,16 +512,23 @@ impl State {
     /// — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de preset
     /// restaure celui du preset suivant.
     fn tap_tempo(&mut self) -> Action {
+        self.tap_tempo_at(self.now)
+    }
+
+    /// Le tap, à un instant **donné** : une frappe au clavier tombe au tour de boucle, un tap du
+    /// pédalier porte l'instant où le message est arrivé — à 30 ms près, un tap à 120 BPM se
+    /// tromperait de 7 BPM.
+    fn tap_tempo_at(&mut self, now_ms: u64) -> Action {
         // le banc d'essai n'est pas un preset : il n'a ni volume ni tempo propres, et y taper
         // ferait apparaître « non enregistré » alors qu'on écoute seulement des modèles
         if self.space == space::Space::Library {
             self.message = Some("le tap tempo est dans l'espace Chaîne (2)".into());
             return Action::None;
         }
-        self.tempo.tap(self.now * 1000);
+        self.tempo.tap(now_ms * 1000);
         // **le tap recale le tempo et le temps, pas la mesure** (§ 11 du mode Set) : on se
         // raccroche au groupe sans perdre le compte des mesures de la section.
-        let now = self.now;
+        let now = now_ms;
         if let Some(set) = self.set.as_mut() {
             set.beat.realign(now);
         }
