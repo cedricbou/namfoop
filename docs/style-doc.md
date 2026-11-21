@@ -54,7 +54,7 @@ ouverte » se garde ; « `Retour` et `x` retiraient le bloc qu'on réglait » se
 
 **7. Pas d'état d'avancement dans un document de référence** : ni « où en est-on », ni colonne
 « depuis #n », ni « prototype », ni liste « pas encore / à venir ». Ce rôle est au `CHANGELOG.md`,
-au `README.md` et aux issues `roadmap`.
+au `README.md` et aux issues `epic`.
 
 **8. Ce qui mérite un commentaire** : un invariant, un contrat, une unité ou une plage, un piège non
 évident, une règle temps réel, une contrainte extérieure (le format ChordPro, ITU-R BS.1770, un

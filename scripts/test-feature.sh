@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test HORS-LIGNE de scripts/feature.sh : rejoue les scénarios dangereux du cycle
-# (branche réutilisée, PR déjà fusionnée, fusion qui n'a pas eu lieu) sur un dépôt jetable, avec un
-# faux `gh`. Aucun accès réseau, aucune issue ni PR réelle.
+# (branche réutilisée, PR déjà fusionnée, fusion qui n'a pas eu lieu) et le contrôle du style des
+# issues (docs/style-issues.md) sur un dépôt jetable, avec un faux `gh`. Aucun accès réseau, aucune issue ni PR réelle.
 #
 #   scripts/test-feature.sh          (appelé par scripts/check.sh)
 set -euo pipefail
@@ -33,9 +33,18 @@ case "$1 ${2:-}" in
     case "$(opt jq "$@")" in
       .state) echo OPEN ;;
       .title) cat "$GH_STATE/title" ;;
-      *join*) echo enhancement ;;
+      *join*) cat "$GH_STATE/labels" ;;
+      .body) cat "$GH_STATE/body" ;;
       *) die "filtre d'issue inconnu : $(opt jq "$@")" ;;
     esac ;;
+
+  "issue create")
+    cp "$(opt body-file "$@")" "$GH_STATE/body"
+    opt title "$@" > "$GH_STATE/title"; opt label "$@" > "$GH_STATE/labels"
+    echo "https://example.invalid/issues/129" ;;
+
+  "issue comment")
+    opt body "$@" > "$GH_STATE/comment" ;;
 
   "pr list")
     want=$(opt state "$@"); head=$(opt head "$@"); jq=$(opt jq "$@")
@@ -131,6 +140,20 @@ setup() {
   : > "$TMP/state/prs"; : > "$TMP/state/calls"
   echo ok > "$TMP/state/merge_mode"
   echo "Titre de l'issue" > "$TMP/state/title"
+  echo story > "$TMP/state/labels"
+  story_body > "$TMP/state/body"
+}
+# Un corps de story conforme à docs/style-issues.md.
+story_body() { cat <<'EOT'
+**En tant que** bassiste qui règle un son, **je veux** entendre un réglage tout de suite, **afin de**
+régler à l'oreille.
+
+## Aujourd'hui
+Chaque appui coupe le son.
+
+## Terminé quand
+- [ ] Le son suit sans coupure
+EOT
 }
 commit() { echo "$1" >> fichier.txt; git add -A; git commit -qm "$1"; }
 pr_line() { echo "$1|$2|$3|titre|Closes #128|$4" >> "$TMP/state/prs"; }
@@ -196,6 +219,31 @@ scripts/feature.sh pr --quick >/dev/null
 run_ok "fusionnée, main à jour" "succès annoncé" scripts/feature.sh merge
 has "$(git -C "$TMP/origin" show main:fichier.txt)" "travail" "le travail est bien sur main"
 has "$(git branch --show-current)" "main" "on revient sur main"
+
+# 6. le style des issues : start refuse une issue technique, issue refuse de la créer
+echo "== issues : le style est contrôlé"
+setup
+printf '## Besoin\n`dsp::gain::LiveGain` rebâtit la chaîne.\n\n## Crates touchées\n`dsp`\n' > "$TMP/state/body"
+run_fail "ne suit pas docs/style-issues.md" "start refuse une issue technique" scripts/feature.sh start 128
+has "$(git branch --show-current)" "main" "aucune branche n'est ouverte"
+run_ok "branche : feat/128-" "NAMFOOP_ALLOW_ISSUE=1 passe outre" env NAMFOOP_ALLOW_ISSUE=1 scripts/feature.sh start 128
+git checkout -q main
+echo enhancement > "$TMP/state/labels"; story_body > "$TMP/state/body"
+run_fail "une étiquette parmi story, epic, chore, bug" "start refuse une issue sans type" scripts/feature.sh start 128
+echo epic > "$TMP/state/labels"
+run_fail "est une épique" "start refuse une épique" scripts/feature.sh start 128
+run_fail "issue <type>" "start \"Titre\" renvoie à la commande issue" scripts/feature.sh start "Un titre"
+story_body > "$TMP/corps.md"; echo "Crates : dsp, namfoop." > "$TMP/cadrage.md"
+run_fail "titre préfixé" "issue refuse un titre préfixé d'une crate" \
+  scripts/feature.sh issue story "dsp : chorus.rate synchronisable" "$TMP/corps.md"
+run_fail "rubrique absente" "issue refuse un corps sans les rubriques du type" \
+  scripts/feature.sh issue chore "Une CI plus sûre" "$TMP/corps.md"
+: > "$TMP/state/calls"
+run_ok "issue créée : #129 (cadrage technique en commentaire)" "issue crée la story et poste le cadrage" \
+  scripts/feature.sh issue story "Entendre un réglage au moment où je le tourne" "$TMP/corps.md" "$TMP/cadrage.md"
+has "$(cat "$TMP/state/labels")" "story" "l'étiquette est le type"
+has "$(cat "$TMP/state/comment")" "## Cadrage technique" "le cadrage est un commentaire titré"
+run_ok "issue #129 conforme" "lint accepte l'issue créée" scripts/feature.sh lint 129
 
 cd "$OLDPWD" 2>/dev/null || true
 if (( ko )); then echo "✗ $ko vérification(s) en échec" >&2; exit 1; fi

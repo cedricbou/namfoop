@@ -47,17 +47,30 @@ conseillées, profils -> `library` ; option, écran, commande -> `namfoop`.
 `scripts/feature.sh`, les hooks (`scripts/install-hooks.sh`) et la CI `pr-rules`.
 
 ```sh
-scripts/feature.sh start 12        # ou start "Titre" bug ; branche feat/12-...
+scripts/feature.sh issue story "Titre" corps.md cadrage.md   # crée l'issue, cadrage en commentaire
+scripts/feature.sh start 12        # contrôle le style de l'issue ; branche feat/12-...
 scripts/feature.sh pr              # check.sh complet, push, PR « Closes #12 » (--refs : reste ouverte)
 scripts/feature.sh merge           # attend la CI, squash merge, main à jour
 ```
+
+**Les issues s'écrivent pour le bassiste, pas pour l'agent** : [`docs/style-issues.md`](docs/style-issues.md),
+skill `ecrire-issue`. Une issue porte une étiquette de type — `epic` (une key feature), `story` (ce
+que le bassiste veut pouvoir faire), `chore` (atelier) ou `bug` — un titre et un corps **sans nom de
+crate, de fonction ni de fichier source**, et des critères « Terminé quand » qui s'observent en
+jouant. Le détail technique (crates, ADR, pistes, tests, mesures) va dans un **commentaire
+`## Cadrage technique`** : le lire avant de coder, avec les autres commentaires de l'issue.
+`feature.sh issue` et `start` refusent une issue hors style.
 
 - jamais de commit ni de push sur `main` (`NAMFOOP_ALLOW_MAIN=1` : urgence demandée par l'utilisateur) ;
 - une branche = une issue (`feat|fix|docs/<n°>-...`) ; la PR met à jour `CHANGELOG.md` si elle
   touche au code ; `Refs #n` tant que des tests matériels restent (label `test matériel`, à
   demander à l'utilisateur) ;
-- une PR de déplacement ne change aucun comportement ; une issue touche au plus deux crates ;
-- les limites découvertes deviennent des issues (label `dette technique`).
+- une PR de déplacement ne change aucun comportement ; une issue touche au plus deux crates (le
+  cadrage technique le dit) ;
+- les limites découvertes deviennent des issues du même style : une `story` si le bassiste la
+  subit, un `chore` sinon ; une story se rattache à son épique, qui gagne une case ;
+- une issue livrée dont il ne reste qu'un essai à l'oreille se ferme : l'essai devient une case de
+  l'issue de session d'essais ouverte.
 
 ## Documentation (vérifiée par `scripts/check-docs.sh`)
 
@@ -94,11 +107,14 @@ qui s'empile, le récit, l'état d'avancement, le fait devenu faux sans que son 
 - Ne jamais versionner `library/`, `nam/` ni de fichiers audio (droits Tone3000 non établis).
 - Tenir à jour le `CLAUDE.md` de la crate touchée (fichiers, règles, faits mesurés, dette).
 
-## Feuille de route (`gh issue list --label roadmap`)
+## Feuille de route (`gh issue list --label epic`)
 
 1. ✅ Base : ALSA direct et carte simulée, `setup`, `latency`.
 2. ✅ NAM + IR, calibration, niveau « match », limiteur.
 3. ✅ Effets : gate, compresseur, EQ, crossover LR4, chorus, delay, reverb.
 4. ✅ Presets TOML + banque préchargée + changement de chaîne sans glitch.
-5. MIDI : Program Change -> preset, CC -> paramètres ; entrée micro.
-6. Live / Pi 5 : service systemd, démarrage auto, cross-compilation aarch64.
+
+La suite se lit dans les **épiques**, chacune avec ses stories et son état : piloter namfoop au pied
+et depuis Ableton (MIDI), jouer un concert avec une set list, emmener namfoop sur scène avec le
+Pi 5, régler un son vite et en confiance, des chaînes parallèles plus riches, des effets calés sur
+le tempo.

@@ -39,7 +39,7 @@ Termine par un compte : lignes proposées en retrait, faits vérifiés, faits no
    - **le récit** : un paragraphe qui raconte un bug, une PR, une migration, à la première personne
      ou non. Le contrat qu'il cache se formule **comme contrat** (voir la règle 6) ;
    - **l'état d'avancement** : « où en est-on », « à venir », « prototype », « pas encore », un
-     tableau d'issues. Ce rôle est au `CHANGELOG.md`, au `README.md` et aux issues `roadmap`.
+     tableau d'issues. Ce rôle est au `CHANGELOG.md`, au `README.md` et aux issues `epic`.
 5. **Vérifier chaque fait que tu gardes.** C'est le cœur du travail, et ce qui le distingue d'une
    relecture de style :
    - un **chemin** ou un **symbole** cité : `git ls-files | grep <nom>`, `grep -rn "<symbole>" crates/` ;
