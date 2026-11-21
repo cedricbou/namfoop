@@ -135,6 +135,18 @@ boucle vide la file **à chaque tour**, hors du fil audio, et dont chaque messag
 3. un `PC` emprunte `switch_to`, **le chemin du pied sur `PgDn`** : même banque préchargée, même
    fondu, même question quand la chaîne n'est pas enregistrée. Ne pas le court-circuiter.
 
+**Avec un set**, les mêmes messages parlent du set (§ 12 de `set.md`) : `PC` = le morceau dont le
+`pc` vaut n, `CC cc_sound` = le son k+1 du morceau joué, `Start` / `Stop` / `SPP` = la battue
+(`set/beat.rs` : `beat_from_start`, `beat_stop`, `beat_seek_sixteenths`, qui passent par
+`library::bars::BarMap` — elle seule sait qu'une section change de mesure). Deux pièges :
+
+- **la fenêtre PC + CC** : un `PC` ne joue pas tout de suite, il se pose dans `State::midi_pc` et
+  c'est `tick` qui le libère (`flush_midi_pc`) une fois la fenêtre passée. Un `CC` arrivé entre
+  temps le consomme, si bien qu'Ableton — qui envoie les deux en tête de clip — ne provoque **qu'un**
+  changement de son. Ne pas jouer le morceau depuis `midi_song` : ce serait deux installations ;
+- un son hors du morceau, un `pc` qu'aucun morceau ne porte, une position au-delà du morceau :
+  **ignorés avec un message**. Fractal écrête, namfoop le dit (ADR 0011).
+
 Le **tempo** vient de là aussi (ADR 0008) : les tops d'horloge, `Start` / `Continue` / `Stop` vont à
 l'arbitre, et le CC de tap appelle `tap_tempo_at` — **la touche `*`, au message près**. Chaque
 message porte **son** instant (`on_midi(event, at_us)`), et c'est vital : la boucle ne repasse que

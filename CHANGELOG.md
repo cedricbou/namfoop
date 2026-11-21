@@ -6,6 +6,22 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#224)
+- **Ableton peut mener le concert.** Avec un set ouvert (dans `browse` comme sur l'écran de scène
+  `run --set`), un **Program Change** appelle le morceau dont le `pc` vaut ce numéro — sur son
+  premier son —, et un **CC 34** de valeur k appelle le son k+1 du morceau joué. Le numéro d'un
+  morceau est fixe : un rappel en fin de concert tombe toujours juste.
+- **Un PC suivi d'un CC ne fait qu'un seul changement de son** : Ableton envoie souvent les deux en
+  tête de clip, et deux changements s'entendraient. namfoop attend 15 ms que le CC précise le son.
+- **Le transport place la battue** : `Start` la remet sur le 1 de la mesure 1 du morceau et la
+  lance, `Stop` l'arrête, et un **Song Position Pointer** la pose à la bonne mesure — juste même
+  après un changement de mesure dans le morceau, la carte des mesures faisant la conversion.
+- **Rien ne change le son sans le dire** : un PC qu'aucun morceau ne porte, un CC au-delà des sons
+  du morceau (là où un Fractal écrêterait sur le dernier) et une position au-delà de ce que le
+  morceau déclare sont ignorés avec un message.
+- Le guide dit quoi régler dans Ableton : un clip de Program Change en tête de morceau, un CC 34 aux
+  changements de son, l'horloge et la position.
+
 ### MIDI (#313)
 - **Les effets suivent l'horloge d'Ableton.** Le Beat Clock donne le tempo entendu dès qu'il est
   verrouillé (une noire de tops cohérents) ; `Start` remet la battue sur le temps 1, `Continue`

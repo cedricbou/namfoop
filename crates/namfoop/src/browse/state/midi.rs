@@ -23,6 +23,23 @@ use super::{Action, State};
 /// **set**, qui viendra ; reçu aujourd'hui, il est ignoré — et surtout jamais pris pour autre chose.
 pub const CC_BANK_SELECT: u8 = 0;
 
+/// **La fenêtre PC + CC** (§ 12 de `docs/design/set.md`) : Ableton envoie souvent les deux en tête
+/// d'un clip, et deux changements de son pour un seul geste s'entendraient. Un Program Change
+/// attend donc ce délai qu'un CC le précise, puis joue le **son 1** du morceau.
+///
+/// 15 ms plutôt que les 10 de la spécification : un couple parti ensemble peut arriver séparé (USB,
+/// file du séquenceur), et le prix de l'attente est payé une fois par morceau. Un changement de
+/// morceau demandé par MIDI arrive donc jusqu'à 15 ms — plus un tour de boucle — après le message.
+const PC_CC_WINDOW_US: u64 = 15_000;
+
+/// Un Program Change reçu, en attente de son CC éventuel : le morceau visé et l'instant du
+/// message.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PendingPc {
+    pub song: usize,
+    pub at_us: u64,
+}
+
 /// Les **numéros de message** que namfoop écoute, réglables par `[midi]` de la config. Le défaut
 /// est celui des pédaliers Fractal (ADR 0011) : c'est ce qui évite d'avoir à configurer.
 ///
@@ -55,7 +72,7 @@ impl State {
     /// mesure de tempo fausse (ADR 0008).
     pub fn on_midi(&mut self, event: Event, at_us: u64) -> Action {
         match event {
-            Event::ProgramChange(n) => self.midi_program(n),
+            Event::ProgramChange(n) => self.midi_program(n, at_us),
             Event::Control { cc, value } => self.midi_control(cc, value, at_us),
             // L'horloge et le transport vont à l'arbitre de tempo (ADR 0008), qui tranche entre
             // le preset, le tap et l'horloge. Coupée par la config, on ne lui dit rien du tout —
@@ -66,7 +83,9 @@ impl State {
             }
             Event::ClockStart if self.midi.clock => {
                 self.tempo.clock_start();
-                self.realign_beat(at_us);
+                // avec un set, le transport qui démarre remet la battue au **1 de la mesure 1**
+                // du morceau joué (§ 12) ; sans set, il n'y a que le temps 1 du clic à recaler
+                self.beat_from_start(at_us / 1000);
                 Action::None
             }
             Event::ClockContinue if self.midi.clock => {
@@ -75,36 +94,35 @@ impl State {
             }
             Event::ClockStop if self.midi.clock => {
                 self.tempo.clock_stop();
+                self.beat_stop();
                 Action::None
             }
-            // La position dans le morceau (SPP) demande la carte des mesures : c'est le pilotage
-            // du set, la story suivante.
+            // **La position dans le morceau** : la carte des mesures la convertit, elle seule
+            // sachant qu'une section change de mesure. Hors du morceau déclaré, on le dit.
+            Event::SongPosition(sixteenths) if self.midi.clock => {
+                if self.set.as_ref().is_some_and(|s| s.at.is_some())
+                    && !self.beat_seek_sixteenths(sixteenths, at_us / 1000)
+                {
+                    self.message =
+                        Some(format!("position {sixteenths} : au-delà de ce que le morceau déclare"));
+                }
+                Action::None
+            }
             Event::SongPosition(_) => Action::None,
             Event::ClockTick | Event::ClockStart | Event::ClockContinue | Event::ClockStop => Action::None,
         }
     }
 
-    /// `Start` recale le **temps 1** : l'arbitre avance son compteur (le clic le suit), et la
-    /// battue d'un set se remet sur l'appui, comme pour un tap (§ 11 du mode Set).
-    fn realign_beat(&mut self, at_us: u64) {
-        let at_ms = at_us / 1000;
-        if let Some(set) = self.set.as_mut() {
-            set.beat.realign(at_ms);
-        }
-    }
-
     /// **PC n : la place n de la banque** (numérotée de 1 à 128, comme le `pc` d'un set).
-    fn midi_program(&mut self, n: u8) -> Action {
+    fn midi_program(&mut self, n: u8, at_us: u64) -> Action {
         if self.typing() {
             self.message = Some(format!("PC {n} ignoré : une saisie est en cours"));
             return Action::None;
         }
-        // Avec un set ouvert, un PC appelle un **morceau** et non une place de banque : c'est la
-        // story du pilotage du set. Le dire valait mieux que changer de son sans le dire.
+        // Avec un set ouvert, un PC appelle un **morceau** et non une place de banque (§ 12) :
+        // c'est le numéro `pc` du morceau, fixe, pour qu'un rappel en fin de set tombe juste.
         if self.set.is_some() {
-            self.message =
-                Some(format!("PC {n} ignoré : un set est ouvert, et son pilotage MIDI vient ensuite"));
-            return Action::None;
+            return self.midi_song(n, at_us);
         }
         let total = self.presets.len();
         if total == 0 {
@@ -118,6 +136,59 @@ impl State {
         self.switch_to(i)
     }
 
+    /// **PC n avec un set : le morceau dont le `pc` vaut n**, sur son premier son. Le morceau
+    /// n'est pas joué tout de suite : il attend [`PC_CC_WINDOW_US`] qu'un CC de son le précise.
+    fn midi_song(&mut self, n: u8, at_us: u64) -> Action {
+        let Some(set) = self.set.as_ref() else { return Action::None };
+        match set.spec.songs.iter().position(|s| s.pc == Some(n)) {
+            Some(song) => {
+                // la dernière demande gagne : deux PC coup sur coup, c'est le second qu'on veut
+                self.midi_pc = Some(PendingPc { song, at_us });
+                Action::None
+            }
+            None => {
+                self.message = Some(format!("PC {n} : aucun morceau de ce set ne porte ce numéro"));
+                Action::None
+            }
+        }
+    }
+
+    /// La fenêtre PC + CC a expiré : le morceau se joue sur son **son 1**. Appelée par
+    /// [`State::tick`], donc une fois par tour de boucle.
+    pub(super) fn flush_midi_pc(&mut self, now_ms: u64) -> Option<Action> {
+        let pc = self.midi_pc.filter(|p| now_ms * 1000 >= p.at_us + PC_CC_WINDOW_US)?;
+        self.midi_pc = None;
+        Some(self.play_set_sound((pc.song, 0)))
+    }
+
+    /// **CC de son, valeur k : le son k+1 du morceau joué** (la scene Fractal). Si un PC attend,
+    /// c'est de **son** morceau qu'il s'agit, et les deux ne font qu'un changement de son.
+    fn midi_sound(&mut self, k: u8, at_us: u64) -> Action {
+        let pending = self.midi_pc.filter(|p| at_us < p.at_us + PC_CC_WINDOW_US);
+        let Some(set) = self.set.as_ref() else { return Action::None };
+        let Some(song) = pending.map(|p| p.song).or_else(|| set.at.map(|(s, _)| s)) else {
+            self.message = Some(format!("CC {} ignoré : aucun morceau joué", self.midi.cc_sound));
+            return Action::None;
+        };
+        let sounds = set.spec.songs.get(song).map_or(0, |s| s.sounds.len());
+        let title = set.spec.songs.get(song).and_then(|s| s.title.clone()).unwrap_or_default();
+        if (k as usize) >= sounds {
+            // Fractal écrête (une valeur au-delà choisit la dernière scene) ; namfoop le dit, parce
+            // qu'en concert jouer silencieusement un autre son est pire qu'un message (ADR 0011).
+            self.message = Some(match sounds {
+                0 => format!("CC {} = {k} : ce morceau n'a aucun son", self.midi.cc_sound),
+                n => format!(
+                    "CC {} = {k} : « {title} » n'a que {n} son{}",
+                    self.midi.cc_sound,
+                    if n > 1 { "s" } else { "" }
+                ),
+            });
+            return Action::None;
+        }
+        self.midi_pc = None;
+        self.play_set_sound((song, k as usize))
+    }
+
     /// Les CC que namfoop connaît. Les autres ne disent rien ici et sont ignorés sans bruit : un
     /// pédalier en envoie à chaque pression, et noyer la ligne d'état les rendrait inutiles tous.
     fn midi_control(&mut self, cc: u8, value: u8, at_us: u64) -> Action {
@@ -129,10 +200,11 @@ impl State {
             self.message =
                 Some(format!("Bank Select (CC 0 = {value}) ignoré : le choix du set par MIDI viendra"));
         } else if cc == self.midi.cc_sound {
-            self.message = Some(match self.set.is_some() {
-                true => format!("CC {cc} ignoré : le pilotage du set par MIDI vient ensuite"),
-                false => format!("CC {cc} ({value}) ignoré : il n'y a pas de son de morceau sans set"),
-            });
+            if self.set.is_some() {
+                return self.midi_sound(value, at_us);
+            }
+            self.message =
+                Some(format!("CC {cc} ({value}) ignoré : il n'y a pas de son de morceau sans set"));
         }
         Action::None
     }
@@ -376,11 +448,179 @@ mod tests {
         assert_eq!(s.message, None, "64 ne veut plus rien dire : ignoré sans bruit");
     }
 
-    /// La position dans le morceau (SPP) ne demande rien encore : il lui faut la carte des mesures.
-    #[test]
-    fn the_song_position_asks_for_nothing_yet() {
+    /// Le morceau des tests du set : 2 mesures de 4/4 liées à `clean`, 1 de 4/4 liée à `fuzz`,
+    /// puis 1 de **7/8** — de quoi vérifier qu'une position tombe juste après un changement de
+    /// mesure. En doubles-croches : 32 pour la 1re section, 16 pour la 2e, 14 pour la 3e.
+    const CHO: &str = "{title: Le Phare}\n{tempo: 120}\n{time: 4/4}\n\
+        {start_of_verse: Couplet}\n{x_namfoop_sound: clean}\n{x_namfoop_bars: 2}\na\nb\n{end_of_verse}\n\
+        {start_of_chorus: Refrain}\n{x_namfoop_sound: fuzz}\n{x_namfoop_bars: 1}\nc\n{end_of_chorus}\n\
+        {time: 7/8}\n{x_namfoop_beats: 2+2+3}\n\
+        {start_of_bridge: Pont}\n{x_namfoop_sound: clean}\n{x_namfoop_bars: 1}\nd\n{end_of_bridge}\n";
+
+    /// Un set de concert ouvert, son premier son joué : « Le Phare » (PC 2, deux sons, un
+    /// prompteur) et « Marée basse » (PC 4, deux sons).
+    fn scene() -> State {
+        use crate::browse::state::set::prompt::Loaded;
+        use crate::browse::state::set::ActiveSet;
+        use library::prompt::Prompt;
+        use library::set::{SetSpec, Song, Sound};
+        use std::path::PathBuf;
+
         let mut s = bank();
-        assert_eq!(s.on_midi(Event::SongPosition(64), 0), Action::None);
-        assert_eq!(s.message, None);
+        let sound = |p: &str| Sound { preset: p.into(), volume_db: 0.0 };
+        let spec = SetSpec {
+            name: "Concert".into(),
+            base: PathBuf::from("/x/sets"),
+            songs: vec![
+                Song {
+                    title: Some("Le Phare".into()),
+                    pc: Some(2),
+                    tempo_bpm: Some(120.0),
+                    prompt: Some(PathBuf::from("prompts/le-phare.cho")),
+                    sounds: vec![sound("Chill verse"), sound("Punk chorus")],
+                    ..Default::default()
+                },
+                Song {
+                    title: Some("Marée basse".into()),
+                    pc: Some(4),
+                    sounds: vec![sound("Punk chorus"), sound("Chill verse")],
+                    ..Default::default()
+                },
+            ],
+        };
+        let names: Vec<String> = s.presets.iter().map(|p| p.name.clone()).collect();
+        let find = |q: &str| names.iter().position(|n| n == q);
+        s.set = Some(ActiveSet::new("s".into(), "concert".into(), spec, &find));
+        s.adopt_prompts(vec![(
+            PathBuf::from("/x/sets/prompts/le-phare.cho"),
+            Loaded::Ok(Prompt::parse(CHO)),
+        )]);
+        s.on_key(Key::Char('3'));
+        s.play_set_sound((0, 0));
+        s.mark_start();
+        s.message = None;
+        s
+    }
+
+    fn at(s: &State) -> Option<(usize, usize)> {
+        s.set.as_ref().and_then(|x| x.at)
+    }
+
+    /// **PC n appelle le morceau dont le `pc` vaut n**, sur son premier son — et il attend la
+    /// fenêtre du CC avant de jouer, pour ne faire qu'un seul changement.
+    #[test]
+    fn a_program_change_calls_the_song_with_that_pc() {
+        let mut s = scene();
+        assert_eq!(s.on_midi(Event::ProgramChange(4), 0), Action::None, "rien tout de suite");
+        assert_eq!(at(&s), Some((0, 0)), "le son joué n'a pas encore bougé");
+        // dans la fenêtre, le tour de boucle ne décide rien
+        assert_eq!(s.tick(1), Action::None);
+        assert_eq!(at(&s), Some((0, 0)));
+        // la fenêtre passée, le morceau se joue sur son son 1
+        assert!(matches!(s.tick(100), Action::Play { .. }));
+        assert_eq!(at(&s), Some((1, 0)));
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("Marée basse")), "{:?}", s.message);
+        // et une seule fois : la demande est consommée
+        assert_eq!(s.tick(200), Action::None);
+    }
+
+    /// **Un PC suivi d'un CC ne fait qu'un seul changement de son** (§ 12) : Ableton envoie
+    /// souvent les deux en tête de clip, et deux changements s'entendraient.
+    #[test]
+    fn a_program_change_followed_by_a_cc_makes_one_single_change() {
+        let mut s = scene();
+        assert_eq!(s.on_midi(Event::ProgramChange(4), 0), Action::None);
+        // le CC arrive 2 ms après : un seul changement, directement sur le bon son
+        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 2_000), Action::Play { .. }));
+        assert_eq!(at(&s), Some((1, 1)), "le son 2 du morceau appelé");
+        assert_eq!(s.tick(100), Action::None, "le PC ne joue pas une seconde fois");
+        assert_eq!(at(&s), Some((1, 1)));
+    }
+
+    /// Un CC **hors** de la fenêtre parle du morceau joué, pas de celui du PC précédent.
+    #[test]
+    fn a_late_cc_speaks_of_the_song_being_played() {
+        let mut s = scene();
+        s.on_midi(Event::ProgramChange(4), 0);
+        assert!(matches!(s.tick(100), Action::Play { .. }));
+        assert_eq!(at(&s), Some((1, 0)));
+        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 200_000), Action::Play { .. }));
+        assert_eq!(at(&s), Some((1, 1)));
+    }
+
+    /// **Un PC qu'aucun morceau ne porte est ignoré, et le dit** : jamais un autre morceau à la
+    /// place (ADR 0011).
+    #[test]
+    fn a_pc_no_song_carries_is_ignored_and_said() {
+        let mut s = scene();
+        assert_eq!(s.on_midi(Event::ProgramChange(3), 0), Action::None);
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("PC 3")), "{:?}", s.message);
+        assert_eq!(s.tick(100), Action::None, "et rien ne se joue ensuite");
+        assert_eq!(at(&s), Some((0, 0)));
+    }
+
+    /// **CC de valeur k : le son k+1 du morceau joué.** Une valeur au-delà est ignorée et le dit
+    /// — Fractal écrête, namfoop préfère le dire que de jouer un autre son.
+    #[test]
+    fn a_cc_calls_the_sound_of_the_song_played() {
+        let mut s = scene();
+        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 0), Action::Play { .. }));
+        assert_eq!(at(&s), Some((0, 1)));
+
+        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 5 }, 1000), Action::None);
+        let m = s.message.clone().unwrap_or_default();
+        assert!(m.contains("Le Phare") && m.contains("2 sons"), "{m}");
+        assert_eq!(at(&s), Some((0, 1)), "le son joué n'a pas changé");
+    }
+
+    /// `Start` remet la battue sur le **1 de la mesure 1** et la lance ; `Stop` l'arrête.
+    #[test]
+    fn start_puts_the_beat_on_bar_one_and_stop_stops_it() {
+        let mut s = scene();
+        // on part d'ailleurs dans le morceau
+        s.on_midi(Event::SongPosition(36), 0);
+        assert_ne!(s.set.as_ref().map(|x| x.prompt_section), Some(0));
+
+        s.on_midi(Event::ClockStart, 1000);
+        let set = s.set.as_ref().expect("set");
+        assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (0, 0, 0));
+        assert!(set.beat.running, "le transport qui démarre lance la battue");
+
+        s.on_midi(Event::ClockStop, 2000);
+        assert!(!s.set.as_ref().expect("set").beat.running, "Stop arrête la battue");
+    }
+
+    /// **Un saut de position (SPP) tombe juste**, y compris après un changement de mesure : la
+    /// carte des mesures convertit les doubles-croches.
+    #[test]
+    fn a_song_position_lands_in_the_right_bar() {
+        let mut s = scene();
+        // 40 doubles-croches : 32 pour la 1re section (2 mesures de 4/4), puis 8 dans la 2e,
+        // soit sa mesure 1 sur le 3e temps
+        s.on_midi(Event::SongPosition(40), 0);
+        let set = s.set.as_ref().expect("set");
+        assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (1, 0, 2));
+
+        // 48 : juste au début de la section en 7/8
+        s.on_midi(Event::SongPosition(48), 1000);
+        let set = s.set.as_ref().expect("set");
+        assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (2, 0, 0));
+
+        // au-delà de ce que le morceau déclare : on le dit, et la battue ne bouge pas
+        s.on_midi(Event::SongPosition(500), 2000);
+        assert!(s.message.as_deref().is_some_and(|m| m.contains("au-delà")), "{:?}", s.message);
+        let set = s.set.as_ref().expect("set");
+        assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (2, 0, 0));
+    }
+
+    /// **Sur scène verrouillée** (`run --set`), le MIDI répond comme ailleurs : c'est le clavier
+    /// qui est verrouillé, pas le pédalier.
+    #[test]
+    fn the_locked_stage_answers_midi_too() {
+        let mut s = scene();
+        s.locked = true;
+        s.on_midi(Event::ProgramChange(4), 0);
+        assert!(matches!(s.tick(100), Action::Play { .. }));
+        assert_eq!(at(&s), Some((1, 0)));
     }
 }

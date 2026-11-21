@@ -187,18 +187,21 @@ def set_de_concert(dossier):
     sets = os.path.join(dossier, "sets/prompts")
     os.makedirs(presets, exist_ok=True)
     os.makedirs(sets, exist_ok=True)
-    for nom in ("clean", "fuzz"):
+    # `fuzz` porte une réverbe : c'est ce qui le distingue de `clean` dans la trace, deux presets
+    # identiques y donnant la même ligne (et la même place de banque)
+    for nom, extra in (("clean", ""), ("fuzz", '[[block]]\nkind = "fx"\n[block.fx]\ntype = "reverb"\n')):
         with open(os.path.join(presets, f"{nom}.preset.toml"), "w", encoding="utf-8") as f:
             f.write(
                 f'name = "{nom}"\n'
                 '[[block]]\nkind = "nam"\nfile = "nam/wavenet.nam"\n'
-                '[[block]]\nkind = "ir"\nfile = "ir/essai/essai.wav"\n'
+                '[[block]]\nkind = "ir"\nfile = "ir/essai/essai.wav"\n' + extra
             )
     with open(os.path.join(dossier, "sets/concert.set.toml"), "w", encoding="utf-8") as f:
         f.write(
             'name = "Concert e2e"\n\n'
             "[[song]]\n"
             'title = "Le Phare"\n'
+            "pc = 1\n"
             "tempo_bpm = 120\n"
             'prompt = "prompts/le-phare.cho"\n'
             '  [[song.sound]]\n  preset = "clean"\n'
@@ -442,6 +445,103 @@ def scenario_midi(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi_set(binaire, lignes, colonnes):
+    """**Le set piloté depuis Ableton**, sur l'écran de scène verrouillé (`run --set`) : un Program
+    Change appelle le morceau, un CC son son, et le transport place la battue.
+
+    Le port simulé tient le rôle d'Ableton. La vérification porte sur la **trace** (quelle chaîne
+    est entrée dans le fil audio, et à quelle place de banque) et sur ce qui **apparaît** à
+    l'écran."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-set-") as tmp:
+        bib = set_de_concert(bibliotheque_jetable(os.path.join(tmp, "library")))
+        trace = os.path.join(tmp, "trace.log")
+        tube = os.path.join(tmp, "ableton")
+        os.mkfifo(tube)
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "--midi-in", f"sim:{tube}",
+             "run", "--set", "concert", "--library", bib, "--master-db", "-120"],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(3.0)
+            verifier("🔒" in ec.voir(), f"{taille} : la scène verrouillée est ouverte")
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+
+            # CC 34 = 1 : le son 2 du morceau (« fuzz », le seul qui porte une réverbe)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            avant = len(chaines)
+            os.write(fd, b"cc 34 1\n")
+            ec.lire(1.5)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            verifier(
+                len(chaines) > avant and "reverb" in chaines[-1],
+                f"{taille} : CC 34 = 1 joue le son 2 du morceau ({chaines[-1:]})",
+            )
+
+            # PC 1 : le morceau, sur son **son 1** — donc de retour sur « clean », sans réverbe
+            avant = len(chaines)
+            os.write(fd, b"pc 1\n")
+            ec.lire(1.5)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            verifier(
+                len(chaines) > avant and "reverb" not in chaines[-1],
+                f"{taille} : PC 1 joue le morceau sur son premier son ({chaines[-1:]})",
+            )
+
+            # un PC suivi d'un CC dans la fenêtre : UN SEUL changement de son
+            avant = len(chaines)
+            os.write(fd, b"pc 1\ncc 34 1\n")
+            ec.lire(1.5)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            verifier(
+                len(chaines) == avant + 1 and "reverb" in chaines[-1],
+                f"{taille} : PC + CC ne font qu'un changement ({len(chaines) - avant} chaîne(s))",
+            )
+
+            # le transport, battue à l'arrêt : un SPP place la position sans la faire avancer
+            os.write(fd, b"spp 16\n")
+            ec.lire(0.8)
+            verifier("mes. 2/2" in ec.voir(), f"{taille} : un SPP place la battue à la bonne mesure")
+            # `start` la ramène au 1 de la mesure 1, et la lance
+            os.write(fd, b"start\n")
+            ec.lire(0.8)
+            vu = ec.voir()
+            verifier("⏵" in vu, f"{taille} : `start` lance la battue")
+            verifier("mes. 1/2" in vu, f"{taille} : `start` la remet sur le 1 de la mesure 1")
+            os.write(fd, b"stop\n")
+            ec.lire(0.8)
+            verifier("⏸" in ec.voir(), f"{taille} : `stop` arrête la battue")
+
+            # une valeur hors du morceau est ignorée **en le disant**, et ne change pas le son
+            avant = len(chaines)
+            os.write(fd, b"cc 34 9\n")
+            ec.lire(1.0)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            verifier(
+                len(chaines) == avant,
+                f"{taille} : un CC au-delà des sons du morceau ne change rien",
+            )
+            os.close(fd)
+            # sur scène, quitter demande confirmation : `q` puis `Q`
+            ec.taper("q", 0.8)
+            ec.taper("Q", 0.6)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : la scène se quitte proprement ({code})")
+        finally:
+            ec.tuer()
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -456,8 +556,9 @@ def main():
     for lignes, colonnes in ((25, 80), (50, 160)):
         scenario_browse(binaire, lignes, colonnes)
         scenario_battue(binaire, lignes, colonnes)
-    # une seule taille : l'entrée MIDI ne dessine rien, la taille d'écran n'y change rien
+    # une seule taille : le MIDI ne dessine presque rien, la taille d'écran n'y change rien
     scenario_midi(binaire, 25, 80)
+    scenario_midi_set(binaire, 25, 80)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")
