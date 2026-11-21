@@ -1,0 +1,13 @@
+[package]
+name = "midi-io"
+description = "Entrée MIDI de namfoop (port ALSA sequencer, port simulé), sans CLI ni config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+alsa.workspace = true
+log.workspace = true
+rtrb.workspace = true
+libc.workspace = true
+thiserror = "2"

@@ -26,6 +26,7 @@ Commands:
   sets       Liste les sets de concert (identifiant, nom, morceaux et sons, avertissements)
   calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
   browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
+  midi       Liste les ports MIDI d'entrée, puis affiche en clair ce qui en arrive (pédalier, Ableton)
   setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
   latency    Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
   help       Print this message or the help of the given subcommand(s)
@@ -55,6 +56,12 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -145,19 +152,22 @@ Options:
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
 
       --no-limiter
           Désactive le limiteur de sortie
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
           
           [default: 1]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --ir-ms <IR_MS>
           Longueur max de l'IR (ms)
@@ -168,6 +178,9 @@ Options:
           Volume final (dB)
           
           [default: 0]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --tempo <BPM>
           Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
@@ -290,19 +303,22 @@ Options:
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
 
       --no-limiter
           Désactive le limiteur de sortie
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
           
           [default: 1]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --ir-ms <IR_MS>
           Longueur max de l'IR (ms)
@@ -313,6 +329,9 @@ Options:
           Volume final (dB)
           
           [default: 0]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --tempo <BPM>
           Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
@@ -417,6 +436,12 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -480,6 +505,12 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -556,13 +587,19 @@ Options:
       --reset
           Efface toutes les corrections de ce(s) modèle(s)
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --library <LIBRARY>
           Dossier de la bibliothèque
           
           [default: library]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
@@ -607,6 +644,12 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -657,6 +700,12 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -706,6 +755,12 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -754,6 +809,12 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -813,6 +874,12 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -882,11 +949,72 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
 
       --route <N=SOURCE>
           Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop midi
+
+```text
+Liste les ports MIDI d'entrée, puis affiche en clair ce qui en arrive (pédalier, Ableton)
+
+Usage: namfoop midi [OPTIONS]
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon alsa]
+
+          Possible values:
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --list
+          Liste les ports et s'arrête, sans écouter
+
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+
+      --seconds <SECONDS>
+          Arrêt automatique après N secondes (tests) [défaut : Ctrl+C]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
@@ -932,6 +1060,12 @@ Options:
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -1003,13 +1137,19 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --library <LIBRARY>
           Dossier de la bibliothèque, où -m et -i sont cherchés
           
           [default: library]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)

@@ -43,6 +43,7 @@ pub fn run(
     conf: &LoadedConfig,
     amp: &AmpArgs,
     routing: &Routing,
+    midi: Option<midi_io::Input>,
     s: Session,
 ) -> Result<()> {
     let Session { seconds, quiet, trails, click } = s;
@@ -107,9 +108,18 @@ pub fn run(
     if let Some(m) = mark {
         log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
     }
+    let mut midi = midi;
     loop {
         if rx.recv_timeout(Duration::from_millis(500)).is_ok() {
             break;
+        }
+        // L'entrée MIDI est vidée ici, hors du fil audio : `run` ne fait encore rien des messages
+        // (c'est l'objet des stories du pilotage MIDI), mais une file qu'on ne vide pas finirait
+        // par perdre ce qu'elle contient sans que personne le sache.
+        if let Some(m) = &mut midi {
+            while let Some(msg) = m.try_pop() {
+                log::debug!("MIDI : {}", midi_io::describe(&msg.event));
+            }
         }
         if seconds.is_some_and(|s| start.elapsed().as_secs_f64() >= s) {
             break;
@@ -162,6 +172,9 @@ pub fn run(
         h.over100,
         h.callbacks
     );
+    if let Some(perdus) = midi.as_ref().map(midi_io::Input::dropped).filter(|n| *n > 0) {
+        log::warn!("{perdus} message(s) MIDI perdus : la file était pleine");
+    }
     log::info!("arrêt : charge DSP max {:.1} %, {xruns} xrun(s)", max_load * 100.0);
     Ok(())
 }

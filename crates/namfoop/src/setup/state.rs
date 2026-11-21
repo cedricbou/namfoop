@@ -12,12 +12,13 @@ pub enum Step {
     Inputs,
     Outputs,
     Buffer,
+    Midi,
     Summary,
 }
 
 impl Step {
-    pub const ALL: [Step; 6] =
-        [Step::Backend, Step::Card, Step::Inputs, Step::Outputs, Step::Buffer, Step::Summary];
+    pub const ALL: [Step; 7] =
+        [Step::Backend, Step::Card, Step::Inputs, Step::Outputs, Step::Buffer, Step::Midi, Step::Summary];
     pub fn index(self) -> usize {
         Self::ALL.iter().position(|s| *s == self).unwrap()
     }
@@ -28,6 +29,7 @@ impl Step {
             Step::Inputs => "entrées",
             Step::Outputs => "sorties",
             Step::Buffer => "buffer",
+            Step::Midi => "pédalier MIDI",
             Step::Summary => "résumé",
         }
     }
@@ -50,6 +52,27 @@ impl DeviceInfo {
     pub fn usable(&self) -> bool {
         self.n_in != Some(0) && self.n_out != Some(0)
     }
+}
+
+/// Un port MIDI d'entrée, tel que l'assistant le montre. `state.rs` reste **pur** : c'est `mod.rs`
+/// qui demande la liste à `midi-io` et la passe ici, comme pour les cartes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MidiPortInfo {
+    /// Valeur pour `--midi-in` / `[midi] in` : l'adresse du séquenceur (ex. « 28:0 »).
+    pub id: String,
+    pub label: String,
+}
+
+/// Ce que l'assistant retient du MIDI.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum MidiChoice {
+    /// L'étape n'a rien tranché : la config garde ce qu'elle avait.
+    #[default]
+    Unchanged,
+    /// Ce port-là, par son adresse.
+    Port(String),
+    /// Pas de MIDI du tout.
+    Off,
 }
 
 /// Rôle d'une sortie dans l'assistant (plus parlant que la source brute).
@@ -104,6 +127,8 @@ pub enum Action {
     None,
     /// Lister les cartes de ce backend (puis `set_devices`).
     LoadDevices(Kind),
+    /// Lister les ports MIDI d'entrée (puis `set_midi_ports`).
+    LoadMidiPorts,
     /// Ouvrir la carte choisie pour les vumètres (puis `set_channels` ou `device_failed`).
     OpenDevice,
     /// Bip de test sur cette sortie (index à partir de 0).
@@ -151,6 +176,9 @@ pub struct State {
     pub buffers: Vec<BufferCandidate>,
     pub buf_cursor: usize,
     pub periods: u32,
+    pub midi_ports: Vec<MidiPortInfo>,
+    pub midi_cursor: usize,
+    pub midi: MidiChoice,
     pub message: Option<String>,
     pub finished: bool,
 }
@@ -174,6 +202,9 @@ impl State {
             buffers: Vec::new(),
             buf_cursor: 0,
             periods: 3,
+            midi_ports: Vec::new(),
+            midi_cursor: 0,
+            midi: MidiChoice::default(),
             message: None,
             finished: false,
         }
@@ -194,6 +225,36 @@ impl State {
             .or_else(|| devices.iter().position(DeviceInfo::usable))
             .unwrap_or(0);
         self.devices = devices;
+    }
+
+    /// Les ports MIDI vus par la machine ; `preferred` est celui de la config, qu'on présélectionne.
+    pub fn set_midi_ports(&mut self, ports: Vec<MidiPortInfo>, preferred: Option<&str>) {
+        let bas = preferred.map(str::to_lowercase);
+        self.midi_cursor = bas
+            .as_deref()
+            .and_then(|p| ports.iter().position(|x| x.id == p || x.label.to_lowercase().contains(p)))
+            .unwrap_or(0);
+        self.midi_ports = ports;
+    }
+
+    /// Le port MIDI sous le curseur.
+    pub fn midi_port(&self) -> Option<&MidiPortInfo> {
+        self.midi_ports.get(self.midi_cursor)
+    }
+
+    /// Ce que le résumé affiche pour le MIDI.
+    pub fn midi_label(&self, base: &Config) -> String {
+        match &self.midi {
+            MidiChoice::Off => "aucun (MIDI coupé)".into(),
+            MidiChoice::Port(id) => {
+                self.midi_ports.iter().find(|p| p.id == *id).map_or_else(|| id.clone(), |p| p.label.clone())
+            }
+            MidiChoice::Unchanged => match base.midi.as_ref() {
+                Some(m) if m.off => "aucun (MIDI coupé)".into(),
+                Some(m) => m.input.clone().unwrap_or_else(|| "le premier port branché".into()),
+                None => "le premier port branché".into(),
+            },
+        }
     }
 
     /// Carte ouverte : on connaît ses canaux. Rôles par défaut : sortie 1 sondier, 2 in-ear.
@@ -260,6 +321,7 @@ impl State {
         match step {
             Step::Card => Action::LoadDevices(self.kind()),
             Step::Inputs => Action::OpenDevice,
+            Step::Midi => Action::LoadMidiPorts,
             Step::Buffer => {
                 self.buffers = candidates(self.kind())
                     .into_iter()
@@ -295,8 +357,12 @@ impl State {
                 self.step = Step::Outputs;
                 Action::OpenDevice
             }
-            Step::Summary => {
+            Step::Midi => {
                 self.step = Step::Buffer;
+                Action::None
+            }
+            Step::Summary => {
+                self.step = Step::Midi;
                 Action::None
             }
         }
@@ -391,13 +457,30 @@ impl State {
                     Key::Up => up(&mut self.buf_cursor),
                     Key::Down => down(&mut self.buf_cursor, self.buffers.len()),
                     Key::Char('r') => return self.go(Step::Buffer),
-                    Key::Enter | Key::Right | Key::Tab => {
-                        self.message = None;
-                        self.step = Step::Summary;
-                    }
+                    Key::Enter | Key::Right | Key::Tab => return self.go(Step::Midi),
                     _ => {}
                 }
             }
+            Step::Midi => match key {
+                Key::Up => up(&mut self.midi_cursor),
+                Key::Down => down(&mut self.midi_cursor, self.midi_ports.len()),
+                Key::Char('r') => return self.go(Step::Midi),
+                Key::Char('x') => {
+                    self.midi = MidiChoice::Off;
+                    self.message = Some("pas de MIDI".into());
+                }
+                Key::Enter | Key::Right | Key::Tab => {
+                    // Aucun port en vue : on n'écrit rien plutôt que de figer « pas de MIDI ».
+                    // Le pédalier sera peut-être branché le soir du concert, et le défaut (le
+                    // premier port venu) le trouvera.
+                    if let Some(p) = self.midi_port() {
+                        self.midi = MidiChoice::Port(p.id.clone());
+                    }
+                    self.message = None;
+                    self.step = Step::Summary;
+                }
+                _ => {}
+            },
             Step::Summary => {
                 if matches!(key, Key::Enter | Key::Char('s')) {
                     self.finished = true;
@@ -459,6 +542,11 @@ impl State {
                 })
                 .collect(),
         };
+        match &self.midi {
+            MidiChoice::Unchanged => {}
+            MidiChoice::Off => c.midi = Some(model::Midi { input: None, off: true }),
+            MidiChoice::Port(id) => c.midi = Some(model::Midi { input: Some(id.clone()), off: false }),
+        }
         c
     }
 }
@@ -515,7 +603,18 @@ mod tests {
         s.buffer_result(2, BufferTest::Done { xruns: 0, latency_ms: 1.3 });
         s.buffer_result(3, BufferTest::Done { xruns: 0, latency_ms: 2.7 });
         assert_eq!(s.chosen_buffer(), Some(48), "plus petite taille sans xrun");
+        assert_eq!(s.on_key(Key::Enter), Action::LoadMidiPorts);
+        assert_eq!(s.step, Step::Midi);
+        s.set_midi_ports(
+            vec![
+                MidiPortInfo { id: "14:0".into(), label: "14:0  Midi Through Port-0".into() },
+                MidiPortInfo { id: "28:0".into(), label: "28:0  MC6 MKII MIDI 1".into() },
+            ],
+            Some("MC6"),
+        );
+        assert_eq!(s.midi_cursor, 1, "le port de la config est présélectionné");
         s.on_key(Key::Enter);
+        assert_eq!(s.midi, MidiChoice::Port("28:0".into()));
         assert_eq!(s.step, Step::Summary);
         assert_eq!(s.on_key(Key::Enter), Action::Save);
 
@@ -532,6 +631,39 @@ mod tests {
                 OutputRoute { channel: 2, source: Source::Di, click: false }
             ]
         );
+        assert_eq!(c.midi, Some(model::Midi { input: Some("28:0".into()), off: false }));
+    }
+
+    /// Sans port MIDI en vue, l'assistant **n'écrit rien** : le défaut (le premier port branché)
+    /// vaut mieux qu'un « pas de MIDI » figé le jour où l'on oublie le pédalier sur la table.
+    #[test]
+    fn no_midi_port_writes_nothing_but_x_does() {
+        let mut s = State::new(None);
+        s.step = Step::Midi;
+        s.set_midi_ports(Vec::new(), None);
+        s.on_key(Key::Enter);
+        assert_eq!(s.midi, MidiChoice::Unchanged);
+        assert_eq!(s.step, Step::Summary);
+        let base = Config::default();
+        assert_eq!(s.to_config(&base, 48000).midi, None, "rien n'est écrit");
+        assert_eq!(s.midi_label(&base), "le premier port branché");
+
+        s.step = Step::Midi;
+        s.on_key(Key::Char('x'));
+        assert_eq!(s.midi, MidiChoice::Off);
+        assert_eq!(s.to_config(&base, 48000).midi, Some(model::Midi { input: None, off: true }));
+        assert_eq!(s.midi_label(&base), "aucun (MIDI coupé)");
+    }
+
+    /// Le retour passe par l'étape MIDI, sans sauter par-dessus.
+    #[test]
+    fn the_summary_goes_back_to_the_midi_step() {
+        let mut s = State::new(None);
+        s.step = Step::Summary;
+        s.on_key(Key::Left);
+        assert_eq!(s.step, Step::Midi);
+        s.on_key(Key::Left);
+        assert_eq!(s.step, Step::Buffer);
     }
 
     #[test]

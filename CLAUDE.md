@@ -12,6 +12,7 @@ crates/nam-sys/   FFI C++ NeuralAmpModelerCore            interdit : tout sauf t
 crates/dsp/       étages mono, chaîne, swap, analyses     interdit : carte son, clap, ratatui, model
                   RÈGLES TEMPS RÉEL (non négociables) et rendus de référence : crates/dsp/CLAUDE.md
 crates/audio-io/  ALSA, carte simulée, priorité RT         interdit : clap, config, dsp, engine
+crates/midi-io/   entrée MIDI : port ALSA seq, port simulé  interdit : tout sauf alsa, rtrb, log, libc
 crates/model/     types sérialisables (config, routage)   interdit : toute crate du projet, logique
 crates/engine/    session audio : seule à ouvrir la carte  interdit : clap, ratatui, alsa direct
 crates/library/   bibliothèque, import, profils            interdit : audio-io, engine, clap, ratatui
@@ -26,8 +27,9 @@ library/, nam/    sons et zips de l'utilisateur : non versionnés, ne pas modifi
 ```
 
 Où aller pour quoi : son / étage / chaîne -> `dsp` ; carte, format, latence -> `audio-io` ;
-routage, vumètres, changement de chaîne en live -> `engine` ; config -> `model` ; import, IR
-conseillées, profils -> `library` ; option, écran, commande -> `namfoop`.
+pédalier, horloge d'Ableton -> `midi-io` ; routage, vumètres, changement de chaîne en live ->
+`engine` ; config -> `model` ; import, IR conseillées, profils -> `library` ; option, écran,
+commande -> `namfoop`.
 
 ## Commandes
 

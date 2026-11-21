@@ -123,6 +123,12 @@ bâtie pendant que l'utilisateur a déjà rappuyé est **jetée** plutôt qu'ins
 preset d'il y a un ou deux appuis. Le préchauffage (`bank.prewarm`, 26 à 54 ms) précède donc cette
 vérification, et l'installation passe par `bank.install_warm`.
 
+**L'entrée MIDI** arrive par `Start::midi` : un `midi_io::Input` déjà ouvert par le binaire, dont la
+boucle vide la file **à chaque tour**, hors du fil audio. Ce que namfoop fait des messages est
+l'objet des stories du pilotage MIDI ; la boucle les **trace** (`midi PC 3`), et le port écouté est
+nommé dans la ligne d'état — c'est ce qui rend « mon pédalier parle-t-il ? » vérifiable de bout en
+bout par `scripts/check-e2e.py`, qui lui écrit dans un tube.
+
 **Les paramètres vivants** (ADR 0007, ADR 0008) ne passent pas par là : la boucle tient les cases
 `dsp::param::Control` du volume, du tempo et du clic, et les écrit d'après `st.plan()` **juste
 après** le `match action` — pour qu'une chaîne installée par ce tour-ci les lise dès son premier

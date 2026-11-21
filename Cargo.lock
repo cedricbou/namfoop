@@ -1003,6 +1003,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "midi-io"
+version = "0.6.0"
+dependencies = [
+ "alsa",
+ "libc",
+ "log",
+ "rtrb",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1052,6 +1063,7 @@ dependencies = [
  "libc",
  "library",
  "log",
+ "midi-io",
  "model",
  "nam-sys",
  "ratatui",

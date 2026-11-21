@@ -6,6 +6,25 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#312)
+- **namfoop écoute le MIDI.** Un pédalier branché en USB ou une application comme Ableton sont lus
+  dès le démarrage : sans rien préciser, c'est le **premier port d'entrée** de la machine, et
+  namfoop dit lequel. `--midi-in <port>` en désigne un autre par son adresse de séquenceur (`28:0`)
+  ou par un morceau de son nom (`MC6`), `--no-midi` coupe l'écoute, et `namfoop setup` gagne une
+  étape « pédalier MIDI » qui enregistre le port choisi dans `[midi] in`.
+- **`namfoop midi`** liste les ports puis affiche en clair ce qui arrive (`PC 3`, `CC 34 2`,
+  `horloge 120.0 BPM`), sans ouvrir la carte son : c'est la commande qui répond à « est-ce que mon
+  pédalier parle ? » avant un concert. Les tops d'horloge se résument à une ligne par noire.
+- **Un pédalier débranché n'empêche jamais de démarrer** : port absent, nom introuvable ou
+  séquenceur indisponible donnent un message, et tout le reste marche.
+- **Sans matériel**, un port `sim:CHEMIN` lit des lignes de texte dans un fichier ou un tube nommé
+  (`pc 3`, `cc 34 2`, `clock`, `start`, `spp 64`) : de quoi essayer le MIDI sans pédalier — c'est
+  aussi ce dont se servent les tests de bout en bout. Le vocabulaire est celui qu'affiche
+  `namfoop midi`.
+- Ce que namfoop **fait** des messages reçus (choisir un preset, taper le tempo, suivre l'horloge)
+  vient ensuite : ici, l'écoute existe, et les messages sont affichés et tracés. Conventions :
+  [ADR 0011](docs/adr/0011-midi-conventions-fractal.md).
+
 ### Mesures (#341)
 - **La mesure de latence tient maintenant à la frame près.** Deux défauts se cumulaient : les
   premières mesures étaient comptées avant que le flux de la carte soit établi, et la latence était

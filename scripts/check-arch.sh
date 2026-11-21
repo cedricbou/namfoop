@@ -19,11 +19,12 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 RULES='
 nam-sys  : seulement thiserror cc
-dsp      : interdit alsa clap ratatui libc namfoop audio-io engine model
-audio-io : interdit clap ratatui dsp namfoop toml serde nam-sys engine
-engine   : interdit clap ratatui namfoop toml alsa
+dsp      : interdit alsa clap ratatui libc namfoop audio-io midi-io engine model
+audio-io : interdit clap ratatui dsp namfoop toml serde nam-sys engine midi-io
+midi-io  : seulement alsa libc log rtrb thiserror
+engine   : interdit clap ratatui namfoop toml alsa midi-io
 model    : seulement serde toml thiserror
-library  : interdit audio-io engine clap ratatui alsa
+library  : interdit audio-io midi-io engine clap ratatui alsa
 '
 
 cargo metadata --format-version 1 --no-deps --offline 2>/dev/null >/dev/null \
@@ -68,6 +69,18 @@ if hits=$(grep -rnE 'audio_io::(start|start_with)\b' crates --include='*.rs' \
   exit 1
 fi
 echo "carte ouverte seulement par engine"
+
+# Un port MIDI ne s'ouvre qu'à deux endroits : la traduction des options (cli_midi.rs), qui tient la
+# règle « un port absent n'empêche jamais de démarrer », et `namfoop midi`, qui affiche l'erreur
+# telle quelle. Partout ailleurs, on reçoit un `midi_io::Input` déjà ouvert.
+if hits=$(grep -rnE 'midi_io::open\b' crates --include='*.rs' \
+  | grep -vE '^crates/(midi-io/|namfoop/src/(cli_midi|midi_cmd)\.rs)'); then
+  echo "✗ port MIDI ouvert ailleurs que dans cli_midi.rs ou midi_cmd.rs :" >&2
+  echo "$hits" >&2
+  echo "Passer par crate::cli_midi::MidiArgs::open, qui ne fait jamais échouer le démarrage." >&2
+  exit 1
+fi
+echo "port MIDI ouvert seulement par les options et « namfoop midi »"
 
 # `dsp` ne crée aucun thread : c'est l'appelant qui décide où le DSP tourne. Jusqu'ici la règle
 # était écrite dans docs/architecture.md sans être vérifiée.

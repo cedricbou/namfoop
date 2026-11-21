@@ -178,6 +178,9 @@ pub struct Start<'a> {
     /// refuse de démarrer, avec un code d'erreur, parce que le service de scène du Pi doit échouer
     /// bruyamment plutôt que d'ouvrir un écran vide.
     pub locked: bool,
+    /// Le port MIDI déjà ouvert par le binaire (`--midi-in`, `[midi] in`), s'il y en a un. La
+    /// boucle le vide à chaque tour : jamais le fil audio (ADR 0011).
+    pub midi: Option<midi_io::Input>,
 }
 
 pub fn run(
@@ -187,7 +190,7 @@ pub fn run(
     routing: &Routing,
     size: f64,
     trails: bool,
-    start_with: Start,
+    mut start_with: Start,
 ) -> Result<()> {
     let lib = Library::scan(library);
     let profiles = library::profile::Profiles::load_verbose(&lib);
@@ -347,8 +350,10 @@ pub fn run(
         }
         first = st.on_key(tui::Key::Char('e'));
     }
+    let mut midi = start_with.midi.take();
+    let midi_label = midi.as_ref().map(|m| format!(" · MIDI {}", m.description())).unwrap_or_default();
     let mut status = ui::Status {
-        device: format!("{} — q pour quitter", stream_label(cfg)),
+        device: format!("{}{midi_label} — q pour quitter", stream_label(cfg)),
         in_mark: conf.config.calibrated_input_peak_dbfs(),
         trim_db: conf.config.trim_db,
         ..Default::default()
@@ -358,6 +363,15 @@ pub fn run(
     let mut session = tui::Session::start()?;
     let result = (|| -> Result<()> {
         loop {
+            // l'entrée MIDI, vidée à chaque tour et hors du fil audio (ADR 0011). Ce que
+            // namfoop fait des messages est l'objet des stories du pilotage MIDI ; ici ils
+            // arrivent, et la trace les montre — c'est ce qui rend « mon pédalier parle-t-il ? »
+            // vérifiable de bout en bout.
+            if let Some(m) = &mut midi {
+                while let Some(msg) = m.try_pop() {
+                    trace(&format!("midi {}", midi_io::describe(&msg.event)));
+                }
+            }
             let mut action = std::mem::replace(&mut first, Action::None);
             if action == Action::None {
                 action = st.tick(start.elapsed().as_millis() as u64);

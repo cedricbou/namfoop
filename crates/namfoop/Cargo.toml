@@ -15,6 +15,7 @@ libc.workspace = true
 audio-io = { path = "../audio-io" }
 engine = { path = "../engine" }
 dsp = { path = "../dsp" }
+midi-io = { path = "../midi-io" }
 model = { path = "../model" }
 library = { path = "../library" }
 nam-sys = { path = "../nam-sys" }

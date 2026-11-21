@@ -16,6 +16,10 @@ cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings
                 défaut), to_audio (model::BackendKind -> audio_io::Kind) ; profil de carte
                 (card_profile, detect, settings, base_routing : CLI > config > profil > défaut,
                 ALSA seulement)
+cli_midi.rs     options MIDI clap (MidiArgs : --midi-in, --no-midi) -> midi_io::Settings (CLI >
+                config > défaut) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**, et
+                ne fait jamais échouer le démarrage — c'est le seul endroit où cette règle vit
+                (check-arch.sh refuse `midi_io::open` ailleurs qu'ici et dans midi_cmd.rs)
 cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
 amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (CLI > config > défaut) ;
                 chain_spec() : la chaîne à jouer, celle des options OU celle d'un preset
@@ -29,10 +33,13 @@ config.rs       glue de la config (types dans crates/model) : CalibrationExt (re
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` et `run --set` : voir src/browse/CLAUDE.md
-setup/          `setup` plein écran : state.rs (logique pure, testée), ui.rs (ratatui, TestBackend),
+setup/          `setup` plein écran : state.rs (logique pure, testée ; l'étape MIDI y liste les ports
+                donnés par mod.rs et retient un `MidiChoice` — sans port en vue, elle n'écrit
+                rien plutôt que de figer « pas de MIDI »), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par
                 backend)
-live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP) ;
+live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP), vide la
+                file MIDI à chaque tour (rien n'en est encore fait, mais une file non vidée perd) ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit
@@ -50,6 +57,9 @@ calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start)
 meta_cmd.rs     `meta` : affichage d'un modèle
+midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair (`Horloge` résume les
+                tops à une ligne par noire). N'ouvre pas la carte son : c'est la commande des
+                essais matériels MIDI
 models_cmd.rs   `models` : inventaire affiché
 presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne via BlockSpec::describe)
 sets_cmd.rs     `sets` : les sets de concert (identifiant, nom, morceaux et sons), et SURTOUT ce qui

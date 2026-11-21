@@ -1,5 +1,6 @@
 //! `namfoop setup` : assistant plein écran pour choisir backend, carte, entrées, sorties et buffer.
-//! Écrit les sections [audio] et [routing] de la config ; le reste (trim, niveau) est conservé.
+//! Écrit les sections [audio], [routing] et [midi] de la config ; le reste (trim, niveau) est
+//! conservé.
 //!
 //! - `state.rs`   logique pure (testée) : touches -> transitions + actions
 //! - `ui.rs`      rendu ratatui (testé avec TestBackend)
@@ -56,7 +57,7 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
             while let Ok((i, t)) = rx.try_recv() {
                 st.buffer_result(i, t);
             }
-            session.terminal.draw(|f| ui::render(&st, f))?;
+            session.terminal.draw(|f| ui::render(&st, &conf.config, f))?;
             let Some(key) = tui::poll_key(Duration::from_millis(50))? else { continue };
             let key = match key {
                 Key::Char(c) => Key::Char(c.to_ascii_lowercase()),
@@ -73,6 +74,17 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
                             st.message = Some(format!("{e:#}"));
                         }
                     }
+                }
+                Action::LoadMidiPorts => {
+                    let ports = midi_io::ports().unwrap_or_default();
+                    if ports.is_empty() {
+                        st.message = Some("aucun port MIDI vu : branche le pédalier, puis r".into());
+                    }
+                    let ports = ports
+                        .into_iter()
+                        .map(|p| state::MidiPortInfo { id: p.addr.clone(), label: p.label() })
+                        .collect();
+                    st.set_midi_ports(ports, conf.midi.as_ref().and_then(|m| m.input.as_deref()));
                 }
                 Action::OpenDevice => {
                     monitor = None;
