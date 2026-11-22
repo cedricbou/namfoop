@@ -6,6 +6,32 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Mesures (#351)
+- **La charge DSP du tableau de latence est celle de la chaîne en régime établi.** Chaque passe
+  chronométrait aussi ses premiers blocs, quand le son venait de changer et que le poids du modèle et
+  les tampons de l'IR étaient encore froids. La p99,9 d'une passe de 3 000 blocs, ce sont ses trois
+  pires : c'étaient exactement ceux-là. Deux lignes de la même chaîne pouvaient ainsi annoncer des
+  charges dans un rapport de 2,5 avec des latences identiques. Les blocs des fenêtres de
+  stabilisation ne sont plus comptés dans la charge, comme ils ne l'étaient déjà plus dans la
+  latence.
+- **La charge n'est donnée que sur la ligne « à côté »**, la seule où la chaîne travaille sur du
+  signal : dans le trajet, elle ne reçoit que l'impulsion, donc du silence le reste du temps. La
+  ligne de conclusion — celle qui juge la passe — lit cette passe-là.
+- **Une colonne « > 80 % »** compte les blocs au-delà de 80 % du budget. Ce sont des blocs réels, là
+  où la p99,9 d'une passe courte n'est qu'une estimation.
+- **Un retour trop faible donne « pas de retour », et non une latence courte.** Il faut environ 26 dB
+  entre la crête du retour et le bruit de fond pour que son début soit cherché : en dessous, le
+  premier pic de bruit de la fenêtre était pris pour le début du son, et un câble à moitié branché
+  rapportait une latence courte et aléatoire comme une mesure.
+- Le guide dit ce que mesure la colonne « dans le trajet » : le temps que l'**attaque** du son met à
+  monter, et non un retard que la chaîne ajouterait au signal. C'est pour cela qu'il vaut +16 à
+  +18 frames qu'il y ait un modèle, une IR, six effets ou quatre modèles en parallèle.
+- Vérifié sur la Signature 12 MTK (buffer 64, 3 périodes, boucle AUX -> entrée 2) : aller-retour
+  **305 frames (6,35 ms)**, dispersion 0, les cinq lignes « à côté » à **+0 frame**, **0 xrun**, et
+  une charge qui ne dépend plus du nombre de mesures demandées — de 2 / 3 % par bloc pour un modèle
+  seul à 6 / 10 % pour quatre `nam › ir` en parallèle (médiane / p99,9), **aucun bloc au-delà de
+  80 %** du budget.
+
 ### Interne (#349)
 - **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour
   que le fil audio le lise directement. Placer un temps demande la milliseconde, alors que la file

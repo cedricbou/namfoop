@@ -39,14 +39,18 @@ matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-
   l'aller-retour ~1–2 ms (USB + convertisseurs). Sa latence aller-retour **n'est pas mesurée** :
   seule la MTK l'est, ci-dessous.
 - **Latence sous charge** (`latency --chains --count 10`, Soundcraft Signature 12 MTK, ALSA
-  buffer 64 / 3 périodes, boucle sortie 3 (AUX) -> entrée 2, modèle d'exemple WaveNet 3 canaux) :
-  aller-retour **262 frames = 5,46 ms**, **dispersion 0** sur les dix mesures comptées, **0 xrun**.
-  **La charge ne décale pas la latence** : les cinq lignes « à côté » donnent 262 frames, à la frame
-  près, jusqu'à quatre `nam › ir` en parallèle (5 % de médiane, 10 % de p99,9 par bloc). Le retard
-  **ajouté par la chaîne** est de 17 frames pour un modèle seul et de 19 (0,4 ms) pour tout le
-  reste du catalogue — c'est le temps que l'attaque monte, et il ne dépend pas du nombre de modèles.
-  Charge par bloc : `nam` 1 / 2 %, `nam › ir` 2 / 3 %, avec effets 2 / 4 %, deux `nam › ir` 3 / 5 %,
-  quatre 5 / 10 % (médiane / p99,9).
+  buffer 64 / 3 périodes, boucle sortie 3 (AUX) -> entrée 2, retour à 0 dBFS sur un bruit de fond à
+  -90 dBFS, modèle d'exemple WaveNet 3 canaux) : aller-retour **305 frames = 6,35 ms**,
+  **dispersion 0** sur les dix mesures comptées, **0 xrun**. La valeur vaut pour ce buffer-là : la
+  boucle grandit avec lui, et cette pente n'est pas mesurée.
+  **La charge ne décale pas la latence** : les cinq lignes « à côté » donnent 305 frames, à la frame
+  près, jusqu'à quatre `nam › ir` en parallèle. L'écart de la ligne « dans le trajet » — 16 frames
+  pour un modèle seul, 18 (0,4 ms) pour tout le reste du catalogue — est le temps que l'**attaque**
+  du son met à monter, et non un retard que la chaîne ajouterait : il ne dépend ni du nombre de
+  modèles ni des effets.
+  Charge par bloc, passe « à côté » en régime établi : `nam` 2 / 3 %, `nam › ir` 2 / 4 %, avec
+  effets 2 / 4 %, deux `nam › ir` 3 / 6 %, quatre 6 / 10 % (médiane / p99,9) — **aucun bloc au-delà
+  de 80 %** du budget.
   Deux conditions à cette stabilité, toutes deux nécessaires : **attendre que le flux soit établi**
   (3 s, plus deux fenêtres d'échauffement non comptées ; sans elles la référence dispersait de
   42 frames) et chercher le **début** du retour et non sa crête (l'instant du maximum sautait d'un

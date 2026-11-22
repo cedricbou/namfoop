@@ -2498,8 +2498,11 @@ pièges :
 
 - **ne joue pas pendant la mesure** : une note plus forte que le retour serait prise pour lui. Les
   colonnes `min` / `max` et l'avertissement « mesures instables » le montrent.
-- si rien ne sort du bruit, le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie)
-  et propose `--backend alsa`, qui court-circuite PipeWire.
+- **un retour trop faible est annoncé comme tel**, jamais converti en latence : il faut environ
+  26 dB entre la crête du retour et le bruit de fond pour que le début soit cherché, sans quoi le
+  premier pic de bruit serait pris pour le début du son. Un câble à moitié branché donne donc « pas
+  de retour », et le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie) ; il
+  propose aussi `--backend alsa`, qui court-circuite PipeWire.
 
 ### Avec des chaînes d'effets : `--chains`
 
@@ -2516,22 +2519,28 @@ namfoop --backend alsa latency --chain nam-ir -m b7k    # une chaîne, avec ton 
 
 Chaque chaîne donne **deux lignes** :
 
-- **dans le trajet** : l'impulsion traverse la chaîne. L'écart à la référence est donc le retard que
-  la chaîne ajoute vraiment — le temps que son attaque monte : un modèle d'ampli met quelques
-  dixièmes de milliseconde à sortir sa note, un gate y ajoute son attaque.
+- **dans le trajet** : l'impulsion traverse la chaîne. L'écart à la référence est le temps que
+  l'**attaque** du son met à monter : un modèle d'ampli met quelques dixièmes de milliseconde à
+  sortir sa note, un gate y ajoute son attaque. Ce n'est pas un retard ajouté au signal — la chaîne
+  travaille bloc par bloc, sans rien mettre en réserve ; c'est la forme de sa réponse qui décale le
+  début qu'on mesure.
 - **à côté** : la chaîne tourne sur un bruit interne et l'impulsion part telle quelle. La latence y
   est celle du trajet nu : cette ligne est le **témoin** de la précédente. Elle doit afficher
   **+0 frame** — si elle s'en écarte, c'est la mesure qu'il faut refaire, pas la chaîne qu'il faut
   accuser.
 
-Mesuré sur une Signature 12 MTK (buffer 64) : aller-retour 262 frames (5,46 ms), les cinq lignes
-« à côté » toutes à +0, et de +17 à +19 frames (0,4 ms) dans le trajet selon la chaîne — modèle
-seul, avec IR, avec effets ou à quatre modèles en parallèle, le retard ajouté est le même.
+Mesuré sur une Signature 12 MTK (buffer 64, 3 périodes) : aller-retour 305 frames (6,35 ms), les
+cinq lignes « à côté » toutes à +0, et de +16 à +18 frames (0,4 ms) dans le trajet selon la chaîne —
+modèle seul, avec IR, avec effets ou à quatre modèles en parallèle, l'attaque met le même temps à
+monter. L'aller-retour, lui, dépend du buffer : c'est une mesure à refaire quand on en change.
 
-Les deux donnent la **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 100 % du budget) et
-les **xruns** de la passe. C'est ce que `namfoop bench` ne peut pas voir : lui mesure hors ligne,
-sans carte ni thread temps réel. Une chaîne dont la p99,9 approche 100 %, ou qui compte des xruns,
-ne tiendra pas sur scène à ce buffer.
+La **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 80 % et de 100 % du budget) est donnée
+sur la ligne **« à côté »**, la seule où la chaîne travaille sur du signal : dans le trajet, elle ne
+reçoit que l'impulsion, donc du silence le reste du temps. Les **xruns**, eux, sont comptés sur les
+deux. C'est ce que `namfoop bench` ne peut pas voir : lui mesure hors ligne, sans carte ni thread
+temps réel. Une chaîne dont la p99,9 approche 100 %, ou qui compte des xruns, ne tiendra pas sur
+scène à ce buffer ; la colonne « > 80 % » prévient avant, et elle compte des blocs réels là où la
+p99,9 d'une passe courte n'est qu'une estimation.
 
 `-m` et `-i` remplissent les emplacements modèle et IR des chaînes ; sans eux, namfoop prend le
 modèle d'exemple du moteur NAM (léger) et une IR de synthèse — la mesure marche donc sans
@@ -2546,7 +2555,9 @@ va bien.
 Chaque passe commence par quelques secondes d'attente et deux mesures marquées
 « (stabilisation) », affichées mais non comptées : le flux de la carte met un instant à s'établir,
 et une mesure prise pendant ce temps est fausse. C'est ce qui permet à la ligne « à côté » de
-retrouver exactement la référence.
+retrouver exactement la référence. La **charge** de ces premiers blocs n'est pas comptée non plus :
+au changement de chaîne, le poids du modèle et les tampons de l'IR sont encore froids, et ces
+quelques blocs feraient à eux seuls la p99,9 de la passe.
 
 Lire ensuite la colonne **disp.** : c'est l'écart entre la plus petite et la plus grande mesure
 comptée de la passe. À une frame ou deux près, tout va bien. Au-delà, l'avertissement « mesures
