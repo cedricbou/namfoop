@@ -104,8 +104,27 @@ merge`) : voir « Cycle de développement » dans [CLAUDE.md](CLAUDE.md).
 
 ## Licences
 
-namfoop : MIT. NeuralAmpModelerCore (sous-module) : MIT. Les modèles et IR ne sont **pas** distribués
-avec le code : chaque pack garde la licence de son auteur.
+namfoop est un logiciel libre sous **GPL-3.0-or-later** ([`LICENSE`](LICENSE)) : on peut l'utiliser,
+l'étudier, le modifier et le redistribuer, à condition qu'une version redistribuée, modifiée ou non,
+reste sous la même licence avec son code source.
+
+Ce que namfoop embarque garde sa propre licence, compatible avec la GPL :
+
+| Composant | Licence |
+| :--- | :--- |
+| NeuralAmpModelerCore (sous-module) et ses modèles d'exemple | MIT |
+| Eigen (en-têtes du sous-module, non modifiés) | MPL-2.0 |
+| nlohmann/json (en-tête du sous-module) | MIT |
+| Crates Rust de `Cargo.lock` | MIT, Apache-2.0 ou équivalentes permissives |
+| Polices Chakra Petch, Inter, JetBrains Mono | SIL OFL 1.1 |
+
+Les modèles et IR ne sont **pas** distribués avec le code : chaque pack garde la licence de son
+auteur.
+
+Fractal Audio, Axe-Fx, Neural DSP, Quad Cortex, Line 6, Helix, Kemper, Strymon, Ableton, Tone3000 et
+les marques d'amplis citées appartiennent à leurs propriétaires respectifs. namfoop les nomme pour
+décrire une compatibilité ou comparer des choix ; il n'est ni affilié à ces sociétés, ni approuvé
+par elles.
 
 Le logo, l'icône, l'onde et la bannière de [`docs/identite/`](docs/identite/charte.md) sont **tous
 droits réservés** : utilisables pour parler de namfoop ou y renvoyer, pas pour un autre projet.

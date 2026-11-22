@@ -33,10 +33,11 @@ priorité, de la plus forte à la plus faible :
 **Un tap détrône l'horloge**, et on ne revient à l'horloge que sur un événement **net** (changement
 de preset, `Start` / `Stop`), jamais par expiration silencieuse. C'est le modèle de la Strymon
 TimeLine, dont le `MIDI Clock Reset` « lets delay time re-sync to an external MIDI clock tempo after
-you tap in a new tempo ». Ce n'est **pas** celui de Helix ni du Quad Cortex, qui *verrouillent* le
-tap dès qu'une horloge arrive (« you cannot tap in an alternate BPM … the BPM will be locked to the
-external MIDI Clock signal ») : inacceptable ici, puisque l'utilisateur tape justement pour
-rattraper une désynchro du groupe ou une erreur de programmation des lumières.
+you tap in a new tempo » (manuel de la TimeLine, Strymon). Ce n'est **pas** celui de Helix ni du
+Quad Cortex, qui *verrouillent* le tap dès qu'une horloge arrive : leur documentation indique qu'on
+ne peut plus taper d'autre tempo, calé sur l'horloge MIDI externe. Inacceptable ici, puisque
+l'utilisateur tape justement pour rattraper une désynchro du groupe ou une erreur de programmation
+des lumières.
 
 **Fiabilité live avant tout** : une horloge qui meurt en plein morceau ne provoque **jamais** de
 saut de tempo. On garde la dernière valeur connue et l'écran dit « horloge perdue ». Un retour
@@ -106,9 +107,10 @@ en **grisé, entre parenthèses, avec sa valeur calculée** (`(375 ms)`) et n'es
 revenir à `libre` **retrouve** la valeur en ms intacte (le scalaire reste stocké, il est seulement
 sans effet).
 
-C'est la forme de l'Axe-Fx, mot pour mot : « to enter a delay time in milliseconds, first set Tempo
-to None », et sinon « the time will be in parentheses like (350ms) and you can't adjust it
-manually ». Les deux autres formes du marché ont été examinées et écartées :
+C'est la forme de l'Axe-Fx (documentation de Fractal Audio) : pour régler le temps en
+millisecondes, on met d'abord `Tempo` à `None` ; sinon le temps s'affiche entre parenthèses, comme
+« (350ms) », et ne se règle plus à la main. Les autres formes du marché ont été examinées et
+écartées :
 
 | | Comment le temps s'exprime | |
 |---|---|---|
@@ -138,16 +140,16 @@ Une division plus longue que le tampon du `delay` (2 s, `MAX_SECONDS`) est **éc
 90 % de réinjection `tail_seconds` dépasserait `MAX_TEST_TAIL_SECONDS` (90 s).
 
 Le `delay` d'abord. Chaque autre effet où la synchronisation a du sens (`chorus.rate`,
-`reverb.predelay`) a son issue et sa PR : toutes les vitesses ne se synchronisent pas bien, Line 6
-le dit lui-même (« not all Speed parameters can be synced to note values, as they may be non-linear
-and highly interactive »).
+`reverb.predelay`) a son issue et sa PR : toutes les vitesses ne se synchronisent pas bien, et la
+documentation du Helix (Line 6) le dit elle-même, ces réglages n'étant pas toujours linéaires.
 
 ### Le tap
 
 Deux frappes donnent déjà un tempo (réponse immédiate) ; à partir de la 3ᵉ, moyenne des **4 derniers
 intervalles**. Le Helix moyenne jusqu'à dix frappes et demande « at least 10 taps to get the best
-accuracy » : trop lent à réagir quand on rattrape une désynchro au milieu d'un morceau. Le Quad
-Cortex, à l'inverse, se fonde sur « the interval between your last two clicks » : trop nerveux.
+accuracy » (manuel du Helix, Line 6) : trop lent à réagir quand on rattrape une désynchro au milieu
+d'un morceau. Le Quad Cortex, à l'inverse, se fonde sur « the interval between your last two
+clicks » (manuel du Quad Cortex, Neural DSP) : trop nerveux.
 Un intervalle hors de ±40 % de la moyenne courante **repart** une séquence (hésitation, fausse
 frappe) ; 3 s sans frappe la termine. Bornes **30 à 300 BPM**, résolution 0,1 BPM. Un tap **recale
 le temps 1** du métronome : on tape sur le premier temps.
@@ -187,8 +189,8 @@ Jamais audible par défaut, et **jamais** sur une sortie qui ne le demande pas e
 basse **et** le clic. Réglages dans `[metronome]` de la config — `level_db` (défaut -18),
 `beats_per_bar` (défaut 4, accent sur le premier temps) —, pas dans le preset : c'est une aide
 d'écoute, pas un son. Le Quad Cortex, qui a le métronome le plus complet du marché, sépare de la
-même façon `Volume`, `Pan`, `Sound` et surtout **`Routing`** : « assigns the metronome playback to
-specific device outputs ».
+même façon `Volume`, `Pan`, `Sound` et surtout **`Routing`**, qui envoie le clic vers des sorties
+choisies de l'appareil.
 
 Son : salve de 25 ms, 1 kHz (2 kHz sur l'accent), enveloppe en cosinus surélevé — pas de clic
 parasite, aucune allocation. La phase **ne se remet pas à zéro** quand le tempo change (seul
