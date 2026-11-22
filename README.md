@@ -84,6 +84,8 @@ pkg-config search path ».
 - **[Guide utilisateur](docs/guide.md)** : câblage, réglages système, assistant de configuration,
   bibliothèque, calibration, jeu, niveaux, backends et routage, dépannage.
 - [Référence des commandes](docs/cli.md) : générée depuis l'aide intégrée (`namfoop <commande> --help`).
+- [Charte graphique](docs/identite/charte.md) : palette, polices, logo, icône, bannière, et ce
+  qu'on a le droit d'en faire.
 - [CHANGELOG](CHANGELOG.md) : évolutions par version.
 - [CLAUDE.md](CLAUDE.md) : architecture, règles temps réel, harnais de développement.
 
@@ -104,3 +106,6 @@ merge`) : voir « Cycle de développement » dans [CLAUDE.md](CLAUDE.md).
 
 namfoop : MIT. NeuralAmpModelerCore (sous-module) : MIT. Les modèles et IR ne sont **pas** distribués
 avec le code : chaque pack garde la licence de son auteur.
+
+Le logo, l'icône, l'onde et la bannière de [`docs/identite/`](docs/identite/charte.md) sont **tous
+droits réservés** : utilisables pour parler de namfoop ou y renvoyer, pas pour un autre projet.
