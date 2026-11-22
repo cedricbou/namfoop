@@ -24,6 +24,9 @@ fait des messages MIDI (preset, tap, horloge), démarrage automatique, Raspberry
 
 ## Démarrage rapide
 
+**[Le démarrage rapide illustré](docs/demarrage-rapide.md)** montre chaque étape à l'écran, de
+l'installation au premier concert. En commandes :
+
 ```sh
 git clone --recurse-submodules https://github.com/cedricbou/namfoop.git && cd namfoop
 cargo build --release                         # prérequis : voir « Prérequis de compilation »
@@ -81,6 +84,9 @@ pkg-config search path ».
 
 ## Documentation
 
+- **[Démarrage rapide](docs/demarrage-rapide.md)** : le parcours en images — installer, configurer
+  la carte, calibrer, écouter des modèles NAM et des IR, bâtir une chaîne d'effets, jouer une set
+  list.
 - **[Guide utilisateur](docs/guide.md)** : câblage, réglages système, assistant de configuration,
   bibliothèque, calibration, jeu, niveaux, backends et routage, dépannage.
 - [Référence des commandes](docs/cli.md) : générée depuis l'aide intégrée (`namfoop <commande> --help`).
