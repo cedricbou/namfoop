@@ -126,6 +126,14 @@ fn tell_if_gave_up(row: &Row, count: u32) {
     }
 }
 
+/// Médiane, min et max d'une passe, en frames.
+#[derive(Clone, Copy)]
+struct Stats {
+    med: u64,
+    min: u64,
+    max: u64,
+}
+
 /// Ce qu'une passe a donné, côté affichage.
 #[derive(Default)]
 struct Row {
@@ -134,17 +142,24 @@ struct Row {
     weak: u32,
     xruns: u64,
     /// Dernière fenêtre restée sous le bruit : crête et bruit, pour le diagnostic.
-    worst: Option<(f32, f32)>,
+    last_weak: Option<(f32, f32)>,
+    /// Médiane, min et max, posés par [`Row::finish`] : le tableau les lit trois fois.
+    stats: Option<Stats>,
 }
 
 impl Row {
-    /// Médiane, min et max en frames ; `None` si la passe n'a rien mesuré.
-    fn stats(&mut self) -> Option<(u64, u64, u64)> {
+    /// Trie les mesures et retient médiane, min et max. Une fois la passe finie, et une seule :
+    /// chaque colonne du tableau les relit.
+    fn finish(&mut self) {
         if self.frames.is_empty() {
-            return None;
+            return;
         }
         self.frames.sort_unstable();
-        Some((self.frames[self.frames.len() / 2], self.frames[0], self.frames[self.frames.len() - 1]))
+        self.stats = Some(Stats {
+            med: self.frames[self.frames.len() / 2],
+            min: self.frames[0],
+            max: self.frames[self.frames.len() - 1],
+        });
     }
 }
 
@@ -257,7 +272,7 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
                             db(noise)
                         );
                         rows[pass].weak += 1;
-                        rows[pass].worst = Some((peak, noise));
+                        rows[pass].last_weak = Some((peak, noise));
                     }
                 }
             }
@@ -279,27 +294,31 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
     }
 
     let summaries: Vec<LoadSummary> = loads.iter().map(|h| h.summary()).collect();
+    rows.iter_mut().for_each(Row::finish);
     println!();
     if passes.len() == 1 {
-        bare_summary(&mut rows[0], &desc, bs, rate, args)
+        bare_summary(&rows[0], &desc, bs, rate, args)
     } else {
-        table(&mut rows, &summaries, &passes, &names, &desc, bs, rate, sim, args)
+        table(&rows, &summaries, &passes, &names, &desc, bs, rate, sim, args)
     }
 }
 
 /// Le trajet nu seul : le rapport d'origine, à la ligne près.
-fn bare_summary(row: &mut Row, desc: &str, bs: u32, rate: f64, args: &Args) -> Result<()> {
-    let Some((med, min, max)) = row.stats() else {
+fn bare_summary(row: &Row, desc: &str, bs: u32, rate: f64, args: &Args) -> Result<()> {
+    let Some(s) = row.stats else {
         bail!("{}", no_return(row, args.out_ch, args.in_ch));
     };
     println!(
-        "{desc}, buffer {bs} ({:.2} ms) : médiane {med} frames = {:.2} ms, min {min}, max {max}, xruns {}",
+        "{desc}, buffer {bs} ({:.2} ms) : médiane {} frames = {:.2} ms, min {}, max {}, xruns {}",
         bs as f64 * 1000.0 / rate,
-        med as f64 * 1000.0 / rate,
+        s.med,
+        s.med as f64 * 1000.0 / rate,
+        s.min,
+        s.max,
         row.xruns
     );
-    if max - min > 2 {
-        println!("Attention : mesures instables (écart {} frames)", max - min);
+    if s.max - s.min > 2 {
+        println!("Attention : mesures instables (écart {} frames)", s.max - s.min);
     }
     Ok(())
 }
@@ -307,7 +326,7 @@ fn bare_summary(row: &mut Row, desc: &str, bs: u32, rate: f64, args: &Args) -> R
 /// Pourquoi rien n'est revenu, et quoi vérifier.
 fn no_return(row: &Row, out_ch: usize, in_ch: usize) -> String {
     let detail = row
-        .worst
+        .last_weak
         .map(|(p, n)| format!(" (crête {:.1} dBFS, bruit {:.1} dBFS)", db(p), db(n)))
         .unwrap_or_default();
     format!(
@@ -320,7 +339,7 @@ fn no_return(row: &Row, out_ch: usize, in_ch: usize) -> String {
 /// Le tableau des passes : une ligne par passe, la référence en tête.
 #[allow(clippy::too_many_arguments)]
 fn table(
-    rows: &mut [Row],
+    rows: &[Row],
     loads: &[LoadSummary],
     passes: &[Pass],
     names: &[String],
@@ -335,21 +354,21 @@ fn table(
         "{:<20} {:<14} {:>16} {:>7} {:>6} {:>7} {:>7} {:>5} {:>6} {:>6}",
         "chaîne", "place", "médiane", "écart", "disp.", "méd", "p99,9", ">80%", ">100%", "xruns"
     );
-    let reference = rows[0].stats().map(|(med, _, _)| med);
+    let reference = rows[0].stats.map(|s| s.med);
     let mut unstable = false;
     for (i, pass) in passes.iter().enumerate() {
         let name = pass.chain().map_or("trajet nu", |c| names[c].as_str());
         let place = pass.label();
-        let (latence, ecart, disp) = match rows[i].stats() {
-            Some((med, min, max)) => {
-                unstable |= max - min > 2;
+        let (latence, ecart, disp) = match rows[i].stats {
+            Some(s) => {
+                unstable |= s.max - s.min > 2;
                 (
-                    format!("{med} fr / {:.2} ms", med as f64 * 1000.0 / rate),
+                    format!("{} fr / {:.2} ms", s.med, s.med as f64 * 1000.0 / rate),
                     match reference {
-                        Some(r) => format!("{:+} fr", med as i64 - r as i64),
+                        Some(r) => format!("{:+} fr", s.med as i64 - r as i64),
                         None => "—".to_string(),
                     },
-                    format!("{} fr", max - min),
+                    format!("{} fr", s.max - s.min),
                 )
             }
             None => ("pas de retour".to_string(), "—".to_string(), "—".to_string()),
@@ -417,7 +436,7 @@ fn table(
             partielles.join(", ")
         );
     }
-    if rows.iter_mut().all(|r| r.stats().is_none()) {
+    if rows.iter().all(|r| r.stats.is_none()) {
         if sim {
             log::warn!(
                 "carte simulée : rien ne boucle, donc aucune latence — seules la charge DSP et les \

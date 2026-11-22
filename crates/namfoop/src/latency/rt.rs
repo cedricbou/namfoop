@@ -300,6 +300,9 @@ impl Runner {
         }
         let pass = self.pass;
         let which = self.passes[pass];
+        // les deux tranches ont la même longueur, mais la borner garde le callback sans panique
+        // possible, même si un backend servait un jour deux longueurs différentes
+        let n = input.len().min(out.len());
         // émission et détection, échantillon par échantillon ; la sortie porte l'impulsion nue,
         // que le mode « dans le trajet » remplacera par celle de la chaîne
         for (k, (x, o)) in input.iter().zip(out.iter_mut()).enumerate() {
@@ -325,11 +328,8 @@ impl Runner {
                 }
             }
         }
-        self.frame += input.len() as u64;
+        self.frame += n as u64;
         // le travail DSP de la passe, chronométré comme le callback d'`engine`
-        // les deux tranches ont la même longueur, mais la borner garde le callback sans panique
-        // possible, même si un backend servait un jour deux longueurs différentes
-        let n = input.len().min(out.len());
         match which {
             // le trajet nu ne fait tourner aucune chaîne : rien à chronométrer
             Pass::Bare => {}
