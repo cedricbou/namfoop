@@ -7,8 +7,8 @@
 <title>namfoop — maquette : le mode Set</title>
 <style>
   :root{
-    --bg:#0b0e14; --term:#0f131a; --fg:#d7dae0; --dim:#5c6370; --line:#4b5263;
-    --cyan:#56d4e8; --green:#8bd17c; --yellow:#e5c07b; --red:#e06c75; --blue:#61afef; --mag:#c678dd;
+    --bg:#0F0F14; --term:#0F0F14; --fg:#d7dae0; --dim:#8A8A9C; --line:#8A8A9C; --graph:#1E1E28; --edge:#2E2E3C;
+    --cyan:#00F0FF; --green:#00E676; --yellow:#FFD600; --red:#FF3B30; --white:#FFFFFF; --mag:#FF007F;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -16,17 +16,17 @@
   @media (max-width:1000px){.wrap{grid-template-columns:1fr}}
   h1{font-size:17px;margin:0 0 4px;font-weight:600}
   .sub{color:var(--dim);margin:0 0 12px;font-size:13px}
-  .sub code,.q code{font:12px ui-monospace,Menlo,monospace;background:#1a212c;border-radius:3px;padding:0 4px;color:var(--fg)}
-  .term{background:var(--term);border:1px solid #232a35;border-radius:8px;overflow:hidden;max-width:100%;
+  .sub code,.q code{font:12px ui-monospace,Menlo,monospace;background:var(--graph);border-radius:3px;padding:0 4px;color:var(--fg)}
+  .term{background:var(--term);border:1px solid var(--edge);border-radius:8px;overflow:hidden;max-width:100%;
         font:13px/1.35 "DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;outline:none;position:relative}
-  .term:focus{border-color:#3d6b3a}
+  .term:focus{border-color:#087040}
   .top{padding:6px 10px 0;white-space:pre;overflow:hidden;display:flex}
   .top .grow{flex:1}
-  .box{border:1px solid #2a313d;margin:12px 8px 8px;border-radius:2px;position:relative}
+  .box{border:1px solid var(--edge);margin:12px 8px 8px;border-radius:2px;position:relative}
   .box > .t{position:absolute;top:-9px;left:10px;background:var(--term);padding:0 6px;font-weight:bold;white-space:pre;max-width:calc(100% - 20px);overflow:hidden}
-  .box.set{border-color:#3d6b3a}.box.set > .t{color:var(--green)}
-  .box.edit{border-color:#8a7440}.box.edit > .t{color:var(--yellow)}
-  .box.run{border-color:#3d6b3a}.box.run > .t{color:var(--green)}
+  .box.set{border-color:#087040}.box.set > .t{color:var(--green)}
+  .box.edit{border-color:#7B690B}.box.edit > .t{color:var(--yellow)}
+  .box.run{border-color:#087040}.box.run > .t{color:var(--green)}
   .box.prm > .t{color:var(--fg)}
   .cols{display:flex;align-items:stretch}
   .cols > .box{margin:12px 4px 8px 8px}
@@ -35,37 +35,37 @@
   .cols.wide > #mainbox{flex:1;margin-right:8px}
   pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow:hidden}
   .dim{color:var(--dim)} .b{font-weight:bold} .ok{color:var(--green)} .warn{color:var(--yellow)} .err{color:var(--red)}
-  .cy{color:var(--cyan)} .mag{color:var(--mag)} .bl{color:var(--blue)}
-  .play{background:var(--green);color:#0b0e14;font-weight:bold}
-  .cur{background:#1d2b3a}
+  .cy{color:var(--cyan)} .mag{color:var(--mag)} .bl{color:var(--white);font-weight:bold}
+  .play{background:var(--green);color:#0F0F14;font-weight:bold}
+  .cur{background:#28282F}
   .kcur{outline:1px solid var(--yellow)}
-  .tabon{background:var(--green);color:#0b0e14;font-weight:bold}
-  .lock{background:#3d6b3a;color:#0b0e14;font-weight:bold}
+  .tabon{background:var(--green);color:#0F0F14;font-weight:bold}
+  .lock{background:#087040;color:#0F0F14;font-weight:bold}
   .secon{color:var(--green);font-weight:bold}
-  .lineon{background:#1b2a1b}
-  .dn{background:var(--yellow);color:#0b0e14;font-weight:bold}
-  .bt{background:var(--green);color:#0b0e14;font-weight:bold}
+  .lineon{background:#0D2F23}
+  .dn{background:var(--yellow);color:#0F0F14;font-weight:bold}
+  .bt{background:var(--green);color:#0F0F14;font-weight:bold}
   .listen{padding:2px 12px 0;white-space:pre;overflow:hidden}
   .msg{padding:4px 12px 4px;min-height:24px;color:var(--yellow);white-space:pre-wrap}
   .help{padding:0 12px 10px;color:var(--dim);white-space:pre-wrap}
   .help b{color:var(--fg);font-weight:normal}
-  .popup{position:absolute;left:50%;top:70px;transform:translateX(-50%);width:min(640px,94%);background:#121821;
+  .popup{position:absolute;left:50%;top:70px;transform:translateX(-50%);width:min(640px,94%);background:var(--graph);
          border:1px solid var(--green);border-radius:3px;box-shadow:0 10px 40px #000a;z-index:5}
   .popup.y{border-color:var(--yellow)}
   .popup .pt{padding:6px 10px 0;color:var(--green);font-weight:bold;white-space:pre-wrap}
   .popup.y .pt{color:var(--yellow)}
   .popup pre{padding:8px 10px}
   .side{display:flex;flex-direction:column;gap:14px}
-  .card{background:#11161e;border:1px solid #232a35;border-radius:8px;padding:12px 14px}
+  .card{background:var(--graph);border:1px solid var(--edge);border-radius:8px;padding:12px 14px}
   .card h2{font-size:13px;margin:0 0 8px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
   .ex{display:flex;flex-direction:column;gap:6px}
-  button{font:inherit;background:#1a212c;color:var(--fg);border:1px solid #2c3543;border-radius:6px;padding:7px 10px;cursor:pointer;text-align:left}
+  button{font:inherit;background:var(--graph);color:var(--fg);border:1px solid var(--edge);border-radius:6px;padding:7px 10px;cursor:pointer;text-align:left}
   button:hover{border-color:var(--green)}
   button.on{border-color:var(--green);color:var(--green)}
   .rowb{display:flex;gap:6px;flex-wrap:wrap}.rowb button{flex:1;text-align:center}
   .keybar{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
   .keybar button{padding:4px 8px;font:12px ui-monospace,Menlo,monospace;text-align:center;min-width:30px}
-  .q{font-size:12.5px;color:#aab;margin:0;padding-left:18px}
+  .q{font-size:12.5px;color:var(--dim);margin:0;padding-left:18px}
   .q li{margin-bottom:6px}
 </style>
 </head>

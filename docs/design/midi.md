@@ -16,6 +16,10 @@ l'utilisateur : à ouvrir dans un navigateur, elle se pilote au clavier et simul
 boutons. Les ports, morceaux et sons qu'elle montre sont fictifs, et son JavaScript n'est pas à
 reprendre.
 
+**Couleurs** : « magenta », « cyan », « vert », « jaune », « rouge » et « gris » désignent ici le
+magenta électrique, le cyan néon, le vert signal, le jaune ambre, le rouge clip et le gris acier de la
+[charte](../identite/charte.md), qui dit aussi quand le terminal les remplace par ses couleurs de base.
+
 ## 1. Le besoin et les règles
 
 Deux activités différentes règlent le MIDI, et l'écran sert les deux :
@@ -83,7 +87,7 @@ section, et tout le reste de ce fichier vaut tel quel.
 - **En-tête, à droite** : l'état d'enregistrement de ce que l'onglet règle — `config ✓` /
   `config ● non enregistrée (S)` sur Sources et Fiche, `set : <fichier> ✓` /
   `set : <fichier> ● non enregistré (S)` sur Plan du set.
-- **Onglets** : l'onglet actif est en inverse, de la couleur de l'écran (bleu). Un `●` jaune suit le
+- **Onglets** : l'onglet actif est en inverse, de la couleur de l'écran (cyan). Un `●` jaune suit le
   nom d'un onglet dont le contenu n'est pas enregistré : il se voit depuis les deux autres.
 - **Zone « reçu »** (§ 8) : les trois derniers messages et le compte de ce qui n'est pas pour moi.
   Elle est commune aux trois onglets, comme les vumètres le sont aux espaces de `browse`.

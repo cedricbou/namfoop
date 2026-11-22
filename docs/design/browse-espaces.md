@@ -13,6 +13,10 @@ ouvrir dans un navigateur pour voir l'écran et ses tailles, sans en reprendre l
 de modèles et d'IR qu'elle montre sont fictifs, et elle ne dessine ni les vumètres, ni les réglages
 d'effets, ni l'éditeur `e`.
 
+**Couleurs** : « magenta », « cyan », « vert », « jaune », « rouge » et « gris » désignent ici le
+magenta électrique, le cyan néon, le vert signal, le jaune ambre, le rouge clip et le gris acier de la
+[charte](../identite/charte.md), qui dit aussi quand le terminal les remplace par ses couleurs de base.
+
 ## 1. Le besoin et les trois règles
 
 Le besoin, dans les mots de l'utilisateur : « quand je suis sur les NAM / IR, j'ai besoin de les

@@ -12,6 +12,10 @@ Ce qui **fait foi** pour le comportement : le code et l'oracle du clavier
 d'exemple, mode `run --set`, Program Change et horloge simulés) : à ouvrir dans un navigateur, sans
 en reprendre le JavaScript. Presets, morceaux et textes y sont fictifs.
 
+**Couleurs** : « magenta », « cyan », « vert », « jaune », « rouge » et « gris » désignent ici le
+magenta électrique, le cyan néon, le vert signal, le jaune ambre, le rouge clip et le gris acier de la
+[charte](../identite/charte.md), qui dit aussi quand le terminal les remplace par ses couleurs de base.
+
 ## 1. Le besoin et les règles
 
 Deux usages réels de l'utilisateur :

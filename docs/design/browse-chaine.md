@@ -13,6 +13,10 @@ Ce qui **fait foi** pour le comportement : le code et l'oracle du clavier
 JavaScript. Les noms de modèles et d'IR qu'elle montre (`b7k`, `svt`, `fuzz`, `sm57`, `8x10`…) sont
 fictifs.
 
+**Couleurs** : « magenta », « cyan », « vert », « jaune », « rouge » et « gris » désignent ici le
+magenta électrique, le cyan néon, le vert signal, le jaune ambre, le rouge clip et le gris acier de la
+[charte](../identite/charte.md), qui dit aussi quand le terminal les remplace par ses couleurs de base.
+
 ## 1. Ce qu'on édite
 
 - Une **chaîne** = une suite de **blocs** entre `IN` et `OUT` : effets du catalogue, `nam` (modèle),
@@ -49,9 +53,9 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
   place si muette.
 - Étiquettes de blocs : `nam·<modèle>`, `ir·<ir>`, `lpf <freq>`, `hpf <freq>`, `comp <ratio>:1`,
   `gate <seuil>`, sinon le nom de l'effet.
-- Couleurs : effets en clair, `nam` / `ir` en vert, `◆` en jaune gras, en-têtes de branche en bleu,
-  traits en gris. Bloc coupé : gris barré. Branche muette, ou hors solo quand une branche est en
-  solo : toute la ligne assombrie. Curseur : fond cyan.
+- Couleurs : effets en clair, `nam` / `ir` en vert, `◆` en jaune gras, en-têtes de branche en
+  blanc gras, traits en gris. Bloc coupé : gris barré. Branche muette, ou hors solo quand une
+  branche est en solo : toute la ligne assombrie. Curseur : fond cyan.
 - Chaîne vide : `IN ─ (chaîne vide : a pour ajouter) ─ OUT`.
 - **Volume du preset** (`,` / `.`), en gris, **après** l'étage d'alignement et juste avant
   `OUT` : `─ volume +3 dB ─ OUT`. C'est l'ordre du signal. Comme l'alignement, ce n'est pas un bloc
@@ -77,9 +81,9 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
   fine (en terminal : choisir le rendu le plus discret lisible). Vert ; jaune au-dessus de -9 dB ;
   rouge au-dessus de -1 dB.
 - Balistique : montée immédiate, descente 28 dB/s ; rafraîchissement ~25 images/s.
-- `comp` : la réduction de gain remplit la barre **en orange depuis la droite** (20 dB = toute la
-  barre, au moins une case dès 0,3 dB) ; montée immédiate, retour selon le `release` de l'effet.
-- `gate` fermé : barre pleine **rouge sombre** ; se ferme en douceur (selon `release`), se rouvre
+- `comp` : la réduction de gain remplit la barre **en rouge éclairci depuis la droite** (20 dB =
+  toute la barre, au moins une case dès 0,3 dB) ; montée immédiate, retour selon le `release` de l'effet.
+- `gate` fermé : barre pleine **rouge assombri** ; se ferme en douceur (selon `release`), se rouvre
   tout de suite.
 - Bloc coupé, branche muette ou hors solo : barre sombre.
 - `v` masque / affiche toutes les lignes de vumètres.
@@ -152,8 +156,8 @@ bloc, donc le réglage s'entend au bloc suivant, lissé sur 20 ms, sans rien reb
 ## 6. Réglages (focus « réglages »)
 
 ↑↓ choisit le réglage, ←→ change la valeur (Maj : pas fin = pas / 10), Échap / Entrée / Tab
-reviennent à la chaîne. Une barre (20 cases) montre la position dans la plage ; l'aide du réglage
-s'affiche dessous.
+reviennent à la chaîne. Une barre (20 cases) montre la position dans la plage, en cyan sous le
+curseur et en gris au repos ; l'aide du réglage s'affiche dessous.
 
 - **Bloc** : ses paramètres (`dsp::fx::ParamInfo`). `nam` : modèle (et niveau) ; `ir` : IR
   (et mix). Titre : `comp : compresseur · branche 2 (> 150 Hz)` pour un bloc dans une branche.
