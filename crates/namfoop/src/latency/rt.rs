@@ -364,6 +364,7 @@ impl Runner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_no_alloc::{assert_no_alloc, permit_alloc};
     use std::collections::BTreeMap;
 
     /// Fait tourner le détecteur sur un signal d'entrée donné par `input(t)`, et rend les
@@ -514,6 +515,10 @@ mod tests {
 
     /// Fait tourner l'automate bloc par bloc, en renvoyant sur l'entrée, `delay` frames plus tard,
     /// ce qui sort de la sortie : le câble de bouclage, simulé.
+    ///
+    /// Chaque bloc passe par `assert_no_alloc` : **tout** test qui pilote la mesure vérifie donc du
+    /// même coup la règle temps réel du projet (`crates/dsp/CLAUDE.md`) pour ce callback. En debug
+    /// seulement — c'est là que l'allocateur de test est posé (`main.rs`).
     fn drive(chains: Vec<dsp::Chain>, count: u32, delays: &[u64]) -> Vec<Report> {
         drive_with_loads(chains, count, delays).0
     }
@@ -536,7 +541,11 @@ mod tests {
                 *x = back.remove(&(t + k as u64)).unwrap_or(1e-6);
             }
             out.fill(0.0);
-            runner.block(&inp, &mut out, &mut |r| reports.push(r));
+            // `permit_alloc` n'excepte que la collecte des rapports : dans la vraie mesure, elle
+            // est le travail du thread d'affichage, au bout d'une file préallouée.
+            assert_no_alloc(|| {
+                runner.block(&inp, &mut out, &mut |r| permit_alloc(|| reports.push(r)));
+            });
             for (k, y) in out.iter().enumerate() {
                 if y.abs() > 0.1 && !delays.is_empty() {
                     // le retard de la n-ième impulsion : la dernière valeur tient pour la suite,
@@ -575,6 +584,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Le fil audio de la mesure n'alloue pas, ne verrouille pas et ne libère rien, chaîne
+    /// d'effets comprise : ni la détection, ni l'enchaînement des passes, ni le bruit interne du
+    /// mode « à côté ». La garde est dans [`drive`] ; ce test lui donne la chaîne la plus fournie
+    /// qui se bâtisse sans modèle, et les deux places.
+    #[test]
+    fn the_measurement_thread_does_not_allocate() {
+        let mut chain = dsp::Chain::new();
+        for spec in ["gate", "comp", "delay", "reverb"] {
+            let fx: dsp::fx::FxSpec = spec.parse().unwrap();
+            chain.push_boxed(fx.build(&dsp::fx::BuildCtx::new(DRIVE_RATE, MAX_BLOCK)).unwrap());
+        }
+        let reports = drive(vec![chain], 2, &[37]);
+        assert!(matches!(reports.last(), Some(Report::Done)), "le plan n'est pas allé au bout");
     }
 
     /// Les passes de chaque fenêtre, dans l'ordre, et si le plan s'est bien terminé. `only_counted`
