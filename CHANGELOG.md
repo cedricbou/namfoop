@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#349)
+- **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour
+  que le fil audio le lise directement. Placer un temps demande la milliseconde, alors que la file
+  des messages est vidée par une boucle qui repasse toutes les 20 à 30 ms — un top vaut 20,8 ms à
+  120 BPM. Rien de visible pour l'instant : c'est la pièce qui manquait pour caler le clic sur
+  l'horloge reçue (#347).
+
 ### MIDI (#224)
 - **Ableton peut mener le concert.** Avec un set ouvert (dans `browse` comme sur l'écran de scène
   `run --set`), un **Program Change** appelle le morceau dont le `pc` vaut ce numéro — sur son
