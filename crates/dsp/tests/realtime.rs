@@ -208,3 +208,18 @@ fn a_live_gain_does_not_allocate_when_its_control_moves() {
     assert_no_alloc(|| stage.process(&mut buf));
     assert!(buf.iter().chain(&big).all(|x| x.is_finite()));
 }
+
+#[test]
+fn pitch_detector_does_not_allocate_after_construction() {
+    // hors temps réel, mais ~20 lectures par seconde sur le Pi 5 : rien ne doit réveiller l'allocateur
+    let mut det = dsp::pitch::PitchDetector::new(48000, 440.0);
+    let mut smooth = dsp::pitch::Smoother::new();
+    let mut buf = vec![0.0f32; 480];
+    for i in 0..40 {
+        buf.iter_mut().enumerate().for_each(|(k, x)| *x = ((i * 480 + k) as f32 * 0.01).sin() * 0.3);
+        assert_no_alloc(|| {
+            det.push(&buf);
+            smooth.push(det.read());
+        });
+    }
+}

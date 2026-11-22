@@ -83,6 +83,13 @@ défaut, cas limites — est dans le rustdoc.
   endroit les décrit, parce que deux mesures s'en servent et doivent parler des mêmes chaînes : le
   repère de coût par bloc (`tests/budget.rs`, hors ligne) et `namfoop latency --chains`, sur la
   carte. `Level::Raw`, aucun limiteur : rien ne doit dépendre des réglages de l'utilisateur.
+- `pitch.rs` : **la lecture de hauteur** de l'accordeur, **hors temps réel** (fil de contrôle,
+  signal brut de la basse) mais sans allocation après la construction. YIN en deux étages : la
+  recherche sur le signal décimé vers ~12 kHz (fenêtre de 2,5 périodes de `MIN_HZ`), puis
+  l'**affinage** sur le signal plein autour de la période trouvée — sans lui, la parabole se trompe
+  de plus d'un cent sur un Mi aigu de guitare, dont la période ne fait que 9 cases à 12 kHz. Rien
+  sous -60 dBFS ni sans creux net : plutôt `None` qu'une note fausse. `Smoother` : la note la plus
+  vue des 5 dernières lectures, vue deux fois, et sa médiane. Noms de notes en bémols.
 - `profile.rs` : la réponse d'une IR par tiers d'octave, étendue grave / aiguë à -12 dB,
   `from_transfer`, distorsion harmonique, et **`loudness_db`** (ITU-R BS.1770), dont se sert
   `Level::Match`.
@@ -190,6 +197,13 @@ Seuil retenu avec l'utilisateur : `browse` **alerte dès 2 modèles actifs** et 
 coût est linéaire, et 2 modèles restent confortables sur x86). Lire un vumètre juste après le
 démarrage donne le transitoire (gate parti fermé, dépassement d'un filtre) : `clear()` puis relire,
 c'est ce que fait l'affichage à 25 images/s.
+
+### Lecture de hauteur
+
+`cargo test --release -p dsp --test pitch -- --nocapture`, x86, 48 kHz : **255 µs** par lecture,
+donc 0,5 % d'un cœur à 20 lectures par seconde ; pire écart sur des sinus de 27,5 Hz à 1,3 kHz
+**0,02 cent** ; notes riches à fondamentale atténuée de 20 dB (Si0 à La5) dans la bonne octave, à
+moins de 2 cents. **Pi 5 non mesuré** (`scripts/check-aarch64.sh` le compile).
 
 ### Niveaux et alignement
 
