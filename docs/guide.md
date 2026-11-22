@@ -2528,10 +2528,13 @@ Mesuré sur une Signature 12 MTK (buffer 64) : aller-retour 262 frames (5,46 ms)
 « à côté » toutes à +0, et de +17 à +19 frames (0,4 ms) dans le trajet selon la chaîne — modèle
 seul, avec IR, avec effets ou à quatre modèles en parallèle, le retard ajouté est le même.
 
-Les deux donnent la **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 100 % du budget) et
-les **xruns** de la passe. C'est ce que `namfoop bench` ne peut pas voir : lui mesure hors ligne,
-sans carte ni thread temps réel. Une chaîne dont la p99,9 approche 100 %, ou qui compte des xruns,
-ne tiendra pas sur scène à ce buffer.
+La **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 80 % et de 100 % du budget) est donnée
+sur la ligne **« à côté »**, la seule où la chaîne travaille sur du signal : dans le trajet, elle ne
+reçoit que l'impulsion, donc du silence le reste du temps. Les **xruns**, eux, sont comptés sur les
+deux. C'est ce que `namfoop bench` ne peut pas voir : lui mesure hors ligne, sans carte ni thread
+temps réel. Une chaîne dont la p99,9 approche 100 %, ou qui compte des xruns, ne tiendra pas sur
+scène à ce buffer ; la colonne « > 80 % » prévient avant, et elle compte des blocs réels là où la
+p99,9 d'une passe courte n'est qu'une estimation.
 
 `-m` et `-i` remplissent les emplacements modèle et IR des chaînes ; sans eux, namfoop prend le
 modèle d'exemple du moteur NAM (léger) et une IR de synthèse — la mesure marche donc sans

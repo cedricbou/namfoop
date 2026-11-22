@@ -21,7 +21,8 @@ use audio_io::Io;
 use engine::meters::{LoadHistogram, LoadSummary};
 
 use rt::{
-    plan, Event, Pass, Report, Runner, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S, WARMUP,
+    plan, Event, Pass, Report, Runner, Spot, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S,
+    WARMUP,
 };
 
 fn db(v: f32) -> f32 {
@@ -307,8 +308,8 @@ fn table(
 ) -> Result<()> {
     println!("{desc}, buffer {bs} ({:.2} ms)\n", bs as f64 * 1000.0 / rate);
     println!(
-        "{:<20} {:<14} {:>16} {:>7} {:>6} {:>7} {:>7} {:>6} {:>6}",
-        "chaîne", "place", "médiane", "écart", "disp.", "méd", "p99,9", ">100%", "xruns"
+        "{:<20} {:<14} {:>16} {:>7} {:>6} {:>7} {:>7} {:>5} {:>6} {:>6}",
+        "chaîne", "place", "médiane", "écart", "disp.", "méd", "p99,9", ">80%", ">100%", "xruns"
     );
     let reference = rows[0].stats().map(|(med, _, _)| med);
     let mut unstable = false;
@@ -331,28 +332,36 @@ fn table(
             }
             None => ("pas de retour".to_string(), "—".to_string(), "—".to_string()),
         };
-        let (med_load, p999, over) = if pass.chain.is_some() {
+        // La charge n'est donnée que « à côté » : dans le trajet, la chaîne ne reçoit que
+        // l'impulsion, donc du silence le reste du temps — ce n'est pas la charge d'un son joué.
+        let (med_load, p999, over80, over100) = if pass.spot == Spot::Beside {
             let l = loads[i];
-            (format!("{:.1} %", l.p50 * 100.0), format!("{:.1} %", l.p999 * 100.0), l.over100.to_string())
+            (
+                format!("{:.1} %", l.p50 * 100.0),
+                format!("{:.1} %", l.p999 * 100.0),
+                l.over80.to_string(),
+                l.over100.to_string(),
+            )
         } else {
-            ("—".to_string(), "—".to_string(), "—".to_string())
+            ("—".to_string(), "—".to_string(), "—".to_string(), "—".to_string())
         };
         println!(
             "{name:<20} {place:<14} {latence:>16} {ecart:>7} {disp:>6} {med_load:>7} {p999:>7} \
-             {over:>6} {:>6}",
+             {over80:>5} {over100:>6} {:>6}",
             rows[i].xruns
         );
     }
     println!(
         "\nmédiane : la latence de la passe. écart : à la référence du trajet nu. disp. : min à max \
-         dans la passe.\nméd / p99,9 / >100 % : la charge DSP par bloc, comme à l'arrêt de `run`."
+         dans la passe.\nméd / p99,9 / >80 % / >100 % : la charge DSP par bloc, comme à l'arrêt de \
+         `run`, sur la passe « à côté » — la seule où la chaîne travaille sur du signal."
     );
     // La ligne de conclusion : c'est elle que `scripts/test-backends.sh` lit pour juger la passe
     // matérielle, d'où le mot « total » et le compte de xruns en clair.
     let worst = passes
         .iter()
         .enumerate()
-        .filter(|(_, p)| p.chain.is_some())
+        .filter(|(_, p)| p.spot == Spot::Beside)
         .max_by(|(a, _), (b, _)| loads[*a].p999.total_cmp(&loads[*b].p999));
     let charge = worst
         .map(|(i, p)| format!("{:.0} % ({})", loads[i].p999 * 100.0, pass_title(names, *p)))

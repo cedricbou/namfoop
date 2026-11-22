@@ -14,6 +14,11 @@ section prend le numéro de version.
   charges dans un rapport de 2,5 avec des latences identiques. Les blocs des fenêtres de
   stabilisation ne sont plus comptés dans la charge, comme ils ne l'étaient déjà plus dans la
   latence.
+- **La charge n'est donnée que sur la ligne « à côté »**, la seule où la chaîne travaille sur du
+  signal : dans le trajet, elle ne reçoit que l'impulsion, donc du silence le reste du temps. La
+  ligne de conclusion — celle qui juge la passe — lit cette passe-là.
+- **Une colonne « > 80 % »** compte les blocs au-delà de 80 % du budget. Ce sont des blocs réels, là
+  où la p99,9 d'une passe courte n'est qu'une estimation.
 
 ### Interne (#349)
 - **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour
