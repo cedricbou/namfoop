@@ -24,8 +24,13 @@ section prend le numéro de version.
   premier pic de bruit de la fenêtre était pris pour le début du son, et un câble à moitié branché
   rapportait une latence courte et aléatoire comme une mesure.
 - Le guide dit ce que mesure la colonne « dans le trajet » : le temps que l'**attaque** du son met à
-  monter, et non un retard que la chaîne ajouterait au signal. C'est pour cela qu'il vaut +17 à
-  +19 frames qu'il y ait un modèle, une IR, six effets ou quatre modèles en parallèle.
+  monter, et non un retard que la chaîne ajouterait au signal. C'est pour cela qu'il vaut +16 à
+  +18 frames qu'il y ait un modèle, une IR, six effets ou quatre modèles en parallèle.
+- Vérifié sur la Signature 12 MTK (buffer 64, 3 périodes, boucle AUX -> entrée 2) : aller-retour
+  **305 frames (6,35 ms)**, dispersion 0, les cinq lignes « à côté » à **+0 frame**, **0 xrun**, et
+  une charge qui ne dépend plus du nombre de mesures demandées — de 2 / 3 % par bloc pour un modèle
+  seul à 6 / 10 % pour quatre `nam › ir` en parallèle (médiane / p99,9), **aucun bloc au-delà de
+  80 %** du budget.
 
 ### Interne (#349)
 - **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour

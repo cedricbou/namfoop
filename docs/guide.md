@@ -2529,9 +2529,10 @@ Chaque chaîne donne **deux lignes** :
   **+0 frame** — si elle s'en écarte, c'est la mesure qu'il faut refaire, pas la chaîne qu'il faut
   accuser.
 
-Mesuré sur une Signature 12 MTK (buffer 64) : aller-retour 262 frames (5,46 ms), les cinq lignes
-« à côté » toutes à +0, et de +17 à +19 frames (0,4 ms) dans le trajet selon la chaîne — modèle
-seul, avec IR, avec effets ou à quatre modèles en parallèle, le retard ajouté est le même.
+Mesuré sur une Signature 12 MTK (buffer 64, 3 périodes) : aller-retour 305 frames (6,35 ms), les
+cinq lignes « à côté » toutes à +0, et de +16 à +18 frames (0,4 ms) dans le trajet selon la chaîne —
+modèle seul, avec IR, avec effets ou à quatre modèles en parallèle, l'attaque met le même temps à
+monter. L'aller-retour, lui, dépend du buffer : c'est une mesure à refaire quand on en change.
 
 La **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 80 % et de 100 % du budget) est donnée
 sur la ligne **« à côté »**, la seule où la chaîne travaille sur du signal : dans le trajet, elle ne
