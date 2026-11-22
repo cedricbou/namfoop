@@ -93,6 +93,7 @@ pkg-config search path ».
 scripts/check.sh            # sans matériel : format, clippy, tests, docs, rendu de la bibliothèque
 scripts/check.sh --quick    # idem sans la bibliothèque
 scripts/test-backends.sh    # avec matériel : latence + run en ALSA (câble sortie 1 -> entrée 2)
+                            # une autre carte se donne en variables : voir l'en-tête du script
 scripts/install-hooks.sh    # hooks : pas de commit/push direct sur main, check rapide avant commit
 ```
 

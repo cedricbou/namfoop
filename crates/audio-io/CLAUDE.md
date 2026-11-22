@@ -25,7 +25,9 @@ allocation, lock, I/O, log ni panic ; buffers de n'importe quelle longueur).
 
 **Tester sans matériel** : `cargo test -p audio-io`, puis le test de fumée
 `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`. Sur le
-matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-backends.sh`.
+matériel (utilisateur seulement, câble sortie 1 -> entrée 2 sur l'iTwo, qui est son défaut) :
+`scripts/test-backends.sh` — une autre carte, ses canaux et son routage se donnent en variables
+(`ALSA_DEV`, `OUT_CH`, `IN_CH`, `BASS_IN`, `ROUTES` ; l'en-tête du script en donne un exemple).
 
 ## Faits mesurés
 
@@ -74,8 +76,10 @@ Deux, et le DSP leur est commun (trait `audio_io::Io`, nombre de canaux de la ca
   Un SIGKILL laisse le profil à « off » : `pactl set-card-profile <carte> pro-audio` pour réparer.
 - sim : `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 -m b7k` exerce toute la
   chaîne temps réel sans carte ; `--backend sim setup` ouvre l'assistant.
-- Les tests matériels (`scripts/test-backends.sh`) demandent un câble sortie 1 -> entrée 2 et le
-  bouton Mixer de l'iTwo côté Playback. **Un agent ne peut pas brancher de câble : demander à
+- Les tests matériels (`scripts/test-backends.sh`) demandent un câble de la sortie qui émet vers
+  l'entrée qui écoute — sortie 1 -> entrée 2 sur l'iTwo, et le bouton Mixer côté Playback.
+  Le script affiche en tête la carte et le câblage qu'il vient d'employer : un « OK » sans eux ne se
+  compare à rien. **Un agent ne peut pas brancher de câble : demander à
   l'utilisateur**, et prévenir avant de lancer des tests qui émettent des clics ou prennent la carte.
 - Ne pas lancer `run` avec un gain audible sans l'accord de l'utilisateur (utiliser
   `--master-db -120` pour les tests de fumée).
