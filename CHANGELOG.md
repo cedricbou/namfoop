@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#373)
+- **Les vraies couleurs de namfoop dans le terminal** : dans un terminal qui annonce les couleurs
+  exactes (`COLORTERM=truecolor`), les écrans prennent les teintes de la charte — Bibliothèque en
+  magenta électrique, Chaîne en cyan néon, Set en vert signal, édition en jaune ambre, saturation
+  et IR coupée en rouge clip, texte secondaire en gris acier ; les en-têtes de branche d'un
+  parallèle passent en blanc gras. Le fond reste celui du terminal. Ailleurs — console du Pi,
+  tmux qui ne transmet pas la variable — l'écran ne change pas ; le guide (§ 17) dit comment
+  forcer les couleurs exactes.
+
 ### Documentation (#394)
 - **Un démarrage rapide illustré** (`docs/demarrage-rapide.md`, lié en tête du README) : six étapes,
   de l'installation au premier concert — configurer la carte, calibrer sa basse, importer et écouter

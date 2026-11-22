@@ -272,7 +272,7 @@ fn split(
     let label_w = (0..n).map(|k| s.branch_label(k).chars().count()).max().unwrap_or(0);
     let body_w = s.branches.iter().map(|b| st.branch_width(b)).max().unwrap_or(0);
     let gain_w = s.branches.iter().map(|b| b.gain_text().chars().count()).max().unwrap_or(0);
-    let hdr = Style::new().fg(theme::branch());
+    let hdr = theme::branch();
     let vbar = |k: usize| -> Vec<Cell> {
         if k == 0 {
             Vec::new()

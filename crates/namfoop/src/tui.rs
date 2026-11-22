@@ -237,6 +237,20 @@ pub fn screen_text(width: u16, height: u16, draw: impl FnOnce(&mut ratatui::Fram
     out
 }
 
+/// Les couleurs (avant-plan et fond) de toutes les cellules d'un écran dessiné : ce que vérifient
+/// les tests de la palette.
+#[cfg(test)]
+pub fn screen_colors(
+    width: u16,
+    height: u16,
+    draw: impl FnOnce(&mut ratatui::Frame),
+) -> std::collections::BTreeSet<String> {
+    let mut t = ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, height)).unwrap();
+    t.draw(draw).unwrap();
+    let buf = t.backend().buffer().clone();
+    buf.content.iter().flat_map(|c| [format!("{:?}", c.fg), format!("{:?}", c.bg)]).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
