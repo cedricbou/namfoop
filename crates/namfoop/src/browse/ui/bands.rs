@@ -66,9 +66,9 @@ pub(super) fn column(db: f32) -> [char; ROWS] {
 /// La couleur d'une zone : le même code que les vumètres (vert, jaune, rouge).
 fn tint(db: f32) -> Color {
     match db.abs() {
-        d if d <= 3.0 => Color::Green,
-        d if d <= 8.0 => Color::Yellow,
-        _ => Color::Red,
+        d if d <= 3.0 => theme::delta_ok(),
+        d if d <= 8.0 => theme::delta_warn(),
+        _ => theme::delta_far(),
     }
 }
 
@@ -87,27 +87,27 @@ pub(super) fn lines(view: &crate::browse::state::bands::BandView) -> Vec<Line<'s
     let mut out = Vec::with_capacity(ROWS + 2);
     let bar = COL / 2;
     for r in 0..ROWS {
-        let mut spans = vec![Span::styled(SCALE[r], Style::new().fg(Color::DarkGray))];
+        let mut spans = vec![Span::styled(SCALE[r], Style::new().fg(theme::dim()))];
         for (k, c) in cols.iter().enumerate() {
             // la ligne de l'axe se prolonge entre les colonnes, les autres restent vides
             let (glyph, style) = match c[r] {
-                '─' => ("─".repeat(bar), Style::new().fg(Color::DarkGray)),
+                '─' => ("─".repeat(bar), Style::new().fg(theme::dim())),
                 ' ' => (" ".repeat(bar), Style::new()),
                 g => (g.to_string().repeat(bar), Style::new().fg(tint(view.db[k]))),
             };
             let gap = if r == 2 { "─" } else { " " }.repeat(COL - bar);
             spans.push(Span::styled(glyph, style));
-            spans.push(Span::styled(gap, Style::new().fg(Color::DarkGray)));
+            spans.push(Span::styled(gap, Style::new().fg(theme::dim())));
         }
         out.push(Line::from(spans));
     }
     let mut names = vec![Span::raw("      ")];
     let mut vals = vec![Span::raw("      ")];
     for (k, z) in SHORT.iter().enumerate() {
-        names.push(Span::styled(format!("{z:^COL$}"), Style::new().fg(Color::DarkGray)));
+        names.push(Span::styled(format!("{z:^COL$}"), Style::new().fg(theme::dim())));
         vals.push(Span::styled(format!("{:^COL$}", value(view.db[k])), Style::new().fg(tint(view.db[k]))));
     }
-    vals.push(Span::styled("  dB".to_string(), Style::new().fg(Color::DarkGray)));
+    vals.push(Span::styled("  dB".to_string(), Style::new().fg(theme::dim())));
     out.push(Line::from(names));
     out.push(Line::from(vals));
     out
@@ -125,13 +125,17 @@ pub(super) fn render(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
         Some(v) => lines(v),
         None => vec![Line::styled(
             " rien à montrer : son direct, ou profil non mesuré",
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         )],
     };
     f.render_widget(
         Paragraph::new(body).block(Block::bordered().title(Span::styled(
             title,
-            Style::new().fg(if view.as_ref().is_some_and(|v| v.diff) { Color::Yellow } else { Color::Reset }),
+            Style::new().fg(if view.as_ref().is_some_and(|v| v.diff) {
+                theme::edit()
+            } else {
+                theme::inherit()
+            }),
         ))),
         area,
     );

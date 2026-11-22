@@ -50,12 +50,13 @@ pub(super) fn render_editor(s: &State, ed: &Editor, f: &mut Frame, area: ratatui
             Field::Make => ("Marque", typing(&d.make), format!("(fichier : {})", or_q(&file.make))),
             Field::Name => ("Nom", typing(&d.name), format!("(fichier : {})", or_q(&file.name))),
         };
-        let style = if on { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::new() };
+        let style =
+            if on { Style::new().fg(theme::key()).add_modifier(Modifier::BOLD) } else { Style::new() };
         lines.push(Line::from(vec![
             cursor_span(on),
             Span::styled(format!("{label:<16}"), style),
             Span::styled(format!("{value:<40}"), style),
-            Span::styled(format!(" {hint}"), Style::new().fg(Color::DarkGray)),
+            Span::styled(format!(" {hint}"), Style::new().fg(theme::dim())),
         ]));
     }
     lines.push(Line::raw(""));
@@ -64,7 +65,7 @@ pub(super) fn render_editor(s: &State, ed: &Editor, f: &mut Frame, area: ratatui
         "Baffle inclus ou non ? Compare l'IR « aucune » et une IR : avec un baffle en double, le son",
         "devient sourd et étouffé ; sans baffle ni IR, il est criard et bourdonnant.",
     ] {
-        lines.push(Line::from(Span::styled(format!("   {t}"), Style::new().fg(Color::DarkGray))));
+        lines.push(Line::from(Span::styled(format!("   {t}"), Style::new().fg(theme::dim()))));
     }
     let title = format!(" Modifier {} {}  [{}] ", item.id, item.label, item.pack);
     f.render_widget(Paragraph::new(lines).block(Block::bordered().title(title)), area);

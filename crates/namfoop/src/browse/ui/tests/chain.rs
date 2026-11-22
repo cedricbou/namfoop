@@ -256,7 +256,7 @@ fn muted_soloed_and_bypassed_are_dimmed() {
     use crate::browse::state::chain::{Block, Branch, Cursor, Mode, Split};
     use crate::browse::state::tests::{fx, with_chain};
     use crate::browse::ui::synoptic;
-    use ratatui::style::{Color, Modifier};
+    use ratatui::style::Modifier;
 
     let off = |spec: &str| {
         let mut l = fx(spec);
@@ -298,9 +298,9 @@ fn muted_soloed_and_bypassed_are_dimmed() {
     let dim_of = |row: usize, pat: &str| {
         lines[row].spans.iter().find(|sp| sp.content.contains(pat)).map(|sp| sp.style.fg)
     };
-    assert_eq!(dim_of(1, "chorus"), Some(Some(Color::DarkGray)), "hors solo : assombri");
-    assert_eq!(dim_of(2, "peak"), Some(Some(Color::DarkGray)), "muette : assombrie");
-    assert_ne!(dim_of(0, "lpf 250"), Some(Some(Color::DarkGray)), "la branche en solo reste claire");
+    assert_eq!(dim_of(1, "chorus"), Some(Some(theme::dim())), "hors solo : assombri");
+    assert_eq!(dim_of(2, "peak"), Some(Some(theme::dim())), "muette : assombrie");
+    assert_ne!(dim_of(0, "lpf 250"), Some(Some(theme::dim())), "la branche en solo reste claire");
 }
 
 /// Terminal étroit : défilement horizontal qui garde le bloc choisi visible, sans retour à la ligne.
@@ -389,8 +389,8 @@ fn the_picker_opens_under_the_synoptic_and_fits_a_small_terminal() {
     let syn = crate::browse::ui::synoptic::build(&s);
     let line = &syn.lines(400, 0)[1];
     let fg = |pat: &str| line.spans.iter().find(|sp| sp.content.contains(pat)).map(|sp| sp.style.fg);
-    assert_eq!(fg("gate -50"), Some(Some(Color::DarkGray)), "le reste est assombri");
-    assert_ne!(fg("ir·Powerhouse"), Some(Some(Color::DarkGray)), "le baffle voisin reste clair");
+    assert_eq!(fg("gate -50"), Some(Some(theme::dim())), "le reste est assombri");
+    assert_ne!(fg("ir·Powerhouse"), Some(Some(theme::dim())), "le baffle voisin reste clair");
     // un bloc tout juste posé par le catalogue : Échap ne rien ajouter
     s.on_key(Key::Esc);
     s.on_key(Key::Char('a'));
@@ -669,7 +669,7 @@ fn the_output_of_a_parallel_is_visible_and_explained() {
     let syn = crate::browse::ui::synoptic::build(&s);
     let line = &syn.lines(400, 0)[0];
     let sur = line.spans.iter().find(|sp| sp.content.contains('◇')).expect("le ◇ est là");
-    assert_eq!(sur.style.bg, Some(Color::Cyan), "le curseur est dessus");
+    assert_eq!(sur.style.bg, Some(theme::key()), "le curseur est dessus");
 }
 
 /// Les presets à l'écran : l'indicateur de l'en-tête, la banque (`P`), la fenêtre de

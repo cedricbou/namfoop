@@ -1,8 +1,9 @@
 //! Briques communes des écrans plein écran (`setup`, `browse`) : touches, session terminal,
 //! vumètre.
 
+use crate::theme;
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind};
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::Span;
 use std::time::Duration;
 
@@ -191,7 +192,7 @@ pub fn meter_marked(level: f32, width: usize, mark_db: Option<f32>) -> Vec<Span<
     };
     for k in 0..width {
         if k == pos {
-            push(&mut out, '┃', Style::new().fg(Color::White));
+            push(&mut out, '┃', Style::new().fg(theme::meter_mark()));
         } else if k < filled {
             push(&mut out, '█', fill_style);
         } else {
@@ -206,16 +207,16 @@ pub fn meter_width(level: f32, width: usize) -> Vec<Span<'static>> {
     let d = db(level);
     let filled = (((d + 60.0) / 60.0).clamp(0.0, 1.0) * width as f32).round() as usize;
     let color = if d > -3.0 {
-        Color::Red
+        theme::meter_clip()
     } else if d > -12.0 {
-        Color::Yellow
+        theme::meter_warn()
     } else {
-        Color::Green
+        theme::meter_ok()
     };
     let text = if level <= 1e-6 { "  -inf".to_string() } else { format!("{d:>6.1}") };
     vec![
         Span::styled("█".repeat(filled), Style::new().fg(color)),
-        Span::styled("░".repeat(width - filled), Style::new().fg(Color::DarkGray)),
+        Span::styled("░".repeat(width - filled), Style::new().fg(theme::meter_track())),
         Span::raw(format!(" {text} dB")),
     ]
 }
@@ -262,8 +263,8 @@ mod tests {
     fn meter_colors_and_width() {
         let spans = meter(1.0);
         assert_eq!(spans[0].content.chars().count(), BAR);
-        assert_eq!(spans[0].style.fg, Some(Color::Red));
-        assert_eq!(meter(0.01)[0].style.fg, Some(Color::Green));
+        assert_eq!(spans[0].style.fg, Some(theme::meter_clip()));
+        assert_eq!(meter(0.01)[0].style.fg, Some(theme::meter_ok()));
     }
 
     #[test]

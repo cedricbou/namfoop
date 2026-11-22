@@ -4,12 +4,12 @@
 //! Les **faits** viennent de `state::set::beat` ([`State::band`]) : ici il n'y a que la mise en
 //! page et les couleurs — `state` décide, `ui` dessine.
 
-use ratatui::style::{Color, Modifier, Style};
+use crate::theme;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use super::super::state::set::beat::Band;
 use super::super::state::State;
-use super::set::ACCENT;
 
 // ------------------------------------------------------- la bande de battue (§ 11)
 
@@ -80,9 +80,9 @@ fn band_beats(band: &Band, width: usize) -> Line<'static> {
             None => format!("{:<cell$}", " ·", cell = cell),
         };
         let fg = match (t, beat.is_some()) {
-            (0, _) => Color::Yellow,
-            (_, true) => ACCENT,
-            (_, false) => Color::DarkGray,
+            (0, _) => theme::edit(),
+            (_, true) => theme::set(),
+            (_, false) => theme::dim(),
         };
         let mut style = Style::new().fg(fg);
         if band.running && t == band.tick {
@@ -92,11 +92,11 @@ fn band_beats(band: &Band, width: usize) -> Line<'static> {
     }
     spans.push(Span::styled(format!("  {head}"), Style::new().add_modifier(Modifier::BOLD)));
     if !place.is_empty() {
-        spans.push(Span::styled(format!("   {place}"), Style::new().fg(Color::Gray)));
+        spans.push(Span::styled(format!("   {place}"), Style::new().fg(theme::text())));
     }
     spans.push(Span::styled(
         format!("  {state}{hint}"),
-        Style::new().fg(if band.running { ACCENT } else { Color::DarkGray }),
+        Style::new().fg(if band.running { theme::set() } else { theme::dim() }),
     ));
     Line::from(spans)
 }
@@ -105,7 +105,7 @@ fn band_beats(band: &Band, width: usize) -> Line<'static> {
 /// le **compte à rebours de changement de son**, qui passe au décompte des temps sur la dernière
 /// mesure. C'est la ligne qui prévient au bon moment de changer de son.
 fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
-    let dim = Style::new().fg(Color::DarkGray);
+    let dim = Style::new().fg(theme::dim());
     if !band.sectioned {
         let how = if s.locked { "" } else { " (t pour écrire le prompteur)" };
         return Line::styled(format!(" pas de sections : la battue compte les mesures{how}"), dim);
@@ -120,8 +120,8 @@ fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
             dim,
         );
     };
-    let warn = Style::new().fg(Color::Yellow);
-    let lit = Style::new().fg(Color::Yellow).add_modifier(Modifier::REVERSED | Modifier::BOLD);
+    let warn = Style::new().fg(theme::warn());
+    let lit = Style::new().fg(theme::warn()).add_modifier(Modifier::REVERSED | Modifier::BOLD);
     let label = next.label.to_uppercase();
     let mut extras: Vec<Span> = Vec::new();
     if let Some(m) = next.meter.as_ref() {
@@ -154,7 +154,7 @@ fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
         }
         spans.push(Span::styled(
             format!(" {label} dans {} mes.", next.bars_left),
-            Style::new().fg(Color::Gray),
+            Style::new().fg(theme::text()),
         ));
     }
     spans.extend(extras);

@@ -90,3 +90,15 @@ if hits=$(grep -rnE '\bstd::thread\b|\bthread::(spawn|Builder)\b' crates/dsp/src
   exit 1
 fi
 echo "dsp sans thread"
+
+# Toutes les couleurs des écrans viennent de `namfoop::theme` : une teinte s'y change une fois, et
+# elle change partout où elle a ce sens. `Color` reste un **type** utilisable (un paramètre, un
+# champ) ; c'est nommer une teinte en dur qui est refusé.
+if hits=$(grep -rnE 'Color::[A-Za-z]' crates/namfoop/src --include='*.rs' \
+  | grep -v '^crates/namfoop/src/theme.rs:'); then
+  echo "✗ couleur en dur hors de crates/namfoop/src/theme.rs :" >&2
+  echo "$hits" >&2
+  echo "Ajouter ou réutiliser une fonction de theme, nommée par ce que la couleur signifie." >&2
+  exit 1
+fi
+echo "couleurs des écrans toutes dans theme"

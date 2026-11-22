@@ -22,20 +22,20 @@ pub(super) fn model_line(
     let m = &s.models[idx];
     let mut spans = vec![
         cursor_span(on_cursor),
-        Span::styled(format!("{:<6}", m.id), Style::new().fg(Color::DarkGray)),
+        Span::styled(format!("{:<6}", m.id), Style::new().fg(theme::dim())),
         badge(m.needs),
         mark,
         Span::raw(format!("{:<w$}", m.label, w = label_w)),
     ];
     spans.extend(tail);
     if let Some(d) = &m.profile {
-        spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
+        spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(theme::curve())));
         if let Some(g) = &d.grain {
             spans.push(Span::styled(format!("  {g}"), grain_style(g)));
         }
         spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
     }
-    spans.push(Span::styled(format!("  {}  [{}]", m.detail, m.pack), Style::new().fg(Color::DarkGray)));
+    spans.push(Span::styled(format!("  {}  [{}]", m.detail, m.pack), Style::new().fg(theme::dim())));
     Line::from(spans)
 }
 
@@ -52,20 +52,20 @@ pub(super) fn ir_line(
     let it = &s.irs[idx];
     let mut spans = vec![
         cursor_span(on_cursor),
-        Span::styled(format!("{:<6}", it.id), Style::new().fg(Color::DarkGray)),
+        Span::styled(format!("{:<6}", it.id), Style::new().fg(theme::dim())),
         mark,
         Span::raw(format!("{:<w$}", it.label, w = label_w)),
     ];
     spans.extend(tail);
     if let Some(d) = &it.profile {
-        spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
+        spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(theme::curve())));
         spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
     }
-    spans.push(Span::styled(format!("  [{}]", it.pack), Style::new().fg(Color::DarkGray)));
+    spans.push(Span::styled(format!("  [{}]", it.pack), Style::new().fg(theme::dim())));
     if let Some(p) = s.blend.iter().find(|p| p.ir == idx) {
         spans.push(Span::styled(
             format!("  [mélange {:+.0} dB{}]", p.gain_db, if p.invert { " ø" } else { "" }),
-            Style::new().fg(Color::Magenta),
+            Style::new().fg(theme::blend()),
         ));
     }
     Line::from(spans)
