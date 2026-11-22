@@ -80,6 +80,8 @@ meta_cmd.rs     `meta` : affichage d'un modèle
 midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair (`Horloge` résume les
                 tops à une ligne par noire). N'ouvre pas la carte son : c'est la commande des
                 essais matériels MIDI
+                L'écran plein écran qui la remplacera est spécifié dans
+                docs/design/midi.md (maquette : docs/design/midi.html)
 models_cmd.rs   `models` : inventaire affiché
 presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne via BlockSpec::describe)
 sets_cmd.rs     `sets` : les sets de concert (identifiant, nom, morceaux et sons), et SURTOUT ce qui
