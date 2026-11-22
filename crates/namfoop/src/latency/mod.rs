@@ -115,10 +115,22 @@ fn describe(spec: &dsp::block::ChainSpec) -> String {
     spec.blocks.iter().map(|b| b.describe()).collect::<Vec<_>>().join(" › ")
 }
 
+/// Une passe abandonnée le dit : sans cette ligne, sa médiane est calculée sur moins de mesures
+/// que demandé et rien ne le signale.
+fn tell_if_gave_up(row: &Row, count: u32) {
+    let got = row.frames.len() as u32;
+    if got < count {
+        // `row.weak` compte toutes les fenêtres sans retour, échauffement compris : c'est ce que
+        // l'utilisateur a vu passer. L'abandon, lui, tient à MAX_WEAK d'entre elles consécutives.
+        println!("  (passe abandonnée : {got} mesure(s) sur {count}, {} fenêtre(s) sans retour)", row.weak);
+    }
+}
+
 /// Ce qu'une passe a donné, côté affichage.
 #[derive(Default)]
 struct Row {
     frames: Vec<u64>,
+    /// Fenêtres restées sous le bruit, échauffement compris : ce que l'utilisateur a vu passer.
     weak: u32,
     xruns: u64,
     /// Dernière fenêtre restée sous le bruit : crête et bruit, pour le diagnostic.
@@ -218,6 +230,7 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
                         let x = stream.stats().xruns();
                         rows[shown].xruns = x.saturating_sub(xruns_before);
                         xruns_before = x;
+                        tell_if_gave_up(&rows[shown], args.count);
                     }
                     if passes.len() > 1 {
                         println!("\n— {}", pass_title(&names, passes[pass]));
@@ -251,6 +264,7 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
             Ok(Report::Done) => {
                 if shown != usize::MAX {
                     rows[shown].xruns = stream.stats().xruns().saturating_sub(xruns_before);
+                    tell_if_gave_up(&rows[shown], args.count);
                 }
                 done = true;
             }
@@ -382,6 +396,25 @@ fn table(
     if unstable {
         println!(
             "Attention : mesures instables (écart de plus de 2 frames) — ne pas jouer pendant la mesure."
+        );
+    }
+    // Une passe partielle est le cas sournois : elle affiche une médiane, prise sur moins de
+    // fenêtres que demandé. « Pas de retour » se voit, trois mesures sur dix non.
+    let partielles: Vec<String> = passes
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| {
+            let got = rows[*i].frames.len() as u32;
+            got > 0 && got < args.count
+        })
+        .map(|(_, p)| pass_title(names, *p))
+        .collect();
+    if !partielles.is_empty() {
+        println!(
+            "Attention : passe(s) abandonnée(s) avant d'avoir {} mesures, donc médiane sur moins de \
+             fenêtres que demandé : {}",
+            args.count,
+            partielles.join(", ")
         );
     }
     if rows.iter_mut().all(|r| r.stats().is_none()) {

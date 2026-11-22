@@ -30,7 +30,10 @@ const MIN_RATIO: f32 = 5.0;
 const NOISE_FLOOR: f32 = 1e-7;
 /// Fraction de la crête de la fenêtre à laquelle le retour est jugé commencé (-12 dB).
 const ONSET_FRAC: f32 = 0.25;
-/// Fenêtres sans retour au bout desquelles une passe est abandonnée.
+/// Fenêtres comptées **consécutives** sans retour au bout desquelles une passe est abandonnée.
+/// Consécutives, parce que des échecs dispersés parmi des réussites sont un câble qui grésille et
+/// non un câble débranché : les compter abandonnait la passe et calculait sa médiane sur moins de
+/// mesures que demandé.
 pub(super) const MAX_WEAK: u32 = 5;
 /// Durée d'écoute après l'impulsion : elle borne la latence mesurable.
 const WINDOW_S: f64 = 0.25;
@@ -304,15 +307,14 @@ impl Runner {
             self.buf[k] = emit;
             *o = emit;
             if let Some(event) = event {
-                // une fenêtre sans retour compte toujours pour l'abandon : un câble débranché ne
-                // doit pas faire durer la passe plus longtemps qu'avant
-                if matches!(event, Event::TooWeak { .. }) {
-                    self.weak += 1;
-                }
                 let counted = self.warmup == 0;
                 if counted {
-                    if matches!(event, Event::Measured { .. }) {
-                        self.done += 1;
+                    match event {
+                        Event::Measured { .. } => {
+                            self.done += 1;
+                            self.weak = 0;
+                        }
+                        Event::TooWeak { .. } => self.weak += 1,
                     }
                 } else {
                     self.warmup -= 1;
@@ -524,7 +526,8 @@ mod tests {
     const DRIVE_BLOCK: usize = 32;
 
     /// Fait tourner l'automate bloc par bloc, en renvoyant sur l'entrée, `delay` frames plus tard,
-    /// ce qui sort de la sortie : le câble de bouclage, simulé.
+    /// ce qui sort de la sortie : le câble de bouclage, simulé. Un retard **nul** ne renvoie rien :
+    /// c'est la fenêtre sans retour, et `delays` vide est le câble débranché.
     ///
     /// Chaque bloc passe par `assert_no_alloc` : **tout** test qui pilote la mesure vérifie donc du
     /// même coup la règle temps réel du projet (`crates/dsp/CLAUDE.md`) pour ce callback. En debug
@@ -561,7 +564,9 @@ mod tests {
                     // le retard de la n-ième impulsion : la dernière valeur tient pour la suite,
                     // ce qui permet de simuler une dérive au démarrage puis un flux établi
                     let d = delays[emits.min(delays.len() - 1)];
-                    back.insert(t + k as u64 + d, 0.5);
+                    if d > 0 {
+                        back.insert(t + k as u64 + d, 0.5);
+                    }
                     emits += 1;
                 }
             }
@@ -649,15 +654,30 @@ mod tests {
         }
     }
 
+    /// Des échecs **dispersés** parmi des réussites ne terminent pas une passe : seules `MAX_WEAK`
+    /// fenêtres consécutives l'abandonnent. Les compter toutes rendait la passe plus courte que
+    /// demandé, et sa médiane portait alors sur moins de mesures sans que rien ne le dise.
+    #[test]
+    fn scattered_failures_do_not_abandon_a_pass() {
+        // deux fenêtres d'échauffement, puis une réussite sur deux : cinq échecs en tout
+        let reports = drive(Vec::new(), 6, &[37, 37, 37, 0, 37, 0, 37, 0, 37, 0, 37, 0, 37]);
+        let measured = reports
+            .iter()
+            .filter(|r| matches!(r, Report::Window { event: Event::Measured { .. }, counted: true, .. }))
+            .count();
+        assert_eq!(measured, 6, "la passe a renoncé avant ses six mesures : {reports:?}");
+        assert!(matches!(reports.last(), Some(Report::Done)));
+    }
+
     /// Une passe qui ne voit rien revenir n'arrête pas les suivantes : elle renonce au bout de
-    /// `MAX_WEAK` fenêtres et la mesure continue. C'est ce qui rend le tableau lisible en carte
-    /// simulée, où rien ne boucle.
+    /// `MAX_WEAK` fenêtres comptées et la mesure continue. C'est ce qui rend le tableau lisible en
+    /// carte simulée, où rien ne boucle.
     #[test]
     fn a_pass_without_return_does_not_stop_the_others() {
         let reports = drive(vec![dsp::Chain::new()], 3, &[]);
         let (passes, done) = passes_of(&reports, false);
         assert!(done);
-        assert_eq!(passes.len() as u32, 3 * MAX_WEAK);
+        assert_eq!(passes.len() as u32, 3 * (WARMUP + MAX_WEAK));
         assert_eq!(passes.iter().copied().collect::<std::collections::BTreeSet<_>>(), [0, 1, 2].into());
         assert!(reports.iter().all(|r| !matches!(r, Report::Window { event: Event::Measured { .. }, .. })));
     }
