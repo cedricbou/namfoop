@@ -21,8 +21,7 @@ use audio_io::Io;
 use engine::meters::{LoadHistogram, LoadSummary};
 
 use rt::{
-    plan, Event, Pass, Report, Runner, Spot, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S,
-    WARMUP,
+    plan, Event, Pass, Report, Runner, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S, WARMUP,
 };
 
 fn db(v: f32) -> f32 {
@@ -127,9 +126,9 @@ impl Row {
 }
 
 fn pass_title(names: &[String], pass: Pass) -> String {
-    match pass.chain {
+    match pass.chain() {
         None => "trajet nu".to_string(),
-        Some(i) => format!("{}, {}", names[i], pass.spot.label()),
+        Some(i) => format!("{}, {}", names[i], pass.label()),
     }
 }
 
@@ -314,10 +313,8 @@ fn table(
     let reference = rows[0].stats().map(|(med, _, _)| med);
     let mut unstable = false;
     for (i, pass) in passes.iter().enumerate() {
-        let (name, place) = match pass.chain {
-            None => ("trajet nu", "—"),
-            Some(c) => (names[c].as_str(), pass.spot.label()),
-        };
+        let name = pass.chain().map_or("trajet nu", |c| names[c].as_str());
+        let place = pass.label();
         let (latence, ecart, disp) = match rows[i].stats() {
             Some((med, min, max)) => {
                 unstable |= max - min > 2;
@@ -334,7 +331,7 @@ fn table(
         };
         // La charge n'est donnée que « à côté » : dans le trajet, la chaîne ne reçoit que
         // l'impulsion, donc du silence le reste du temps — ce n'est pas la charge d'un son joué.
-        let (med_load, p999, over80, over100) = if pass.spot == Spot::Beside {
+        let (med_load, p999, over80, over100) = if matches!(pass, Pass::Beside(_)) {
             let l = loads[i];
             (
                 format!("{:.1} %", l.p50 * 100.0),
@@ -361,7 +358,7 @@ fn table(
     let worst = passes
         .iter()
         .enumerate()
-        .filter(|(_, p)| p.spot == Spot::Beside)
+        .filter(|(_, p)| matches!(p, Pass::Beside(_)))
         .max_by(|(a, _), (b, _)| loads[*a].p999.total_cmp(&loads[*b].p999));
     let charge = worst
         .map(|(i, p)| format!("{:.0} % ({})", loads[i].p999 * 100.0, pass_title(names, *p)))
