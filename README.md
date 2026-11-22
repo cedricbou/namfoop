@@ -1,4 +1,4 @@
-# namfoop
+<img src="docs/identite/banniere.svg" alt="namfoop" width="100%">
 
 Multi-effet basse temps réel en ligne de commande, pour Linux (PC, bientôt Raspberry Pi 5) et une
 carte son USB : modèles [NAM](https://github.com/sdatkinson/NeuralAmpModelerCore) (amplis, pédales,
