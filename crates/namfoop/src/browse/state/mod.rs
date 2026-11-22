@@ -489,6 +489,14 @@ impl State {
         self.tempo.clock_phase_confirmed()
     }
 
+    /// **Ce que le transport de la source a dit** (`Start` / `Stop`), pour l'en-tête. `None` :
+    /// elle n'en envoie pas — un métronome de clavier n'émet que des tops —, ou l'horloge s'est
+    /// tue sans l'annoncer. Il n'y a alors rien à montrer : « horloge perdue » dit déjà ce qu'on
+    /// sait, et un état de lecture inventé serait pire que pas d'état du tout.
+    pub fn transport(&self) -> Option<engine::tempo::Transport> {
+        self.tempo.transport()
+    }
+
     /// **Tops d'horloge écoulés depuis l'ancre**, quand une horloge est verrouillée. `None` : pas
     /// d'horloge, et ce qui en dépend (la battue) compte alors les millisecondes comme avant.
     ///

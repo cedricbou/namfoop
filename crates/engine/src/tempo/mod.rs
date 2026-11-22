@@ -78,6 +78,17 @@ pub enum TempoSource {
     ClockLost,
 }
 
+/// **Ce que la source d'horloge a dit de son transport.** Beaucoup de sources n'en envoient aucun
+/// (le métronome d'un clavier n'émet que des tops) : c'est le sens de `None`, et il n'y a alors
+/// rien à montrer plutôt qu'un état inventé.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Transport {
+    /// `Start` ou `Continue` : la source lit.
+    Playing,
+    /// `Stop` : la source s'est arrêtée, et elle nous l'a dit.
+    Stopped,
+}
+
 impl TempoSource {
     /// Ce que l'en-tête de `browse` affiche entre parenthèses.
     pub fn label(self) -> &'static str {
@@ -163,6 +174,8 @@ pub struct Arbiter {
     /// La phase est-elle digne de foi ? Vrai après un transport, un tap, ou une reprise dont on a
     /// observé le silence. Faux quand on s'est raccroché au milieu d'un flux.
     phase_confirmed: bool,
+    /// Ce que le transport de la source a dit (`None` : elle n'en envoie pas).
+    transport: Option<Transport>,
     /// Intervalles d'horloge rejetés **de suite** : au-delà de
     /// [`CLOCK_REJECTS_BEFORE_RESTART`], ce n'est plus de la gigue mais un changement de tempo.
     rejects: u32,
@@ -195,6 +208,7 @@ impl Arbiter {
             pending_offset: 0,
             ever_ticked: false,
             phase_confirmed: false,
+            transport: None,
             rejects: 0,
             clock_locked: false,
             beat_epoch: 0,
@@ -239,6 +253,21 @@ impl Arbiter {
     /// fois sur vingt-quatre, et l'écran doit le dire au lieu de laisser croire que c'est juste.
     pub fn clock_phase_confirmed(&self) -> bool {
         self.clock_locked && self.anchor_seq.is_some() && self.phase_confirmed
+    }
+
+    /// **Le transport de la source**, pour l'écran : ce qu'elle a **dit** en dernier, et `None`
+    /// tant qu'elle n'en a rien dit. Un trou dans le flux ne l'efface pas — avec « horloge
+    /// perdue », un `⏵` distingue au contraire « la source s'est arrêtée » de « j'ai perdu son
+    /// horloge alors qu'elle lisait », ce qui est le diagnostic qu'on cherche sur scène.
+    ///
+    /// Il n'a de sens qu'**à côté d'une horloge** : sans elle, un `Start` égaré — un pédalier mal
+    /// réglé, une piste MIDI oubliée — laisserait l'écran annoncer une lecture pour toute la
+    /// session, puisque rien ne viendrait plus jamais la démentir.
+    pub fn transport(&self) -> Option<Transport> {
+        match self.source {
+            TempoSource::MidiClock | TempoSource::ClockLost => self.transport,
+            TempoSource::Preset | TempoSource::Tap => None,
+        }
     }
 
     /// **La position de la noire courante**, en numéro de top d'ancrage : ce qui permet à une
@@ -412,6 +441,7 @@ impl Arbiter {
     /// `Continue` MIDI : l'horloge reprend la main **sans** recaler le temps 1 — c'est tout ce qui
     /// le distingue de `Start`, et c'est le sens du message : on repart d'où l'on s'était arrêté.
     pub fn clock_continue(&mut self) {
+        self.transport = Some(Transport::Playing);
         self.forget_tap();
         self.ticks.clear();
         self.rejects = 0;
@@ -429,6 +459,7 @@ impl Arbiter {
 
     /// `Stop` MIDI : le tempo est **gardé**, et le tap perd son privilège.
     pub fn clock_stop(&mut self) {
+        self.transport = Some(Transport::Stopped);
         self.forget_tap();
         self.lose_clock();
     }
@@ -461,6 +492,10 @@ impl Arbiter {
         self.anchor_silently = false;
         self.phase_confirmed = false;
         self.pending_offset = 0; // une position d'avant le silence ne dit plus rien
+                                 // le **transport n'est pas touché** : il dit ce que la source a annoncé, et un trou dans
+                                 // le flux ne la dément pas. L'effacer ici coûtait l'indication pour de bon dès le premier
+                                 // intervalle aberrant — et il en arrive pendant la demi-seconde de verrouillage, quand un
+                                 // `lose_clock` ne change même pas la source puisqu'elle n'était pas encore verrouillée.
                                  // le tempo est gardé tel quel : une panne d'horloge ne change jamais le son
         if was_locked && self.source == TempoSource::MidiClock {
             self.source = TempoSource::ClockLost;

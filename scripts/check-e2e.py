@@ -606,7 +606,6 @@ def scenario_midi_horloge(binaire, lignes, colonnes):
             stop.set()
             fil.join(1.0)
             ec.lire(0.4)
-            os.close(fd)
             phases = [l.split("phase=", 1)[1].strip() for l in ec.lignes_de_trace() if "phase=" in l]
             if not phases:
                 # Le verrou demande 24 intervalles cohérents (±25 %) et se perd après 500 ms de
@@ -622,6 +621,30 @@ def scenario_midi_horloge(binaire, lignes, colonnes):
                     f"{taille} : la phase du clic est immobile ({len(phases)} écritures, "
                     f"valeurs {sorted(set(phases))})",
                 )
+            # Le `Start` qui suit réancre la phase : on ne mesure donc son immobilité
+            # qu'**avant** lui, et c'est fait ci-dessus.
+            #
+            # **Le transport, de bout en bout** : l'en-tête doit dire que la source lit, puis
+            # qu'elle s'est arrêtée. Rien d'autre à l'écran ne le montre sans set ouvert, et
+            # c'est la boucle entière qu'on veut voir le porter — pas seulement le rendu.
+            os.write(fd, b"start\n")
+            for _ in range(30):  # de quoi reverrouiller après le Start, qui vide la fenêtre
+                os.write(fd, b"clock\n")
+                ec.lire(0.02)
+            # `voir()` rend tout ce qui est arrivé depuis le lancement : on vide le tampon avant
+            # chaque observation, sans quoi une image précédente répondrait à sa place — et une
+            # assertion négative n'aurait aucune valeur.
+            ec.tampon = ""
+            ec.lire(0.5)
+            tete = ec.voir()
+            verifier("⏵" in tete, f"{taille} : l'en-tête dit que la source lit")
+            os.write(fd, b"stop\n")
+            ec.tampon = ""
+            ec.lire(0.8)
+            tete = ec.voir()
+            verifier("⏸" in tete, f"{taille} : l'en-tête dit qu'elle s'est arrêtée")
+            verifier("⏵" not in tete, f"{taille} : et plus qu'elle lit")
+            os.close(fd)
             # comme ailleurs : `q` peut avertir, `Q` quitte
             ec.taper("q", 0.8)
             ec.taper("Q", 0.6)

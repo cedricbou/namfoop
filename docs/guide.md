@@ -1116,7 +1116,7 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 ### La ligne d'état
 
 ```
-  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0  ♩ 145 (MIDI)
+  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0  ♩ 145 ⏵ (MIDI)
 ```
 
 | Champ | Signification | Que faire |
@@ -1129,7 +1129,7 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 | `dsp` | part du temps disponible utilisée par le traitement (pic) | au-delà de 70 %, risque de craquements |
 | `xruns` | décrochages audio depuis le démarrage | doit rester à 0 |
 | `[CLIP SORTIE]` | échantillons écrêtés en sortie (limiteur désactivé) | baisse `--master-db` |
-| `♩` | tempo entendu et **d'où il vient** — `MIDI`, `tap`, `horloge perdue`, `preset` — affiché dès qu'un port MIDI est ouvert | il répond à « mon horloge est-elle écoutée ? » sans brancher de retour |
+| `♩` | tempo entendu et **d'où il vient** — `MIDI`, `tap`, `horloge perdue`, `preset` — affiché dès qu'un port MIDI est ouvert, avec `⏵` / `⏸` si la source annonce son transport | il répond à « mon horloge est-elle écoutée ? » sans brancher de retour |
 
 Au démarrage, une ligne `routage :` rappelle l'entrée de la basse et le rôle de chaque sortie, et
 une ligne `calibration :` la crête attendue sur `in`. À l'arrêt, un résumé donne la charge DSP
@@ -2209,6 +2209,7 @@ cc_sound = 69     # le CC qui choisira le son du morceau (défaut 34, convention
 
 Les effets calés sur le tempo (delay en `1/8.`, chorus) suivent le tempo **entendu**, et l'en-tête
 de `browse` dit toujours d'où il vient : `♩ 120 (MIDI)`, `(tap)`, `(preset)` ou `(horloge perdue)`.
+La ligne d'état de `run` porte le même champ.
 
 **L'horloge d'Ableton** (Beat Clock, 24 tops par noire) donne ce tempo dès qu'elle est verrouillée,
 c'est-à-dire après une noire de tops cohérents. Ce qui se passe ensuite est fait pour la scène :
@@ -2219,6 +2220,11 @@ c'est-à-dire après une noire de tops cohérents. Ce qui se passe ensuite est f
   remesure pendant laquelle le son ne bouge pas ;
 - `Start` remet la battue sur le **temps 1**, `Continue` reprend sans la recaler, `Stop` **garde** le
   dernier tempo ;
+- **l'en-tête dit ce que la source a annoncé** : `⏵` quand elle lit, `⏸` quand elle s'est arrêtée,
+  juste après le tempo (`♩ 120 ⏵ (MIDI)`). Un clavier qui n'envoie que des tops n'affiche ni l'un
+  ni l'autre : il n'y a pas de transport à montrer, et c'est précisément ce qu'on veut savoir —
+  sans transport, le temps 1 reste à taper (`*`). `⏵` **avec** « horloge perdue » veut dire que
+  l'horloge s'est tue sans que la source annonce l'arrêt : câble débranché, source éteinte ;
 - l'horloge qui **se tait** (500 ms sans top) garde son dernier tempo, et l'en-tête passe en
   « horloge perdue » **en jaune**. Jamais de retour silencieux au tempo du preset : ce serait un
   changement de son causé par une panne de câble.
@@ -2246,9 +2252,9 @@ parlent du set et non de la banque — l'adressage hiérarchique de tous les pé
 |---|---|
 | **Program Change n** | le morceau dont le `pc` vaut n, sur son **premier son** |
 | **CC 34, valeur k** | le **son k+1** du morceau joué (son 1 = valeur 0) |
-| **Start** | la battue repart du 1 de la **mesure 1** du morceau, et elle avance |
-| **Stop** | la battue s'arrête ; le tempo est gardé |
-| **Song Position Pointer** | la position dans le morceau, convertie en mesure et en temps par la carte des mesures — juste même après un changement de mesure |
+| **Start** | la battue repart du 1 de la **mesure 1** du morceau, et elle avance ; l'en-tête passe à `⏵` |
+| **Stop** | la battue s'arrête ; le tempo est gardé ; l'en-tête passe à `⏸` |
+| **Song Position Pointer** | la position dans le morceau, convertie en mesure et en temps par la carte des mesures — juste même après un changement de mesure. **Sans morceau joué**, elle s'affiche en temps (`position reçue : temps 5`), puisqu'aucune bande de mesure n'est là pour la montrer |
 | horloge | le tempo entendu (voir plus haut) |
 
 Le numéro de PC d'un morceau est **fixe** (`pc` dans son fichier de set) : réordonner la set list ne

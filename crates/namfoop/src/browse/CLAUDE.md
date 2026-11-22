@@ -171,7 +171,14 @@ le clic **compte les tops** au lieu de compter des échantillons : sa position d
 insensible à la dérive et aux changements de tempo. La phase est le **numéro du top d'ancrage**, que
 le message a apporté (`midi_io::Message::clock_seq`) : une constante entre deux ancrages, donc
 l'endroit du tour où la boucle l'écrit n'a aucune importance. `State::clock_phase_confirmed` dit
-si l'ancre a été observée ou devinée, et l'en-tête l'annonce (« temps à confirmer : * »). `k` le bascule (`State::metronome`, éteint au démarrage, jamais dans un
+si l'ancre a été observée ou devinée, et l'en-tête l'annonce (« temps à confirmer : * »).
+`State::transport` dit ce que la source a **annoncé** (`Start` / `Stop`) : l'en-tête le montre par
+`⏵` / `⏸`, les signes de la bande de battue (`docs/design/set.md` § 11), **avant** la parenthèse de
+la source parce qu'« horloge perdue » pousse déjà l'en-tête au-delà de 80 colonnes. Sans set à
+l'écran, c'est la seule chose qui distingue « je reçois le transport » de « je ne reçois que des
+tops », et c'est elle qui dit si le temps 1 est tenu ou s'il reste à taper. Un Song Position
+Pointer, lui, est un **événement** : il va dans la ligne de message, et seulement sans morceau joué
+— avec un set, la bande de battue montre déjà le saut. `k` le bascule (`State::metronome`, éteint au démarrage, jamais dans un
 preset : `unsaved()` ne le voit pas) et il ne va que dans les sorties déclarées **in-ear** par
 `setup` (`OutputRoute::click`, posé par `setup/state.rs` d'après `OutRole::InEar`) : c'est ce qui
 garantit qu'il n'atteint jamais le sondier. `State::metronome_routed` dit si une sortie le reçoit ;

@@ -60,6 +60,13 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   jamais tout à fait vrai. Pas de phase sans verrou : le tempo ne serait pas encore celui de la
   source. Un **tap** pose l'ancre sur le top le plus proche du geste, seul endroit où une durée
   sert encore à compter des tops — une fois, sur un geste qui vaut déjà ±30 ms.
+  `transport()` rend ce que la source a **annoncé** (`Start` / `Continue` / `Stop`), pour que
+  l'écran le montre : il n'a de sens qu'au côté d'une horloge, sinon un `Start` égaré l'y
+  laisserait pour la session, et un trou dans le flux ne l'efface **pas** — avec « horloge perdue »,
+  un `⏵` distingue « la source s'est arrêtée » de « j'ai perdu son horloge alors qu'elle lisait ».
+  L'effacer sur perte d'horloge coûtait l'indication pour de bon dès le premier intervalle aberrant,
+  et il en arrive pendant la demi-seconde de verrouillage, où `lose_clock` ne change même pas la
+  source.
   `clock_phase_confirmed` distingue une ancre **observée** (silence puis reprise, transport, tap)
   d'une ancre **devinée** (on s'est raccroché au milieu d'un flux, et le premier top n'y est un
   début de temps qu'une fois sur vingt-quatre) : l'écran doit le dire, c'est indiscernable d'un

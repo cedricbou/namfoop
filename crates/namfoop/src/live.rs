@@ -229,7 +229,21 @@ pub fn run(
                 if oc > 0 { format!("  [CLIP SORTIE ×{oc}]") } else { String::new() },
                 // avec un port MIDI ouvert, le tempo entendu répond à « mon horloge est-elle
                 // écoutée ? » sans brancher un retour ; sans port, il ne peut pas bouger
-                if midi.is_some() { format!("  ♩ {bpm:.0} ({})", src.label()) } else { String::new() },
+                // et le transport de la source quand elle en envoie un, avec les mêmes signes
+                // que l'en-tête de `browse` : un seul vocabulaire pour les deux écrans
+                if midi.is_some() {
+                    format!(
+                        "  ♩ {bpm:.0}{} ({})",
+                        match tempo.transport() {
+                            Some(engine::tempo::Transport::Playing) => " ⏵",
+                            Some(engine::tempo::Transport::Stopped) => " ⏸",
+                            None => "",
+                        },
+                        src.label(),
+                    )
+                } else {
+                    String::new()
+                },
             );
         }
     }
