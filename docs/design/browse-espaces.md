@@ -240,6 +240,9 @@ onglet : le sélecteur s'ouvre sur place (§ 5). La Chaîne est un espace, pas u
 banc, avec l'A/B `r` / `c` / `b` appliqué (`effective_model` / `effective_ir`) ; dans la Chaîne, les
 blocs édités, avec l'essai du sélecteur, la bascule `c`, l'isolement `o` et `r` (sans effets).
 
+L'accordeur (`u`) coupe la basse dans tous les espaces : il s'ouvre en fenêtre dans la Bibliothèque
+et la Chaîne, à la place du prompteur dans le Set ([`accordeur.md`](accordeur.md)).
+
 ## 7. Tailles de terminal
 
 L'écran cible sur le Pi 5 est un 10,1 pouces 1280×800 : 160×50 en police 8×16, 128×40 en 10×20, 106×33

@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#405)
+- **L'accordeur silencieux a sa spécification et sa maquette** (`docs/design/accordeur.md`,
+  `docs/design/accordeur.html`) : ce qui est coupé (la basse, traitée et DI, pas le micro ni le clic),
+  ce qui lance l'accordeur et rend le son (`u`, CC 15, tout changement de morceau ou de son), sa
+  place dans chaque écran et ses couleurs. La charte gagne le **violet UV** de la basse coupée.
+  C'est la cible des stories de l'épique « M'accorder en silence » : rien ne change encore dans
+  namfoop.
+
 ### Modifié (#400)
 - **Les dégradés prennent la couleur de l'espace** : le grain des modèles, le panneau Bandes et le
   corps des vumètres montent en trois paliers dans la teinte de l'espace où l'on est — teinte

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>namfoop — maquette : l'accordeur</title>
+<style>
+  /* VOICE : outil de scène, sobre, comme les autres maquettes de docs/design/.
+     IDEA : le terminal de namfoop lui-même, piloté au clavier, avec le matériel simulé à côté.
+     PICTURE : l'écran, en haut, avec l'accordeur qui prend la colonne du prompteur.
+     COLOUR and TYPE : la charte (noir d'encre, vert Set, violet UV pour « basse coupée »), mono.
+     LAYOUT : terminal à gauche, banc de simulation à droite ; empilés sous 1000 px. */
+  :root{color-scheme:dark;
+    --bg:#0F0F14; --fg:#d7dae0; --dim:#8A8A9C; --graph:#1E1E28; --edge:#2E2E3C;
+    --cyan:#00F0FF; --green:#00E676; --yellow:#FFD600; --red:#FF3B30; --white:#FFFFFF; --mag:#FF007F; --uv:#BF40FF;}
+  *{box-sizing:border-box;min-width:0}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:clip}
+  .wrap{max-width:1440px;margin:0 auto;padding:18px 16px 40px;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}
+  @media (max-width:1000px){.wrap{grid-template-columns:minmax(0,1fr)}}
+  h1{font-size:17px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--dim);margin:0 0 12px;font-size:13px;max-width:95ch}
+  code{font:12px ui-monospace,Menlo,monospace;background:var(--graph);border-radius:3px;padding:0 4px;color:var(--fg)}
+  .term{background:var(--bg);border:1px solid var(--edge);border-radius:8px;overflow-x:auto;position:relative;outline:none;
+        font:13px/1.35 "DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace}
+  .term:focus{border-color:#087040}
+  .inner{min-width:1060px;position:relative}
+  .top{padding:6px 10px 0;white-space:pre;display:flex}.top .grow{flex:1}
+  .cols{display:flex;align-items:stretch}
+  .box{border:1px solid var(--edge);margin:12px 4px 8px 8px;border-radius:2px;position:relative}
+  .box>.t{position:absolute;top:-9px;left:10px;background:var(--bg);padding:0 6px;font-weight:bold;white-space:pre}
+  .box.g{border-color:#087040}.box.g>.t{color:var(--green)}
+  .box.c{border-color:#07707a}.box.c>.t{color:var(--cyan)}
+  .box.r{border-color:#6f2a94}.box.r>.t{color:var(--uv)}
+  #left{flex:0 0 46ch}#right{flex:1;margin-right:8px}
+  .cols.one #left{flex:1;margin-right:8px}.cols.one #right{display:none}
+  pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow:hidden;min-height:22em}
+  .dim{color:var(--dim)}.b{font-weight:bold}.ok{color:var(--green)}.warn{color:var(--yellow)}.err{color:var(--red)}
+  .cy{color:var(--cyan)}.wh{color:var(--white);font-weight:bold}
+  .play{background:var(--green);color:#0F0F14;font-weight:bold}
+  .mute{background:var(--uv);color:#0F0F14;font-weight:bold}
+  .cut{color:var(--uv)}
+  .back{background:var(--green);color:#0F0F14;font-weight:bold}
+  .okd{color:#07854A;font-weight:bold}.wb{color:var(--white);font-weight:bold}
+  .gtab{background:var(--dim);color:#0F0F14;font-weight:bold}
+  .box.off{border-color:var(--edge)}.box.off>.t{color:var(--dim)}
+  .off-txt,.off-txt *{color:var(--dim)!important;background:none!important;font-weight:normal!important}
+  .off-txt .gplay{background:var(--dim)!important;color:#0F0F14!important;font-weight:bold!important}
+  .lock{background:#087040;color:#0F0F14;font-weight:bold}
+  .tab{background:var(--green);color:#0F0F14;font-weight:bold}.tabc{background:var(--cyan);color:#0F0F14;font-weight:bold}
+  .listen,.msg,.help{padding:2px 12px;white-space:pre-wrap}
+  .msg{min-height:24px;color:var(--yellow);padding-top:4px}
+  .help{color:var(--dim);padding-bottom:10px}.help b{color:var(--fg);font-weight:normal}
+  .popup{position:absolute;left:50%;top:64px;transform:translateX(-50%);width:74ch;background:var(--graph);
+         border:1px solid var(--uv);border-radius:3px;box-shadow:0 10px 40px #000c;z-index:5}
+  .popup .pt{padding:6px 10px 0;color:var(--uv);font-weight:bold;white-space:pre}
+  .popup pre{min-height:0}
+  .side{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--graph);border:1px solid var(--edge);border-radius:8px;padding:12px 14px}
+  .card h2{font-size:13px;margin:0 0 8px;color:var(--green);font-weight:600}
+  .card p{margin:0 0 8px;font-size:12.5px;color:var(--dim)}
+  button{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--edge);border-radius:6px;padding:7px 8px;cursor:pointer;min-height:36px}
+  button:hover,button:focus-visible{border-color:var(--green);outline:none}
+  button.on{border-color:var(--green);color:var(--green)}
+  .rowb{display:flex;gap:6px;flex-wrap:wrap}.rowb button{flex:1 1 auto;text-align:center}
+  .keybar{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+  .keybar button{padding:4px 8px;font:12px ui-monospace,Menlo,monospace;min-width:34px;min-height:30px}
+  input[type=range]{width:100%;accent-color:var(--green)}
+  .lbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim);margin:6px 0 2px}
+  .lbl b{color:var(--fg);font-weight:normal;font-family:ui-monospace,Menlo,monospace}
+  .out{display:grid;grid-template-columns:11.5em minmax(0,1fr) 5.5em;gap:6px;align-items:center;font-size:12.5px;margin:5px 0}
+  .bar{height:10px;background:var(--bg);border:1px solid var(--edge);border-radius:2px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--green)}
+  .st{font:11.5px ui-monospace,Menlo,monospace;color:var(--dim);text-align:right;white-space:nowrap}
+  .st.err{color:var(--red)}.st.cut{color:var(--uv)}.st.warn{color:var(--yellow)}
+  ol.q{font-size:12.5px;color:var(--dim);margin:0;padding-left:18px}ol.q li{margin-bottom:7px}ol.q b{color:var(--fg)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>namfoop · l'accordeur silencieux</h1>
+    <p class="sub">Maquette de <code>docs/design/accordeur.md</code>. Clique dans le terminal, puis joue au clavier ou avec la barre de touches. À droite, gratte une corde, envoie du MIDI et regarde ce qui sort vers la façade et les in-ears. Le set, les sons et les textes sont fictifs.</p>
+    <div class="term" id="term" tabindex="0">
+      <div class="inner">
+        <div class="top" id="top"></div>
+        <div class="cols" id="cols">
+          <div class="box g" id="left"><span class="t" id="lt"></span><pre id="lp"></pre></div>
+          <div class="box" id="right"><span class="t" id="rt"></span><pre id="rp"></pre></div>
+        </div>
+        <div class="listen" id="listen"></div>
+        <div class="msg" id="msg"></div>
+        <div class="help" id="help"></div>
+        <div class="popup" id="popup" style="display:none"><div class="pt" id="popt"></div><pre id="popp"></pre></div>
+      </div>
+    </div>
+    <div class="keybar" id="keybar"></div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>Écran</h2>
+      <div class="rowb" id="modes"></div>
+    </div>
+    <div class="card">
+      <h2>Ma basse</h2>
+      <p>Gratte une corde : elle sonne fort, monte un peu à l'attaque, puis s'éteint en 5 s environ.</p>
+      <div class="rowb" id="strings"></div>
+      <div class="lbl"><span>Accordage de la corde</span><b id="detv">+12 cents</b></div>
+      <input type="range" id="detune" min="-60" max="60" value="12" aria-label="Écart de la corde en cents">
+      <div class="lbl"><span>La de référence (config)</span><b id="a4v">440 Hz</b></div>
+      <div class="rowb" id="a4s"></div>
+      <div class="rowb" style="margin-top:8px"><button id="talk">Je parle au micro</button></div>
+    </div>
+    <div class="card">
+      <h2>MIDI simulé</h2>
+      <p>Ableton envoie le CC 15 en fin de morceau, puis le Program Change du suivant.</p>
+      <div class="rowb">
+        <button data-midi="cc15on">CC 15 = 127</button><button data-midi="cc15off">CC 15 = 0</button>
+      </div>
+      <div class="rowb" style="margin-top:6px">
+        <button data-midi="pcnext">PC du suivant</button><button data-midi="cc34">CC 34 = 1</button><button data-midi="start">Start</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Ce qui sort</h2>
+      <div id="outs"></div>
+    </div>
+    <div class="card">
+      <h2>Décidé le 23/11</h2>
+      <ol class="q">
+        <li><b>La place.</b> Sur scène, l'accordeur prend la colonne du prompteur, la set list reste à gauche et le morceau suivant sous l'accordeur. Ailleurs, une fenêtre. Le très grand, lisible de loin, viendra avec l'écran de scène.</li>
+        <li><b>La corde qui s'éteint.</b> La dernière note reste grisée 2 s, puis « joue une corde ».</li>
+        <li><b>L'aiguille.</b> Vert à ±3 cents, vert atténué jusqu'à ±10, blanc au-delà ; lissée sur 250 ms. La flèche dit le geste (« monte », « descends »).</li>
+        <li><b>Les couleurs.</b> Le violet UV ne marque que l'état coupé, l'écran derrière passe en gris ; au retour, « son rendu » en vert 2 s.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+{
+"use strict";
+// ---------- données ----------
+const SET = {name:"Groupe 1 · Live Mairie", songs:[
+  {t:"Ouverture", bpm:96, sounds:["Clean SVT"], next:["INTRO    | E . . . | E . . . | A . . . | B . . . |"]},
+  {t:"Le Phare", bpm:124, sounds:["Fuzz Face","Clean SVT"], next:["INTRO    basse seule, 4 mesures, fuzz plein pot","         | E5 . . . | E5 . . . | G5 . E5 . | D5 C5 B4 . |"]},
+  {t:"Néon", bpm:100, sounds:["Synth octave"], next:["› scénette : je présente le groupe, Léa lance la boucle","INTRO    | Am . . . | Am . . . | F . . . | G . . . |"]},
+  {t:"Marée basse", bpm:82, sig:"6/8", sounds:["Clean SVT","Drive B7K"], next:["COUPLET  | Dm . . | Dm . . | B♭ . . | C . . |"]},
+  {t:"Sur le fil", bpm:117, sounds:["Drive B7K"], next:["INTRO    | G . . . | G . . . | C . . . | D . . . |"]},
+  {t:"Rappel", bpm:110, sounds:["Fuzz Face"], next:["INTRO    batterie seule 2 mesures"]},
+]};
+const STRINGS = [ // nom, midi
+  ["Si grave",23],["Mi",28],["La",33],["Ré",40-2],["Sol",43],["Do aigu",48],["Mi guit.",40],["Mi aigu",64]];
+const NAMES = ["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"];
+const FONT = {
+  A:[" ███ ","█   █","█████","█   █","█   █"], B:["████ ","█   █","████ ","█   █","████ "],
+  C:[" ████","█    ","█    ","█    "," ████"], D:["████ ","█   █","█   █","█   █","████ "],
+  E:["█████","█    ","████ ","█    ","█████"], F:["█████","█    ","████ ","█    ","█    "],
+  G:[" ████","█    ","█  ██","█   █"," ████"], "♭":["█   ","█   ","███ ","█  █","███ "]};
+const MODES = [["set","browse · Set"],["chain","browse · Chaîne"],["run","run --set"],["preset","run --preset"]];
+const TAIL_S = 1.6, TC = 1.8; // queue de réverbe du son joué ; constante d'extinction d'une corde (s)
+
+// ---------- état ----------
+const S = {mode:"set", song:1, sound:0, muted:false, msg:"", a4:440, detune:12, string:1,
+  pluckT:-99, talk:false, muteT:-99, tailAtMute:0, last:null, lastT:-99, smooth:null, beat:0, backT:-99};
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const pad = (s,n) => s.length>=n ? s.slice(0,n) : s+" ".repeat(n-s.length);
+const now = () => performance.now()/1000;
+
+// ---------- signal simulé ----------
+function bassEnv(t){ const d=t-S.pluckT; return d<0||d>8 ? 0 : Math.exp(-d/TC); }
+function reading(t){
+  const env = bassEnv(t);
+  if (env < 0.06) return null;                       // trop faible : rien plutôt qu'une note fausse
+  const d = t-S.pluckT;
+  const attack = 5*Math.exp(-d/0.25);                // la corde monte à l'attaque
+  const midi = STRINGS[S.string][1];
+  const f = 440*2**((midi-69)/12) * 2**((S.detune+attack+(Math.random()-.5)*0.8)/1200);
+  const m = 69 + 12*Math.log2(f/S.a4), n = Math.round(m);
+  return {n, cents:(m-n)*100, f};
+}
+
+// ---------- rendu de l'accordeur ----------
+function bigNote(n, cls, width){
+  const name = NAMES[((n%12)+12)%12], oct = Math.floor(n/12)-1;
+  const glyphs = [...name].map(ch => FONT[ch]);
+  const rows = [];
+  for (let r=0;r<5;r++) rows.push(glyphs.map(g => g[r].replace(/█/g,"██").replace(/ /g,"  ")).join("  "));
+  const left = " ".repeat(Math.max(0, Math.floor((width - rows[0].length)/2)));
+  return rows.map((l,r) => left + `<span class="${cls}">${l}</span>` + (r===4 ? `  <span class="dim">octave ${oct}</span>` : ""));
+}
+function tunerLines(t, width){
+  const L = [], r = S.smooth, fresh = r && t-S.lastT < 0.15, faded = r && !fresh && t-S.lastT < 2;
+  const center = s => " ".repeat(Math.max(0,Math.floor((width-s.replace(/<[^>]+>/g,"").length)/2))) + s;
+  L.push("");
+  if (!r || (!fresh && !faded)){
+    for (let i=0;i<5;i++) L.push("");
+    L.push(center('<span class="dim">joue une corde</span>'));
+    L.push(""); needle(null).forEach(x=>L.push(center(x))); L.push("");
+  } else {
+    const inTune = Math.abs(r.cents) <= 3;
+    const tier = Math.abs(r.cents) <= 3 ? "ok b" : Math.abs(r.cents) <= 10 ? "okd" : "wb";
+    const cls = !fresh ? "dim" : tier;
+    bigNote(r.n, cls, width).forEach(x => L.push(x));
+    L.push("");
+    needle(fresh ? r.cents : null, inTune).forEach(x=>L.push(center(x)));
+    const c = Math.round(r.cents), cs = (c>0?"+":c<0?"−":"±")+Math.abs(c)+" cents";
+    const act = !fresh ? '<span class="dim">…</span>' : inTune ? '<span class="ok b">✓ juste</span>'
+      : c>0 ? '<span class="wb">▼ descends</span>' : '<span class="wb">▲ monte</span>';
+    L.push(""); L.push(center(`<span class="${fresh?tier:"dim"}">${pad(cs,10)}</span>   ${act}`));
+  }
+  L.push("");
+  return L;
+}
+function needle(c, ok){
+  const N=41, mid=20; let marks="", ptr="";
+  for (let i=0;i<N;i++) marks += i===mid ? "┃" : i%10===0 ? "┆" : "·";
+  const scale = " -50       -25        0        +25       +50";
+  if (c===null) ptr = " ".repeat(N);
+  else { const p = Math.max(0,Math.min(N-1, Math.round(mid + c/2.5))); ptr = " ".repeat(p) + "▲" + " ".repeat(N-1-p); }
+  const pc = c===null ? "dim" : ok ? "ok b" : Math.abs(c)<=10 ? "okd" : "wb";
+  return [`<span class="dim">${pad(scale,N+4)}</span>`, `<span class="dim">${pad("  "+marks,N+4)}</span>`, `<span class="${pc}">${pad("  "+ptr,N+4)}</span>`];
+}
+
+// ---------- rendu de l'écran ----------
+function header(){
+  const badge = S.muted ? '  <span class="mute"> 🔇 BASSE COUPÉE </span>' : now()-S.backT < 2 ? '  <span class="back"> ♪ SON RENDU </span>' : "";
+  const DIM = S.muted;
+  const song = SET.songs[S.song];
+  const tempo = `<span class="dim">♩ ${song.bpm} ${song.sig||"4/4"} (du morceau)</span>`;
+  if (S.mode==="run") return ` namfoop run  <span class="${DIM?"gtab":"lock"}"> 🔒 SET </span> ${SET.name}${badge}<span class="grow"></span>${tempo} `;
+  if (S.mode==="preset") return ` namfoop run  preset <span class="cy">clean-svt</span>${badge}<span class="grow"></span><span class="dim">♩ 120 4/4 (du preset)</span> `;
+  const sp = S.mode==="chain" ? ` 1 Bibliothèque  <span class="${DIM?"gtab":"tabc"}">[2 Chaîne]</span>  3 Set ` : ` 1 Bibliothèque  2 Chaîne  <span class="${DIM?"gtab":"tab"}">[3 Set]</span> ${SET.name}`;
+  return ` namfoop browse ${sp}${badge}<span class="grow"></span>${tempo}  groupe-1 ✓ `;
+}
+function setList(){
+  const L=[]; const start=Math.max(0,S.song-1);
+  SET.songs.forEach((s,i)=>{
+    if (i<start) return;
+    const playing = i===S.song;
+    L.push(`${playing?'<span class="b">▶':' '} ${i+1} ${pad(s.t,20)} ♩${s.bpm} ${s.sig||"   "}${playing?'</span>':''}`);
+    if (playing) s.sounds.forEach((n,k)=> L.push(k===S.sound ? `     <span class="play gplay">● ${n}</span>` : `     ○ ${n}`));
+  });
+  return L.join("\n");
+}
+function prompt(){
+  const s=SET.songs[S.song], nx=SET.songs[S.song+1];
+  const L=[`<span class="b">██1██</span>   2      3      4      ♩${s.bpm} 4/4   mes. 3/4   ⏵`, "",
+    `<span class="ok b">▸ ${s.next[0]}</span>`, ...s.next.slice(1).map(x=>"  "+x), "",
+    `  <span class="dim">… le reste du morceau</span>`, ""];
+  if (nx) L.push(`<span class="dim">── ensuite (→) : ${S.song+2} · ${nx.t}  ♩${nx.bpm}  ${nx.sounds[0]}</span>`, ...nx.next.map(x=>`<span class="dim">   ${esc(x)}</span>`));
+  return L.join("\n");
+}
+function nextBlock(){
+  const nx=SET.songs[S.song+1]; if(!nx) return ['<span class="dim">── fin du set</span>'];
+  return [`<span class="dim">── ensuite (→) : ${S.song+2} · ${nx.t}  ♩${nx.bpm}  ${nx.sounds[0]}</span>`,
+    ...nx.next.map(x=> x.startsWith("›") ? `   <span class="warn">${esc(x)}</span>` : `   <span class="dim">${esc(x)}</span>`)];
+}
+function render(){
+  const t=now(), song=SET.songs[S.song];
+  $("top").innerHTML = header();
+  const scene = S.mode==="set"||S.mode==="run";
+  $("cols").className = "cols" + (scene?"":" one");
+  $("popup").style.display = S.muted && !scene ? "block" : "none";
+  if (scene){
+    $("left").className= S.muted ? "box off" : "box g"; $("lt").textContent = ` ♪ ${SET.name} · ${S.song+1}/${SET.songs.length} `; $("lp").innerHTML = setList();
+    if (S.muted){
+      $("right").className="box r";
+      $("rt").textContent = ` ACCORDEUR · ma basse est coupée partout · micro et clic continuent `;
+      const lines=tunerLines(t,76);
+      $("rp").innerHTML = [...lines, ...nextBlock()].join("\n");
+    } else {
+      $("right").className="box";
+      $("rt").textContent = ` ${S.song+1} · ${song.t} · son ${S.sound+1}/${song.sounds.length} ${song.sounds[S.sound]} `;
+      $("rp").innerHTML = prompt();
+    }
+  } else {
+    $("left").className = S.muted ? "box off" : "box c";
+    $("lt").textContent = S.mode==="chain" ? " CHAÎNE — Clean SVT " : " RUN — preset clean-svt ";
+    $("lp").innerHTML = S.mode==="chain"
+      ? `\n  ◆[ direct | gate -60 › nam·SVT Classic › ir·8x10 SM57 › comp ] › peak\n\n  <span class="dim">bloc 2 · nam·SVT Classic   gain 0,0 dB   ← → bloc   Entrée régler</span>`
+      : `\n  gate -60 › nam·SVT Classic › ir·8x10 SM57 › comp › peak\n\n  <span class="dim">PC n : n-ième preset de la banque</span>`;
+    if (S.muted){
+      $("popt").textContent = " ACCORDEUR · ma basse est coupée partout · micro et clic continuent ";
+      $("popp").innerHTML = tunerLines(t,72).join("\n");
+    }
+  }
+  const tail = S.muted ? Math.max(0, TAIL_S-(t-S.muteT)) : 0;
+  $("listen").innerHTML = S.muted
+    ? ` <span class="cut">♪ basse coupée</span> · ${tail>0?`<span class="warn">la queue de la réverbe finit de sonner (${tail.toFixed(1).replace(".",",")} s)</span> · `:""}micro et clic continuent`
+    : ` ♪ ${scene?`set : ${S.song+1} ${song.t} › son ${S.sound+1} ${song.sounds[S.sound]}`:"Clean SVT"} › gate -60 › nam › ir › comp`;
+  $("msg").textContent = S.msg;
+  const k = S.muted
+    ? (scene ? "<b>u</b> rendre le son   <b>→/←</b> morceau (rend le son)   <b>PgDn/PgUp</b> son (rend le son)   <b>q</b> quitter"
+             : "<b>u</b> rendre le son   les autres touches de l'écran restent actives")
+    : (S.mode==="run" ? "<b>PgDn/PgUp</b> son   <b>→/←</b> morceau   <b>u</b> accordeur   <b>*</b> tap   <b>i</b> détail   <b>q</b> quitter"
+       : S.mode==="preset" ? "<b>u</b> accordeur   <b>*</b> tap   <b>q</b> quitter"
+       : "<b>PgDn/PgUp</b> son   <b>→/←</b> morceau   <b>u</b> accordeur   <b>*</b> tap   <b>1 2 3</b> espaces   <b>q</b> quitter");
+  $("help").innerHTML = " "+k;
+  $("lp").classList.toggle("off-txt", S.muted);
+  renderOuts(t, tail);
+}
+
+// ---------- ce qui sort ----------
+const OUTS = [["Façade · basse traitée","proc"],["Façade · DI","di"],["In-ears · basse + clic","ie"],["Micro (façade, in-ears)","mic"]];
+$("outs").innerHTML = OUTS.map(([l,id])=>`<div class="out"><span>${l}</span><div class="bar"><i id="o-${id}"></i></div><span class="st" id="s-${id}"></span></div>`).join("");
+function renderOuts(t, tail){
+  const env=bassEnv(t), mic = S.talk ? 0.45+0.3*Math.random() : 0;
+  const tailLvl = tail>0 ? S.tailAtMute*0.5*(tail/TAIL_S) : 0;
+  const click = S.mode!=="preset" && (t*SET.songs[S.song].bpm/60)%1 < 0.08 ? 0.35 : 0;
+  const v = {proc: S.muted ? tailLvl : env*0.8, di: S.muted ? 0 : env*0.7, ie: Math.max(S.muted?tailLvl:env*0.8, click), mic};
+  const st = {proc: S.muted ? (tail>0?["queue","warn"]:["coupée","cut"]) : ["",""], di: S.muted?["coupée","cut"]:["",""],
+    ie: S.muted ? ["clic seul","warn"] : ["",""], mic: S.talk?["ta voix","" ]:["",""]};
+  for (const [,id] of OUTS){ $("o-"+id).style.width = Math.round(v[id]*100)+"%"; const s=$("s-"+id); s.textContent=st[id][0]; s.className="st "+st[id][1]; }
+}
+
+// ---------- actions ----------
+function setMuted(on, why){
+  if (on===S.muted){ if(why!=="u") S.msg = on ? `${why} : la basse est déjà coupée, rien ne change` : `${why} : la basse n'est pas coupée, rien ne change`; return; }
+  S.muted = on; if(!on) S.backT = now();
+  if (on){ S.muteT = now(); S.tailAtMute = Math.max(0.6, bassEnv(now())); S.msg = `${why} → basse coupée, accordeur`; }
+  else S.msg = `${why} → son rendu`;
+}
+function changeSong(d, why){
+  const n=S.song+d; if(n<0||n>=SET.songs.length){ S.msg = d>0?"dernier morceau du set":"premier morceau du set"; return; }
+  S.song=n; S.sound=0; const tag=`${S.song+1} · ${SET.songs[n].t}`;
+  if (S.muted){ S.muted=false; S.backT=now(); S.msg = `${why} → ${tag} · son rendu`; } else S.msg = `${why} → ${tag}`;
+}
+function changeSound(d, why){
+  const s=SET.songs[S.song], n=S.sound+d;
+  if (n<0||n>=s.sounds.length){ S.msg = `« ${s.t} » n'a que ${s.sounds.length} son${s.sounds.length>1?"s":""}`; return; }
+  S.sound=n; if (S.muted){ S.muted=false; S.backT=now(); S.msg=`${why} → son ${n+1} ${s.sounds[n]} · son rendu`; } else S.msg=`${why} → son ${n+1} ${s.sounds[n]}`;
+}
+function key(k){
+  const scene = S.mode==="set"||S.mode==="run";
+  if (k==="u") setMuted(!S.muted, "u");
+  else if (scene && k==="ArrowRight") changeSong(1,"→");
+  else if (scene && k==="ArrowLeft") changeSong(-1,"←");
+  else if (scene && k==="PageDown") changeSound(1,"PgDn");
+  else if (scene && k==="PageUp") changeSound(-1,"PgUp");
+  else if (S.mode!=="run" && S.mode!=="preset" && (k==="2"||k==="3")) { S.mode = k==="2"?"chain":"set"; S.msg=""; syncModes(); }
+  else if (k==="q") S.msg = "q ouvrirait « Quitter ? » : rien ne se ferme dans la maquette";
+  else if (k==="*") S.msg = "tap";
+  else if (S.mode==="run") S.msg = "🔒 run --set : rien ne s'édite ici";
+  else return false;
+  render(); return true;
+}
+function midi(m){
+  const scene = S.mode==="set"||S.mode==="run";
+  if (m==="cc15on") setMuted(true,"CC 15 = 127");
+  else if (m==="cc15off") setMuted(false,"CC 15 = 0");
+  else if (m==="start"){ if(S.muted) setMuted(false,"Start"); else S.msg="Start → battue sur le 1"; }
+  else if (m==="pcnext"){ if(scene) changeSong(1,`PC ${S.song+2}`); else { const w=S.muted; S.muted=false; if(w) S.backT=now(); S.msg=`PC 2 → preset drive-b7k${w?" · son rendu":""}`; } }
+  else if (m==="cc34"){ if(scene){ const s=SET.songs[S.song]; if(s.sounds.length<2){ S.msg=`CC 34 = 1 ignoré : « ${s.t} » n'a qu'un son`; } else { S.sound=-1; changeSound(2,"CC 34 = 1"); } } else S.msg="CC 34 = 1 ignoré : aucun set"; }
+  render();
+}
+
+// ---------- commandes ----------
+function syncModes(){ $("modes").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.m===S.mode)); }
+$("modes").innerHTML = MODES.map(([m,l])=>`<button data-m="${m}">${l}</button>`).join("");
+$("modes").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; S.mode=b.dataset.m; S.msg=""; syncModes(); render(); $("term").focus();});
+$("strings").innerHTML = STRINGS.map(([n,m],i)=>`<button data-s="${i}">${n} <span class="dim">${NAMES[m%12]}${Math.floor(m/12)-1}</span></button>`).join("");
+$("strings").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; S.string=+b.dataset.s; S.pluckT=now(); S.smooth=null;
+  $("strings").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
+$("detune").addEventListener("input",e=>{S.detune=+e.target.value; $("detv").textContent=(S.detune>0?"+":"")+S.detune+" cents";});
+$("a4s").innerHTML = [432,440,442].map(f=>`<button data-f="${f}">${f}</button>`).join("");
+$("a4s").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; S.a4=+b.dataset.f; $("a4v").textContent=S.a4+" Hz";
+  $("a4s").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
+$("a4s").querySelector('[data-f="440"]').classList.add("on");
+$("talk").addEventListener("click",e=>{S.talk=!S.talk; e.target.classList.toggle("on",S.talk);});
+document.querySelectorAll("[data-midi]").forEach(b=>b.addEventListener("click",()=>midi(b.dataset.midi)));
+const KEYS=[["u","u"],["→","ArrowRight"],["←","ArrowLeft"],["PgDn","PageDown"],["PgUp","PageUp"],["2","2"],["3","3"],["*","*"],["q","q"]];
+$("keybar").innerHTML = KEYS.map(([l,k])=>`<button data-k="${k}">${l}</button>`).join("");
+$("keybar").addEventListener("click",e=>{const b=e.target.closest("button"); if(b) key(b.dataset.k);});
+$("term").addEventListener("keydown",e=>{ if(key(e.key)) e.preventDefault(); });
+syncModes();
+
+// ---------- boucle : ~20 lectures par seconde, médiane des 5 dernières ----------
+const hist=[];
+setInterval(()=>{
+  const t=now(), r=reading(t);
+  if (r){ hist.push(r); if(hist.length>5) hist.shift();
+    const same = hist.filter(h=>h.n===r.n);
+    if (same.length>=2){ const cs=same.map(h=>h.cents).sort((a,b)=>a-b); S.smooth={n:r.n, cents:cs[Math.floor(cs.length/2)]}; S.lastT=t; }
+  } else hist.length=0;
+  render();
+}, 50);
+S.pluckT = now()-0.5; S.muted = true; S.muteT = now()-3; S.msg = "CC 15 = 127 → basse coupée, accordeur";
+render();
+}
+</script>
+</body>
+</html>

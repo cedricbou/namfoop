@@ -263,7 +263,8 @@ Trois règles tiennent cet écran :
 
 - Le même écran que l'espace 3, en-tête `namfoop run  🔒 SET  <nom>`, **sans** édition, choix de set,
   espaces, ni `t` : toute autre touche affiche `🔒 run --set : rien ne s'édite ici`.
-- Touches : `PgDn` / `PgUp`, morceau suivant / précédent, défilement et sections du prompteur, `i`, `*`.
+- Touches : `PgDn` / `PgUp`, morceau suivant / précédent, défilement et sections du prompteur, `i`, `*`,
+  `u` (l'accordeur, [`accordeur.md`](accordeur.md)).
   `q` ouvre `Quitter la scène ? Q quitter · Échap rester`.
 - `run --set` sans argument prend `[set] default` de la config : c'est ce que lance le service de
   scène du Pi.
@@ -372,6 +373,8 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
   n-ième preset de la banque.
 - **Horloge** : Start lance la battue sur le 1 de la mesure 1, Stop l'arrête, le tempo reçu devient
   le tempo entendu.
+- **CC 15** : l'accordeur — 64 ou plus coupe la basse et l'affiche à la place du prompteur, moins de 64
+  rend le son ; un PC, un CC 34 ou un Start rendent aussi le son ([`accordeur.md`](accordeur.md) § 3).
 - **Song Position Pointer** (Ableton l'envoie en mode « Song ») : position en doubles croches,
   convertie en section / mesure / temps par la carte des mesures (§ 11).
 - Plus tard, hors épique : **Bank Select CC#0** pour choisir le set (la banque Fractal), CC « son / morceau

@@ -42,6 +42,7 @@ Quatre piliers portent tout ce qu'on dessine :
 | **Vert Signal** | `#00E676` | 0, 230, 118 | `Green` | Espace **Set** (vue scène), vumètres sains |
 | **Jaune Ambre** | `#FFD600` | 255, 214, 0 | `Yellow` | Mode **Édition**, référence B, cues du prompteur |
 | **Rouge Clip** | `#FF3B30` | 255, 59, 48 | `Red` | Saturation (`[CLIP]`), limiteur actif, IR coupée, erreurs |
+| **Violet UV** | `#BF40FF` | 191, 64, 255 | `LightBlue` | **Basse coupée** : l'accordeur et son bandeau dans l'en-tête |
 
 La colonne **Terminal** donne la couleur de base à employer quand le terminal ne sait pas afficher
 les teintes exactes. Les deux gris de fond n'en ont pas : dans le terminal, le fond n'appartient pas
@@ -62,8 +63,15 @@ celui du terminal de l'utilisateur. C'est le choix sûr sur scène comme sur la 
 personne ne sait d'avance sur quel thème l'écran va s'ouvrir.
 
 Les couleurs n'y décorent pas, elles portent l'information : chaque espace a la sienne —
-Bibliothèque magenta, Chaîne cyan, Set vert —, l'édition est jaune, la saturation rouge, le texte
-secondaire gris. La proportion 80 / 15 / 5 ne s'y applique donc pas.
+Bibliothèque magenta, Chaîne cyan, Set vert —, l'édition est jaune, la saturation rouge, la basse
+coupée violette, le texte secondaire gris. La proportion 80 / 15 / 5 ne s'y applique donc pas.
+
+**Le violet UV dit « coupé exprès », le rouge dit « danger ».** Le violet de la lumière noire est la
+teinte qui manquait à la famille néon de la palette, et il ne sert qu'à l'état « basse coupée » :
+pendant ce temps, le reste de l'écran passe en gris acier, pour que l'accordeur soit la seule chose
+allumée ([`accordeur.md`](../design/accordeur.md) § 7). Son contraste sur le noir d'encre est de 4,9
+pour 1, au-dessus du seuil AA. Les couleurs de base n'ont pas de violet : il y devient le bleu
+clair, et l'écran gris porte alors l'essentiel du message.
 
 ### Les gradations
 

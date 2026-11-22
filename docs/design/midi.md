@@ -38,7 +38,8 @@ Deux activités différentes règlent le MIDI, et l'écran sert les deux :
 3. **Régler ne change jamais le son** : tant qu'une fenêtre de réglage est ouverte, un message est
    lu, pas joué.
 4. **Ce qui n'est pas sur mon canal est ignoré sans bruit** : compté, pas listé.
-5. **Sans rien régler, rien ne change** : tous les canaux, les numéros de l'ADR 0011.
+5. **Sans rien régler, rien ne change** : tous les canaux, les numéros de l'ADR 0011 et le CC 15 de
+   l'accordeur ([`accordeur.md`](accordeur.md) § 3), qui se règle comme le tap.
 
 ## 2. Les sources
 
