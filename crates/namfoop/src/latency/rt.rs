@@ -5,9 +5,11 @@
 //! Le retour n'est **pas** cherché avec un seuil fixe : à travers PipeWire, l'impulsion d'un
 //! échantillon passe par l'étage de volume et le convertisseur, qui l'étalent — sa crête peut
 //! tomber très bas — à 85 % de volume de sortie, sous 0,05, soit -26 dBFS. Le critère est donc
-//! **relatif** : la crête de la fenêtre d'écoute dit si quelque chose est revenu (comparée au bruit
-//! de fond mesuré juste avant), et c'est le **début** de ce retour qui donne la latence — le
-//! premier échantillon qui monte à [`ONSET_FRAC`] de cette crête.
+//! **relatif** : la crête de la fenêtre d'écoute, comparée au bruit de fond mesuré juste avant, dit
+//! si quelque chose est revenu, et c'est le **début** de ce retour qui donne la latence — le
+//! premier échantillon qui monte à [`ONSET_FRAC`] de cette crête. C'est ce **seuil du début** qui
+//! doit sortir du bruit, et non la seule crête : sinon le début trouvé serait un pic du bruit de
+//! fond, et la latence rendue, un tirage au sort.
 //!
 //! Chercher la **crête** elle-même rendrait la mesure bistable : un retour qui sonne a plusieurs
 //! lobes de hauteur voisine, et l'instant du maximum saute de l'un à l'autre d'une passe à la
@@ -21,7 +23,8 @@ use std::time::Instant;
 use engine::meters::LoadHistogram;
 
 const AMPLITUDE: f32 = 0.7;
-/// Le retour doit sortir d'au moins ça du bruit de fond (≈ +14 dB) pour être cru.
+/// Le **seuil du début** du retour ([`ONSET_FRAC`] de sa crête) doit sortir d'au moins ça du bruit
+/// de fond (≈ +14 dB) pour être cru — soit ≈ +26 dB de la crête au bruit.
 const MIN_RATIO: f32 = 5.0;
 /// Bruit de fond plancher : évite de diviser par zéro sur une entrée parfaitement muette.
 const NOISE_FLOOR: f32 = 1e-7;
@@ -133,17 +136,17 @@ impl Detector {
         }
     }
 
-    /// Conclut la fenêtre écoutée. La **crête** dit si quelque chose est revenu — elle doit sortir
-    /// de `MIN_RATIO` fois le bruit de fond —, et c'est le **début** du retour qui donne la
-    /// latence : le premier échantillon qui monte à `ONSET_FRAC` de cette crête, jamais sous le
-    /// plancher du bruit.
+    /// Conclut la fenêtre écoutée. Le **début** du retour donne la latence : le premier échantillon
+    /// qui monte à `ONSET_FRAC` de la crête de la fenêtre. Ce seuil-là doit sortir de `MIN_RATIO`
+    /// fois le bruit de fond, sans quoi la fenêtre est rendue trop faible : un seuil posé **dans**
+    /// le bruit tombe sur le premier pic venu et donne une latence courte et aléatoire.
     fn conclude(&self) -> Event {
         let (peak, noise) = (self.heard.iter().copied().fold(0.0f32, f32::max), self.noise);
         let floor = noise.max(NOISE_FLOOR) * MIN_RATIO;
-        if peak <= floor {
+        let threshold = peak * ONSET_FRAC;
+        if threshold <= floor {
             return Event::TooWeak { peak, noise };
         }
-        let threshold = (peak * ONSET_FRAC).max(floor);
         let onset = self.heard.iter().position(|a| *a >= threshold).unwrap_or(0);
         // `heard[j]` est la frame impulsion + 1 + j
         Event::Measured { frames: onset as u64 + 1, peak, noise }
@@ -443,6 +446,38 @@ mod tests {
         for e in &events {
             assert!(matches!(e, Event::TooWeak { .. }), "{e:?}");
         }
+    }
+
+    /// Un retour qui dépasse à peine le bruit n'est pas une mesure : son **début** tomberait sur un
+    /// pic du bruit de fond, et la latence rendue serait un tirage au sort. C'est le cas du câble à
+    /// moitié branché. Dix fois plus fort, le même retour se mesure.
+    #[test]
+    fn a_return_that_barely_clears_the_noise_is_not_a_measure() {
+        // bruit à 1e-3 (RMS) : le début n'est cru qu'au-dessus de 5e-3, soit une crête au-dessus de
+        // 2e-2 ; une crête de 1,5e-2 sort donc du bruit sans que son quart en sorte
+        let faint = run_detector(100, 200, 400, |t, emits| {
+            if emits.iter().any(|e| t == e + 37) {
+                0.015
+            } else if t % 2 == 0 {
+                1e-3
+            } else {
+                -1e-3
+            }
+        });
+        assert!(!faint.is_empty());
+        for e in &faint {
+            assert!(matches!(e, Event::TooWeak { .. }), "{e:?}");
+        }
+        let franc = run_detector(100, 200, 400, |t, emits| {
+            if emits.iter().any(|e| t == e + 37) {
+                0.15
+            } else if t % 2 == 0 {
+                1e-3
+            } else {
+                -1e-3
+            }
+        });
+        assert!(matches!(franc[0], Event::Measured { frames: 37, .. }), "{:?}", franc[0]);
     }
 
     /// Entrée parfaitement muette (câble débranché) : pas de division par zéro, et pas de mesure.

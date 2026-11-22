@@ -19,6 +19,10 @@ section prend le numéro de version.
   ligne de conclusion — celle qui juge la passe — lit cette passe-là.
 - **Une colonne « > 80 % »** compte les blocs au-delà de 80 % du budget. Ce sont des blocs réels, là
   où la p99,9 d'une passe courte n'est qu'une estimation.
+- **Un retour trop faible donne « pas de retour », et non une latence courte.** Il faut environ 26 dB
+  entre la crête du retour et le bruit de fond pour que son début soit cherché : en dessous, le
+  premier pic de bruit de la fenêtre était pris pour le début du son, et un câble à moitié branché
+  rapportait une latence courte et aléatoire comme une mesure.
 
 ### Interne (#349)
 - **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour

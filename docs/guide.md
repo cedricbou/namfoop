@@ -2498,8 +2498,11 @@ pièges :
 
 - **ne joue pas pendant la mesure** : une note plus forte que le retour serait prise pour lui. Les
   colonnes `min` / `max` et l'avertissement « mesures instables » le montrent.
-- si rien ne sort du bruit, le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie)
-  et propose `--backend alsa`, qui court-circuite PipeWire.
+- **un retour trop faible est annoncé comme tel**, jamais converti en latence : il faut environ
+  26 dB entre la crête du retour et le bruit de fond pour que le début soit cherché, sans quoi le
+  premier pic de bruit serait pris pour le début du son. Un câble à moitié branché donne donc « pas
+  de retour », et le message dit quoi vérifier (câble, bouton Mixer, volume de la sortie) ; il
+  propose aussi `--backend alsa`, qui court-circuite PipeWire.
 
 ### Avec des chaînes d'effets : `--chains`
 
