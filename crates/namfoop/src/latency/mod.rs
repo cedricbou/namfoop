@@ -21,8 +21,7 @@ use audio_io::Io;
 use engine::meters::{LoadHistogram, LoadSummary};
 
 use rt::{
-    plan, Event, Pass, Report, Runner, Spot, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S,
-    WARMUP,
+    plan, Event, Pass, Report, Runner, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S, WARMUP,
 };
 
 fn db(v: f32) -> f32 {
@@ -50,6 +49,28 @@ impl Args {
     }
 }
 
+/// Les fichiers jetables de la mesure (modèle d'exemple, IR de synthèse) : effacés quand la portée
+/// se referme, **y compris** quand une chaîne refuse de se bâtir. Un nettoyage écrit à la fin de
+/// [`build`] ne couvre pas ce cas, et laisse un `.nam` et un `.wav` dans le dossier temporaire.
+#[derive(Default)]
+struct Scratch(Vec<PathBuf>);
+
+impl Scratch {
+    /// Retient un fichier à effacer, et rend son chemin.
+    fn keep(&mut self, p: PathBuf) -> PathBuf {
+        self.0.push(p.clone());
+        p
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        for p in self.0.drain(..) {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+}
+
 /// Les chaînes demandées, bâties **et préchauffées avant d'ouvrir la carte** : tout ce qui alloue,
 /// charge un modèle ou touche au disque se fait ici, pas dans le callback.
 fn build(cfg: &audio_io::Settings, args: &Args) -> Result<Vec<(String, dsp::Chain)>> {
@@ -60,22 +81,14 @@ fn build(cfg: &audio_io::Settings, args: &Args) -> Result<Vec<(String, dsp::Chai
         return Ok(Vec::new());
     }
     let dir = std::env::temp_dir();
-    let mut scratch: Vec<PathBuf> = Vec::new();
+    let mut scratch = Scratch::default();
     let model = match &args.model {
         Some(q) => library::resolve(q, &args.library, "nam")?,
-        None => {
-            let p = dsp::bench::write_example_model(&dir).context("modèle d'exemple")?;
-            scratch.push(p.clone());
-            p
-        }
+        None => scratch.keep(dsp::bench::write_example_model(&dir).context("modèle d'exemple")?),
     };
     let ir = match &args.ir {
         Some(q) => library::resolve(q, &args.library, "wav")?,
-        None => {
-            let p = dsp::bench::write_synthetic_ir(&dir, cfg.rate).context("IR de synthèse")?;
-            scratch.push(p.clone());
-            p
-        }
+        None => scratch.keep(dsp::bench::write_synthetic_ir(&dir, cfg.rate).context("IR de synthèse")?),
     };
     let catalog = dsp::bench::chains(&model, &ir);
     let known: Vec<&str> = catalog.iter().map(|(n, _)| *n).collect();
@@ -94,9 +107,6 @@ fn build(cfg: &audio_io::Settings, args: &Args) -> Result<Vec<(String, dsp::Chai
         log::info!("chaîne « {name} » prête : {}", describe(&spec));
         built.push((name.to_string(), chain));
     }
-    for p in scratch {
-        let _ = std::fs::remove_file(p);
-    }
     Ok(built)
 }
 
@@ -105,31 +115,58 @@ fn describe(spec: &dsp::block::ChainSpec) -> String {
     spec.blocks.iter().map(|b| b.describe()).collect::<Vec<_>>().join(" › ")
 }
 
+/// Une passe abandonnée le dit : sans cette ligne, sa médiane est calculée sur moins de mesures
+/// que demandé et rien ne le signale.
+fn tell_if_gave_up(row: &Row, count: u32) {
+    let got = row.frames.len() as u32;
+    if got < count {
+        // `row.weak` compte toutes les fenêtres sans retour, échauffement compris : c'est ce que
+        // l'utilisateur a vu passer. L'abandon, lui, tient à MAX_WEAK d'entre elles consécutives.
+        println!("  (passe abandonnée : {got} mesure(s) sur {count}, {} fenêtre(s) sans retour)", row.weak);
+    }
+}
+
+/// Médiane, min et max d'une passe, en frames.
+#[derive(Clone, Copy)]
+struct Stats {
+    med: u64,
+    min: u64,
+    max: u64,
+}
+
 /// Ce qu'une passe a donné, côté affichage.
 #[derive(Default)]
 struct Row {
     frames: Vec<u64>,
+    /// Fenêtres restées sous le bruit, échauffement compris : ce que l'utilisateur a vu passer.
     weak: u32,
     xruns: u64,
     /// Dernière fenêtre restée sous le bruit : crête et bruit, pour le diagnostic.
-    worst: Option<(f32, f32)>,
+    last_weak: Option<(f32, f32)>,
+    /// Médiane, min et max, posés par [`Row::finish`] : le tableau les lit trois fois.
+    stats: Option<Stats>,
 }
 
 impl Row {
-    /// Médiane, min et max en frames ; `None` si la passe n'a rien mesuré.
-    fn stats(&mut self) -> Option<(u64, u64, u64)> {
+    /// Trie les mesures et retient médiane, min et max. Une fois la passe finie, et une seule :
+    /// chaque colonne du tableau les relit.
+    fn finish(&mut self) {
         if self.frames.is_empty() {
-            return None;
+            return;
         }
         self.frames.sort_unstable();
-        Some((self.frames[self.frames.len() / 2], self.frames[0], self.frames[self.frames.len() - 1]))
+        self.stats = Some(Stats {
+            med: self.frames[self.frames.len() / 2],
+            min: self.frames[0],
+            max: self.frames[self.frames.len() - 1],
+        });
     }
 }
 
 fn pass_title(names: &[String], pass: Pass) -> String {
-    match pass.chain {
+    match pass.chain() {
         None => "trajet nu".to_string(),
-        Some(i) => format!("{}, {}", names[i], pass.spot.label()),
+        Some(i) => format!("{}, {}", names[i], pass.label()),
     }
 }
 
@@ -208,6 +245,7 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
                         let x = stream.stats().xruns();
                         rows[shown].xruns = x.saturating_sub(xruns_before);
                         xruns_before = x;
+                        tell_if_gave_up(&rows[shown], args.count);
                     }
                     if passes.len() > 1 {
                         println!("\n— {}", pass_title(&names, passes[pass]));
@@ -234,13 +272,14 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
                             db(noise)
                         );
                         rows[pass].weak += 1;
-                        rows[pass].worst = Some((peak, noise));
+                        rows[pass].last_weak = Some((peak, noise));
                     }
                 }
             }
             Ok(Report::Done) => {
                 if shown != usize::MAX {
                     rows[shown].xruns = stream.stats().xruns().saturating_sub(xruns_before);
+                    tell_if_gave_up(&rows[shown], args.count);
                 }
                 done = true;
             }
@@ -255,27 +294,31 @@ pub fn run(cfg: &audio_io::Settings, args: &Args) -> Result<()> {
     }
 
     let summaries: Vec<LoadSummary> = loads.iter().map(|h| h.summary()).collect();
+    rows.iter_mut().for_each(Row::finish);
     println!();
     if passes.len() == 1 {
-        bare_summary(&mut rows[0], &desc, bs, rate, args)
+        bare_summary(&rows[0], &desc, bs, rate, args)
     } else {
-        table(&mut rows, &summaries, &passes, &names, &desc, bs, rate, sim, args)
+        table(&rows, &summaries, &passes, &names, &desc, bs, rate, sim, args)
     }
 }
 
 /// Le trajet nu seul : le rapport d'origine, à la ligne près.
-fn bare_summary(row: &mut Row, desc: &str, bs: u32, rate: f64, args: &Args) -> Result<()> {
-    let Some((med, min, max)) = row.stats() else {
+fn bare_summary(row: &Row, desc: &str, bs: u32, rate: f64, args: &Args) -> Result<()> {
+    let Some(s) = row.stats else {
         bail!("{}", no_return(row, args.out_ch, args.in_ch));
     };
     println!(
-        "{desc}, buffer {bs} ({:.2} ms) : médiane {med} frames = {:.2} ms, min {min}, max {max}, xruns {}",
+        "{desc}, buffer {bs} ({:.2} ms) : médiane {} frames = {:.2} ms, min {}, max {}, xruns {}",
         bs as f64 * 1000.0 / rate,
-        med as f64 * 1000.0 / rate,
+        s.med,
+        s.med as f64 * 1000.0 / rate,
+        s.min,
+        s.max,
         row.xruns
     );
-    if max - min > 2 {
-        println!("Attention : mesures instables (écart {} frames)", max - min);
+    if s.max - s.min > 2 {
+        println!("Attention : mesures instables (écart {} frames)", s.max - s.min);
     }
     Ok(())
 }
@@ -283,7 +326,7 @@ fn bare_summary(row: &mut Row, desc: &str, bs: u32, rate: f64, args: &Args) -> R
 /// Pourquoi rien n'est revenu, et quoi vérifier.
 fn no_return(row: &Row, out_ch: usize, in_ch: usize) -> String {
     let detail = row
-        .worst
+        .last_weak
         .map(|(p, n)| format!(" (crête {:.1} dBFS, bruit {:.1} dBFS)", db(p), db(n)))
         .unwrap_or_default();
     format!(
@@ -296,7 +339,7 @@ fn no_return(row: &Row, out_ch: usize, in_ch: usize) -> String {
 /// Le tableau des passes : une ligne par passe, la référence en tête.
 #[allow(clippy::too_many_arguments)]
 fn table(
-    rows: &mut [Row],
+    rows: &[Row],
     loads: &[LoadSummary],
     passes: &[Pass],
     names: &[String],
@@ -311,30 +354,28 @@ fn table(
         "{:<20} {:<14} {:>16} {:>7} {:>6} {:>7} {:>7} {:>5} {:>6} {:>6}",
         "chaîne", "place", "médiane", "écart", "disp.", "méd", "p99,9", ">80%", ">100%", "xruns"
     );
-    let reference = rows[0].stats().map(|(med, _, _)| med);
+    let reference = rows[0].stats.map(|s| s.med);
     let mut unstable = false;
     for (i, pass) in passes.iter().enumerate() {
-        let (name, place) = match pass.chain {
-            None => ("trajet nu", "—"),
-            Some(c) => (names[c].as_str(), pass.spot.label()),
-        };
-        let (latence, ecart, disp) = match rows[i].stats() {
-            Some((med, min, max)) => {
-                unstable |= max - min > 2;
+        let name = pass.chain().map_or("trajet nu", |c| names[c].as_str());
+        let place = pass.label();
+        let (latence, ecart, disp) = match rows[i].stats {
+            Some(s) => {
+                unstable |= s.max - s.min > 2;
                 (
-                    format!("{med} fr / {:.2} ms", med as f64 * 1000.0 / rate),
+                    format!("{} fr / {:.2} ms", s.med, s.med as f64 * 1000.0 / rate),
                     match reference {
-                        Some(r) => format!("{:+} fr", med as i64 - r as i64),
+                        Some(r) => format!("{:+} fr", s.med as i64 - r as i64),
                         None => "—".to_string(),
                     },
-                    format!("{} fr", max - min),
+                    format!("{} fr", s.max - s.min),
                 )
             }
             None => ("pas de retour".to_string(), "—".to_string(), "—".to_string()),
         };
         // La charge n'est donnée que « à côté » : dans le trajet, la chaîne ne reçoit que
         // l'impulsion, donc du silence le reste du temps — ce n'est pas la charge d'un son joué.
-        let (med_load, p999, over80, over100) = if pass.spot == Spot::Beside {
+        let (med_load, p999, over80, over100) = if matches!(pass, Pass::Beside(_)) {
             let l = loads[i];
             (
                 format!("{:.1} %", l.p50 * 100.0),
@@ -361,7 +402,7 @@ fn table(
     let worst = passes
         .iter()
         .enumerate()
-        .filter(|(_, p)| p.spot == Spot::Beside)
+        .filter(|(_, p)| matches!(p, Pass::Beside(_)))
         .max_by(|(a, _), (b, _)| loads[*a].p999.total_cmp(&loads[*b].p999));
     let charge = worst
         .map(|(i, p)| format!("{:.0} % ({})", loads[i].p999 * 100.0, pass_title(names, *p)))
@@ -376,7 +417,26 @@ fn table(
             "Attention : mesures instables (écart de plus de 2 frames) — ne pas jouer pendant la mesure."
         );
     }
-    if rows.iter_mut().all(|r| r.stats().is_none()) {
+    // Une passe partielle est le cas sournois : elle affiche une médiane, prise sur moins de
+    // fenêtres que demandé. « Pas de retour » se voit, trois mesures sur dix non.
+    let partielles: Vec<String> = passes
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| {
+            let got = rows[*i].frames.len() as u32;
+            got > 0 && got < args.count
+        })
+        .map(|(_, p)| pass_title(names, *p))
+        .collect();
+    if !partielles.is_empty() {
+        println!(
+            "Attention : passe(s) abandonnée(s) avant d'avoir {} mesures, donc médiane sur moins de \
+             fenêtres que demandé : {}",
+            args.count,
+            partielles.join(", ")
+        );
+    }
+    if rows.iter().all(|r| r.stats.is_none()) {
         if sim {
             log::warn!(
                 "carte simulée : rien ne boucle, donc aucune latence — seules la charge DSP et les \
@@ -387,4 +447,35 @@ fn table(
         bail!("{}", no_return(&rows[0], args.out_ch, args.in_ch));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Une chaîne qui ne se bâtit pas ne laisse pas de fichier jetable derrière elle : le modèle
+    /// d'exemple et l'IR de synthèse sont écrits **avant** que le nom de chaîne soit contrôlé, et
+    /// un dossier temporaire qui se remplit à chaque faute de frappe ne se voit jamais.
+    #[test]
+    fn a_failed_build_leaves_no_scratch_file() {
+        let args = Args {
+            out_ch: 1,
+            in_ch: 2,
+            count: 1,
+            chains: false,
+            chain: Some("chaine-qui-n-existe-pas".to_string()),
+            model: None,
+            ir: None,
+            library: PathBuf::new(),
+        };
+        let Err(err) = build(&audio_io::Settings::default(), &args) else {
+            panic!("une chaîne inconnue devrait être refusée");
+        };
+        assert!(err.to_string().contains("inconnue"), "{err}");
+        // un fichier par processus (`dsp::bench`), donc ceux de ce test et d'aucun autre
+        for ext in ["nam", "wav"] {
+            let p = std::env::temp_dir().join(format!("namfoop-bench-{}.{ext}", std::process::id()));
+            assert!(!p.exists(), "{} est resté", p.display());
+        }
+    }
 }

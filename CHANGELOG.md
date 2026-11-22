@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#352)
+- **Une passe de mesure ne renonce plus sur des échecs dispersés.** Cinq fenêtres sans retour
+  **parmi des réussites** l'abandonnaient : c'est un câble qui grésille, pas un câble débranché. Le
+  compteur repart sur une mesure réussie, et il ne faut plus que cinq échecs **de suite**.
+- **Une passe abandonnée le dit** : « passe abandonnée : 3 mesure(s) sur 10, 5 fenêtre(s) sans
+  retour », et un avertissement sous le tableau nomme les passes dont la médiane porte sur moins de
+  fenêtres que demandé. Elle s'arrêtait en silence, et la médiane avait l'air complète.
+- **Une chaîne qui ne se bâtit pas ne laisse plus ses fichiers jetables** dans le dossier
+  temporaire : une faute de frappe sur un nom de chaîne y laissait un `.nam` et un `.wav`.
+- Le fil audio de la mesure est **tenu par un test qui refuse toute allocation**, comme les étages
+  de son et le moteur : la règle était écrite et personne ne la vérifiait pour ce callback.
+
 ### Mesures (#351)
 - **La charge DSP du tableau de latence est celle de la chaîne en régime établi.** Chaque passe
   chronométrait aussi ses premiers blocs, quand le son venait de changer et que le poids du modèle et

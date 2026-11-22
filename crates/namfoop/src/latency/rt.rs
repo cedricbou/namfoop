@@ -30,7 +30,10 @@ const MIN_RATIO: f32 = 5.0;
 const NOISE_FLOOR: f32 = 1e-7;
 /// Fraction de la crête de la fenêtre à laquelle le retour est jugé commencé (-12 dB).
 const ONSET_FRAC: f32 = 0.25;
-/// Fenêtres sans retour au bout desquelles une passe est abandonnée.
+/// Fenêtres comptées **consécutives** sans retour au bout desquelles une passe est abandonnée.
+/// Consécutives, parce que des échecs dispersés parmi des réussites sont un câble qui grésille et
+/// non un câble débranché : les compter abandonnait la passe et calculait sa médiane sur moins de
+/// mesures que demandé.
 pub(super) const MAX_WEAK: u32 = 5;
 /// Durée d'écoute après l'impulsion : elle borne la latence mesurable.
 const WINDOW_S: f64 = 0.25;
@@ -163,42 +166,46 @@ impl Detector {
     }
 }
 
-/// Place de la chaîne pendant une passe de mesure.
+/// Une passe de mesure : la place de la chaîne, et laquelle (son indice dans le catalogue bâti).
+/// Les deux ne se séparent pas — le trajet nu est la seule passe sans chaîne —, et les tenir
+/// ensemble supprime l'état qui ne veut rien dire.
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub(super) enum Spot {
+pub(super) enum Pass {
     /// Rien entre l'impulsion et la carte : le trajet matériel seul.
     Bare,
     /// L'impulsion traverse la chaîne : la latence mesurée contient ce que la chaîne lui fait.
-    InPath,
+    InPath(usize),
     /// La chaîne tourne sur un bruit interne, sa sortie est jetée, l'impulsion part telle quelle :
     /// la latence reste celle du trajet nu, et seule la charge change.
-    Beside,
+    Beside(usize),
 }
 
-impl Spot {
+impl Pass {
+    /// La place, telle que le tableau la nomme.
     pub(super) fn label(self) -> &'static str {
         match self {
-            Spot::Bare => "—",
-            Spot::InPath => "dans le trajet",
-            Spot::Beside => "à côté",
+            Pass::Bare => "—",
+            Pass::InPath(_) => "dans le trajet",
+            Pass::Beside(_) => "à côté",
         }
     }
-}
 
-/// Une passe : la chaîne (indice dans le catalogue bâti) et sa place.
-#[derive(Clone, Copy)]
-pub(super) struct Pass {
-    pub(super) chain: Option<usize>,
-    pub(super) spot: Spot,
+    /// La chaîne que la passe fait tourner, s'il y en a une.
+    pub(super) fn chain(self) -> Option<usize> {
+        match self {
+            Pass::Bare => None,
+            Pass::InPath(i) | Pass::Beside(i) => Some(i),
+        }
+    }
 }
 
 /// Le trajet nu, puis deux passes par chaîne. L'ordre compte : la référence d'abord, pour que
 /// l'écart des autres lignes ait un sens même si la mesure se dégrade en route.
 pub(super) fn plan(chains: usize) -> Vec<Pass> {
-    let mut v = vec![Pass { chain: None, spot: Spot::Bare }];
+    let mut v = vec![Pass::Bare];
     for i in 0..chains {
-        v.push(Pass { chain: Some(i), spot: Spot::InPath });
-        v.push(Pass { chain: Some(i), spot: Spot::Beside });
+        v.push(Pass::InPath(i));
+        v.push(Pass::Beside(i));
     }
     v
 }
@@ -292,7 +299,10 @@ impl Runner {
             return;
         }
         let pass = self.pass;
-        let Pass { chain, spot } = self.passes[pass];
+        let which = self.passes[pass];
+        // les deux tranches ont la même longueur, mais la borner garde le callback sans panique
+        // possible, même si un backend servait un jour deux longueurs différentes
+        let n = input.len().min(out.len());
         // émission et détection, échantillon par échantillon ; la sortie porte l'impulsion nue,
         // que le mode « dans le trajet » remplacera par celle de la chaîne
         for (k, (x, o)) in input.iter().zip(out.iter_mut()).enumerate() {
@@ -300,15 +310,14 @@ impl Runner {
             self.buf[k] = emit;
             *o = emit;
             if let Some(event) = event {
-                // une fenêtre sans retour compte toujours pour l'abandon : un câble débranché ne
-                // doit pas faire durer la passe plus longtemps qu'avant
-                if matches!(event, Event::TooWeak { .. }) {
-                    self.weak += 1;
-                }
                 let counted = self.warmup == 0;
                 if counted {
-                    if matches!(event, Event::Measured { .. }) {
-                        self.done += 1;
+                    match event {
+                        Event::Measured { .. } => {
+                            self.done += 1;
+                            self.weak = 0;
+                        }
+                        Event::TooWeak { .. } => self.weak += 1,
                     }
                 } else {
                     self.warmup -= 1;
@@ -319,32 +328,35 @@ impl Runner {
                 }
             }
         }
-        self.frame += input.len() as u64;
+        self.frame += n as u64;
         // le travail DSP de la passe, chronométré comme le callback d'`engine`
-        let Some(ci) = chain else { return };
-        // les deux tranches ont la même longueur, mais la borner garde le callback sans panique
-        // possible, même si un backend servait un jour deux longueurs différentes
-        let n = input.len().min(out.len());
-        let t = Instant::now();
-        match spot {
-            Spot::InPath => {
+        match which {
+            // le trajet nu ne fait tourner aucune chaîne : rien à chronométrer
+            Pass::Bare => {}
+            Pass::InPath(ci) => {
+                let t = Instant::now();
                 self.chains[ci].process(&mut self.buf[..n]);
                 out[..n].copy_from_slice(&self.buf[..n]);
+                self.record_load(pass, t, n);
             }
-            Spot::Beside => {
+            Pass::Beside(ci) => {
+                let t = Instant::now();
                 for s in self.buf[..n].iter_mut() {
                     *s = self.noise[self.noise_at];
                     self.noise_at = (self.noise_at + 1) % self.noise.len();
                 }
                 self.chains[ci].process(&mut self.buf[..n]);
+                self.record_load(pass, t, n);
             }
-            Spot::Bare => {}
         }
-        // L'échauffement ne compte pas dans la charge non plus : au changement de chaîne, le poids
-        // du modèle et les tampons FFT de l'IR sont encore froids, et ces quelques blocs seraient
-        // à eux seuls la p99,9 de la passe.
+    }
+
+    /// La part du budget consommée par le travail de la passe, comme le callback d'`engine`.
+    /// L'échauffement n'y entre pas : au changement de chaîne, le poids du modèle et les tampons
+    /// FFT de l'IR sont encore froids, et ces quelques blocs seraient à eux seuls la p99,9.
+    fn record_load(&self, pass: usize, since: Instant, n: usize) {
         if self.warmup == 0 {
-            let load = t.elapsed().as_secs_f64() / (n as f64 * self.frame_secs);
+            let load = since.elapsed().as_secs_f64() / (n as f64 * self.frame_secs);
             self.loads[pass].record(load as f32);
         }
     }
@@ -364,6 +376,7 @@ impl Runner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_no_alloc::{assert_no_alloc, permit_alloc};
     use std::collections::BTreeMap;
 
     /// Fait tourner le détecteur sur un signal d'entrée donné par `input(t)`, et rend les
@@ -513,7 +526,12 @@ mod tests {
     const DRIVE_BLOCK: usize = 32;
 
     /// Fait tourner l'automate bloc par bloc, en renvoyant sur l'entrée, `delay` frames plus tard,
-    /// ce qui sort de la sortie : le câble de bouclage, simulé.
+    /// ce qui sort de la sortie : le câble de bouclage, simulé. Un retard **nul** ne renvoie rien :
+    /// c'est la fenêtre sans retour, et `delays` vide est le câble débranché.
+    ///
+    /// Chaque bloc passe par `assert_no_alloc` : **tout** test qui pilote la mesure vérifie donc du
+    /// même coup la règle temps réel du projet (`crates/dsp/CLAUDE.md`) pour ce callback. En debug
+    /// seulement — c'est là que l'allocateur de test est posé (`main.rs`).
     fn drive(chains: Vec<dsp::Chain>, count: u32, delays: &[u64]) -> Vec<Report> {
         drive_with_loads(chains, count, delays).0
     }
@@ -536,13 +554,19 @@ mod tests {
                 *x = back.remove(&(t + k as u64)).unwrap_or(1e-6);
             }
             out.fill(0.0);
-            runner.block(&inp, &mut out, &mut |r| reports.push(r));
+            // `permit_alloc` n'excepte que la collecte des rapports : dans la vraie mesure, elle
+            // est le travail du thread d'affichage, au bout d'une file préallouée.
+            assert_no_alloc(|| {
+                runner.block(&inp, &mut out, &mut |r| permit_alloc(|| reports.push(r)));
+            });
             for (k, y) in out.iter().enumerate() {
                 if y.abs() > 0.1 && !delays.is_empty() {
                     // le retard de la n-ième impulsion : la dernière valeur tient pour la suite,
                     // ce qui permet de simuler une dérive au démarrage puis un flux établi
                     let d = delays[emits.min(delays.len() - 1)];
-                    back.insert(t + k as u64 + d, 0.5);
+                    if d > 0 {
+                        back.insert(t + k as u64 + d, 0.5);
+                    }
                     emits += 1;
                 }
             }
@@ -577,6 +601,21 @@ mod tests {
         }
     }
 
+    /// Le fil audio de la mesure n'alloue pas, ne verrouille pas et ne libère rien, chaîne
+    /// d'effets comprise : ni la détection, ni l'enchaînement des passes, ni le bruit interne du
+    /// mode « à côté ». La garde est dans [`drive`] ; ce test lui donne la chaîne la plus fournie
+    /// qui se bâtisse sans modèle, et les deux places.
+    #[test]
+    fn the_measurement_thread_does_not_allocate() {
+        let mut chain = dsp::Chain::new();
+        for spec in ["gate", "comp", "delay", "reverb"] {
+            let fx: dsp::fx::FxSpec = spec.parse().unwrap();
+            chain.push_boxed(fx.build(&dsp::fx::BuildCtx::new(DRIVE_RATE, MAX_BLOCK)).unwrap());
+        }
+        let reports = drive(vec![chain], 2, &[37]);
+        assert!(matches!(reports.last(), Some(Report::Done)), "le plan n'est pas allé au bout");
+    }
+
     /// Les passes de chaque fenêtre, dans l'ordre, et si le plan s'est bien terminé. `only_counted`
     /// écarte les fenêtres d'échauffement.
     fn passes_of(reports: &[Report], only_counted: bool) -> (Vec<usize>, bool) {
@@ -597,15 +636,8 @@ mod tests {
     /// dire —, puis deux passes par chaîne, dans le trajet puis à côté.
     #[test]
     fn the_plan_starts_with_the_bare_path_then_two_passes_per_chain() {
-        let p = plan(2);
-        assert_eq!(p.len(), 5);
-        assert_eq!(p[0].chain, None);
-        assert_eq!(p[0].spot, Spot::Bare);
-        assert_eq!(
-            p[1..].iter().map(|p| (p.chain.unwrap(), p.spot)).collect::<Vec<_>>(),
-            [(0, Spot::InPath), (0, Spot::Beside), (1, Spot::InPath), (1, Spot::Beside)]
-        );
-        assert!(plan(0).len() == 1, "sans chaîne, la mesure d'aujourd'hui, et rien d'autre");
+        assert_eq!(plan(2), [Pass::Bare, Pass::InPath(0), Pass::Beside(0), Pass::InPath(1), Pass::Beside(1)]);
+        assert_eq!(plan(0), [Pass::Bare], "sans chaîne, la mesure d'aujourd'hui, et rien d'autre");
     }
 
     /// Chaque passe prend ses mesures puis cède la place, et le plan se termine de lui-même.
@@ -622,15 +654,30 @@ mod tests {
         }
     }
 
+    /// Des échecs **dispersés** parmi des réussites ne terminent pas une passe : seules `MAX_WEAK`
+    /// fenêtres consécutives l'abandonnent. Les compter toutes rendait la passe plus courte que
+    /// demandé, et sa médiane portait alors sur moins de mesures sans que rien ne le dise.
+    #[test]
+    fn scattered_failures_do_not_abandon_a_pass() {
+        // deux fenêtres d'échauffement, puis une réussite sur deux : cinq échecs en tout
+        let reports = drive(Vec::new(), 6, &[37, 37, 37, 0, 37, 0, 37, 0, 37, 0, 37, 0, 37]);
+        let measured = reports
+            .iter()
+            .filter(|r| matches!(r, Report::Window { event: Event::Measured { .. }, counted: true, .. }))
+            .count();
+        assert_eq!(measured, 6, "la passe a renoncé avant ses six mesures : {reports:?}");
+        assert!(matches!(reports.last(), Some(Report::Done)));
+    }
+
     /// Une passe qui ne voit rien revenir n'arrête pas les suivantes : elle renonce au bout de
-    /// `MAX_WEAK` fenêtres et la mesure continue. C'est ce qui rend le tableau lisible en carte
-    /// simulée, où rien ne boucle.
+    /// `MAX_WEAK` fenêtres comptées et la mesure continue. C'est ce qui rend le tableau lisible en
+    /// carte simulée, où rien ne boucle.
     #[test]
     fn a_pass_without_return_does_not_stop_the_others() {
         let reports = drive(vec![dsp::Chain::new()], 3, &[]);
         let (passes, done) = passes_of(&reports, false);
         assert!(done);
-        assert_eq!(passes.len() as u32, 3 * MAX_WEAK);
+        assert_eq!(passes.len() as u32, 3 * (WARMUP + MAX_WEAK));
         assert_eq!(passes.iter().copied().collect::<std::collections::BTreeSet<_>>(), [0, 1, 2].into());
         assert!(reports.iter().all(|r| !matches!(r, Report::Window { event: Event::Measured { .. }, .. })));
     }

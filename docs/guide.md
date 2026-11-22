@@ -2552,6 +2552,12 @@ Deux lignes « pas de retour » pour une chaîne ne sont pas forcément un défa
 en tête de chaîne peut avaler une impulsion. La ligne « à côté » le dit — si elle mesure, le câble
 va bien.
 
+Une passe qui ne voit plus rien revenir **cinq fois de suite** renonce, et elle le dit : « passe
+abandonnée : 3 mesure(s) sur 10, 5 fenêtre(s) sans retour ». Des échecs dispersés parmi des
+réussites ne la terminent pas — c'est un câble qui grésille, pas un câble débranché. Et quand une
+passe s'arrête en route, un avertissement sous le tableau la nomme : sa médiane porte sur moins de
+fenêtres que demandé, ce qu'une ligne de chiffres ne montre pas.
+
 Chaque passe commence par quelques secondes d'attente et deux mesures marquées
 « (stabilisation) », affichées mais non comptées : le flux de la carte met un instant à s'établir,
 et une mesure prise pendant ce temps est fausse. C'est ce qui permet à la ligne « à côté » de
