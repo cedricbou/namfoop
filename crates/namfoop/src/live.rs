@@ -133,7 +133,7 @@ pub fn run(
     let cc_tap = conf.config.midi.as_ref().map_or(model::Midi::default().cc_tap, |m| m.cc_tap);
     let clock_on = conf.config.midi.as_ref().is_none_or(|m| m.clock);
     let mut ticks = 0u32;
-    let mut heard_bpm = tempo.bpm();
+    let mut heard_src = tempo.source();
     loop {
         if rx.recv_timeout(Duration::from_millis(POLL_MS)).is_ok() {
             break;
@@ -174,12 +174,16 @@ pub fn run(
             }
         }
         tempo.poll(start.elapsed().as_micros() as u64);
-        // Le tempo entendu se trace même sans clic : c'est ce qui rend vérifiable « mon horloge
-        // est-elle écoutée ? » sans avoir à brancher un retour.
+        // Le tempo entendu va sur la **ligne d'état**, et le journal ne garde que ce qui est un
+        // événement : la **source** a changé. Le tracer à chaque valeur publiée noyait tout le
+        // reste — l'hystérésis republie à chaque croisement de sa bande, soit plusieurs lignes
+        // par seconde avec une horloge qui gigue de 0,5 BPM, et ces lignes se mêlaient à la
+        // ligne d'état, qui se réécrit sans retour chariot.
         let bpm = tempo.bpm();
-        if bpm != heard_bpm {
-            heard_bpm = bpm;
-            log::info!("tempo {bpm:.1} BPM ({})", tempo.source().label());
+        let src = tempo.source();
+        if src != heard_src {
+            heard_src = src;
+            log::info!("tempo {bpm:.1} BPM ({})", src.label());
         }
         if click {
             if bpm != click_tempo.get() {
@@ -212,7 +216,7 @@ pub fn run(
         if !quiet {
             let (ic, oc) = (m.in_clips, m.out_clips);
             eprint!(
-                "\r  in {} dB{}{}{}  out {} dB  lim {}  dsp {:>5.1} %  xruns {}{}   ",
+                "\r  in {} dB{}{}{}  out {} dB  lim {}  dsp {:>5.1} %  xruns {}{}{}   ",
                 db(i),
                 if ic > 0 { format!(" [CLIP ×{ic}]") } else { String::new() },
                 mark.map_or(String::new(), |m| format!(" (calib. {m:.1})")),
@@ -226,6 +230,9 @@ pub fn run(
                 l * 100.0,
                 engine.xruns(),
                 if oc > 0 { format!("  [CLIP SORTIE ×{oc}]") } else { String::new() },
+                // avec un port MIDI ouvert, le tempo entendu répond à « mon horloge est-elle
+                // écoutée ? » sans brancher un retour ; sans port, il ne peut pas bouger
+                if midi.is_some() { format!("  ♩ {bpm:.0} ({})", src.label()) } else { String::new() },
             );
         }
     }

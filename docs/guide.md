@@ -1116,7 +1116,7 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 ### La ligne d'état
 
 ```
-  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0
+  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0  ♩ 145 (MIDI)
 ```
 
 | Champ | Signification | Que faire |
@@ -1129,6 +1129,7 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 | `dsp` | part du temps disponible utilisée par le traitement (pic) | au-delà de 70 %, risque de craquements |
 | `xruns` | décrochages audio depuis le démarrage | doit rester à 0 |
 | `[CLIP SORTIE]` | échantillons écrêtés en sortie (limiteur désactivé) | baisse `--master-db` |
+| `♩` | tempo entendu et **d'où il vient** — `MIDI`, `tap`, `horloge perdue`, `preset` — affiché dès qu'un port MIDI est ouvert | il répond à « mon horloge est-elle écoutée ? » sans brancher de retour |
 
 Au démarrage, une ligne `routage :` rappelle l'entrée de la basse et le rôle de chaque sortie, et
 une ligne `calibration :` la crête attendue sur `in`. À l'arrêt, un résumé donne la charge DSP
@@ -1584,6 +1585,11 @@ Si namfoop se raccroche au milieu d'un flux déjà en cours, il ne peut que devi
 reçu n'est un début de temps qu'une fois sur vingt-quatre. L'en-tête le dit alors —
 `♩ 142 (MIDI, temps à confirmer : *)` —, parce que c'est à l'oreille indiscernable d'un tempo faux.
 
+Cet avertissement ne concerne donc que le **premier** flux d'une session, et seulement si l'horloge
+tournait déjà au lancement : dès que namfoop a vu une horloge se taire puis reprendre, il sait que
+le top qui reprend ouvre un temps, et il ne demande plus rien. Lancer namfoop d'abord, la source
+ensuite, suffit à ne jamais le voir.
+
 Un Song Position Pointer place le temps **à la double-croche** : namfoop en tient compte, si bien
 qu'une position qui ne tombe pas sur une noire ne décale pas le clic d'un quart de temps.
 
@@ -1603,6 +1609,11 @@ ni preset ni set, il n'y a pas d'autre façon de la lui rendre. Une source qui n
 transport garde donc le tap pour la session ; namfoop l'avertit dans ses logs quand ça arrive. Le tempo de la **chaîne**, en
 revanche, reste celui du preset ou de `--tempo` dans `run` : c'est ce qui garde `run` et `render`
 reproductibles. Pour des effets calés sur l'horloge, c'est `browse` ou `run --set`.
+
+Le tempo entendu se lit sur la **ligne d'état** de `run` (`♩ 145 (MIDI)`), et non dans le journal :
+il se republie à chaque fois qu'il sort de sa bande d'hystérésis, soit des dizaines de fois par
+seconde avec l'horloge d'un clavier, ce qui noierait tout le reste. Le journal ne garde que les
+changements de **source** — l'horloge qui prend la main, qui se perd, le tap qui passe devant.
 
 **Si `k` ne fait rien**, c'est qu'aucune sortie ne reçoit le clic : le message le dit, et la réponse
 est `namfoop setup` (déclarer une sortie « in-ear »). `run --click` refuse de démarrer dans ce cas

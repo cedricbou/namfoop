@@ -46,7 +46,11 @@ live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre
                 est lu par tranches de DISPLAY_MS : `Engine::meters` remet les crêtes à zéro. Le
                 tempo de la CHAÎNE reste figé ici : c'est ce qui garde `run` et `render`
                 reproductibles. La PHASE du clic a ses propres cases (compteur de tops du port MIDI
-                + Arbiter::clock_phase), comme dans browse ;
+                + Arbiter::clock_phase), comme dans browse. Le tempo ENTENDU va sur la ligne
+                d'état, pas dans le journal, qui ne garde que les changements de SOURCE : une ligne
+                par valeur publiée en donnait des dizaines par seconde sur une horloge qui gigue
+                (l'hystérésis republie à chaque croisement de sa bande) et elles se mêlaient à la
+                ligne d'état, qui se réécrit sans retour chariot ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit

@@ -42,6 +42,11 @@ section prend le numéro de version.
 - **`namfoop run --click` suit l'horloge et le tap** (CC 14), alors qu'il les ignorait : un clic qui
   ne sait rien de l'horloge branchée est un piège. Le tempo de la **chaîne**, lui, reste figé dans
   `run` — c'est ce qui garde `run` et `render` reproductibles.
+- **Le tempo entendu s'affiche sur la ligne d'état de `run`** (`♩ 145 (MIDI)`) au lieu de
+  s'écrire dans le journal. Une ligne par valeur publiée en donnait des dizaines par seconde avec
+  l'horloge d'un clavier — le tempo sort de sa bande d'hystérésis à chaque gigue — et elles se
+  mêlaient à la ligne d'état. Le journal ne garde que les changements de **source** : l'horloge qui
+  prend la main, qui se perd, le tap qui passe devant.
 - **`*` recale le temps 1 depuis n'importe quel écran**, banc d'essai compris. Il y était refusé en
   entier pour une raison qui ne concerne que le tempo du preset, alors que le clic s'allume partout :
   on se retrouvait avec un clic impossible à recaler. Le tempo, lui, se tape toujours dans la Chaîne.
