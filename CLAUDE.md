@@ -22,7 +22,7 @@ scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, ge
                   check-aarch64.sh (compile la cible du Pi 5), install-hooks.sh, feature.sh,
                   test-feature.sh (le cycle lui-même, hors-ligne), test-backends.sh (matériel)
 docs/             guide.md, cli.md (généré), architecture.md, adr/, design/ (spécifications d'écran
-                  et maquettes), identite/ (logo, icône, onde : vectoriels de la marque)
+                  et maquettes), identite/ (charte.md : palette, polices, logo, icône, bannière)
 profiles/         profils de carte livrés (TOML, inclus dans le binaire par model::card)
 library/, nam/    sons et zips de l'utilisateur : non versionnés, ne pas modifier (tests : copie jetable)
 ```

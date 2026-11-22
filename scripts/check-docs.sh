@@ -200,7 +200,7 @@ while IFS='|' read -r f ref; do
 done < <(
   for f in $(docs_rediges); do
     grep -oE '`[^`]*`' "$f" | tr -d '`' \
-      | grep -E '^[A-Za-z0-9_-][A-Za-z0-9_./-]*\.(rs|md|toml|sh|py|yml|txt)$' \
+      | grep -E '^[A-Za-z0-9_-][A-Za-z0-9_./-]*\.(rs|md|toml|sh|py|yml|txt|svg|png|ico)$' \
       | while IFS= read -r ref; do printf '%s|%s\n' "$f" "$ref"; done
   done | sort -u
 )
