@@ -65,6 +65,28 @@ Les couleurs n'y décorent pas, elles portent l'information : chaque espace a la
 Bibliothèque magenta, Chaîne cyan, Set vert —, l'édition est jaune, la saturation rouge, le texte
 secondaire gris. La proportion 80 / 15 / 5 ne s'y applique donc pas.
 
+### Les gradations
+
+Un dégradé — le grain d'un modèle, l'écart de spectre du panneau Bandes, le corps d'un vumètre —
+se décline **dans la couleur de l'espace** où il s'affiche, en trois paliers :
+
+| Palier | Bibliothèque | Chaîne | Set | Couleurs de base |
+| :--- | :--- | :--- | :--- | :--- |
+| faible (son clair, écart proche) | `#BC0461` | `#078B95` | `#07854A` | la couleur, atténuée |
+| moyen | magenta électrique | cyan néon | vert signal | la couleur |
+| fort (saturé, écart loin) | blanc pur, gras | blanc pur, gras | blanc pur, gras | `White`, gras |
+
+Hors des espaces (`setup`, `run`), le vumètre monte en blanc. Seules les **alarmes de niveau**
+sortent de l'espace : jaune ambre près du plafond, rouge clip au plafond. La réduction de gain du
+compresseur est blanche, le gate fermé gris acier : le jaune et le rouge ne disent que le danger.
+Les états — validé, attention, erreur — gardent leurs couleurs : ce ne sont pas des gradations.
+
+Le palier fort est blanc et non une teinte éclaircie : le cyan et le vert sont déjà presque au
+maximum de luminosité, les éclaircir ne se verrait pas. Les mesures et les trois espaces côte à
+côte : [`gradations.html`](gradations.html), à ouvrir dans un navigateur.
+
+### Couleurs exactes et couleurs de base
+
 Un terminal qui annonce savoir afficher les couleurs exactes reçoit les codes de la palette. Les
 autres reçoivent les couleurs de base de la colonne **Terminal** : l'écran garde sa lecture, dans
 les teintes du thème de l'utilisateur.

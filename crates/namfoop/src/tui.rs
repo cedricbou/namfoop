@@ -166,9 +166,9 @@ fn db(x: f32) -> f32 {
     20.0 * x.max(1e-9).log10()
 }
 
-/// Barre de niveau -60..0 dBFS, colorée vert / jaune (> -12) / rouge (> -3).
+/// Barre de niveau -60..0 dBFS hors des espaces (`setup`, `run`) : blanche, jaune (> -12), rouge (> -3).
 pub fn meter(level: f32) -> Vec<Span<'static>> {
-    meter_width(level, BAR)
+    meter_width(level, BAR, theme::Accent::Neutral)
 }
 
 /// Position (0..width) d'un niveau en dB sur une barre -60..0 dBFS.
@@ -177,8 +177,13 @@ pub fn meter_pos(db: f32, width: usize) -> usize {
 }
 
 /// Barre de niveau avec un repère `┃` à `mark_db` (crête attendue d'après la calibration).
-pub fn meter_marked(level: f32, width: usize, mark_db: Option<f32>) -> Vec<Span<'static>> {
-    let mut spans = meter_width(level, width);
+pub fn meter_marked(
+    level: f32,
+    width: usize,
+    mark_db: Option<f32>,
+    accent: theme::Accent,
+) -> Vec<Span<'static>> {
+    let mut spans = meter_width(level, width, accent);
     let Some(mark) = mark_db else { return spans };
     let pos = meter_pos(mark, width);
     // recompose la barre caractère par caractère (plein / vide), repère inséré
@@ -203,19 +208,20 @@ pub fn meter_marked(level: f32, width: usize, mark_db: Option<f32>) -> Vec<Span<
     out
 }
 
-pub fn meter_width(level: f32, width: usize) -> Vec<Span<'static>> {
+/// Barre de niveau dans la couleur de `accent` ; jaune et rouge, les alarmes, en sortent.
+pub fn meter_width(level: f32, width: usize, accent: theme::Accent) -> Vec<Span<'static>> {
     let d = db(level);
     let filled = (((d + 60.0) / 60.0).clamp(0.0, 1.0) * width as f32).round() as usize;
-    let color = if d > -3.0 {
-        theme::meter_clip()
+    let style = if d > -3.0 {
+        Style::new().fg(theme::meter_clip())
     } else if d > -12.0 {
-        theme::meter_warn()
+        Style::new().fg(theme::meter_warn())
     } else {
-        theme::meter_ok()
+        theme::grade(accent, theme::Step::Mid)
     };
     let text = if level <= 1e-6 { "  -inf".to_string() } else { format!("{d:>6.1}") };
     vec![
-        Span::styled("█".repeat(filled), Style::new().fg(color)),
+        Span::styled("█".repeat(filled), style),
         Span::styled("░".repeat(width - filled), Style::new().fg(theme::meter_track())),
         Span::raw(format!(" {text} dB")),
     ]
@@ -278,7 +284,7 @@ mod tests {
         let spans = meter(1.0);
         assert_eq!(spans[0].content.chars().count(), BAR);
         assert_eq!(spans[0].style.fg, Some(theme::meter_clip()));
-        assert_eq!(meter(0.01)[0].style.fg, Some(theme::meter_ok()));
+        assert_eq!(meter(0.01)[0].style.fg, theme::grade(theme::Accent::Neutral, theme::Step::Mid).fg);
     }
 
     #[test]
@@ -286,9 +292,12 @@ mod tests {
         assert_eq!(meter_pos(-8.5, 12), 10);
         assert_eq!(meter_pos(-8.5, 24), 21);
         assert_eq!(meter_pos(0.0, 12), 11, "jamais hors de la barre");
-        let bar: String = meter_marked(0.1, 12, Some(-8.5)).iter().map(|s| s.content.to_string()).collect();
+        let bar: String = meter_marked(0.1, 12, Some(-8.5), theme::Accent::Neutral)
+            .iter()
+            .map(|s| s.content.to_string())
+            .collect();
         // -20 dBFS : 8 cases pleines, repère en 10e position
         assert!(bar.starts_with("████████░░┃░"), "{bar}");
-        assert_eq!(meter_marked(0.1, 12, None).len(), 3);
+        assert_eq!(meter_marked(0.1, 12, None, theme::Accent::Neutral).len(), 3);
     }
 }

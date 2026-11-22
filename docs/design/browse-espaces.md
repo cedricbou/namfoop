@@ -116,8 +116,9 @@ ce qui ne doit pas bouger est au § 8) :
   └────────────────────────────────────────────┘
   ```
 
-  Échelle ±12 dB sur 5 lignes (6 dB par ligne, 3 dB par demi-bloc), `▲` / `▼` hors échelle, couleurs
-  des vumètres (vert ±3, jaune ±8, rouge au-delà). Le zéro est la moyenne 80 Hz – 5 kHz de la
+  Échelle ±12 dB sur 5 lignes (6 dB par ligne, 3 dB par demi-bloc), `▲` / `▼` hors échelle, dans la
+  rampe de l'espace ([charte](../identite/charte.md#les-gradations)) : teinte assombrie à ±3 dB,
+  teinte pleine à ±8, blanc gras au-delà. Le zéro est la moyenne 80 Hz – 5 kHz de la
   chaîne : les colonnes montrent sa **couleur**, pas son niveau. 9 lignes, 36 colonnes.
 - Barre d'aide (Modèles) :
   `↑↓ écouter  Entrée mettre dans la chaîne  Tab/→ IR  e calibrer  c épingler réf.  r A/B  b avec/sans IR  / filtrer  2 Chaîne  q`

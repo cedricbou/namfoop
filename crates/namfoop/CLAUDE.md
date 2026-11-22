@@ -41,7 +41,10 @@ theme.rs        LA liste des couleurs des écrans, nommées par ce qu'elles sign
                 → teintes exactes de la charte, sinon les couleurs de base (colonne
                 « Terminal » de la charte). Seuls les accents changent (text, popup_bg, inherit : jamais).
                 En test, la palette est celle de base sauf dans `theme::with_palette` (par fil),
-                et `tui::screen_colors` vérifie un écran entier dans les deux
+                et `tui::screen_colors` vérifie un écran entier dans les deux. Les dégradés
+                (grain, Bandes, corps des vumètres) passent par `grade(Accent, Step)` : la rampe
+                de l'espace (charte, « Les gradations ») ; seules les alarmes (meter_warn,
+                meter_clip) en sortent
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` et `run --set` : voir src/browse/CLAUDE.md

@@ -63,13 +63,14 @@ pub(super) fn column(db: f32) -> [char; ROWS] {
     col
 }
 
-/// La couleur d'une zone : le même code que les vumètres (vert, jaune, rouge).
-fn tint(db: f32) -> Color {
-    match db.abs() {
-        d if d <= 3.0 => theme::delta_ok(),
-        d if d <= 8.0 => theme::delta_warn(),
-        _ => theme::delta_far(),
-    }
+/// La couleur d'une zone, dans la rampe de l'espace : proche, moyen, loin de la référence.
+fn tint(db: f32, accent: theme::Accent) -> Style {
+    let step = match db.abs() {
+        d if d <= 3.0 => theme::Step::Low,
+        d if d <= 8.0 => theme::Step::Mid,
+        _ => theme::Step::High,
+    };
+    theme::grade(accent, step)
 }
 
 /// La valeur d'une zone (`0` plutôt que `+0`), alignée à droite par l'appelant.
@@ -82,7 +83,10 @@ fn value(db: f32) -> String {
 }
 
 /// Les lignes du panneau, titre non compris : utilisable sans terminal (tests).
-pub(super) fn lines(view: &crate::browse::state::bands::BandView) -> Vec<Line<'static>> {
+pub(super) fn lines(
+    view: &crate::browse::state::bands::BandView,
+    accent: theme::Accent,
+) -> Vec<Line<'static>> {
     let cols: Vec<[char; ROWS]> = view.db.iter().map(|d| column(*d)).collect();
     let mut out = Vec::with_capacity(ROWS + 2);
     let bar = COL / 2;
@@ -93,7 +97,7 @@ pub(super) fn lines(view: &crate::browse::state::bands::BandView) -> Vec<Line<'s
             let (glyph, style) = match c[r] {
                 '─' => ("─".repeat(bar), Style::new().fg(theme::dim())),
                 ' ' => (" ".repeat(bar), Style::new()),
-                g => (g.to_string().repeat(bar), Style::new().fg(tint(view.db[k]))),
+                g => (g.to_string().repeat(bar), tint(view.db[k], accent)),
             };
             let gap = if r == 2 { "─" } else { " " }.repeat(COL - bar);
             spans.push(Span::styled(glyph, style));
@@ -105,7 +109,7 @@ pub(super) fn lines(view: &crate::browse::state::bands::BandView) -> Vec<Line<'s
     let mut vals = vec![Span::raw("      ")];
     for (k, z) in SHORT.iter().enumerate() {
         names.push(Span::styled(format!("{z:^COL$}"), Style::new().fg(theme::dim())));
-        vals.push(Span::styled(format!("{:^COL$}", value(view.db[k])), Style::new().fg(tint(view.db[k]))));
+        vals.push(Span::styled(format!("{:^COL$}", value(view.db[k])), tint(view.db[k], accent)));
     }
     vals.push(Span::styled("  dB".to_string(), Style::new().fg(theme::dim())));
     out.push(Line::from(names));
@@ -122,7 +126,7 @@ pub(super) fn render(s: &State, f: &mut Frame, area: ratatui::layout::Rect) {
         None => " Bandes ".to_string(),
     };
     let body = match &view {
-        Some(v) => lines(v),
+        Some(v) => lines(v, super::accent(s)),
         None => vec![Line::styled(
             " rien à montrer : son direct, ou profil non mesuré",
             Style::new().fg(theme::dim()),
@@ -175,7 +179,7 @@ mod tests {
             title: "ce que la chaîne fait à ta basse".into(),
             diff: false,
         };
-        let text: Vec<String> = lines(&view).iter().map(|l| l.to_string()).collect();
+        let text: Vec<String> = lines(&view, theme::Accent::Library).iter().map(|l| l.to_string()).collect();
         assert_eq!(text.len(), ROWS + 2);
         assert!(text[2].starts_with("   0 ┼"), "l'axe : {}", text[2]);
         assert!(text[ROWS].contains("sub") && text[ROWS].contains("air"), "{}", text[ROWS]);

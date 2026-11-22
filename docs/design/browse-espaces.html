@@ -32,7 +32,7 @@
   .box.info > .t{color:var(--dim)}
   pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow:hidden}
   .line{color:var(--line)} .io{color:var(--dim);font-weight:bold}
-  .fx{color:var(--fg)} .amp{color:var(--green)} .node{color:var(--yellow);font-weight:bold}
+  .fx{color:var(--fg)} .amp{color:var(--white);font-weight:bold} .node{color:var(--yellow);font-weight:bold}
   .hdr{color:var(--white);font-weight:bold} .dim{color:var(--dim)} .it{font-style:italic}
   .off{color:var(--dim);text-decoration:line-through}
   .mute{opacity:.3}
@@ -42,7 +42,7 @@
   .tabon.c{background:var(--cyan)}
   .subon{color:var(--mag);font-weight:bold}
   i.c{display:inline-block;width:1ch;font-style:normal;text-align:left;overflow:visible;white-space:pre}
-  .warn{color:var(--yellow)} .ok{color:var(--green)} .err{color:var(--red)} .mag{color:var(--mag)} .cy{color:var(--cyan)} .b{font-weight:bold}
+  .warn{color:var(--yellow)} .ok{color:var(--green)} .err{color:var(--red)} .mag{color:var(--mag)} .g1{color:#BC0461} .g2{color:var(--mag)} .g3{color:var(--white);font-weight:bold} .cy{color:var(--cyan)} .b{font-weight:bold}
   .spec{position:absolute;right:1px;top:1px;bottom:1px;width:50ch;border-left:1px solid var(--edge);background:var(--term);padding:12px 10px 0 12px}
   .status{padding:2px 12px 0;white-space:pre-wrap}
   .msg{padding:4px 12px 4px;min-height:24px;color:var(--yellow);white-space:pre-wrap}
@@ -253,7 +253,7 @@ const eqv=(a,b)=>a===b||(a&&b&&typeof a==='object'&&typeof b==='object'&&a.blend
 
 function modelRow(i,cur,tail){if(i==null)return (cur?h(' ▶ ','cy b'):'   ')+'        son direct (DI, sans modèle)'+h('  pour écouter une IR seule','dim');
   const m=M[i],mark=S.ref&&S.ref.kind==='models'&&S.ref.i===i?h('◆','warn b'):usedM(i)?h('●','ok'):' ';
-  const gc=m.grain.startsWith('clair')?'ok':m.grain.startsWith('crunch')?'warn':'err';
+  const gc=m.grain.startsWith('clair')?'g1':m.grain.startsWith('crunch')?'g2':'g3';
   return (cur?h(' ▶ ','cy b'):'   ')+h(m.id.padEnd(5),'dim')+mark+' '+esc(m.label.padEnd(23))+h(m.ir?' IR requise ':' IR incluse ',m.ir?'warn':'dim')
     +h(m.spark,'cy')+' '+h(m.grain.padEnd(12),gc)+h('['+m.pack+']','dim')+(tail||'')}
 function irRow(v,cur,tail,star){if(v==null)return (cur?h(' ▶ ','cy b'):'   ')+'        aucune IR'+(tail||'');

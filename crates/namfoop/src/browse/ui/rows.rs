@@ -31,7 +31,7 @@ pub(super) fn model_line(
     if let Some(d) = &m.profile {
         spans.push(Span::styled(format!("  {}", d.spark), Style::new().fg(theme::curve())));
         if let Some(g) = &d.grain {
-            spans.push(Span::styled(format!("  {g}"), grain_style(g)));
+            spans.push(Span::styled(format!("  {g}"), grain_style(g, s)));
         }
         spans.push(Span::raw(format!("  {}", d.tags.join(", "))));
     }

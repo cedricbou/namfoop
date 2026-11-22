@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Planche des gradations : la règle « rampe de l'espace » de la charte (charte.md, « Les gradations »). -->
+<title>namfoop — planche des gradations</title>
+<style>
+  :root{
+    --bg:#0F0F14; --graph:#1E1E28; --edge:#2E2E3C; --fg:#d7dae0; --dim:#8A8A9C;
+    --cyan:#00F0FF; --mag:#FF007F;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:1280px;margin:0 auto;padding:18px 16px 40px}
+  h1{font-size:18px;margin:0 0 6px;font-weight:600}
+  h2{font-size:13px;margin:0 0 8px;color:var(--cyan);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  p{margin:0 0 10px;max-width:90ch}
+  .sub{color:var(--dim)}
+  .ctl{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0;padding:12px 14px;background:var(--graph);border:1px solid var(--edge);border-radius:8px}
+  .ctl fieldset{border:0;margin:0;padding:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .ctl legend{float:left;margin-right:8px;color:var(--dim);font-size:13px}
+  button{font:inherit;font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--edge);border-radius:6px;padding:5px 10px;cursor:pointer}
+  button.on{border-color:var(--cyan);color:var(--cyan)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+  .term{background:var(--tbg,#0F0F14);border:1px solid var(--edge);border-radius:8px;padding:10px 12px;
+        font:13px/1.5 "JetBrains Mono","DejaVu Sans Mono",ui-monospace,monospace;white-space:pre;overflow-x:auto}
+  .term .t{font-weight:bold;padding:0 4px}
+  .term .sec{color:var(--tdim);margin-top:8px}
+  .b{font-weight:bold}
+  .card{background:var(--graph);border:1px solid var(--edge);border-radius:8px;padding:12px 14px;margin-top:14px}
+  table{border-collapse:collapse;font-size:13px;width:100%}
+  th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--edge)}
+  td.sw span{display:inline-block;width:46px;height:14px;border-radius:2px;vertical-align:middle;margin-right:6px}
+  .ko{color:#FF3B30} .okk{color:#00E676}
+  ol{margin:0;padding-left:20px} li{margin:4px 0}
+  code{font:12px ui-monospace,Menlo,monospace;background:var(--bg);border-radius:3px;padding:0 4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche des gradations — chaque dégradé dans la couleur de son espace</h1>
+  <p class="sub">Vumètres, grain des modèles et panneau Bandes déclinés dans la teinte de l'espace ; seules les
+    alarmes de niveau en sortent (jaune ambre, puis rouge clip). Les états (validé, attention, erreur) servent
+    de témoin : ils ne changent pas. Noms, valeurs et niveaux sont fictifs.</p>
+  <p class="sub">Ce que la mesure impose : le magenta électrique est <b>plus sombre</b> que le gris acier (luminance
+    0,23 contre 0,25) : une rampe « gris → teinte » ne monte donc pas en magenta. Et le cyan et le vert sont déjà
+    presque au maximum de luminosité : les éclaircir ne se voit guère. La rampe part donc de la <b>teinte
+    assombrie</b> et monte à la <b>teinte pleine</b>, puis à la teinte éclaircie (A) ou au blanc (B), en gras.</p>
+
+  <div class="ctl">
+    <fieldset id="f-var"><legend>Palier fort</legend>
+      <button data-v="A">A · teinte éclaircie</button><button data-v="B" class="on">B · blanc (retenu)</button></fieldset>
+    <fieldset id="f-pal"><legend>Terminal</legend>
+      <button data-p="exact" class="on">couleurs exactes</button><button data-p="xterm">couleurs de base (xterm)</button><button data-p="linux">console du Pi</button></fieldset>
+    <fieldset id="f-amp"><legend>Blocs nam / ir</legend>
+      <button data-a="green">vert</button><button data-a="white" class="on">blanc gras (retenu)</button></fieldset>
+    <fieldset id="f-comp"><legend>Compresseur / gate</legend>
+      <button data-c="red">rouge éclairci / rouge assombri</button><button data-c="neutral" class="on">blanc / gris acier (retenu)</button></fieldset>
+  </div>
+
+  <div class="grid" id="spaces"></div>
+
+  <div class="card">
+    <h2>Mesures (couleurs exactes)</h2>
+    <p class="sub">Contraste de chaque palier sur le noir d'encre (lisible : 3:1 au moins), et rapport de luminance entre
+      paliers voisins (cible : 1,5:1 au moins). Le gras s'ajoute au palier fort.</p>
+    <table id="measures"></table>
+  </div>
+
+  <div class="card">
+    <h2>Décidé</h2>
+    <ol>
+      <li><b>Palier fort</b> : le blanc gras (B), « chauffé à blanc ». La teinte éclaircie (A) reste visible ici pour
+        comparer : en cyan et en vert, elle ne se distingue pas de la teinte pleine.</li>
+      <li><b>Blocs <code>nam</code> / <code>ir</code></b> dans la Chaîne : blanc gras, comme les en-têtes de branche.</li>
+      <li><b>Compresseur et gate</b> : la réduction de gain en blanc, le gate fermé en gris acier ; le jaune et le
+        rouge restent aux alarmes de niveau.</li>
+      <li><b>Teinte assombrie</b> : celle de la planche, lisible à 3:1 au moins sur le noir d'encre.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const EXACT = { mag:'#FF007F', cyan:'#00F0FF', green:'#00E676', yellow:'#FFD600', red:'#FF3B30',
+  steel:'#8A8A9C', white:'#FFFFFF', ink:'#0F0F14', text:'#d7dae0' };
+// Couleurs de base telles que deux terminaux les montrent : xterm, et la console Linux (VGA) du Pi.
+const BASE = {
+  xterm: { Magenta:'#CD00CD', LightMagenta:'#FF00FF', Cyan:'#00CDCD', LightCyan:'#00FFFF', Green:'#00CD00',
+    LightGreen:'#00FF00', Yellow:'#CDCD00', Red:'#CD0000', LightRed:'#FF0000', DarkGray:'#7F7F7F',
+    Gray:'#E5E5E5', White:'#FFFFFF', bg:'#000000' },
+  linux: { Magenta:'#AA00AA', LightMagenta:'#FF55FF', Cyan:'#00AAAA', LightCyan:'#55FFFF', Green:'#00AA00',
+    LightGreen:'#55FF55', Yellow:'#AA5500', Red:'#AA0000', LightRed:'#FF5555', DarkGray:'#555555',
+    Gray:'#AAAAAA', White:'#FFFFFF', bg:'#000000' },
+};
+const SPACES = [
+  { id:'lib', name:'Bibliothèque', acc:'mag', base:'Magenta', grain:true, bands:true },
+  { id:'chn', name:'Chaîne', acc:'cyan', base:'Cyan', chain:true, bands:true },
+  { id:'set', name:'Set', acc:'green', base:'Green' },
+];
+let S = { v:'B', p:'exact', a:'white', c:'neutral' };
+
+const hex = c => [1,3,5].map(i => parseInt(c.slice(i,i+2),16)/255);
+const lin = v => v <= 0.04045 ? v/12.92 : ((v+0.055)/1.055)**2.4;
+const lum = c => { const [r,g,b] = hex(c).map(lin); return 0.2126*r + 0.7152*g + 0.0722*b; };
+const ratio = (a,b) => { const [x,y] = [lum(a),lum(b)].sort((p,q)=>q-p); return (x+0.05)/(y+0.05); };
+const mix = (a,b,t) => '#'+hex(a).map((x,i)=>Math.round((x*t+hex(b)[i]*(1-t))*255).toString(16).padStart(2,'0')).join('').toUpperCase();
+// La teinte assombrie : le mélange le plus sombre qui reste lisible à 3:1 sur le noir d'encre, plafonné à 60 %.
+function dark(c){ for(let t=0.40;t<=1;t+=0.01){ const m=mix(c,EXACT.ink,t); if(ratio(m,EXACT.ink)>=3 && t>=0.55) return m; } return c; }
+
+// Les paliers d'une rampe : {c: couleur, b: gras, d: atténué (SGR 2, en couleurs de base)}.
+function ramp(sp){
+  if (S.p === 'exact') {
+    const c = EXACT[sp.acc];
+    const hi = S.v === 'A' ? mix(c, EXACT.white, 0.5) : EXACT.white;
+    return [{c:dark(c)}, {c}, {c:hi, b:true}];
+  }
+  const P = BASE[S.p];
+  const hi = S.v === 'A' ? P['Light'+sp.base] : P.White;
+  return [{c:P[sp.base], d:true}, {c:P[sp.base]}, {c:hi, b:true}];
+}
+function col(name){ // une couleur nommée de la charte, ou son équivalent de base
+  if (S.p === 'exact') return EXACT[name];
+  const P = BASE[S.p];
+  return ({mag:P.Magenta, cyan:P.Cyan, green:P.Green, yellow:P.Yellow, red:P.Red, steel:P.DarkGray,
+    white:P.White, text:P.Gray, lred:P.LightRed})[name];
+}
+const sp_ = (t, st) => {
+  const s = typeof st === 'string' ? {c:st} : st;
+  const op = s.d ? (S.p === 'linux' ? 0.55 : 0.6) : 1;
+  return `<span style="color:${s.c};${s.b?'font-weight:bold;':''}opacity:${op}">${t}</span>`;
+};
+
+// Un vumètre : 24 cases, la teinte de l'espace, ambre au-delà de -9 dB, rouge au-delà de -1 dB.
+function meter(sp, db, opts={}){
+  const W = 24, r = ramp(sp), cells = Math.round((db+60)/60*W);
+  let out = '';
+  if (opts.gate) return sp_('█'.repeat(W), S.c==='red' ? (S.p==='exact'?mix(EXACT.red,EXACT.ink,0.5):col('red')) : col('steel'));
+  const gr = opts.gr ? Math.round(opts.gr/20*W) : 0;
+  for (let i=0;i<W;i++){
+    const at = (i+1)/W*60-60; // le haut de la case
+    if (i >= W-gr) { out += sp_('█', S.c==='red' ? (S.p==='exact'?mix(EXACT.red,EXACT.white,0.6):col('lred')) : col('white')); continue; }
+    if (i >= cells) { out += sp_('░', S.p==='exact'?mix(EXACT.steel,EXACT.ink,0.5):col('steel')); continue; }
+    out += sp_('█', at > -1 ? col('red') : at > -9 ? col('yellow') : r[1]);
+  }
+  return out;
+}
+function render(){
+  const P = S.p === 'exact' ? null : BASE[S.p];
+  const tbg = P ? P.bg : EXACT.ink, tdim = col('steel');
+  document.getElementById('spaces').innerHTML = SPACES.map(sp => {
+    const r = ramp(sp), acc = S.p==='exact' ? EXACT[sp.acc] : P[sp.base];
+    let h = `<div class="term" style="--tbg:${tbg};--tdim:${tdim};background:${tbg};color:${col('text')}">`;
+    h += `<span class="t" style="background:${acc};color:${EXACT.ink}">${sp.name}</span>\n`;
+    h += `<div class="sec">vumètres</div>`;
+    h += `calme   ${meter(sp,-30)}\nfort    ${meter(sp,-6)}\nplafond ${meter(sp,0)}\n`;
+    h += `comp    ${meter(sp,-12,{gr:6})}  ${sp_('-6 dB',col('steel'))}\ngate    ${meter(sp,0,{gate:true})}  ${sp_('fermé',col('steel'))}\n`;
+    if (sp.grain) {
+      h += `<div class="sec">grain des modèles</div>`;
+      h += `B7K Ultra · clean    ${sp_('clair',r[0])}\nB7K Ultra · drive 3  ${sp_('crunch 6 %',r[1])}\nFuzz Face · bass     ${sp_('saturé 22 %',r[2])}\n`;
+    }
+    if (sp.bands) {
+      h += `<div class="sec">bandes : écart à la référence</div>`;
+      const z = [['sub',+1],['grave',-2],['bas-méd',+5],['médium',-7],['haut-méd',+10],['présence',-12],['air',+3]];
+      h += z.map(([n,d]) => { const st = Math.abs(d)<=3 ? r[0] : Math.abs(d)<=8 ? r[1] : r[2];
+        return n.padEnd(9) + sp_((d>0?'▲':'▼').repeat(Math.min(4,Math.ceil(Math.abs(d)/3))).padEnd(5), st) + sp_(((d>0?'+':'')+d+' dB').padStart(7), st); }).join('\n') + '\n';
+    }
+    if (sp.chain) {
+      h += `<div class="sec">synoptique</div>`;
+      const amp = S.a==='white' ? {c:col('white'),b:true} : col('green');
+      h += `IN ─ gate -60 ─ ${sp_('nam·b7k',amp)} ─ ${sp_('ir·sm57',amp)} ─ OUT\n`;
+    }
+    h += `<div class="sec">états (témoin, inchangés)</div>`;
+    h += `${sp_('✓ enregistré',col('green'))}   ${sp_('● non enregistré',col('yellow'))}\n${sp_('✗ IR introuvable',col('red'))}`;
+    return h + '</div>';
+  }).join('');
+  // Les mesures, toujours en couleurs exactes.
+  const keep = S.p; S.p = 'exact';
+  let t = '<tr><th>espace</th><th>assombrie</th><th>pleine</th><th>forte</th><th>assombrie → pleine</th><th>pleine → forte</th></tr>';
+  for (const sp of SPACES) {
+    const [a,b,c] = ramp(sp).map(x=>x.c);
+    const f = (x) => `${ratio(x,EXACT.ink).toFixed(1)}:1`;
+    const k = (x,y) => { const v = ratio(x,y); return `<span class="${v>=1.5?'okk':'ko'}">${v.toFixed(2)}</span>`; };
+    const sw = x => `<td class="sw"><span style="background:${x}"></span>${x} · ${f(x)}</td>`;
+    t += `<tr><td>${sp.name}</td>${sw(a)}${sw(b)}${sw(c)}<td>${k(a,b)}</td><td>${k(b,c)}</td></tr>`;
+  }
+  S.p = keep;
+  document.getElementById('measures').innerHTML = t;
+}
+for (const [id,key,attr] of [['f-var','v','data-v'],['f-pal','p','data-p'],['f-amp','a','data-a'],['f-comp','c','data-c']]) {
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    S[key] = b.getAttribute(attr);
+    document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle('on', x === b));
+    render();
+  });
+}
+render();
+</script>
+</body>
+</html>
