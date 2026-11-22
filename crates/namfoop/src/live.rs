@@ -12,6 +12,12 @@ use engine::{Engine, EngineConfig, Routing};
 const MAX_BLOCK: usize = 1024;
 /// Fondu d'un changement de chaîne (presets à venir ; `run` n'en change pas encore).
 const FADE_MS: f32 = 20.0;
+/// Période de la boucle (ms) : elle doit voir passer l'horloge MIDI, dont un top vaut 20,8 ms à
+/// 120 BPM — c'est la même raison qui fixe celle de `browse`.
+const POLL_MS: u64 = 20;
+/// Rythme du vumètre (ms) : `Engine::meters` remet les crêtes à zéro, donc on ne le lit pas au
+/// rythme de la boucle.
+const DISPLAY_MS: u64 = 500;
 /// Queue de preset : durée maximale pendant laquelle la chaîne quittée finit de sonner.
 /// Elle s'arrête d'elle-même dès qu'elle est éteinte, ce plafond ne sert qu'aux delays à long
 /// feedback (mesuré : la réverbe par défaut est éteinte en 1,2 s).
@@ -61,6 +67,18 @@ pub fn run(
     if spec.blocks.is_empty() {
         log::info!("aucun modèle ni IR : passthrough");
     }
+    // Les deux cases du clic, gardées ici parce que la boucle les réécrit : le tempo arbitré et
+    // le compteur de recalage du temps 1. La **chaîne**, elle, garde son tempo figé — `run` et
+    // `render` doivent rester reproductibles (ADR 0008), donc seul le clic suit l'horloge.
+    let click_tempo = dsp::param::Control::new(spec.tempo.bpm());
+    let click_downbeat = dsp::param::Control::new(0.0);
+    // la phase, à part du tempo : le clic compte les tops reçus plutôt que des échantillons dès
+    // qu'une horloge tourne, sans quoi un changement de tempo décalerait sa grille pour de bon
+    let clock_phase = dsp::param::Control::new(f32::NAN);
+    let clock_ticks = midi.as_ref().map(midi_io::Input::clock_ticks);
+    let mut tempo = engine::tempo::Arbiter::new();
+    tempo.preset(spec.tempo.bpm());
+
     let engine = Engine::start(
         EngineConfig {
             audio: cfg.clone(),
@@ -72,14 +90,17 @@ pub fn run(
             limiter_meter: limiter,
             input_tap: None,
             // le clic du métronome : allumé d'emblée par `--click`, et seulement dans les sorties
-            // déclarées in-ear (`namfoop setup`). Le tempo est celui du preset ou de `--tempo` :
-            // `run` n'a ni tap ni horloge, donc une case figée suffit (ADR 0008).
+            // déclarées in-ear (`namfoop setup`). Son tempo part de celui du preset ou de
+            // `--tempo`, puis **suit l'horloge MIDI** si elle tourne (ADR 0008) : un clic qui
+            // ignore l'horloge branchée est un piège, pas une simplification.
             metronome: click.then(|| engine::metronome::MetronomeConfig {
                 gain: dsp::param::Control::new(dsp::db_to_gain(metronome.level_db)),
-                tempo: dsp::param::Control::new(spec.tempo.bpm()),
-                downbeat: dsp::param::Control::new(0.0),
+                tempo: click_tempo.clone(),
+                downbeat: click_downbeat.clone(),
                 beats_per_bar: metronome.beats_per_bar,
                 sound: metronome.sound,
+                clock_ticks: clock_ticks.clone(),
+                clock_phase: clock_phase.clone(),
             }),
         },
         chain,
@@ -109,29 +130,93 @@ pub fn run(
         log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
     }
     let mut midi = midi;
+    let cc_tap = conf.config.midi.as_ref().map_or(model::Midi::default().cc_tap, |m| m.cc_tap);
+    let clock_on = conf.config.midi.as_ref().is_none_or(|m| m.clock);
+    let mut ticks = 0u32;
+    let mut heard_src = tempo.source();
     loop {
-        if rx.recv_timeout(Duration::from_millis(500)).is_ok() {
+        if rx.recv_timeout(Duration::from_millis(POLL_MS)).is_ok() {
             break;
         }
         // L'entrée MIDI est vidée ici, hors du fil audio. `run` joue **une** chaîne : il n'a ni
-        // banque ni set, donc un message n'y désigne rien — c'est dans les écrans (`browse`,
-        // `run --set`) qu'un Program Change choisit un preset. On vide quand même, parce qu'une
-        // file qu'on ne vide pas finit par perdre ce qu'elle contient sans que personne le sache.
+        // banque ni set, donc un Program Change n'y désigne rien — c'est dans les écrans
+        // (`browse`, `run --set`) qu'il choisit un preset.
+        //
+        // Le **tempo**, lui, est pris : l'horloge et le tap entrent dans l'arbitre (ADR 0008) et
+        // le clic les suit. Chaque message porte **son** instant et non celui du tour de boucle,
+        // sans quoi la mesure serait fausse de la période de la boucle.
         if let Some(m) = &mut midi {
             while let Some(msg) = m.try_pop() {
                 log::debug!("MIDI : {}", midi_io::describe(&msg.event));
+                let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
+                match msg.event {
+                    midi_io::Event::ClockTick if clock_on => tempo.clock_tick(at_us, msg.clock_seq),
+                    midi_io::Event::ClockStart if clock_on => tempo.clock_start(),
+                    midi_io::Event::ClockContinue if clock_on => tempo.clock_continue(),
+                    midi_io::Event::ClockStop if clock_on => tempo.clock_stop(),
+                    midi_io::Event::SongPosition(n) if clock_on => tempo.clock_song_position(n),
+                    midi_io::Event::Control { cc, .. } if cc == cc_tap => {
+                        // `run` n'a ni preset ni set : le seul événement net qui rende la main à
+                        // l'horloge (ADR 0008) est un `Start` / `Stop`. Une source qui n'en envoie
+                        // pas garde donc le tap jusqu'à la fin de la session — à dire, puisque
+                        // rien à l'écran ne le montre ici.
+                        let avant = tempo.source();
+                        tempo.tap(at_us);
+                        if avant == engine::tempo::TempoSource::MidiClock {
+                            log::warn!(
+                                "le tap prend la main sur l'horloge : elle ne la reprendra qu'au \
+                                 prochain Start ou Stop"
+                            );
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        tempo.poll(start.elapsed().as_micros() as u64);
+        // Le tempo entendu va sur la **ligne d'état**, et le journal ne garde que ce qui est un
+        // événement : la **source** a changé. Le tracer à chaque valeur publiée noyait tout le
+        // reste — l'hystérésis republie à chaque croisement de sa bande, soit plusieurs lignes
+        // par seconde avec une horloge qui gigue de 0,5 BPM, et ces lignes se mêlaient à la
+        // ligne d'état, qui se réécrit sans retour chariot.
+        let bpm = tempo.bpm();
+        let src = tempo.source();
+        if src != heard_src {
+            heard_src = src;
+            log::info!("tempo {bpm:.1} BPM ({})", src.label());
+        }
+        if click {
+            if bpm != click_tempo.get() {
+                click_tempo.set(bpm);
+            }
+            let epoch = tempo.beat_epoch() as f32;
+            if epoch != click_downbeat.get() {
+                click_downbeat.set(epoch);
+            }
+            // le numéro du top qui porte le temps ; `NaN != NaN`, donc une phase inconnue se
+            // réécrit à chaque tour — un store relâché, et pas de cas particulier à écrire
+            let phase = tempo.clock_phase();
+            if phase != clock_phase.get() {
+                clock_phase.set(phase);
             }
         }
         if seconds.is_some_and(|s| start.elapsed().as_secs_f64() >= s) {
             break;
         }
+        // Le vumètre ne se lit que par tranches de DISPLAY_MS : `meters()` **remet les crêtes à
+        // zéro**, donc le lire au rythme du MIDI ne montrerait que les 20 dernières millisecondes.
+        ticks += 1;
+        if ticks < (DISPLAY_MS / POLL_MS) as u32 {
+            continue;
+        }
+        ticks = 0;
         let m = engine.meters();
         let (i, o, l, gr) = (m.in_peak, m.out_peak, m.load, m.limiter_db);
         max_load = max_load.max(l);
         if !quiet {
             let (ic, oc) = (m.in_clips, m.out_clips);
             eprint!(
-                "\r  in {} dB{}{}{}  out {} dB  lim {}  dsp {:>5.1} %  xruns {}{}   ",
+                "\r  in {} dB{}{}{}  out {} dB  lim {}  dsp {:>5.1} %  xruns {}{}{}   ",
                 db(i),
                 if ic > 0 { format!(" [CLIP ×{ic}]") } else { String::new() },
                 mark.map_or(String::new(), |m| format!(" (calib. {m:.1})")),
@@ -145,6 +230,9 @@ pub fn run(
                 l * 100.0,
                 engine.xruns(),
                 if oc > 0 { format!("  [CLIP SORTIE ×{oc}]") } else { String::new() },
+                // avec un port MIDI ouvert, le tempo entendu répond à « mon horloge est-elle
+                // écoutée ? » sans brancher un retour ; sans port, il ne peut pas bouger
+                if midi.is_some() { format!("  ♩ {bpm:.0} ({})", src.label()) } else { String::new() },
             );
         }
     }

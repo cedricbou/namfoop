@@ -13,6 +13,44 @@ section prend le numéro de version.
   120 BPM. Rien de visible pour l'instant : c'est la pièce qui manquait pour caler le clic sur
   l'horloge reçue (#347).
 
+### MIDI (#347)
+- **Le clic tombe sur le temps de l'horloge reçue.** Il avait le bon tempo mais tombait à
+  contretemps : sa grille était ancrée au démarrage de namfoop, et seuls un tap ou un `Start` la
+  recalaient. Il **compte maintenant les tops** de l'horloge — une noire en vaut 24 — au lieu de
+  compter des échantillons. Sa position est donc absolue : rien ne dérive (0,3 BPM d'écart valaient
+  une demi-seconde en quatre minutes) et un changement de tempo ne le décale plus, ni une
+  accélération progressive ni les `+` / `-` d'un clavier.
+- **Quel top porte le temps** s'apprend d'un `Start` ou d'un Song Position Pointer, du début d'un
+  flux quand namfoop écoutait déjà, ou d'un appui sur `*`. Comme la grille reste ensuite verrouillée
+  sur les tops, **un seul appui suffit** pour toute la session.
+- **Un tap se cale sur le top le plus proche** quand une horloge tourne, donc à moins d'un
+  demi-intervalle — 8,8 ms à 142 BPM — au lieu de l'intervalle entier que coûtait « le dernier top
+  reçu ». Et comme la grille reste verrouillée sur les tops, ce tap-là tient pour la session.
+- **Le clic ne double plus et ne décale plus.** Premier essai sur le matériel : des doubles clics,
+  d'autant plus nombreux que le tempo montait, et des décalages qui persistaient. La position du
+  temps était déduite d'une durée, donc d'un arrondi posé là où la gigue du câble passe et repasse
+  — 656 basculements en 20 secondes à 142 BPM. Elle est maintenant une soustraction de deux nombres
+  de tops, donc exacte, et le clic la verrouille au lieu de la relire à chaque bloc.
+- **La bande de mesure suit la même grille que le clic** : elle compte les tops dès qu'une horloge
+  tourne, au lieu d'intégrer le tempo. Elle dérivait sinon exactement comme le clic dérivait.
+- **Une position dans le morceau (Song Position Pointer) place le temps à la double-croche.** Elle
+  ne tombe pas forcément sur une noire : sans en tenir compte, le clic sonnait faux d'un quart de
+  temps sans que rien le signale.
+- **L'en-tête dit quand le temps est deviné.** Raccroché au milieu d'un flux déjà en cours, namfoop
+  ne peut que deviner lequel des 24 tops porte le temps : il affiche alors
+  `♩ 142 (MIDI, temps à confirmer : *)`, parce que c'est à l'oreille indiscernable d'un tempo faux.
+- **`namfoop run --click` suit l'horloge et le tap** (CC 14), alors qu'il les ignorait : un clic qui
+  ne sait rien de l'horloge branchée est un piège. Le tempo de la **chaîne**, lui, reste figé dans
+  `run` — c'est ce qui garde `run` et `render` reproductibles.
+- **Le tempo entendu s'affiche sur la ligne d'état de `run`** (`♩ 145 (MIDI)`) au lieu de
+  s'écrire dans le journal. Une ligne par valeur publiée en donnait des dizaines par seconde avec
+  l'horloge d'un clavier — le tempo sort de sa bande d'hystérésis à chaque gigue — et elles se
+  mêlaient à la ligne d'état. Le journal ne garde que les changements de **source** : l'horloge qui
+  prend la main, qui se perd, le tap qui passe devant.
+- **`*` recale le temps 1 depuis n'importe quel écran**, banc d'essai compris. Il y était refusé en
+  entier pour une raison qui ne concerne que le tempo du preset, alors que le clic s'allume partout :
+  on se retrouvait avec un clic impossible à recaler. Le tempo, lui, se tape toujours dans la Chaîne.
+
 ### MIDI (#224)
 - **Ableton peut mener le concert.** Avec un set ouvert (dans `browse` comme sur l'écran de scène
   `run --set`), un **Program Change** appelle le morceau dont le `pc` vaut ce numéro — sur son

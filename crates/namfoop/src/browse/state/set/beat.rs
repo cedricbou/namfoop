@@ -2,7 +2,10 @@
 //! mesure, le temps —, et ce que la bande en tête du prompteur doit montrer.
 //!
 //! L'**horloge est fournie** par l'appelant, comme partout dans `browse::state` : la position
-//! avance dans [`State::tick`], et les tests donnent les millisecondes qu'ils veulent. Aucun fil,
+//! avance dans [`State::tick`], et les tests donnent les millisecondes qu'ils veulent. Mais dès
+//! qu'une **horloge MIDI** tourne, ce n'est plus le temps qui la fait avancer : ce sont les
+//! **tops** (`State::clock_elapsed_ticks`), parce qu'un comptage de tops est une position absolue
+//! et ne peut donc pas dériver. Aucun fil,
 //! aucun `Instant`, et **rien dans le fil audio** — la bande est dessinée par le fil de
 //! l'interface, et le tempo de section entre dans l'arbitre comme celui d'un preset.
 //!
@@ -13,6 +16,7 @@
 //! de son ne la déplace pas, sinon un son joué un temps trop tôt décalerait tout le texte ; *à
 //! l'arrêt, elle suit le **son***.
 
+use engine::tempo::TICKS_PER_BEAT;
 use library::bars::{BarMap, Meter};
 use library::set::TimeSig;
 
@@ -38,35 +42,43 @@ pub struct Beat {
     /// L'instant (ms) où ce tick a commencé. C'est lui qu'un recalage remet à l'horloge : la
     /// battue ne dérive donc pas d'un appui à l'autre, chaque tick partant du précédent.
     at_ms: u64,
+    /// Le même repère, mais compté en **tops d'horloge MIDI** depuis l'ancre de l'arbitre. C'est
+    /// lui qui compte dès qu'une horloge tourne : une position absolue ne dérive pas, alors
+    /// qu'intégrer un tempo mesuré transforme la moindre erreur de période en décalage définitif
+    /// — le défaut que le clic a eu, pour la même raison.
+    at_ticks: u64,
 }
 
 impl Beat {
     /// **Recaler sur le 1** d'une mesure, à cet instant : `Fin` / `Début` (le 1 de la section) et
     /// un changement de morceau s'en servent.
-    pub fn restart(&mut self, now_ms: u64) {
+    pub fn restart(&mut self, now_ms: u64, now_ticks: u64) {
         self.bar = 0;
         self.tick = 0;
         self.at_ms = now_ms;
+        self.at_ticks = now_ticks;
     }
 
     /// **Le tap recale le temps, pas la mesure** (§ 11) : on repart sur un 1 de temps sans toucher
     /// au numéro de la mesure en cours.
-    pub fn realign(&mut self, now_ms: u64) {
+    pub fn realign(&mut self, now_ms: u64, now_ticks: u64) {
         self.tick = 0;
         self.at_ms = now_ms;
+        self.at_ticks = now_ticks;
     }
 
     /// **Se poser** à une mesure et un temps donnés : la conversion d'un Song Position Pointer.
-    pub fn seek(&mut self, bar: u32, tick: u32, now_ms: u64) {
+    pub fn seek(&mut self, bar: u32, tick: u32, now_ms: u64, now_ticks: u64) {
         self.bar = bar;
         self.tick = tick;
         self.at_ms = now_ms;
+        self.at_ticks = now_ticks;
     }
 
     /// `Espace` : l'appui **est** le 1 de la mesure en cours.
-    fn start(&mut self, now_ms: u64) {
+    fn start(&mut self, now_ms: u64, now_ticks: u64) {
         self.running = true;
-        self.realign(now_ms);
+        self.realign(now_ms, now_ticks);
     }
 }
 
@@ -142,8 +154,9 @@ impl State {
         }
         let (bpm, meter) = (self.heard_tempo_bpm(), self.band_meter());
         let bar = self.set.as_ref().map(|s| s.beat.bar).unwrap_or(0);
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
-            set.beat.start(now);
+            set.beat.start(now, ticks);
         }
         self.message =
             Some(format!("battue : cet appui est le 1 de la mesure {} (♩{bpm:.0} {})", bar + 1, meter.time));
@@ -158,10 +171,11 @@ impl State {
             return;
         }
         let was = self.set.as_ref().map(|s| s.prompt_section).unwrap_or(0);
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = 0;
             set.prompt_line = 0;
-            set.beat.restart(now_ms);
+            set.beat.restart(now_ms, ticks);
             set.beat.running = true;
         }
         self.section_tempo_on_jump(was, 0);
@@ -187,10 +201,11 @@ impl State {
         let Some(pos) = map.at_sixteenths(sixteenths as u32) else { return false };
         let was = self.set.as_ref().map(|s| s.prompt_section).unwrap_or(0);
         let line = map.line_of(pos.section, pos.bar);
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = pos.section;
             set.prompt_line = line;
-            set.beat.seek(pos.bar, pos.tick, now_ms);
+            set.beat.seek(pos.bar, pos.tick, now_ms, ticks);
         }
         self.section_tempo_on_jump(was, pos.section);
         true
@@ -229,20 +244,40 @@ impl State {
             return;
         }
         let bpm = self.heard_tempo_bpm();
+        // **Avec une horloge, la battue compte les tops** et non les millisecondes : sa position
+        // devient absolue, donc elle ne dérive plus. Intégrer un tempo mesuré transformait la
+        // moindre erreur de période en décalage définitif — à 0,3 BPM près, une demi-seconde en
+        // quatre minutes —, et c'est le défaut que le clic a eu, pour la même raison.
+        let on_clock = self.clock_elapsed_ticks();
         let was = set.prompt_section.min(map.len() - 1);
         let (mut section, mut bar, mut tick, mut at) = (was, set.beat.bar, set.beat.tick, set.beat.at_ms);
+        let mut at_ticks = set.beat.at_ticks;
         let (mut running, mut ended) = (true, false);
         let mut caught = 0;
         loop {
             let meter = map.meter(section);
             let step = (meter.tick_ms(bpm).max(1.0)) as u64;
-            if now_ms < at.saturating_add(step) {
+            // Combien de tops MIDI vaut un tick de battue : une noire en x/4 (24 tops), une
+            // croche en x/8 (12). Déduit du rapport des durées, pour ne pas faire entrer le
+            // protocole MIDI dans la carte des mesures — et exact, ce rapport ne dépendant pas du
+            // tempo.
+            let per_beat = 60_000.0 / bpm;
+            let step_ticks = ((meter.tick_ms(bpm) / per_beat * TICKS_PER_BEAT as f32).round() as u64).max(1);
+            let due = match on_clock {
+                Some(elapsed) => elapsed >= at_ticks + step_ticks,
+                None => now_ms >= at.saturating_add(step),
+            };
+            if !due {
                 break;
             }
             at += step;
+            at_ticks += step_ticks;
             caught += 1;
             if caught > CATCH_UP_TICKS {
                 at = now_ms;
+                if let Some(elapsed) = on_clock {
+                    at_ticks = elapsed;
+                }
                 break;
             }
             tick += 1;
@@ -274,6 +309,7 @@ impl State {
             set.beat.bar = bar;
             set.beat.tick = tick;
             set.beat.at_ms = at;
+            set.beat.at_ticks = at_ticks;
             set.beat.running = running;
             if set.prompt_section != section {
                 set.prompt_section = section;
@@ -418,6 +454,47 @@ mod tests {
     }
 
     /// **`Espace` lance et arrête**, et l'appui est le 1 de la mesure en cours (§ 11).
+    #[test]
+    fn la_battue_suit_les_tops_et_non_les_millisecondes() {
+        use midi_io::Event;
+        let mut s = staged(CHO);
+        // une horloge à 120 BPM, mais dont les tops sont espacés de **600 ms de battue** par
+        // noire au lieu de 500 : les millisecondes et les tops ne disent donc pas la même chose,
+        // et c'est aux tops que la battue doit obéir
+        let faux_pas = 600_000 / TICKS_PER_BEAT as u64; // µs par top
+        let mut at_us = 1_000_000u64;
+        let mut seq = 0u64;
+        let souffler = |s: &mut State, tops: u32, at_us: &mut u64, seq: &mut u64| {
+            for _ in 0..tops {
+                *at_us += faux_pas;
+                *seq += 1;
+                s.on_midi(Event::ClockTick, *at_us, *seq);
+                s.tick(*at_us / 1000);
+            }
+        };
+        // deux noires de tops verrouillent l'horloge
+        souffler(&mut s, 2 * TICKS_PER_BEAT, &mut at_us, &mut seq);
+        assert_eq!(s.tempo_source(), engine::tempo::TempoSource::MidiClock, "horloge verrouillée");
+
+        s.on_key(Key::Char(' '));
+        assert!(running(&s));
+        assert_eq!(pos(&s), (0, 0, 0), "l'appui EST le 1");
+
+        // 23 tops : on est encore sur le même temps, **même si 575 ms se sont écoulées** — la
+        // noire du tempo publié (500 ms) est pourtant déjà passée
+        souffler(&mut s, TICKS_PER_BEAT - 1, &mut at_us, &mut seq);
+        assert_eq!(pos(&s), (0, 0, 0), "la battue attend le 24e top, pas la noire des ms");
+        // le 24e le fait avancer
+        souffler(&mut s, 1, &mut at_us, &mut seq);
+        assert_eq!(pos(&s), (0, 0, 1), "un temps par 24 tops");
+
+        // et au bout de huit noires de tops, on est exactement là où les tops le disent : la
+        // mesure 3 (le refrain), premier temps — 2 mesures de 4/4 puis le début de la 3e
+        souffler(&mut s, 7 * TICKS_PER_BEAT, &mut at_us, &mut seq);
+        assert_eq!(pos(&s), (1, 0, 0), "8 noires de tops = section 2, mesure 1, temps 1");
+    }
+
+    /// Sans horloge, **rien ne change** : la battue compte les millisecondes comme avant.
     #[test]
     fn space_starts_the_beat_and_the_press_is_the_one() {
         let mut s = staged(CHO);

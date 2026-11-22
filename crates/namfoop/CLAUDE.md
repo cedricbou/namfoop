@@ -39,8 +39,18 @@ setup/          `setup` plein écran : state.rs (logique pure, testée ; l'étap
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par
                 backend)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP), vide la
-                file MIDI à chaque tour, sans rien en faire : `run` joue UNE chaîne, il n'a ni
-                banque ni set, et c'est dans les écrans qu'un PC choisit un preset ;
+                file MIDI à chaque tour. Un PC n'y désigne rien — `run` joue UNE chaîne, il n'a ni
+                banque ni set, et c'est dans les écrans qu'un PC choisit un preset — mais l'horloge
+                et le tap (CC 14) vont à un `engine::tempo::Arbiter` et le CLIC les suit (ADR 0008).
+                La boucle attend donc POLL_MS = 20 ms (un top vaut 20,8 ms à 120 BPM) et le vumètre
+                est lu par tranches de DISPLAY_MS : `Engine::meters` remet les crêtes à zéro. Le
+                tempo de la CHAÎNE reste figé ici : c'est ce qui garde `run` et `render`
+                reproductibles. La PHASE du clic a ses propres cases (compteur de tops du port MIDI
+                + Arbiter::clock_phase), comme dans browse. Le tempo ENTENDU va sur la ligne
+                d'état, pas dans le journal, qui ne garde que les changements de SOURCE : une ligne
+                par valeur publiée en donnait des dizaines par seconde sur une horloge qui gigue
+                (l'hystérésis republie à chaque croisement de sa bande) et elles se mêlaient à la
+                ligne d'état, qui se réécrit sans retour chariot ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit

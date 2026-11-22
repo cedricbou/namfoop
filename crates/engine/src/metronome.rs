@@ -12,9 +12,14 @@
 //! un **temps 1** demandé (un tap, un `Start` MIDI), que l'appelant signale en changeant la valeur
 //! de la case `downbeat`.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+
 use dsp::biquad::{Biquad, Shape};
 use dsp::param::Control;
 pub use model::config::ClickSound;
+
+use crate::tempo::TICKS_PER_BEAT;
 
 /// Durée d'une salve (ms) : au-delà, elle est éteinte de toute façon.
 const BURST_MS: f32 = 25.0;
@@ -47,6 +52,13 @@ pub struct MetronomeConfig {
     pub beats_per_bar: u32,
     /// Le **son** du clic : ce qui passe dans un retour de basse ne se choisit qu'à l'oreille.
     pub sound: ClickSound,
+    /// Le **compteur de tops** du port MIDI d'entrée (`midi_io::Input::clock_ticks`), quand il y
+    /// en a un. C'est lui qui place le temps quand une horloge tourne : une position **absolue**,
+    /// donc rien ne dérive et rien ne glisse quand le tempo change.
+    pub clock_ticks: Option<Arc<AtomicU64>>,
+    /// Quel top porte le temps, modulo [`TICKS_PER_BEAT`] (`tempo::Arbiter::clock_phase`). Non
+    /// fini : la phase n'est pas connue et la grille tourne sur `tempo`, comme avant.
+    pub clock_phase: Control,
 }
 
 /// Le générateur, côté temps réel : aucune allocation, aucune panique possible.
@@ -59,6 +71,9 @@ pub struct Metronome {
     beat: u32,
     /// Dernière valeur vue de `downbeat` : un changement recale.
     last_downbeat: f32,
+    /// Le numéro du temps d'horloge déjà sonné. `None` : on n'est pas (ou plus) raccroché à
+    /// l'horloge, et la grille tourne sur le tempo.
+    clock_beat: Option<u64>,
     /// Échantillons restants de la salve en cours (0 : aucune).
     burst_left: u32,
     burst_len: u32,
@@ -80,6 +95,7 @@ impl Metronome {
         let sr = sample_rate.max(1) as f32;
         Self {
             last_downbeat: cfg.downbeat.get(),
+            clock_beat: None,
             cfg,
             sample_rate: sr,
             pos: 0,
@@ -103,6 +119,22 @@ impl Metronome {
         (self.seed >> 8) as f32 / (1u32 << 23) as f32 - 1.0
     }
 
+    /// Le numéro du temps que l'horloge MIDI désigne, si elle en désigne un : un **comptage de
+    /// tops**, donc une position absolue qui ne peut ni dériver ni glisser.
+    fn clock_beat_index(&self) -> Option<u64> {
+        let counter = self.cfg.clock_ticks.as_ref()?;
+        // La phase est le **numéro du top d'ancrage**, donc une constante entre deux ancrages : il
+        // n'y a rien à verrouiller ici, et rien qui puisse trembler. `NaN` : plus d'horloge, la
+        // grille au tempo reprend la main.
+        let phase = self.cfg.clock_phase.get();
+        if !phase.is_finite() {
+            return None;
+        }
+        let off = phase as u64 % TICKS_PER_BEAT as u64;
+        let ticks = counter.load(Ordering::Relaxed);
+        Some(ticks.saturating_sub(off) / TICKS_PER_BEAT as u64)
+    }
+
     /// Écrit le clic dans `out` (il l'**écrase**, l'appelant l'ajoute où il veut) et dit s'il y a
     /// quelque chose à ajouter. Éteint, la **grille des temps continue d'avancer** : rallumer tombe
     /// juste, au lieu de repartir d'un temps arbitraire.
@@ -117,11 +149,60 @@ impl Metronome {
             self.pos = 0;
             self.beat = 0;
             self.burst_left = 0;
+            self.clock_beat = None; // la grille d'horloge se raccrochera au prochain temps
         }
+
+        // **Quand une horloge donne le temps, c'est elle qui mène.** On ne compte plus des
+        // échantillons depuis le temps précédent — ce qui accumulerait la moindre erreur de tempo
+        // et glisserait à chaque changement — mais on regarde un compteur de tops franchir un
+        // multiple de 24. Le clic tombe donc au bloc où le franchissement se voit, soit 1,3 ms à
+        // 64 échantillons, et jamais plus loin quoi qu'il arrive au tempo.
+        let on_clock = match (self.clock_beat, self.clock_beat_index()) {
+            // on se raccroche en plein milieu d'un temps : on note où l'on est **sans sonner**,
+            // et le prochain franchissement sera le premier clic juste (un temps de silence au
+            // pire, contre un clic à côté sinon)
+            (None, Some(idx)) => {
+                self.clock_beat = Some(idx);
+                self.pos = 1;
+                self.burst_left = 0;
+                true
+            }
+            // **Seul un franchissement vers l'avant sonne.** Un temps qui recule n'existe pas :
+            // c'est la phase qui a bougé, et sonner là doublerait le clic. On se réaligne alors en
+            // silence, comme au premier raccrochage.
+            (Some(prev), Some(idx)) => {
+                if idx > prev {
+                    // l'écart peut valoir plus d'un temps (xrun, réancre) : avancer de 1 ferait
+                    // glisser l'accent de mesure
+                    let saut = ((idx - prev) % bars as u64) as u32;
+                    self.clock_beat = Some(idx);
+                    self.beat = (self.beat + saut) % bars;
+                    self.pos = 0; // `pos == 0` déclenche la salve dans la boucle ci-dessous
+                    self.burst_left = 0;
+                } else if idx < prev {
+                    self.clock_beat = Some(idx);
+                    self.pos = 1;
+                    self.burst_left = 0;
+                }
+                true
+            }
+            // plus d'horloge : on repart de la grille au tempo, là où elle en est
+            (_, None) => {
+                self.clock_beat = None;
+                false
+            }
+        };
 
         let gain = self.cfg.gain.get();
         if !gain.is_finite() || gain <= 0.0 {
-            self.advance(out.len() as u32, per_beat, bars);
+            if on_clock {
+                // la grille d'horloge avance d'elle-même (c'est un compteur) : il n'y a rien à
+                // faire tourner, seulement à ne pas garder une salve en cours
+                self.burst_left = 0;
+                self.pos = self.pos.saturating_add(out.len() as u32);
+            } else {
+                self.advance(out.len() as u32, per_beat, bars);
+            }
             return false;
         }
         for x in out.iter_mut() {
@@ -129,8 +210,10 @@ impl Metronome {
                 self.start_burst(bars);
             }
             *x = if self.burst_left > 0 { self.sample() * gain } else { 0.0 };
-            self.pos += 1;
-            if self.pos >= per_beat {
+            self.pos = self.pos.saturating_add(1);
+            // sur l'horloge, seul un franchissement de top remet à zéro : sans cela la grille au
+            // tempo sonnerait un second clic juste avant le vrai
+            if !on_clock && self.pos >= per_beat {
                 self.pos = 0;
                 self.beat = (self.beat + 1) % bars;
             }
@@ -242,8 +325,143 @@ mod tests {
             downbeat: Control::new(0.0),
             beats_per_bar: bars,
             sound,
+            clock_ticks: None,
+            clock_phase: Control::new(f32::NAN),
         };
         (Metronome::new(cfg.clone(), SR), cfg)
+    }
+
+    /// Un métronome mené par un **compteur de tops**, la case de tempo laissée à `stale_bpm`.
+    fn on_clock(stale_bpm: f32, bars: u32) -> (Metronome, Arc<AtomicU64>) {
+        let ticks = Arc::new(AtomicU64::new(0));
+        let cfg = MetronomeConfig {
+            gain: Control::new(1.0),
+            tempo: Control::new(stale_bpm),
+            downbeat: Control::new(0.0),
+            beats_per_bar: bars,
+            sound: ClickSound::default(),
+            clock_ticks: Some(ticks.clone()),
+            clock_phase: Control::new(0.0),
+        };
+        (Metronome::new(cfg, SR), ticks)
+    }
+
+    /// Les débuts de salve d'un tampon **continu**, pour une salve de `burst` échantillons. Une
+    /// salve dure 25 ms et dépasse donc largement un bloc : la chercher bloc par bloc compterait
+    /// le même clic plusieurs fois.
+    fn onsets(out: &[f32], burst: usize) -> Vec<usize> {
+        let mut v = Vec::new();
+        let mut i = 0;
+        while i < out.len() {
+            if out[i] != 0.0 {
+                v.push(i);
+                i += burst;
+            } else {
+                i += 1;
+            }
+        }
+        v
+    }
+
+    /// Rend `ticks_total` tops de `per_tick` échantillons dans un tampon continu, en faisant
+    /// avancer le compteur d'un top par bloc. Rend les débuts de salve.
+    fn run_on_clock(m: &mut Metronome, c: &Arc<AtomicU64>, per_tick: usize, ticks_total: u64) -> Vec<usize> {
+        let mut buf = vec![0.0f32; per_tick * ticks_total as usize];
+        // le compteur **continue** : le remettre à zéro le ferait reculer, ce qu'un vrai compteur
+        // de tops ne fait jamais, et le clic verrait un franchissement imaginaire
+        let base = c.load(Ordering::Relaxed);
+        for k in 0..ticks_total {
+            c.store(base + k + 1, Ordering::Relaxed);
+            let from = k as usize * per_tick;
+            m.render(&mut buf[from..from + per_tick]);
+        }
+        let burst = (BURST_MS * 1e-3 * m.sample_rate) as usize;
+        onsets(&buf, burst.max(1))
+    }
+
+    /// **La grille vient des tops, pas du tempo.** On fait avancer le compteur au rythme d'un
+    /// tempo en laissant exprès la case de tempo à une tout autre valeur : les clics tombent sur
+    /// les tops, exactement, et aucune erreur ne s'accumule.
+    ///
+    /// C'est ce qui ne marchait pas quand la grille était intégrée depuis le BPM : l'hystérésis de
+    /// 0,3 BPM gelait une erreur de 0,21 % à 142 BPM, soit une demi-seconde — plus d'un temps — au
+    /// bout de quatre minutes. On en simule donc quatre, à une fréquence d'échantillonnage basse
+    /// pour que le tampon reste raisonnable.
+    #[test]
+    fn the_grid_follows_the_ticks_not_the_tempo() {
+        let (bpm, sr) = (142.0f32, 8000u32);
+        let ticks = Arc::new(AtomicU64::new(0));
+        let cfg = MetronomeConfig {
+            gain: Control::new(1.0),
+            tempo: Control::new(100.0), // VOLONTAIREMENT faux : 42 % d'écart
+            downbeat: Control::new(0.0),
+            beats_per_bar: 1,
+            sound: ClickSound::default(),
+            clock_ticks: Some(ticks.clone()),
+            clock_phase: Control::new(0.0),
+        };
+        let mut m = Metronome::new(cfg, sr);
+        let per_tick = (60.0 / bpm / TICKS_PER_BEAT as f32 * sr as f32).round() as usize;
+        let n_beats = (4.0 * bpm) as u64; // quatre minutes
+        let found = run_on_clock(&mut m, &ticks, per_tick, n_beats * TICKS_PER_BEAT as u64);
+
+        // le premier temps ne sonne pas : on se raccroche en plein milieu d'un temps, et sonner
+        // là serait sonner à côté
+        assert!(found.len() as u64 >= n_beats - 2, "{} clics pour {n_beats} temps", found.len());
+        let step = per_tick * TICKS_PER_BEAT as usize;
+        for w in found.windows(2) {
+            assert_eq!(w[1] - w[0], step, "les clics tombent sur les tops, sans dériver");
+        }
+        let (first, last) = (found[0], *found.last().expect("au moins un clic"));
+        assert_eq!((last - first) % step, 0, "aucune accumulation en quatre minutes");
+    }
+
+    /// **Un changement de tempo ne décale pas la grille.** C'est l'autre moitié du défaut : aux
+    /// `+` / `-` d'un clavier le tempo change par petits pas, aucun verrou n'est perdu, donc rien
+    /// ne réancrait et l'écart devenait définitif. Mené par les tops, le clic suit sans rien
+    /// savoir du tempo — la case en garde même une valeur fausse d'un bout à l'autre.
+    ///
+    /// Tout est rendu dans **un seul** tampon : une salve de 25 ms enjambe les blocs, donc une
+    /// frontière de tampon ferait passer sa queue pour un clic.
+    #[test]
+    fn a_tempo_change_does_not_shift_the_grid() {
+        let (mut m, ticks) = on_clock(120.0, 1);
+        let (slow, fast) = (200usize, 140usize); // échantillons par top : 30 % plus vite
+        let n = 8 * TICKS_PER_BEAT as u64;
+        let mut buf = vec![0.0f32; (slow + fast) * n as usize];
+        let (mut at, mut k) = (0usize, 0u64);
+        for per_tick in [slow, fast] {
+            for _ in 0..n {
+                k += 1;
+                ticks.store(k, Ordering::Relaxed);
+                m.render(&mut buf[at..at + per_tick]);
+                at += per_tick;
+            }
+        }
+        let burst = (BURST_MS * 1e-3 * m.sample_rate) as usize;
+        let steps: Vec<usize> = onsets(&buf, burst.max(1)).windows(2).map(|w| w[1] - w[0]).collect();
+        assert!(steps.len() >= 12, "{} intervalles seulement : {steps:?}", steps.len());
+        // chaque intervalle vaut 24 tops du régime où il tombe ; celui qui enjambe le changement
+        // est un mélange des deux, et c'est exactement ce qu'on veut — aucun temps sauté ni doublé
+        for s in &steps {
+            assert!((fast * 24..=slow * 24).contains(s), "intervalle {s} hors des deux régimes");
+        }
+        let count = |v: usize| steps.iter().filter(|s| **s == v).count();
+        assert!(count(slow * 24) >= 6, "le régime lent tient : {steps:?}");
+        assert!(count(fast * 24) >= 6, "le régime rapide tient : {steps:?}");
+    }
+
+    /// Sans compteur, ou avec une phase inconnue, **rien ne change** : la grille tourne sur le
+    /// tempo, comme avant l'horloge.
+    #[test]
+    fn without_a_known_phase_the_grid_runs_on_the_tempo() {
+        let (mut m, ticks) = on_clock(120.0, 1);
+        m.cfg.clock_phase.set(f32::NAN);
+        ticks.store(1000, Ordering::Relaxed);
+        let mut buf = vec![0.0f32; SR as usize]; // une seconde
+        m.render(&mut buf);
+        // 120 BPM : deux temps par seconde
+        assert_eq!(beats(&buf).len(), 2, "la grille au tempo reprend la main");
     }
 
     /// Les débuts de salve. L'enveloppe en cosinus surélevé **commence à zéro** (c'est elle qui

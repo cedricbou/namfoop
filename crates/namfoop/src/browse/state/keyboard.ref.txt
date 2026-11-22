@@ -15,7 +15,7 @@
   Tab      onglet: Models → Irs
   Maj+Tab  onglet: Models → Blend
   Échap    « Échap ne quitte pas : q pour quitter »
-  '*'      « le tap tempo est dans l'espace Chaîne (2) »
+  '*'      « temps 1 recalé — le tempo se tape dans l'espace Chaîne (2) »
   '/'      filtre: false/ → true/
   '1'      « tu es déjà dans la Bibliothèque »
   '2'      → Play   espace: Library → Chain
@@ -42,7 +42,7 @@
   Tab      onglet: Irs → Blend
   Maj+Tab  onglet: Irs → Models
   Échap    « Échap ne quitte pas : q pour quitter »
-  '*'      « le tap tempo est dans l'espace Chaîne (2) »
+  '*'      « temps 1 recalé — le tempo se tape dans l'espace Chaîne (2) »
   '/'      filtre: false/ → true/
   '1'      « tu es déjà dans la Bibliothèque »
   '2'      → Play   espace: Library → Chain
@@ -66,7 +66,7 @@
   Tab      onglet: Blend → Models
   Maj+Tab  onglet: Blend → Irs
   Échap    « Échap ne quitte pas : q pour quitter »
-  '*'      « le tap tempo est dans l'espace Chaîne (2) »
+  '*'      « temps 1 recalé — le tempo se tape dans l'espace Chaîne (2) »
   '1'      « tu es déjà dans la Bibliothèque »
   '2'      → Play   espace: Library → Chain
   '3'      → Play   espace: Library → Set
@@ -315,7 +315,7 @@
 ## bibliothèque · fenêtre « mettre dans la chaîne »
   Entrée   « nam·800D Modern remplacé par nam·B7K Ultra  ·  2 pour voir la chaîne »   send: true → false   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(0), on: true }), …
   Échap    « rien n'est changé dans la chaîne »   send: true → false
-  '*'      « le tap tempo est dans l'espace Chaîne (2) »   send: true → false
+  '*'      « temps 1 recalé — le tempo se tape dans l'espace Chaîne (2) »   send: true → false
   '1'      « tu es déjà dans la Bibliothèque »   send: true → false
   '2'      → Play   espace: Library → Chain   send: true → false
   '3'      → Play   espace: Library → Set   send: true → false
@@ -329,7 +329,7 @@
   →        curseur chaîne: Top(0) → Top(1)
   Entrée   → Play   « nam·B7K Ultra posé  ·  [ ] pour le déplacer »   pose: true → false   curseur chaîne: Top(0) → Top(1)   chaîne: Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), … → Chain { blocks: [Leaf(Nam { model: Some(1), on: true }), …
   Échap    → Play   « rien n'est changé dans la chaîne »   espace: Chain → Library   pose: true → false
-  '*'      « le tap tempo est dans l'espace Chaîne (2) »   espace: Chain → Library   pose: true → false
+  '*'      « temps 1 recalé — le tempo se tape dans l'espace Chaîne (2) »   espace: Chain → Library   pose: true → false
   '1'      « tu es déjà dans la Bibliothèque »   espace: Chain → Library   pose: true → false
   '2'      → Play   pose: true → false
   '3'      → Play   espace: Chain → Set   pose: true → false
@@ -378,7 +378,7 @@
   Échap    « Échap ne quitte pas : q pour quitter »
   Fin      « pas de prompteur pour ce morceau : t l'écrit »
   Début    « pas de prompteur pour ce morceau : t l'écrit »
-  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0 },… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0 }, …
+  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0, a… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0, at…
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '1'      → Play   espace: Set → Library
   '2'      → Play   espace: Set → Chain
@@ -884,7 +884,7 @@
   Retour   « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   Fin      « pas de prompteur pour ce morceau »
   Début    « pas de prompteur pour ce morceau »
-  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0 },… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0 }, …
+  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0, a… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0, at…
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '+'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   ','      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »

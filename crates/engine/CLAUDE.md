@@ -34,18 +34,46 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   plus. Une place en échec ne bloque pas la banque ; une chaîne en **queue de preset** ne revient
   qu'une fois éteinte, et y revenir entre-temps donne `NotReady` (l'appelant la rebâtit, ~80 ms :
   un retard, pas une panne).
-- `tempo.rs` : **l'arbitre de tempo** (ADR 0008), machine à états pure, horloge fournie par
+- `tempo/` (`mod.rs`, `tests.rs`) : **l'arbitre de tempo** (ADR 0008), machine à états pure, horloge fournie par
   l'appelant. Priorité **tap > horloge > preset** ; une horloge qui meurt garde le dernier tempo et
   passe en `ClockLost` — jamais de saut de son causé par une panne. L'ADR 0007 n'autorisant qu'un
   **seul** écrivain par case, c'est `browse` qui écrit le tempo arbitré. Le rejet de gigue à ±25 %
   a une **porte de sortie** (8 rejets de suite = la source a changé de tempo, la fenêtre repart) :
   sans elle, un saut de 120 à 92 BPM serait rejeté indéfiniment. `clock_start` recale le temps 1,
-  `clock_continue` fait tout le reste sans le recaler.
+  `clock_continue` fait tout le reste sans le recaler. Il tient **deux** choses distinctes : la
+  période (lissée, publiée à 0,3 BPM près) et la **phase** (`clock_beat_at_us`, où tombe le temps),
+  qui ne se déduit pas d'elle — une période juste à 0,2 % près dérive d'une demi-seconde en quatre
+  minutes. L'**ancre** de phase est le **premier top d'un flux**, parce qu'une horloge nue ne porte
+  pas la position du temps (24 octets identiques par noire) et que beaucoup de sources n'envoient
+  aucun transport ; les frontières suivantes se comptent sans recaler le temps 1, sinon le clic
+  suivrait la granularité de la boucle d'écran. `realign_downbeat` est la moitié « phase » d'un tap,
+  pour qui veut recaler sans rien dire du tempo. `clock_phase` **est** le numéro du top d'ancrage,
+  modulo une noire : une constante entre deux ancrages, que le fil audio compare au compteur
+  partagé. Rien à arrondir, rien à lire au bon moment, rien à verrouiller — le top porte son
+  numéro (`midi_io::Message::clock_seq`). Les deux formes essayées avant échouaient : déduire la
+  position d'une durée (`(maintenant − frontière) / période`) plaçait une limite de décision là où
+  la gigue du câble passe et repasse — **656 basculements en 20 s** à 142 BPM, mesurés —, et la
+  déduire de deux comptages tenus séparément exigeait de les lire au même instant, ce qui n'est
+  jamais tout à fait vrai. Pas de phase sans verrou : le tempo ne serait pas encore celui de la
+  source. Un **tap** pose l'ancre sur le top le plus proche du geste, seul endroit où une durée
+  sert encore à compter des tops — une fois, sur un geste qui vaut déjà ±30 ms.
+  `clock_phase_confirmed` distingue une ancre **observée** (silence puis reprise, transport, tap)
+  d'une ancre **devinée** (on s'est raccroché au milieu d'un flux, et le premier top n'y est un
+  début de temps qu'une fois sur vingt-quatre) : l'écran doit le dire, c'est indiscernable d'un
+  tempo faux à l'oreille.
 - `metronome.rs` : **le clic** (ADR 0008), trois sons dont ce qui les distingue est l'**attaque**
   (`bois` 0,62 ms, `tic` 0,29 ms, `bip` 12,62 ms — c'est son attaque lente qui le noyait dans un
   retour de basse). Toutes les enveloppes commencent à zéro, donc le premier échantillon non nul
   arrive un cran après le temps : piège de test. Éteint, la **grille des temps continue d'avancer**,
-  si bien que rallumer tombe juste.
+  si bien que rallumer tombe juste. **Quand une horloge MIDI donne le temps, la grille vient d'elle**
+  et non du tempo : `clock_ticks` (le compteur de `midi_io::Input`) et `clock_phase` (quel top porte
+  le temps) suffisent à placer le clic au top près, position **absolue** donc insensible à la dérive
+  comme aux changements de tempo. Seul un franchissement **vers l'avant** sonne (un temps qui
+  recule est une réancre, pas un temps), et l'accent de mesure avance de l'écart réel, qui peut
+  valoir plus d'un temps. Compter des échantillons depuis le temps précédent accumulait au contraire la moindre erreur de
+  période — 0,3 BPM à 142 BPM font une demi-seconde en quatre
+  minutes — et décalait la grille pour de bon à chaque changement de tempo. Sans compteur ou sans
+  phase connue, la grille au tempo reprend la main, à l'identique.
 - `router.rs` : `Routing`, `OutputRoute`, `Source`, `Router`. `with_metronome` **ajoute** le clic
   aux seules sorties qui portent `click = true`, jamais substitué à leur source, et sans générateur
   du tout si aucune ne le demande : un clic parti dans le sondier en concert est une catastrophe, et

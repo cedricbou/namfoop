@@ -65,12 +65,14 @@ impl Default for MidiKeys {
 
 impl State {
     /// Un message MIDI reçu, hors du fil audio, avec **l'instant où le fil de lecture l'a vu**
-    /// (microsecondes de la même ligne de temps que [`State::tick`]). Rend l'action à exécuter.
+    /// (microsecondes de la même ligne de temps que [`State::tick`]) et le **numéro du top**
+    /// d'horloge qu'il porte (`midi_io::Message::clock_seq`) : c'est lui qui place le temps, et il
+    /// voyage avec le message pour ne pas avoir à se reconstituer. Rend l'action à exécuter.
     ///
     /// L'instant vient du message et non de la boucle : celle-ci ne repasse que toutes les 30 ms,
     /// et un top d'horloge vaut 20,8 ms à 120 BPM — l'horodater au tour de boucle rendrait toute
     /// mesure de tempo fausse (ADR 0008).
-    pub fn on_midi(&mut self, event: Event, at_us: u64) -> Action {
+    pub fn on_midi(&mut self, event: Event, at_us: u64, clock_seq: u64) -> Action {
         match event {
             Event::ProgramChange(n) => self.midi_program(n, at_us),
             Event::Control { cc, value } => self.midi_control(cc, value, at_us),
@@ -78,7 +80,8 @@ impl State {
             // le preset, le tap et l'horloge. Coupée par la config, on ne lui dit rien du tout —
             // c'est ce qui garde le dernier tempo au lieu de le faire sauter.
             Event::ClockTick if self.midi.clock => {
-                self.tempo.clock_tick(at_us);
+                self.clock_seq = clock_seq;
+                self.tempo.clock_tick(at_us, clock_seq);
                 Action::None
             }
             Event::ClockStart if self.midi.clock => {
@@ -100,6 +103,10 @@ impl State {
             // **La position dans le morceau** : la carte des mesures la convertit, elle seule
             // sachant qu'une section change de mesure. Hors du morceau déclaré, on le dit.
             Event::SongPosition(sixteenths) if self.midi.clock => {
+                // **La phase d'abord** : une position ne tombe pas forcément sur une noire (elle
+                // compte en doubles-croches), et c'est ce décalage qui dit où le prochain top
+                // tombe dans son temps. Indépendant du set : c'est l'horloge, pas le morceau.
+                self.tempo.clock_song_position(sixteenths);
                 if self.set.as_ref().is_some_and(|s| s.at.is_some())
                     && !self.beat_seek_sixteenths(sixteenths, at_us / 1000)
                 {
@@ -245,12 +252,12 @@ mod tests {
             s.presets.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
             ["Chill verse", "Punk chorus"]
         );
-        assert!(matches!(s.on_midi(Event::ProgramChange(2), 0), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::ProgramChange(2), 0, 0), Action::Play { .. }));
         assert_eq!(s.preset.as_ref().map(|p| p.name.clone()), Some("Punk chorus".into()));
         assert!(s.message.as_deref().is_some_and(|m| m.contains("Punk chorus")), "{:?}", s.message);
         assert!(s.unsaved().is_empty(), "le preset chargé est la référence");
         // et le premier aussi : la place 1 est bien la première, pas la seconde
-        assert!(matches!(s.on_midi(Event::ProgramChange(1), 0), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::ProgramChange(1), 0, 0), Action::Play { .. }));
         assert_eq!(s.preset.as_ref().map(|p| p.name.clone()), Some("Chill verse".into()));
     }
 
@@ -260,7 +267,7 @@ mod tests {
     fn a_program_change_asks_once_when_the_chain_is_not_saved() {
         let mut s = bank();
         s.on_key(Key::Char('x')); // la chaîne change
-        s.on_midi(Event::ProgramChange(2), 0);
+        s.on_midi(Event::ProgramChange(2), 0, 0);
         assert!(s.confirm_switch && s.pending_switch.is_some(), "la fenêtre s'ouvre");
         assert!(matches!(s.on_key(Key::Enter), Action::Play { .. }), "Entrée charge quand même");
         assert_eq!(s.preset.as_ref().map(|p| p.name.clone()), Some("Punk chorus".into()));
@@ -272,12 +279,12 @@ mod tests {
     fn a_program_change_out_of_the_bank_is_ignored_and_said() {
         let mut s = bank();
         for n in [3, 128] {
-            assert_eq!(s.on_midi(Event::ProgramChange(n), 0), Action::None);
+            assert_eq!(s.on_midi(Event::ProgramChange(n), 0, 0), Action::None);
             assert!(s.message.as_deref().is_some_and(|m| m.contains("2 place")), "{:?}", s.message);
             assert!(s.preset.is_none(), "aucun preset n'a été installé");
         }
         let mut vide = with_chain(vec![Block::Leaf(nam(0))]);
-        assert_eq!(vide.on_midi(Event::ProgramChange(1), 0), Action::None);
+        assert_eq!(vide.on_midi(Event::ProgramChange(1), 0, 0), Action::None);
         assert!(vide.message.as_deref().is_some_and(|m| m.contains("aucun preset")), "{:?}", vide.message);
     }
 
@@ -287,7 +294,7 @@ mod tests {
         let mut s = bank();
         s.presets[0].chain = None;
         s.presets[0].broken = Some("modèle introuvable".into());
-        assert_eq!(s.on_midi(Event::ProgramChange(1), 0), Action::None);
+        assert_eq!(s.on_midi(Event::ProgramChange(1), 0, 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("Chill verse") && m.contains("modèle introuvable"), "{m}");
         assert!(s.preset.is_none(), "rien n'a été installé");
@@ -300,7 +307,7 @@ mod tests {
         let mut s = bank();
         s.on_key(Key::Char('S')); // nommer le preset
         assert!(s.typing());
-        assert_eq!(s.on_midi(Event::ProgramChange(2), 0), Action::None);
+        assert_eq!(s.on_midi(Event::ProgramChange(2), 0, 0), Action::None);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("saisie")), "{:?}", s.message);
         assert!(s.preset.is_none());
     }
@@ -310,11 +317,11 @@ mod tests {
     #[test]
     fn the_known_ccs_say_why_they_do_nothing_without_a_set() {
         let mut s = bank();
-        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 2 }, 0), Action::None);
+        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 2 }, 0, 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("CC 34") && m.contains("sans set"), "{m}");
 
-        assert_eq!(s.on_midi(Event::Control { cc: super::CC_BANK_SELECT, value: 1 }, 0), Action::None);
+        assert_eq!(s.on_midi(Event::Control { cc: super::CC_BANK_SELECT, value: 1 }, 0, 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("Bank Select") && m.contains("set"), "{m}");
         assert!(s.preset.is_none(), "aucun de ces CC n'installe quoi que ce soit");
@@ -325,10 +332,10 @@ mod tests {
     fn the_sound_cc_number_is_configurable() {
         let mut s = bank();
         s.midi = super::MidiKeys { cc_sound: 69, ..Default::default() };
-        s.on_midi(Event::Control { cc: 69, value: 2 }, 0);
+        s.on_midi(Event::Control { cc: 69, value: 2 }, 0, 0);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("CC 69")), "{:?}", s.message);
         s.message = None;
-        s.on_midi(Event::Control { cc: 34, value: 2 }, 0);
+        s.on_midi(Event::Control { cc: 34, value: 2 }, 0, 0);
         assert_eq!(s.message, None, "34 ne veut plus rien dire : ignoré sans bruit");
     }
 
@@ -337,9 +344,9 @@ mod tests {
     fn clock(s: &mut State, bpm: f32, from_us: u64, beats: u32) -> u64 {
         let step = (60_000_000.0 / bpm / engine::tempo::TICKS_PER_BEAT as f32) as u64;
         let mut at = from_us;
-        for _ in 0..(beats * engine::tempo::TICKS_PER_BEAT) {
+        for k in 0..(beats * engine::tempo::TICKS_PER_BEAT) {
             at += step;
-            s.on_midi(Event::ClockTick, at);
+            s.on_midi(Event::ClockTick, at, k as u64 + 1);
         }
         at
     }
@@ -382,14 +389,14 @@ mod tests {
         let mut s = bank();
         let at = clock(&mut s, 120.0, 0, 3);
         let (epoch, bpm) = (s.beat_epoch(), s.heard_tempo_bpm());
-        s.on_midi(Event::ClockStart, at + 1);
+        s.on_midi(Event::ClockStart, at + 1, 0);
         assert_eq!(s.beat_epoch(), epoch + 1, "Start recale le temps 1");
         assert_eq!(s.heard_tempo_bpm(), bpm);
         // `Continue` reprend sans recaler : c'est tout ce qui le distingue de `Start`
         let epoch = s.beat_epoch();
-        s.on_midi(Event::ClockContinue, at + 2);
+        s.on_midi(Event::ClockContinue, at + 2, 0);
         assert_eq!(s.beat_epoch(), epoch, "Continue ne recale pas");
-        s.on_midi(Event::ClockStop, at + 3);
+        s.on_midi(Event::ClockStop, at + 3, 0);
         assert_eq!(s.heard_tempo_bpm(), bpm, "Stop garde le dernier tempo");
     }
 
@@ -400,7 +407,7 @@ mod tests {
         let mut s = bank();
         let at = clock(&mut s, 92.0, 0, 3);
         assert_eq!(s.tempo_source(), TempoSource::MidiClock);
-        let tap = |s: &mut State, at: u64| s.on_midi(Event::Control { cc: 14, value: 127 }, at);
+        let tap = |s: &mut State, at: u64| s.on_midi(Event::Control { cc: 14, value: 127 }, at, 0);
         tap(&mut s, at + 1);
         tap(&mut s, at + 1 + 400_000); // deux frappes à 400 ms = 150 BPM
         assert_eq!(s.tempo_source(), TempoSource::Tap, "le tap passe devant l'horloge");
@@ -411,7 +418,7 @@ mod tests {
         // et l'horloge ne reprend la main que sur un événement net
         clock(&mut s, 92.0, at + 2_000_000, 3);
         assert_eq!(s.tempo_source(), TempoSource::Tap, "l'horloge suit sans écrire");
-        s.on_midi(Event::ClockStart, at + 4_000_000);
+        s.on_midi(Event::ClockStart, at + 4_000_000, 0);
         clock(&mut s, 92.0, at + 4_000_001, 3);
         assert_eq!(s.tempo_source(), TempoSource::MidiClock, "Start lui rend la main");
     }
@@ -425,10 +432,10 @@ mod tests {
         let at = clock(&mut s, 120.0, 0, 3);
         assert_eq!(s.tempo_source(), TempoSource::Preset, "l'horloge est ignorée");
         assert_eq!(s.heard_tempo_bpm(), dsp::tempo::DEFAULT_BPM);
-        s.on_midi(Event::ClockStart, at + 1);
-        s.on_midi(Event::ClockStop, at + 2);
+        s.on_midi(Event::ClockStart, at + 1, 0);
+        s.on_midi(Event::ClockStop, at + 2, 0);
         assert_eq!(s.tempo_source(), TempoSource::Preset);
-        let tap = |s: &mut State, at: u64| s.on_midi(Event::Control { cc: 14, value: 127 }, at);
+        let tap = |s: &mut State, at: u64| s.on_midi(Event::Control { cc: 14, value: 127 }, at, 0);
         tap(&mut s, at + 1_000_000);
         tap(&mut s, at + 1_500_000);
         assert_eq!(s.tempo_source(), TempoSource::Tap, "le tap, lui, répond");
@@ -439,12 +446,12 @@ mod tests {
     fn the_tap_cc_number_is_configurable() {
         let mut s = bank();
         s.midi = super::MidiKeys { cc_tap: 64, ..Default::default() };
-        s.on_midi(Event::Control { cc: 64, value: 127 }, 0);
-        s.on_midi(Event::Control { cc: 64, value: 127 }, 500_000);
+        s.on_midi(Event::Control { cc: 64, value: 127 }, 0, 0);
+        s.on_midi(Event::Control { cc: 64, value: 127 }, 500_000, 0);
         assert_eq!(s.tempo_source(), TempoSource::Tap);
         s.midi = super::MidiKeys::default();
         s.message = None;
-        s.on_midi(Event::Control { cc: 64, value: 127 }, 1_000_000);
+        s.on_midi(Event::Control { cc: 64, value: 127 }, 1_000_000, 0);
         assert_eq!(s.message, None, "64 ne veut plus rien dire : ignoré sans bruit");
     }
 
@@ -511,7 +518,7 @@ mod tests {
     #[test]
     fn a_program_change_calls_the_song_with_that_pc() {
         let mut s = scene();
-        assert_eq!(s.on_midi(Event::ProgramChange(4), 0), Action::None, "rien tout de suite");
+        assert_eq!(s.on_midi(Event::ProgramChange(4), 0, 0), Action::None, "rien tout de suite");
         assert_eq!(at(&s), Some((0, 0)), "le son joué n'a pas encore bougé");
         // dans la fenêtre, le tour de boucle ne décide rien
         assert_eq!(s.tick(1), Action::None);
@@ -529,9 +536,9 @@ mod tests {
     #[test]
     fn a_program_change_followed_by_a_cc_makes_one_single_change() {
         let mut s = scene();
-        assert_eq!(s.on_midi(Event::ProgramChange(4), 0), Action::None);
+        assert_eq!(s.on_midi(Event::ProgramChange(4), 0, 0), Action::None);
         // le CC arrive 2 ms après : un seul changement, directement sur le bon son
-        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 2_000), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 2_000, 0), Action::Play { .. }));
         assert_eq!(at(&s), Some((1, 1)), "le son 2 du morceau appelé");
         assert_eq!(s.tick(100), Action::None, "le PC ne joue pas une seconde fois");
         assert_eq!(at(&s), Some((1, 1)));
@@ -541,10 +548,10 @@ mod tests {
     #[test]
     fn a_late_cc_speaks_of_the_song_being_played() {
         let mut s = scene();
-        s.on_midi(Event::ProgramChange(4), 0);
+        s.on_midi(Event::ProgramChange(4), 0, 0);
         assert!(matches!(s.tick(100), Action::Play { .. }));
         assert_eq!(at(&s), Some((1, 0)));
-        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 200_000), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 200_000, 0), Action::Play { .. }));
         assert_eq!(at(&s), Some((1, 1)));
     }
 
@@ -553,7 +560,7 @@ mod tests {
     #[test]
     fn a_pc_no_song_carries_is_ignored_and_said() {
         let mut s = scene();
-        assert_eq!(s.on_midi(Event::ProgramChange(3), 0), Action::None);
+        assert_eq!(s.on_midi(Event::ProgramChange(3), 0, 0), Action::None);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("PC 3")), "{:?}", s.message);
         assert_eq!(s.tick(100), Action::None, "et rien ne se joue ensuite");
         assert_eq!(at(&s), Some((0, 0)));
@@ -564,10 +571,10 @@ mod tests {
     #[test]
     fn a_cc_calls_the_sound_of_the_song_played() {
         let mut s = scene();
-        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 0), Action::Play { .. }));
+        assert!(matches!(s.on_midi(Event::Control { cc: 34, value: 1 }, 0, 0), Action::Play { .. }));
         assert_eq!(at(&s), Some((0, 1)));
 
-        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 5 }, 1000), Action::None);
+        assert_eq!(s.on_midi(Event::Control { cc: 34, value: 5 }, 1000, 0), Action::None);
         let m = s.message.clone().unwrap_or_default();
         assert!(m.contains("Le Phare") && m.contains("2 sons"), "{m}");
         assert_eq!(at(&s), Some((0, 1)), "le son joué n'a pas changé");
@@ -578,15 +585,15 @@ mod tests {
     fn start_puts_the_beat_on_bar_one_and_stop_stops_it() {
         let mut s = scene();
         // on part d'ailleurs dans le morceau
-        s.on_midi(Event::SongPosition(36), 0);
+        s.on_midi(Event::SongPosition(36), 0, 0);
         assert_ne!(s.set.as_ref().map(|x| x.prompt_section), Some(0));
 
-        s.on_midi(Event::ClockStart, 1000);
+        s.on_midi(Event::ClockStart, 1000, 0);
         let set = s.set.as_ref().expect("set");
         assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (0, 0, 0));
         assert!(set.beat.running, "le transport qui démarre lance la battue");
 
-        s.on_midi(Event::ClockStop, 2000);
+        s.on_midi(Event::ClockStop, 2000, 0);
         assert!(!s.set.as_ref().expect("set").beat.running, "Stop arrête la battue");
     }
 
@@ -597,17 +604,17 @@ mod tests {
         let mut s = scene();
         // 40 doubles-croches : 32 pour la 1re section (2 mesures de 4/4), puis 8 dans la 2e,
         // soit sa mesure 1 sur le 3e temps
-        s.on_midi(Event::SongPosition(40), 0);
+        s.on_midi(Event::SongPosition(40), 0, 0);
         let set = s.set.as_ref().expect("set");
         assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (1, 0, 2));
 
         // 48 : juste au début de la section en 7/8
-        s.on_midi(Event::SongPosition(48), 1000);
+        s.on_midi(Event::SongPosition(48), 1000, 0);
         let set = s.set.as_ref().expect("set");
         assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (2, 0, 0));
 
         // au-delà de ce que le morceau déclare : on le dit, et la battue ne bouge pas
-        s.on_midi(Event::SongPosition(500), 2000);
+        s.on_midi(Event::SongPosition(500), 2000, 0);
         assert!(s.message.as_deref().is_some_and(|m| m.contains("au-delà")), "{:?}", s.message);
         let set = s.set.as_ref().expect("set");
         assert_eq!((set.prompt_section, set.beat.bar, set.beat.tick), (2, 0, 0));
@@ -619,7 +626,7 @@ mod tests {
     fn the_locked_stage_answers_midi_too() {
         let mut s = scene();
         s.locked = true;
-        s.on_midi(Event::ProgramChange(4), 0);
+        s.on_midi(Event::ProgramChange(4), 0, 0);
         assert!(matches!(s.tick(100), Action::Play { .. }));
         assert_eq!(at(&s), Some((1, 0)));
     }

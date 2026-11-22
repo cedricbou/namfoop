@@ -219,12 +219,21 @@ pub fn run(
     let click_gain = dsp::param::Control::new(0.0);
     let downbeat = dsp::param::Control::new(0.0);
     let click_level_db = conf.config.metronome.unwrap_or_default().level_db;
+    // La **phase** du clic est à part : le tempo ne suffit pas à placer un temps (une période
+    // juste à 0,2 % près dérive d'une demi-seconde en quatre minutes, et un changement de tempo
+    // décale la grille pour de bon). Quand une horloge tourne, le clic compte donc les tops reçus
+    // au lieu de compter des échantillons — compteur tenu par le fil de lecture MIDI, lu ici dans
+    // le fil audio.
+    let clock_phase = dsp::param::Control::new(f32::NAN);
+    let clock_ticks = start_with.midi.as_ref().map(midi_io::Input::clock_ticks);
     let metronome = engine::metronome::MetronomeConfig {
         gain: click_gain.clone(),
         tempo: tempo.clone(),
         downbeat: downbeat.clone(),
         beats_per_bar: conf.config.metronome.unwrap_or_default().beats_per_bar,
         sound: conf.config.metronome.unwrap_or_default().sound,
+        clock_ticks: clock_ticks.clone(),
+        clock_phase: clock_phase.clone(),
     };
     let click_routed = routing.outputs.iter().any(|o| o.click);
     let mut engine = Engine::start(
@@ -381,9 +390,22 @@ pub fn run(
                     // mesure le tempo, pas le tour de boucle (`saturating_duration_since` parce
                     // qu'un message peut précéder le départ de la boucle)
                     let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
-                    let a = st.on_midi(msg.event, at_us);
+                    let a = st.on_midi(msg.event, at_us, msg.clock_seq);
                     if a != Action::None {
                         midi_pending = a;
+                    }
+                }
+                // **La phase du clic** : le numéro du top qui porte le temps. Elle ne dépend
+                // d'aucune lecture de compteur ni d'aucun instant — le top l'a apportée — donc
+                // l'endroit du tour où on l'écrit n'a plus d'importance.
+                let phase = st.clock_phase();
+                if phase != clock_phase.get() {
+                    clock_phase.set(phase);
+                    // tracée parce qu'elle doit être **immobile** : une phase qui bouge fait
+                    // reculer puis avancer le temps, et le clic double. C'est ce que vérifie
+                    // `scripts/check-e2e.py`, et ce qu'on lit quand un clic sonne faux.
+                    if phase.is_finite() {
+                        trace(&format!("phase={phase:.0}"));
                     }
                 }
             }

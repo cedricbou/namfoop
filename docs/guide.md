@@ -1116,7 +1116,7 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 ### La ligne d'état
 
 ```
-  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0
+  in   -9.3 dB (calib. -8.5) → modèle -31 dB  out  -10.2 dB  lim -1.2 dB  dsp   8.5 %  xruns 0  ♩ 145 (MIDI)
 ```
 
 | Champ | Signification | Que faire |
@@ -1129,6 +1129,7 @@ changer de son, relance avec un autre `-m` (les presets et le MIDI viendront).
 | `dsp` | part du temps disponible utilisée par le traitement (pic) | au-delà de 70 %, risque de craquements |
 | `xruns` | décrochages audio depuis le démarrage | doit rester à 0 |
 | `[CLIP SORTIE]` | échantillons écrêtés en sortie (limiteur désactivé) | baisse `--master-db` |
+| `♩` | tempo entendu et **d'où il vient** — `MIDI`, `tap`, `horloge perdue`, `preset` — affiché dès qu'un port MIDI est ouvert | il répond à « mon horloge est-elle écoutée ? » sans brancher de retour |
 
 Au démarrage, une ligne `routage :` rappelle l'entrée de la basse et le rôle de chaque sortie, et
 une ligne `calibration :` la crête attendue sur `in`. À l'arrêt, un résumé donne la charge DSP
@@ -1560,9 +1561,59 @@ beats_per_bar = 4
 sound = "bois"
 ```
 
-Le clic suit le **même tempo** que les effets de temps : il suit donc le tap (`*`), le tempo du
-preset, et l'horloge MIDI quand elle arrivera. Taper recale le **temps 1** : on tape sur le premier
-temps. Changer de tempo ne redémarre pas la mesure — seul l'écart entre deux temps change.
+Le clic suit le **même tempo** que les effets de temps : le tap (`*`), le tempo du preset ou
+l'horloge MIDI reçue, dans cet ordre de priorité. Taper recale le **temps 1** : on tape sur le
+premier temps, et `*` le fait depuis **n'importe quel écran** — depuis le banc d'essai il ne recale
+que le temps, le tempo se tapant dans l'espace Chaîne. Changer de tempo ne redémarre pas la mesure :
+seul l'écart entre deux temps change.
+
+**Avec une horloge MIDI, le clic compte les tops** au lieu de compter le temps. Une noire valant
+24 tops, il sonne au vingt-quatrième : sa position est donc **absolue**, si bien que rien ne peut
+dériver et qu'un changement de tempo ne le décale pas — ni une accélération progressive, ni les
+`+` / `-` d'un clavier.
+
+Reste à savoir **lequel** des 24 tops porte le temps, ce qu'une horloge nue ne dit pas : ses tops
+sont des octets identiques. Trois façons de le lui apprendre, par ordre de fiabilité :
+
+- un `Start` ou un Song Position Pointer, qu'Ableton envoie et qu'un clavier n'envoie pas ;
+- **le début d'un flux**, quand namfoop écoutait déjà : arrête puis relance le métronome de la
+  source, et le temps tombe juste à la milliseconde ;
+- **un appui sur `*`**, qui dit « ce temps-ci ». La grille restant ensuite verrouillée sur les tops,
+  on tape **une fois** et c'est fini — rien ne glisse après.
+
+Si namfoop se raccroche au milieu d'un flux déjà en cours, il ne peut que deviner : le premier top
+reçu n'est un début de temps qu'une fois sur vingt-quatre. L'en-tête le dit alors —
+`♩ 142 (MIDI, temps à confirmer : *)` —, parce que c'est à l'oreille indiscernable d'un tempo faux.
+
+Cet avertissement ne concerne donc que le **premier** flux d'une session, et seulement si l'horloge
+tournait déjà au lancement : dès que namfoop a vu une horloge se taire puis reprendre, il sait que
+le top qui reprend ouvre un temps, et il ne demande plus rien. Lancer namfoop d'abord, la source
+ensuite, suffit à ne jamais le voir.
+
+Un Song Position Pointer place le temps **à la double-croche** : namfoop en tient compte, si bien
+qu'une position qui ne tombe pas sur une noire ne décale pas le clic d'un quart de temps.
+
+Une limite qui reste : sans `Start` ni Song Position Pointer, le **temps 1 de la mesure** est
+inconnaissable, donc l'accent peut tomber sur un autre temps de la mesure. `beats_per_bar = 1`
+l'évite en supprimant l'accent.
+
+**La bande de mesure suit la même grille** : dès qu'une horloge tourne, elle compte les tops et non
+le temps, donc elle ne dérive pas davantage que le clic.
+
+Le verrou demande une noire de tops : pendant cette première noire, et si l'horloge se tait, le clic
+tourne sur le tempo comme sans horloge.
+
+`run --click` suit lui aussi l'horloge et le tap au pied (CC 14) — mais attention : un tap prend la
+main sur l'horloge jusqu'au prochain `Start` ou `Stop` (c'est la règle générale), et `run` n'ayant
+ni preset ni set, il n'y a pas d'autre façon de la lui rendre. Une source qui n'envoie pas de
+transport garde donc le tap pour la session ; namfoop l'avertit dans ses logs quand ça arrive. Le tempo de la **chaîne**, en
+revanche, reste celui du preset ou de `--tempo` dans `run` : c'est ce qui garde `run` et `render`
+reproductibles. Pour des effets calés sur l'horloge, c'est `browse` ou `run --set`.
+
+Le tempo entendu se lit sur la **ligne d'état** de `run` (`♩ 145 (MIDI)`), et non dans le journal :
+il se republie à chaque fois qu'il sort de sa bande d'hystérésis, soit des dizaines de fois par
+seconde avec l'horloge d'un clavier, ce qui noierait tout le reste. Le journal ne garde que les
+changements de **source** — l'horloge qui prend la main, qui se perd, le tap qui passe devant.
 
 **Si `k` ne fait rien**, c'est qu'aucune sortie ne reçoit le clic : le message le dit, et la réponse
 est `namfoop setup` (déclarer une sortie « in-ear »). `run --click` refuse de démarrer dans ce cas

@@ -16,8 +16,8 @@ de chaînes. Un second contrôle textuel limite `midi_io::open` à deux fichiers
 **Fichiers.**
 
 ```
-src/lib.rs    Event, Message (horodaté), Settings, Port, Input (la file, le fil, le compteur de
-              tops d'horloge), open()
+src/lib.rs    Event, Message (horodaté ET numéroté en tops d'horloge), Settings, Port,
+              Input (la file, le fil, le compteur de tops), open()
 src/seq.rs    port du séquenceur ALSA : liste des ports, choix par adresse ou par nom, abonnement,
               conversion des événements du séquenceur -> Event
 src/sim.rs    port simulé « sim:<chemin> » : fichier ou tube nommé, lu sans bloquer
@@ -36,18 +36,26 @@ publie dans une file `rtrb` sans verrou ; l'appelant la vide au rythme de sa bou
 **compte une perte** (`Input::dropped`) au lieu de bloquer, et le port se ferme au drop (le fil voit
 l'ordre d'arrêt en 200 ms au pire, le délai de son `poll`).
 
-**Une chose ne passe pas par la file : le compteur de tops d'horloge** (`Input::clock_ticks`, un
-`Arc<AtomicU64>` incrémenté par le fil de lecture). Une file vidée au rythme d'une boucle
-d'affichage arrive **dix fois trop tard** pour placer un temps — un top vaut 20,8 ms à 120 BPM,
-la boucle repasse toutes les 20 à 30 ms —, alors que ce fil-ci se réveille sur chaque top. Le clic
-du métronome le lit donc **depuis le fil audio**, d'un `load` relâché. Le type est standard, donc
-`engine` n'a pas à dépendre d'ici : c'est le binaire qui relie les deux, comme pour les cases
-`dsp::param::Control`. Un top est compté **avant** d'être poussé, donc compté même si la file
-débordait : perdre le message ne coûte qu'une mesure de tempo, perdre le comptage décalerait la
-grille pour de bon. Et ce compteur **ne compte que des tops** : il croît indéfiniment, ne se remet à
-zéro ni sur `Start`, ni sur `Stop`, ni après un silence, parce que décider qu'un silence invalide la
-phase ou que tel top porte le temps 1 demande de savoir ce qu'un message *veut dire* — l'affaire
-d'`engine::tempo`, pas d'ici.
+**La position d'un temps est un numéro de top, et ce numéro ne se reconstitue pas.** D'où deux
+choses, et il faut les deux :
+
+- `Message::clock_seq` : **chaque message porte** le nombre de tops reçus à son arrivée — donc,
+  pour un `ClockTick`, son propre numéro. C'est ce que lit le côté contrôle. Le déduire après coup,
+  en comparant un compteur partagé à un comptage tenu ailleurs, obligeait à lire les deux au même
+  instant : jamais tout à fait vrai, et un top compté entre les deux lectures décalait la position
+  d'un top — 17,6 ms à 142 BPM — sans que rien le signale.
+- `Input::clock_ticks` : le même compteur en `Arc<AtomicU64>`, que le **fil audio** lit d'un `load`
+  relâché pour savoir où en est l'horloge *maintenant*. Il ne peut pas passer par la file : vidée
+  au rythme d'une boucle d'affichage, elle arrive dix fois trop tard pour placer un temps (un top
+  vaut 20,8 ms à 120 BPM, la boucle repasse toutes les 20 à 30 ms). Le type est standard, donc
+  `engine` n'a pas à dépendre d'ici — c'est le binaire qui relie les deux, comme pour les cases
+  `dsp::param::Control`.
+
+Un top est compté **avant** d'être poussé, donc compté même si la file débordait : perdre le
+message ne coûte qu'une mesure de tempo, perdre le comptage décalerait la grille pour de bon. Et le
+comptage **ne compte que des tops** : il croît indéfiniment, ne se remet à zéro ni sur `Start`, ni
+sur `Stop`, ni après un silence, parce que décider qu'un silence invalide la phase ou que tel top
+porte le temps 1 demande de savoir ce qu'un message *veut dire* — l'affaire d'`engine::tempo`.
 
 **Choix dont la raison ne se lit pas dans le code.**
 

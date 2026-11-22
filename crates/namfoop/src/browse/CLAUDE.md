@@ -164,7 +164,14 @@ bloc — et les trace quand elles changent (`volume=±x.x`, `tempo=xxx.x`). Le t
 les pose en `Volume::Live` / `Tempo::Live` dans **toutes** les chaînes, banque comprise.
 
 **Le clic du métronome** suit le même chemin (`gain`, à zéro quand c'est éteint, et `downbeat` =
-`Arbiter::beat_epoch`). `k` le bascule (`State::metronome`, éteint au démarrage, jamais dans un
+`Arbiter::beat_epoch`), plus **deux cases de phase** qui ne passent pas par le tempo : `clock_ticks`,
+le compteur de tops que tient le fil de lecture MIDI (`midi_io::Input::clock_ticks`), et
+`clock_phase`, écrite à chaque tour par `Arbiter::clock_phase`. Dès qu'une horloge est verrouillée,
+le clic **compte les tops** au lieu de compter des échantillons : sa position devient absolue, donc
+insensible à la dérive et aux changements de tempo. La phase est le **numéro du top d'ancrage**, que
+le message a apporté (`midi_io::Message::clock_seq`) : une constante entre deux ancrages, donc
+l'endroit du tour où la boucle l'écrit n'a aucune importance. `State::clock_phase_confirmed` dit
+si l'ancre a été observée ou devinée, et l'en-tête l'annonce (« temps à confirmer : * »). `k` le bascule (`State::metronome`, éteint au démarrage, jamais dans un
 preset : `unsaved()` ne le voit pas) et il ne va que dans les sorties déclarées **in-ear** par
 `setup` (`OutputRoute::click`, posé par `setup/state.rs` d'après `OutRole::InEar`) : c'est ce qui
 garantit qu'il n'atteint jamais le sondier. `State::metronome_routed` dit si une sortie le reçoit ;
@@ -198,8 +205,11 @@ que `unsaved()` compare ; seuls un tap et un chargement de preset le changent), 
 `State::heard_tempo_bpm()` le tempo **entendu**, celui de l'arbitre `engine::tempo::Arbiter` que
 `State` possède. C'est l'entendu qui va dans la case et à l'écran, et les deux diffèrent dès qu'une
 horloge MIDI tourne. `*` = tap (`State::tap_tempo`), et `tick()` appelle `Arbiter::poll` pour voir
-une horloge qui se tait. `*` n'agit que dans l'espace **Chaîne** : le banc d'essai n'est pas un
-preset.
+une horloge qui se tait. `*` fait **deux** choses, qui ne se refusent pas ensemble : écrire le tempo
+(seulement hors du banc d'essai — la Bibliothèque n'est pas un preset) et recaler le **temps 1**, qui
+ne touche à aucun preset et agit donc **partout** (`Arbiter::realign_downbeat`). Les refuser tous
+deux laissait un clic qu'on ne pouvait plus recaler, le clic s'allumant lui depuis n'importe quel
+écran.
 
 ## Le set — `state/set/`
 
@@ -244,7 +254,12 @@ bande montre — `ui/set.rs` les dessine, il ne les calcule pas. La carte des me
 vit dans `library::bars`. Quatre choses à ne pas casser :
 
 1. **l'horloge est fournie** (`advance_beat(now_ms)`, appelée par `tick`) et **rien ne descend dans
-   le fil audio** : le tempo d'une section entre dans l'arbitre par `set_section_tempo`, comme
+   le fil audio** ; mais dès qu'une horloge MIDI est verrouillée, ce n'est plus le temps qui la fait
+   avancer, ce sont les **tops** (`State::clock_elapsed_ticks`, un comptage depuis l'ancre de
+   l'arbitre) : une position absolue ne dérive pas, là où intégrer un tempo mesuré transformait la
+   moindre erreur de période en décalage définitif — le défaut que le clic a eu. Les trois
+   recalages (`restart`, `realign`, `seek`) prennent donc **les deux** repères, et le compilateur
+   l'impose plutôt que de laisser l'un s'oublier : le tempo d'une section entre dans l'arbitre par `set_section_tempo`, comme
    celui d'un preset, et **seulement au passage d'une section à l'autre et seulement s'il change** —
    sinon chaque mesure annulerait le tap, que le § 11 veut plus fort que le fichier. Il ne touche
    pas à `fx.chain.tempo_bpm` : un morceau qui module n'a pas à rendre son preset « non
@@ -321,6 +336,13 @@ pilote l'écran dans un pseudo-terminal (`--no-config --backend sim`, bibliothè
 `--library <tmp>` : `browse` écrit les mélanges dans `<library>/cabs/`, ne jamais polluer la
 bibliothèque de l'utilisateur) ; les pièges du pilotage y sont **implémentés**.
 
+**La boucle elle-même se teste de bout en bout**, et c'est neuf : deux défauts de phase lui ont
+échappé parce que les tests unitaires pilotaient le clic avec une phase déjà propre, alors que le
+défaut était dans le calcul qui la produit et dans l'ordre de la boucle. `scenario_midi_horloge`
+nourrit un port simulé depuis un **fil à part** (25 ms, soit 100 BPM : au rythme de la boucle de
+lecture d'écran, la cadence allait de 40 à 120 ms selon la charge et l'horloge ne se verrouillait
+pas) et exige une phase immobile. Faute de verrou, il **ne conclut pas** au lieu d'échouer.
+
 La **bande de battue** est testée aux deux tailles d'écran du projet (80×25 et 160×50) dans
 `ui/tests/beat.rs` : un écran à deux colonnes mêle les deux dans chaque ligne, et la set list
 contient elle aussi le tempo du morceau — chercher `♩124` dans la ligne entière mesure donc la
@@ -328,8 +350,12 @@ mauvaise colonne. Les bordures `│` les séparent, et c'est le **dernier** segm
 bande.
 
 `NAMFOOP_BROWSE_TRACE=<fichier>` écrit chaque chaîne réellement installée dans le thread audio
-(modèle, IR, entrée, effets pré / post, taille de la table de vumètres) et chaque grain mesuré par
-l'éditeur. **Pour ce qu'on entend, c'est elle qui fait foi** — ratatui n'écrit que les cellules
+(modèle, IR, entrée, effets pré / post, taille de la table de vumètres), chaque grain mesuré par
+l'éditeur, et les cases vivantes quand elles changent — dont `phase=N`, le top qui porte le temps.
+Celle-là se trace parce qu'elle doit être **immobile** : une phase qui bouge fait reculer puis
+avancer le temps déduit du compteur, et le clic double. C'est ce que vérifie le scénario
+`scenario_midi_horloge` de `scripts/check-e2e.py`, et ce qu'on lit en premier quand un clic sonne
+faux. **Pour ce qu'on entend, c'est elle qui fait foi** — ratatui n'écrit que les cellules
 modifiées, donc chercher une valeur à l'écran retrouve l'ancienne. Chaque ligne est **horodatée**
 (ms depuis la première) et écrite en **un seul** appel, sinon les lignes des deux threads se
 coupent ; le fichier n'est lu dans l'environnement qu'**une fois**. Une chaîne bâtie puis **jetée**
