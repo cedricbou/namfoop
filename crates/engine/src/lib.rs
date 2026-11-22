@@ -28,6 +28,13 @@ use dsp::swap::{SwapChain, SwapHandle};
 use meters::fetch_max;
 use router::Router;
 
+/// Taille max de bloc pour laquelle une chaîne est préparée : les tampons de ses étages sont
+/// alloués pour elle, et un bloc plus grand est découpé en interne — jamais alloué en temps réel.
+/// C'est donc un **plafond de préallocation** et non une taille attendue : les buffers d'une carte
+/// vont de 16 à 512. Toute session la prend comme [`EngineConfig::max_block`], si bien qu'une
+/// chaîne préparée pour l'une convient à toutes.
+pub const MAX_BLOCK: usize = 1024;
+
 /// Réglages d'une session.
 #[derive(Clone)]
 pub struct EngineConfig {
@@ -312,7 +319,7 @@ mod tests {
                 ..Default::default()
             },
             routing: Routing::default(),
-            max_block: 1024,
+            max_block: MAX_BLOCK,
             fade_ms: 20.0,
             trails_ms: 0.0,
             quiet: true,

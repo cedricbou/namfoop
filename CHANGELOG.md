@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#357)
+- **La taille de bloc maximale pour laquelle un son est préparé n'est écrite qu'à un seul endroit.**
+  Elle l'était cinq fois — une par partie du programme qui prend la carte, plus la calibration — et
+  rien n'aurait signalé que l'une bouge sans les autres. Aucun changement de comportement : même
+  valeur, mêmes rendus de référence, même coût par bloc.
+
 ### Interne (#352)
 - **Une passe de mesure ne renonce plus sur des échecs dispersés.** Cinq fenêtres sans retour
   **parmi des réussites** l'abandonnaient : c'est un câble qui grésille, pas un câble débranché. Le

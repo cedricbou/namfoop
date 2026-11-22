@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use std::path::Path;
 
-use engine::{Engine, EngineConfig, Routing};
+use engine::{Engine, EngineConfig, Routing, MAX_BLOCK};
 
 use crate::config::{Config, LevelMode};
 
@@ -73,7 +73,7 @@ pub fn run(
         EngineConfig {
             audio: cfg.clone(),
             routing: routing.clone(),
-            max_block: 1024,
+            max_block: MAX_BLOCK,
             fade_ms: 20.0,
             trails_ms: 0.0, // calibration : chaîne nue, rien à faire sonner
             quiet: false,

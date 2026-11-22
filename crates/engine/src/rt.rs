@@ -162,8 +162,8 @@ mod tests {
         let model = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../nam-sys/vendor/NeuralAmpModelerCore/example_models/wavenet.nam");
         let spec = dsp::chain::AmpSpec { model: Some(model), ..Default::default() };
-        let mut fresh = spec.build(48000, 1024).unwrap();
-        let mut warm = spec.build(48000, 1024).unwrap();
+        let mut fresh = spec.build(48000, crate::MAX_BLOCK).unwrap();
+        let mut warm = spec.build(48000, crate::MAX_BLOCK).unwrap();
         prewarm(&mut warm, 48, 48000);
         let signal: Vec<f32> = (0..48000)
             .map(|i| 0.3 * (2.0 * std::f32::consts::PI * 55.0 * i as f32 / 48000.0).sin())
