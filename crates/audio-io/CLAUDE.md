@@ -42,9 +42,10 @@ matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-
   buffer 64 / 3 périodes, boucle sortie 3 (AUX) -> entrée 2, modèle d'exemple WaveNet 3 canaux) :
   aller-retour **262 frames = 5,46 ms**, **dispersion 0** sur les dix mesures comptées, **0 xrun**.
   **La charge ne décale pas la latence** : les cinq lignes « à côté » donnent 262 frames, à la frame
-  près, jusqu'à quatre `nam › ir` en parallèle (5 % de médiane, 10 % de p99,9 par bloc). Le retard
-  **ajouté par la chaîne** est de 17 frames pour un modèle seul et de 19 (0,4 ms) pour tout le
-  reste du catalogue — c'est le temps que l'attaque monte, et il ne dépend pas du nombre de modèles.
+  près, jusqu'à quatre `nam › ir` en parallèle (5 % de médiane, 10 % de p99,9 par bloc). L'écart de
+  la ligne « dans le trajet » — 17 frames pour un modèle seul, 19 (0,4 ms) pour tout le reste du
+  catalogue — est le temps que l'**attaque** du son met à monter, et non un retard que la chaîne
+  ajouterait : il ne dépend ni du nombre de modèles ni des effets.
   Charge par bloc : `nam` 1 / 2 %, `nam › ir` 2 / 3 %, avec effets 2 / 4 %, deux `nam › ir` 3 / 5 %,
   quatre 5 / 10 % (médiane / p99,9).
   Deux conditions à cette stabilité, toutes deux nécessaires : **attendre que le flux soit établi**

@@ -23,6 +23,9 @@ section prend le numéro de version.
   entre la crête du retour et le bruit de fond pour que son début soit cherché : en dessous, le
   premier pic de bruit de la fenêtre était pris pour le début du son, et un câble à moitié branché
   rapportait une latence courte et aléatoire comme une mesure.
+- Le guide dit ce que mesure la colonne « dans le trajet » : le temps que l'**attaque** du son met à
+  monter, et non un retard que la chaîne ajouterait au signal. C'est pour cela qu'il vaut +17 à
+  +19 frames qu'il y ait un modèle, une IR, six effets ou quatre modèles en parallèle.
 
 ### Interne (#349)
 - **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour

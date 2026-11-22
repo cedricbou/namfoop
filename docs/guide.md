@@ -2519,9 +2519,11 @@ namfoop --backend alsa latency --chain nam-ir -m b7k    # une chaîne, avec ton 
 
 Chaque chaîne donne **deux lignes** :
 
-- **dans le trajet** : l'impulsion traverse la chaîne. L'écart à la référence est donc le retard que
-  la chaîne ajoute vraiment — le temps que son attaque monte : un modèle d'ampli met quelques
-  dixièmes de milliseconde à sortir sa note, un gate y ajoute son attaque.
+- **dans le trajet** : l'impulsion traverse la chaîne. L'écart à la référence est le temps que
+  l'**attaque** du son met à monter : un modèle d'ampli met quelques dixièmes de milliseconde à
+  sortir sa note, un gate y ajoute son attaque. Ce n'est pas un retard ajouté au signal — la chaîne
+  travaille bloc par bloc, sans rien mettre en réserve ; c'est la forme de sa réponse qui décale le
+  début qu'on mesure.
 - **à côté** : la chaîne tourne sur un bruit interne et l'impulsion part telle quelle. La latence y
   est celle du trajet nu : cette ligne est le **témoin** de la précédente. Elle doit afficher
   **+0 frame** — si elle s'en écarte, c'est la mesure qu'il faut refaire, pas la chaîne qu'il faut
