@@ -2546,7 +2546,9 @@ va bien.
 Chaque passe commence par quelques secondes d'attente et deux mesures marquées
 « (stabilisation) », affichées mais non comptées : le flux de la carte met un instant à s'établir,
 et une mesure prise pendant ce temps est fausse. C'est ce qui permet à la ligne « à côté » de
-retrouver exactement la référence.
+retrouver exactement la référence. La **charge** de ces premiers blocs n'est pas comptée non plus :
+au changement de chaîne, le poids du modèle et les tampons de l'IR sont encore froids, et ces
+quelques blocs feraient à eux seuls la p99,9 de la passe.
 
 Lire ensuite la colonne **disp.** : c'est l'écart entre la plus petite et la plus grande mesure
 comptée de la passe. À une frame ou deux près, tout va bien. Au-delà, l'avertissement « mesures

@@ -43,9 +43,9 @@ pub(super) const SETTLE_FIRST_S: f64 = 3.0;
 /// Attente après un changement de passe : la queue de la chaîne quittée (celle d'une réverbe) doit
 /// s'éteindre avant qu'on mesure un bruit de fond.
 pub(super) const SETTLE_PASS_S: f64 = 1.0;
-/// Fenêtres émises **et affichées**, mais non comptées, en tête de chaque passe : elles absorbent
-/// ce qui reste du transitoire, au démarrage comme au changement de chaîne. Les compter est le
-/// piège — c'est ce qui faisait mentir la ligne témoin d'une chaîne.
+/// Fenêtres émises **et affichées**, mais ni comptées ni chronométrées, en tête de chaque passe :
+/// elles absorbent ce qui reste du transitoire, au démarrage comme au changement de chaîne. Les
+/// compter est le piège — pour la latence de la ligne témoin comme pour la charge de la passe.
 pub(super) const WARMUP: u32 = 2;
 /// Taille max de bloc pour laquelle les chaînes sont préparées (comme `run`). Le callback découpe
 /// ce qu'il reçoit à cette taille, pour garder des tampons préalloués.
@@ -337,8 +337,13 @@ impl Runner {
             }
             Spot::Bare => {}
         }
-        let load = t.elapsed().as_secs_f64() / (n as f64 * self.frame_secs);
-        self.loads[pass].record(load as f32);
+        // L'échauffement ne compte pas dans la charge non plus : au changement de chaîne, le poids
+        // du modèle et les tampons FFT de l'IR sont encore froids, et ces quelques blocs seraient
+        // à eux seuls la p99,9 de la passe.
+        if self.warmup == 0 {
+            let load = t.elapsed().as_secs_f64() / (n as f64 * self.frame_secs);
+            self.loads[pass].record(load as f32);
+        }
     }
 
     fn next_pass(&mut self, at: u64, push: &mut impl FnMut(Report)) {
@@ -465,16 +470,29 @@ mod tests {
         let gaps: Vec<u64> = emits.windows(2).map(|w| w[1] - w[0]).collect();
         assert!(gaps.iter().all(|g| *g == 300), "{emits:?}");
     }
+    /// Fréquence et taille de bloc de [`drive`]. La fréquence est petite exprès — les fenêtres du
+    /// détecteur en découlent, donc une passe tient en quelques milliers de frames —, et le bloc est
+    /// plus court que le retard du bouclage, si bien qu'un retour tombe toujours sur un bloc suivant
+    /// et jamais sur celui qu'on vient de lire.
+    const DRIVE_RATE: u32 = 400;
+    const DRIVE_BLOCK: usize = 32;
+
     /// Fait tourner l'automate bloc par bloc, en renvoyant sur l'entrée, `delay` frames plus tard,
-    /// ce qui sort de la sortie : le câble de bouclage, simulé. `rate` est petit exprès — les
-    /// fenêtres du détecteur en découlent, donc une passe tient en quelques milliers de frames.
+    /// ce qui sort de la sortie : le câble de bouclage, simulé.
     fn drive(chains: Vec<dsp::Chain>, count: u32, delays: &[u64]) -> Vec<Report> {
+        drive_with_loads(chains, count, delays).0
+    }
+
+    /// Comme [`drive`], en rendant aussi la charge enregistrée par passe.
+    fn drive_with_loads(
+        chains: Vec<dsp::Chain>,
+        count: u32,
+        delays: &[u64],
+    ) -> (Vec<Report>, Vec<engine::meters::LoadSummary>) {
         let passes = plan(chains.len());
         let loads = Arc::new((0..passes.len()).map(|_| LoadHistogram::default()).collect::<Vec<_>>());
-        let mut runner = Runner::new(400, count, passes.clone(), chains, loads);
-        // bloc plus court que le retard du bouclage : un retour tombe toujours sur un bloc
-        // suivant, jamais sur celui qu'on vient de lire
-        let (block, mut reports) = (32usize, Vec::new());
+        let mut runner = Runner::new(DRIVE_RATE, count, passes.clone(), chains, Arc::clone(&loads));
+        let (block, mut reports) = (DRIVE_BLOCK, Vec::new());
         let mut back: BTreeMap<u64, f32> = BTreeMap::new();
         let (mut inp, mut out) = (vec![0.0f32; block], vec![0.0f32; block]);
         let (mut t, mut emits) = (0u64, 0usize);
@@ -498,7 +516,30 @@ mod tests {
                 break;
             }
         }
-        reports
+        (reports, loads.iter().map(|h| h.summary()).collect())
+    }
+
+    /// La charge d'une passe est celle de ses fenêtres **comptées** : la passe dure
+    /// `WARMUP + count` cycles, et seuls les `count` derniers sont chronométrés. Compter les
+    /// premiers, c'est prendre pour la charge de la chaîne le poids du modèle qui se charge et les
+    /// tampons de l'IR encore froids : la p99,9 d'une passe de quelques milliers de blocs, ce sont
+    /// ses trois pires.
+    #[test]
+    fn a_pass_records_the_load_of_its_counted_windows_only() {
+        for count in [3u32, 9] {
+            let (_, loads) = drive_with_loads(vec![dsp::Chain::new()], count, &[37]);
+            // les `count` cycles comptés, en blocs
+            let frames = count as f64 * CYCLE_S * DRIVE_RATE as f64;
+            let attendu = (frames / DRIVE_BLOCK as f64).round() as i64;
+            assert_eq!(loads[0].callbacks, 0, "le trajet nu n'a pas de chaîne, donc pas de charge");
+            for (i, l) in loads.iter().enumerate().skip(1) {
+                let n = l.callbacks as i64;
+                assert!(
+                    (n - attendu).abs() <= 2,
+                    "count {count}, passe {i} : {n} callbacks chronométrés, attendu ~{attendu}"
+                );
+            }
+        }
     }
 
     /// Les passes de chaque fenêtre, dans l'ordre, et si le plan s'est bien terminé. `only_counted`

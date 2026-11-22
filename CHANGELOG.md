@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Mesures (#351)
+- **La charge DSP du tableau de latence est celle de la chaîne en régime établi.** Chaque passe
+  chronométrait aussi ses premiers blocs, quand le son venait de changer et que le poids du modèle et
+  les tampons de l'IR étaient encore froids. La p99,9 d'une passe de 3 000 blocs, ce sont ses trois
+  pires : c'étaient exactement ceux-là. Deux lignes de la même chaîne pouvaient ainsi annoncer des
+  charges dans un rapport de 2,5 avec des latences identiques. Les blocs des fenêtres de
+  stabilisation ne sont plus comptés dans la charge, comme ils ne l'étaient déjà plus dans la
+  latence.
+
 ### Interne (#349)
 - **Les tops d'horloge MIDI se comptent dans le fil qui lit le câble**, et le compteur s'expose pour
   que le fil audio le lise directement. Placer un temps demande la milliseconde, alors que la file

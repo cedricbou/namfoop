@@ -61,8 +61,8 @@ latency/        mesure de latence par impulsion (câble de bouclage ; engine::ra
                 au bruit de fond mesuré juste avant : pas de seuil fixe, PipeWire atténue et étale
                 l'impulsion) et son DÉBUT donne la latence (l'instant de la crête saute d'un lobe à
                 l'autre), et `Runner`, qui enchaîne les passes des chaînes de référence
-                (`dsp::bench`) en n'en comptant pas les premières fenêtres. Deux machines à états
-                pures, testées sans carte
+                (`dsp::bench`) en ne comptant ni les premières fenêtres ni leur charge. Deux
+                machines à états pures, testées sans carte
 calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le
                 niveau « match »
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
