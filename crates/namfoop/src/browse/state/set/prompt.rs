@@ -93,12 +93,13 @@ impl State {
             .map(|s| s.label.clone())
             .unwrap_or_default();
         let now = self.now;
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = to;
             set.prompt_line = 0;
             // **`Fin` / `Début` recalent sur le 1 de la section** (§ 11), en marche comme à
             // l'arrêt : c'est le geste du pied quand le groupe n'est pas là où le texte le dit.
-            set.beat.restart(now);
+            set.beat.restart(now, ticks);
         }
         self.message = Some(if label.is_empty() {
             format!("section {}/{n}", to + 1)
@@ -113,6 +114,7 @@ impl State {
     /// du texte parce qu'un son a changé serait pire que de ne rien faire.
     pub(in crate::browse::state) fn follow_prompt(&mut self, at: At) {
         let now = self.now;
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         let Some(set) = self.set.as_ref() else { return };
         let same_song = set.at.map(|(i, _)| i) == Some(at.0);
         // **en marche, la position suit le temps** (§ 10, § 14) : changer de son ne la déplace
@@ -138,12 +140,12 @@ impl State {
                 set.prompt_section = 0;
                 set.prompt_line = 0;
                 set.beat.running = false;
-                set.beat.restart(now);
+                set.beat.restart(now, ticks);
             }
             if let Some(i) = found {
                 set.prompt_section = i;
                 set.prompt_line = 0;
-                set.beat.restart(now);
+                set.beat.restart(now, ticks);
             }
         }
     }

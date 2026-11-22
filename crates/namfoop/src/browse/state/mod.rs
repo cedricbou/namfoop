@@ -298,6 +298,10 @@ pub struct State {
     /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
     /// le changent. Les deux diffèrent dès qu'une horloge tourne, et l'en-tête le dit.
     tempo: engine::tempo::Arbiter,
+    /// Le **numéro du dernier top d'horloge** reçu (`midi_io::Message::clock_seq`). Avec l'ancre
+    /// de l'arbitre, il donne la position dans la noire sans jamais dériver : c'est ce qui place
+    /// la battue, comme il place le clic.
+    clock_seq: u64,
 }
 
 impl State {
@@ -352,6 +356,7 @@ impl State {
             midi: midi::MidiKeys::default(),
             midi_pc: None,
             tempo: engine::tempo::Arbiter::new(),
+            clock_seq: 0,
             set: None,
             song_keys: (Key::Right, Key::Left),
             set_picker: None,
@@ -484,6 +489,16 @@ impl State {
         self.tempo.clock_phase_confirmed()
     }
 
+    /// **Tops d'horloge écoulés depuis l'ancre**, quand une horloge est verrouillée. `None` : pas
+    /// d'horloge, et ce qui en dépend (la battue) compte alors les millisecondes comme avant.
+    ///
+    /// C'est une position **absolue** : elle ne peut pas dériver, là où intégrer un tempo mesuré
+    /// transforme la moindre erreur de période en décalage définitif.
+    pub(super) fn clock_elapsed_ticks(&self) -> Option<u64> {
+        let anchor = self.tempo.clock_anchor_seq()?;
+        Some((self.clock_seq as i64 - anchor).max(0) as u64)
+    }
+
     /// `k` : allume ou éteint le clic. S'il n'a nulle part où aller, on le dit au lieu de laisser
     /// croire à une panne.
     fn toggle_metronome(&mut self) -> Action {
@@ -544,8 +559,9 @@ impl State {
         // (étage pédale). Le refuser entièrement laissait un clic qu'on ne pouvait plus recaler.
         if self.space == space::Space::Library {
             self.tempo.realign_downbeat(now_ms * 1000);
+            let ticks = self.clock_elapsed_ticks().unwrap_or(0);
             if let Some(set) = self.set.as_mut() {
-                set.beat.realign(now_ms);
+                set.beat.realign(now_ms, ticks);
             }
             self.message = Some("temps 1 recalé — le tempo se tape dans l'espace Chaîne (2)".into());
             return Action::None;
@@ -554,8 +570,9 @@ impl State {
         // **le tap recale le tempo et le temps, pas la mesure** (§ 11 du mode Set) : on se
         // raccroche au groupe sans perdre le compte des mesures de la section.
         let now = now_ms;
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
-            set.beat.realign(now);
+            set.beat.realign(now, ticks);
         }
         let bpm = self.tempo.bpm();
         if self.tempo.source() == engine::tempo::TempoSource::Tap {

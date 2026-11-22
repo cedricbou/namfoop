@@ -254,7 +254,12 @@ bande montre — `ui/set.rs` les dessine, il ne les calcule pas. La carte des me
 vit dans `library::bars`. Quatre choses à ne pas casser :
 
 1. **l'horloge est fournie** (`advance_beat(now_ms)`, appelée par `tick`) et **rien ne descend dans
-   le fil audio** : le tempo d'une section entre dans l'arbitre par `set_section_tempo`, comme
+   le fil audio** ; mais dès qu'une horloge MIDI est verrouillée, ce n'est plus le temps qui la fait
+   avancer, ce sont les **tops** (`State::clock_elapsed_ticks`, un comptage depuis l'ancre de
+   l'arbitre) : une position absolue ne dérive pas, là où intégrer un tempo mesuré transformait la
+   moindre erreur de période en décalage définitif — le défaut que le clic a eu. Les trois
+   recalages (`restart`, `realign`, `seek`) prennent donc **les deux** repères, et le compilateur
+   l'impose plutôt que de laisser l'un s'oublier : le tempo d'une section entre dans l'arbitre par `set_section_tempo`, comme
    celui d'un preset, et **seulement au passage d'une section à l'autre et seulement s'il change** —
    sinon chaque mesure annulerait le tap, que le § 11 veut plus fort que le fichier. Il ne touche
    pas à `fx.chain.tempo_bpm` : un morceau qui module n'a pas à rendre son preset « non

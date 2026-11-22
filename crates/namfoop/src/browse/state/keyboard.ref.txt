@@ -378,7 +378,7 @@
   Échap    « Échap ne quitte pas : q pour quitter »
   Fin      « pas de prompteur pour ce morceau : t l'écrit »
   Début    « pas de prompteur pour ce morceau : t l'écrit »
-  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0 },… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0 }, …
+  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0, a… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0, at…
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '1'      → Play   espace: Set → Library
   '2'      → Play   espace: Set → Chain
@@ -884,7 +884,7 @@
   Retour   « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   Fin      « pas de prompteur pour ce morceau »
   Début    « pas de prompteur pour ce morceau »
-  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0 },… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0 }, …
+  Espace   « battue : cet appui est le 1 de la mesure 1 (♩120 4/4) »   battue: Some((Beat { running: false, bar: 0, tick: 0, at_ms: 0, a… → Some((Beat { running: true, bar: 0, tick: 0, at_ms: 0, at…
   '*'      « tempo 120.0 BPM — tape encore pour le donner »
   '+'      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »
   ','      « 🔒 run --set : rien ne s'édite ici (PgDn/PgUp son · ↑↓ Entrée morceau · i détail · Espace battue · Fin/Début section · * tap · k clic · h aide · q quitter) »

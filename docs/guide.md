@@ -1584,14 +1584,23 @@ Si namfoop se raccroche au milieu d'un flux déjà en cours, il ne peut que devi
 reçu n'est un début de temps qu'une fois sur vingt-quatre. L'en-tête le dit alors —
 `♩ 142 (MIDI, temps à confirmer : *)` —, parce que c'est à l'oreille indiscernable d'un tempo faux.
 
+Un Song Position Pointer place le temps **à la double-croche** : namfoop en tient compte, si bien
+qu'une position qui ne tombe pas sur une noire ne décale pas le clic d'un quart de temps.
+
 Une limite qui reste : sans `Start` ni Song Position Pointer, le **temps 1 de la mesure** est
 inconnaissable, donc l'accent peut tomber sur un autre temps de la mesure. `beats_per_bar = 1`
 l'évite en supprimant l'accent.
 
+**La bande de mesure suit la même grille** : dès qu'une horloge tourne, elle compte les tops et non
+le temps, donc elle ne dérive pas davantage que le clic.
+
 Le verrou demande une noire de tops : pendant cette première noire, et si l'horloge se tait, le clic
 tourne sur le tempo comme sans horloge.
 
-`run --click` suit lui aussi l'horloge et le tap au pied (CC 14). Le tempo de la **chaîne**, en
+`run --click` suit lui aussi l'horloge et le tap au pied (CC 14) — mais attention : un tap prend la
+main sur l'horloge jusqu'au prochain `Start` ou `Stop` (c'est la règle générale), et `run` n'ayant
+ni preset ni set, il n'y a pas d'autre façon de la lui rendre. Une source qui n'envoie pas de
+transport garde donc le tap pour la session ; namfoop l'avertit dans ses logs quand ça arrive. Le tempo de la **chaîne**, en
 revanche, reste celui du preset ou de `--tempo` dans `run` : c'est ce qui garde `run` et `render`
 reproductibles. Pour des effets calés sur l'horloge, c'est `browse` ou `run --set`.
 

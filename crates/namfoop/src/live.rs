@@ -154,7 +154,21 @@ pub fn run(
                     midi_io::Event::ClockStart if clock_on => tempo.clock_start(),
                     midi_io::Event::ClockContinue if clock_on => tempo.clock_continue(),
                     midi_io::Event::ClockStop if clock_on => tempo.clock_stop(),
-                    midi_io::Event::Control { cc, .. } if cc == cc_tap => tempo.tap(at_us),
+                    midi_io::Event::SongPosition(n) if clock_on => tempo.clock_song_position(n),
+                    midi_io::Event::Control { cc, .. } if cc == cc_tap => {
+                        // `run` n'a ni preset ni set : le seul événement net qui rende la main à
+                        // l'horloge (ADR 0008) est un `Start` / `Stop`. Une source qui n'en envoie
+                        // pas garde donc le tap jusqu'à la fin de la session — à dire, puisque
+                        // rien à l'écran ne le montre ici.
+                        let avant = tempo.source();
+                        tempo.tap(at_us);
+                        if avant == engine::tempo::TempoSource::MidiClock {
+                            log::warn!(
+                                "le tap prend la main sur l'horloge : elle ne la reprendra qu'au \
+                                 prochain Start ou Stop"
+                            );
+                        }
+                    }
                     _ => {}
                 }
             }

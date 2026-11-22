@@ -142,10 +142,20 @@ pub struct Arbiter {
     last_seq: u64,
     /// **Le top qui porte le temps.** Toute la phase est là : un numéro de top, posé une fois par
     /// ancrage et inchangé entre deux. `None` : aucune horloge ancrée.
-    anchor_seq: Option<u64>,
+    ///
+    /// Signé, parce qu'un Song Position Pointer peut le faire reculer **avant** le premier top
+    /// reçu : la position 1 dit que le temps avait commencé 6 tops plus tôt. Un `u64` écrêté à
+    /// zéro donnerait alors une phase fausse, et un `u64` qui boucle aussi — 2^64 n'est pas un
+    /// multiple de 24.
+    anchor_seq: Option<i64>,
     /// Le prochain top doit prendre la phase **sans** recaler le temps 1 : un `Start` vient déjà
     /// de le faire, ou un `Continue` a justement demandé qu'on n'y touche pas.
     anchor_silently: bool,
+    /// Combien de tops séparent le prochain top du **début de son temps**, quand une position
+    /// nous a été donnée. Un Song Position Pointer compte en doubles-croches, soit 6 tops : une
+    /// position qui n'est pas sur une noire fait donc tomber le prochain top *dans* le temps, et
+    /// non à son début.
+    pending_offset: u64,
     /// Un top est-il déjà passé ? Ce qui distingue une ancre **observée** (on a vu le flux se
     /// taire puis reprendre) d'une ancre **devinée** (on est arrivé au milieu d'un flux en cours,
     /// et le premier top reçu n'est alors un début de temps que par chance : un sur vingt-quatre).
@@ -182,6 +192,7 @@ impl Arbiter {
             last_seq: 0,
             anchor_seq: None,
             anchor_silently: false,
+            pending_offset: 0,
             ever_ticked: false,
             phase_confirmed: false,
             rejects: 0,
@@ -217,7 +228,7 @@ impl Arbiter {
             return f32::NAN; // le tempo n'est pas encore celui de la source
         }
         match self.anchor_seq {
-            Some(seq) => (seq % TICKS_PER_BEAT as u64) as f32,
+            Some(seq) => seq.rem_euclid(TICKS_PER_BEAT as i64) as f32,
             None => f32::NAN,
         }
     }
@@ -233,7 +244,7 @@ impl Arbiter {
     /// **La position de la noire courante**, en numéro de top d'ancrage : ce qui permet à une
     /// grille hors temps réel (la bande de mesure) de se poser là où le clic se pose. `None` tant
     /// qu'aucune horloge n'est ancrée.
-    pub fn clock_anchor_seq(&self) -> Option<u64> {
+    pub fn clock_anchor_seq(&self) -> Option<i64> {
         self.anchor_seq.filter(|_| self.clock_locked)
     }
 
@@ -274,7 +285,7 @@ impl Arbiter {
         // chaque tour, en revanche, plaçait une limite de décision là où la gigue du câble passe
         // et repasse — c'est le défaut que le numéro de top a supprimé.
         let depuis = if tick_us > 0.0 { (since_us / tick_us).round().max(0.0) as u64 } else { 0 };
-        self.anchor_seq = Some(self.last_seq + depuis);
+        self.anchor_seq = Some((self.last_seq + depuis) as i64);
         self.phase_confirmed = true;
     }
 
@@ -326,7 +337,9 @@ impl Arbiter {
             // d'être un début de temps, et il faut le dire plutôt que de faire comme s'il l'était.
             self.phase_confirmed = self.ever_ticked;
             self.ever_ticked = true;
-            self.anchor_seq = Some(seq);
+            // une position donnée décale l'ancre en arrière : le top qu'on reçoit est à
+            // `pending_offset` tops du début de son temps, pas à son début
+            self.anchor_seq = Some(seq as i64 - std::mem::take(&mut self.pending_offset) as i64);
             if std::mem::take(&mut self.anchor_silently) {
                 self.phase_confirmed = true; // le transport, lui, dit où tombe le temps
             } else if !self.tap_wins {
@@ -372,6 +385,22 @@ impl Arbiter {
         } else {
             self.source = TempoSource::MidiClock;
         }
+    }
+
+    /// **Un Song Position Pointer** : la position dans le morceau, en doubles-croches (6 tops
+    /// chacune, protocole MIDI). Elle est la seule chose qui dise, dans un flux d'horloge, **où
+    /// l'on en est** — et elle ne tombe pas forcément sur une noire : la position 5 est la
+    /// deuxième double-croche du deuxième temps, donc 6 tops après le début de ce temps.
+    ///
+    /// On retient donc ce décalage, que le prochain top appliquera. Sans cela, le clic se posait
+    /// sur ce top comme s'il était un début de temps, et sonnait faux d'un multiple de 6 tops —
+    /// un quart de noire — sans que rien le signale.
+    ///
+    /// Le transport l'accompagne (`Continue` après la position) : c'est lui qui remet l'ancre à
+    /// prendre, et ce décalage-ci lui survit exprès.
+    pub fn clock_song_position(&mut self, sixteenths: u16) {
+        const TICKS_PER_SIXTEENTH: u64 = TICKS_PER_BEAT as u64 / 4;
+        self.pending_offset = (sixteenths % 4) as u64 * TICKS_PER_SIXTEENTH;
     }
 
     /// `Start` MIDI : l'horloge reprend la main, et le **temps 1** est recalé.
@@ -431,7 +460,8 @@ impl Arbiter {
         self.anchor_seq = None;
         self.anchor_silently = false;
         self.phase_confirmed = false;
-        // le tempo est gardé tel quel : une panne d'horloge ne change jamais le son
+        self.pending_offset = 0; // une position d'avant le silence ne dit plus rien
+                                 // le tempo est gardé tel quel : une panne d'horloge ne change jamais le son
         if was_locked && self.source == TempoSource::MidiClock {
             self.source = TempoSource::ClockLost;
         }

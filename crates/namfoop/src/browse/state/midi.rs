@@ -80,6 +80,7 @@ impl State {
             // le preset, le tap et l'horloge. Coupée par la config, on ne lui dit rien du tout —
             // c'est ce qui garde le dernier tempo au lieu de le faire sauter.
             Event::ClockTick if self.midi.clock => {
+                self.clock_seq = clock_seq;
                 self.tempo.clock_tick(at_us, clock_seq);
                 Action::None
             }
@@ -102,6 +103,10 @@ impl State {
             // **La position dans le morceau** : la carte des mesures la convertit, elle seule
             // sachant qu'une section change de mesure. Hors du morceau déclaré, on le dit.
             Event::SongPosition(sixteenths) if self.midi.clock => {
+                // **La phase d'abord** : une position ne tombe pas forcément sur une noire (elle
+                // compte en doubles-croches), et c'est ce décalage qui dit où le prochain top
+                // tombe dans son temps. Indépendant du set : c'est l'horloge, pas le morceau.
+                self.tempo.clock_song_position(sixteenths);
                 if self.set.as_ref().is_some_and(|s| s.at.is_some())
                     && !self.beat_seek_sixteenths(sixteenths, at_us / 1000)
                 {

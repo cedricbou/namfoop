@@ -377,6 +377,31 @@ fn the_clock_phase_is_the_anchor_tick_number() {
     }
 }
 
+/// **Un Song Position Pointer place le temps, et il ne tombe pas forcément sur une noire.** Il
+/// compte en doubles-croches, soit 6 tops : la position 1 dit que le temps avait commencé 6 tops
+/// avant le prochain top. L'ancre doit donc reculer d'autant — sinon le clic se posait sur ce top
+/// comme s'il était un début de temps et sonnait faux d'un quart de noire, sans rien dire.
+#[test]
+fn a_song_position_offsets_the_anchor() {
+    for (sixteenths, decalage) in [(0u16, 0i64), (4, 0), (8, 0), (1, 6), (5, 6), (2, 12), (3, 18)] {
+        let mut a = Arbiter::new();
+        a.clock_song_position(sixteenths);
+        a.clock_continue(); // le transport suit la position, et le décalage lui survit
+        feed_clock(&mut a, ms(1), 120.0, 2);
+        // le premier top du flux portait le n° 1
+        assert_eq!(
+            a.clock_anchor_seq(),
+            Some(1 - decalage),
+            "position {sixteenths} : {decalage} tops avant le premier top"
+        );
+        assert_eq!(
+            a.clock_phase(),
+            (1 - decalage).rem_euclid(TICKS_PER_BEAT as i64) as f32,
+            "position {sixteenths}"
+        );
+    }
+}
+
 /// Sans horloge verrouillée, il n'y a pas de phase : le clic tourne alors sur le tempo, et c'est
 /// `NaN` qui le lui dit.
 #[test]
@@ -433,14 +458,14 @@ fn a_tap_anchors_on_the_nearest_tick() {
     assert_eq!(avant, 2 * TICKS_PER_BEAT as u64, "48 tops reçus");
     // on tape huit tops après le dernier reçu : l'ancre s'y pose, pas sur le dernier
     a.tap(last + 8 * step);
-    assert_eq!(a.clock_anchor_seq(), Some(avant + 8), "l'ancre suit le geste");
+    assert_eq!(a.clock_anchor_seq(), Some(avant as i64 + 8), "l'ancre suit le geste");
     assert_eq!(a.clock_phase(), ((avant + 8) % TICKS_PER_BEAT as u64) as f32);
 
     // un geste à un cheveu d'un top se pose sur CE top
     let mut b = Arbiter::new();
     let last = feed_clock(&mut b, 0, bpm, 2);
     b.tap(last + step / 10);
-    assert_eq!(b.clock_anchor_seq(), Some(2 * TICKS_PER_BEAT as u64), "arrondi au plus proche");
+    assert_eq!(b.clock_anchor_seq(), Some(2 * TICKS_PER_BEAT as i64), "arrondi au plus proche");
 }
 
 /// **Le cas d'un métronome de clavier** : des tops, aucun message de transport. Le premier top
@@ -500,5 +525,5 @@ fn a_dead_clock_forgets_the_phase_but_keeps_the_tempo() {
     // la reprise réancre sur le top qui la commence
     let avant = a.last_seq;
     feed_clock(&mut a, last + ms(CLOCK_LOST_MS + 100), 120.0, 2);
-    assert_eq!(a.clock_anchor_seq(), Some(avant + 1), "l'ancre est le premier top de la reprise");
+    assert_eq!(a.clock_anchor_seq(), Some(avant as i64 + 1), "l'ancre est le premier top de la reprise");
 }
