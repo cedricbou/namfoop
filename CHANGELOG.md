@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#402)
+- **namfoop sait lire la hauteur d'une note**, du La grave à 27,5 Hz (le Si grave d'une basse 5 ou
+  6 cordes) jusqu'au-delà du Mi aigu d'une guitare, au cent près, avec un La de référence réglable.
+  Une corde qui s'éteint, un silence ou un bruit ne donnent aucune note plutôt qu'une note fausse.
+  C'est la base de l'accordeur à venir : rien ne change encore à l'écran.
+
 ### Documentation (#405)
 - **L'accordeur silencieux a sa spécification et sa maquette** (`docs/design/accordeur.md`,
   `docs/design/accordeur.html`) : ce qui est coupé (la basse, traitée et DI, pas le micro ni le clic),
