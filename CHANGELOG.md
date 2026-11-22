@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#394)
+- **Un démarrage rapide illustré** (`docs/demarrage-rapide.md`, lié en tête du README) : six étapes,
+  de l'installation au premier concert — configurer la carte, calibrer sa basse, importer et écouter
+  des modèles NAM et des IR, bâtir une chaîne d'effets et l'enregistrer en preset, monter une set
+  list et la jouer sur scène. Chaque étape montre le vrai écran, en capture ou en animation, aux
+  couleurs et aux polices de la charte, et renvoie à la section du guide qui la détaille. Les
+  images se refont par `scripts/gen-demarrage.py`, qui rejoue le parcours sur la carte simulée avec
+  une bibliothèque jetable.
+
 ### Documentation (#388)
 - **Le prompteur en grille a sa spécification et sa maquette** (`docs/design/prompteur.md`,
   `docs/design/prompteur.html`) : la grille d'accords standard de ChordPro suivie à la mesure, le

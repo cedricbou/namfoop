@@ -4,7 +4,8 @@ namfoop transforme un PC Linux (ou, à terme, un Raspberry Pi 5) et une carte so
 multi-effet pour basse : modèles NAM (amplis, pédales, rigs complets capturés par réseau de
 neurones), IR de baffle, réglage de niveau et limiteur, avec une latence de l'ordre de 5 ms.
 
-Ce guide explique **comment s'en servir** et **pourquoi** chaque réglage existe. La liste brute de
+Pour une première prise en main, le [démarrage rapide](demarrage-rapide.md) montre le parcours en
+images. Ce guide explique **comment s'en servir** et **pourquoi** chaque réglage existe. La liste brute de
 toutes les options, générée depuis l'aide intégrée, est dans la [référence des commandes](cli.md).
 Partout, `namfoop <commande> --help` affiche l'aide à jour.
 
