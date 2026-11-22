@@ -19,10 +19,9 @@ use std::time::{Duration, Instant};
 
 use audio_io::Io;
 use engine::meters::{LoadHistogram, LoadSummary};
+use engine::MAX_BLOCK;
 
-use rt::{
-    plan, Event, Pass, Report, Runner, CYCLE_S, MAX_BLOCK, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S, WARMUP,
-};
+use rt::{plan, Event, Pass, Report, Runner, CYCLE_S, MAX_WEAK, SETTLE_FIRST_S, SETTLE_PASS_S, WARMUP};
 
 fn db(v: f32) -> f32 {
     20.0 * v.max(1e-12).log10()

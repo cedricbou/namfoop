@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use engine::meters::LoadHistogram;
+use engine::MAX_BLOCK;
 
 const AMPLITUDE: f32 = 0.7;
 /// Le **seuil du début** du retour ([`ONSET_FRAC`] de sa crête) doit sortir d'au moins ça du bruit
@@ -53,9 +54,6 @@ pub(super) const SETTLE_PASS_S: f64 = 1.0;
 /// elles absorbent ce qui reste du transitoire, au démarrage comme au changement de chaîne. Les
 /// compter est le piège — pour la latence de la ligne témoin comme pour la charge de la passe.
 pub(super) const WARMUP: u32 = 2;
-/// Taille max de bloc pour laquelle les chaînes sont préparées (comme `run`). Le callback découpe
-/// ce qu'il reçoit à cette taille, pour garder des tampons préalloués.
-pub(super) const MAX_BLOCK: usize = 1024;
 /// Longueur du bruit interne du mode « à côté » (1 s à 48 kHz), rejoué en boucle.
 const NOISE_LEN: usize = 48_000;
 

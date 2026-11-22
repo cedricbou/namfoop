@@ -32,7 +32,8 @@ use library::{Kind, Library};
 use plan::Request;
 use state::{Action, BlendPart, IrChoice, Item, ModelMeta, State};
 
-const MAX_BLOCK: usize = 1024;
+use engine::MAX_BLOCK;
+
 const FADE_MS: f32 = 20.0;
 /// Queue de preset : la chaîne quittée finit de sonner au plus ce temps.
 const TRAILS_MS: f32 = 2000.0;

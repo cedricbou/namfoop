@@ -10,6 +10,7 @@ use super::state::BufferTest;
 use audio_io::{Io, Settings};
 use engine::meters::{fetch_max, take};
 use engine::raw::RawSession;
+use engine::MAX_BLOCK;
 
 const MAX_CH: usize = 64;
 const BEEP_SECS: f32 = 0.4;
@@ -93,7 +94,7 @@ pub fn buffer_test(
         for (i, frames) in sizes.into_iter().enumerate() {
             let _ = tx.send((i, BufferTest::Running));
             let cfg = Settings { buffer: frames, ..base.clone() };
-            let chain = load.as_ref().map(|s| s.build(cfg.rate, 1024));
+            let chain = load.as_ref().map(|s| s.build(cfg.rate, MAX_BLOCK));
             let mut chain = match chain.transpose() {
                 Ok(c) => c,
                 Err(e) => {

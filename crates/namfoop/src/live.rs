@@ -6,10 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
 use crate::config::{CalibrationExt, LoadedConfig};
-use engine::{Engine, EngineConfig, Routing};
-
-/// Taille max de bloc pour laquelle la chaîne est préparée (au-delà : découpage interne).
-const MAX_BLOCK: usize = 1024;
+use engine::{Engine, EngineConfig, Routing, MAX_BLOCK};
 /// Fondu d'un changement de chaîne (presets à venir ; `run` n'en change pas encore).
 const FADE_MS: f32 = 20.0;
 /// Période de la boucle (ms) : elle doit voir passer l'horloge MIDI, dont un top vaut 20,8 ms à

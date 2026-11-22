@@ -237,7 +237,7 @@ impl Bank {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{router::Routing, Engine, EngineConfig};
+    use crate::{router::Routing, Engine, EngineConfig, MAX_BLOCK};
     use dsp::block::BlockSpec;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
@@ -257,7 +257,7 @@ mod tests {
                 ..Default::default()
             },
             routing: Routing::default(),
-            max_block: 1024,
+            max_block: MAX_BLOCK,
             fade_ms: 20.0,
             trails_ms,
             quiet: true,
@@ -371,7 +371,7 @@ mod tests {
         assert_eq!(bank.state(0), SlotState::Ready);
 
         // référence : la même chaîne, excitée puis laissée telle quelle, sonne encore
-        let mut fresh = reverb().build(bank.sender.rate(), 1024).unwrap();
+        let mut fresh = reverb().build(bank.sender.rate(), MAX_BLOCK).unwrap();
         let mut buf = vec![0.0f32; 4800];
         buf.iter_mut().enumerate().for_each(|(i, x)| *x = if i < 48 { 0.5 } else { 0.0 });
         fresh.process(&mut buf);

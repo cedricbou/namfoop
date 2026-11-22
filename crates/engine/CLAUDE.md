@@ -15,7 +15,10 @@ préchargées** vit ici ; c'est elle que le MIDI pilotera, comme la reprise sur 
 `lib.rs` doit **rester petit**. Chaque module porte son contrat dans son en-tête `//!` (unités,
 valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'API, pas ici.
 
-- `lib.rs` : `Engine::start(EngineConfig, chaîne)` et la session — `send_chain`,
+- `lib.rs` : `MAX_BLOCK` — le plafond de préallocation d'une chaîne, que **toute** session prend
+  comme `EngineConfig::max_block` (`run`, les écrans, la calibration, la mesure de latence) : il
+  vit ici parce qu'il remplit ce réglage : recopié chez chaque appelant, il dérive en silence.
+  `Engine::start(EngineConfig, chaîne)` et la session — `send_chain`,
   `take_chain_sender()` (envoi depuis un autre thread), `take_input_tap()` (file `rtrb` de l'entrée
   basse brute), `meters()`, `xruns()`, `describe()` ; la carte est rendue au drop. `limiter_meter`
   n'a de sens que si le **même** `Arc<AtomicU32>` est donné à la chaîne (`LimiterSpec::meter`).
