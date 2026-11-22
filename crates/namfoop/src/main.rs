@@ -16,6 +16,7 @@ mod offline;
 mod presets_cmd;
 mod sets_cmd;
 mod setup;
+mod theme;
 mod tui;
 
 #[cfg(all(test, debug_assertions))]

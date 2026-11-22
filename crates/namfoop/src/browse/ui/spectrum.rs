@@ -48,24 +48,24 @@ pub(super) fn render_spectrum(s: &State, f: &mut Frame, area: ratatui::layout::R
         Tab::Models => {
             if let Some(m) = s.model_at_cursor() {
                 if let Some(pr) = mprofile(m) {
-                    curves.push((s.models[m].label.clone(), pr, Color::Cyan));
+                    curves.push((s.models[m].label.clone(), pr, theme::curve()));
                 }
             }
         }
         Tab::Blend => {
             if let Some(b) = &s.blend_profile {
-                curves.push(("mélange".into(), b.clone(), Color::Magenta));
+                curves.push(("mélange".into(), b.clone(), theme::blend()));
             }
             if let Some(p) = s.blend.get(s.cursor()) {
                 if let Some(pr) = profile_of(p.ir) {
-                    curves.push((s.irs[p.ir].label.clone(), pr, Color::Cyan));
+                    curves.push((s.irs[p.ir].label.clone(), pr, theme::curve()));
                 }
             }
         }
         Tab::Irs => {
             if let Some(i) = s.ir_at_cursor() {
                 if let Some(pr) = profile_of(i) {
-                    curves.push((s.irs[i].label.clone(), pr, Color::Cyan));
+                    curves.push((s.irs[i].label.clone(), pr, theme::curve()));
                 }
             }
         }
@@ -119,7 +119,7 @@ pub(super) fn render_picker_spectrum(s: &State, f: &mut Frame, area: ratatui::la
         f,
         area,
         &Shown {
-            curves: under.map(|(n, pr)| vec![(n, pr, Color::Cyan)]).unwrap_or_default(),
+            curves: under.map(|(n, pr)| vec![(n, pr, theme::curve())]).unwrap_or_default(),
             reference: current,
             mark: "●",
             grain,
@@ -165,7 +165,7 @@ fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
                 .name(format!("{} {name}", shown.mark))
                 .marker(Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(Style::new().fg(Color::Yellow))
+                .style(Style::new().fg(theme::edit()))
                 .data(&curves[curves.len() - 1]),
         );
     }
@@ -177,13 +177,13 @@ fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
             Axis::default()
                 .bounds([31.25f64.log10(), 16000f64.log10()])
                 .labels(x_labels)
-                .style(Style::new().fg(Color::DarkGray)),
+                .style(Style::new().fg(theme::dim())),
         )
         .y_axis(
             Axis::default()
                 .bounds([-24.0, 12.0])
                 .labels(["-24", "-12", "0", "+12"].into_iter().map(Span::raw).collect::<Vec<_>>())
-                .style(Style::new().fg(Color::DarkGray)),
+                .style(Style::new().fg(theme::dim())),
         )
         .legend_position(Some(ratatui::widgets::LegendPosition::TopRight))
         .hidden_legend_constraints((Constraint::Percentage(70), Constraint::Percentage(70)));
@@ -201,21 +201,19 @@ fn draw(f: &mut Frame, area: ratatui::layout::Rect, shown: &Shown) {
                 .collect();
             text.push(Line::from(Span::styled(
                 format!(" {name} vs {} {rname} :", shown.mark),
-                Style::new().fg(Color::Yellow),
+                Style::new().fg(theme::edit()),
             )));
             text.push(Line::raw(format!(" {}", parts.join(" · "))));
         }
         (Some(_), Some(_)) => {}
-        (Some(_), None) => text.push(Line::from(Span::styled(shown.hint, Style::new().fg(Color::DarkGray)))),
-        (None, _) => text.push(Line::from(Span::styled(
-            " pas de profil pour cette ligne",
-            Style::new().fg(Color::DarkGray),
-        ))),
+        (Some(_), None) => text.push(Line::from(Span::styled(shown.hint, Style::new().fg(theme::dim())))),
+        (None, _) => text
+            .push(Line::from(Span::styled(" pas de profil pour cette ligne", Style::new().fg(theme::dim())))),
     }
     if let Some((grain, rgrain)) = &shown.grain {
         let mut g = vec![Span::raw(format!(" grain : {grain}"))];
         if let Some(r) = rgrain {
-            g.push(Span::styled(format!("  ·  {} {r}", shown.mark), Style::new().fg(Color::Yellow)));
+            g.push(Span::styled(format!("  ·  {} {r}", shown.mark), Style::new().fg(theme::edit())));
         }
         text.insert(0, Line::from(g));
     }

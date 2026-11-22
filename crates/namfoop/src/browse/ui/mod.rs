@@ -9,6 +9,7 @@ use ratatui::Frame;
 use super::state::preset::Pending;
 use super::state::space::Space;
 use super::state::{AbState, Editor, Field, IrChoice, IrRow, ModelRow, State, Tab, FIELDS};
+use crate::theme;
 use crate::tui::{meter_marked, meter_width};
 use library::recommend::NeedsIr;
 
@@ -51,7 +52,7 @@ pub struct Status {
 
 pub(super) fn cursor_span(on: bool) -> Span<'static> {
     if on {
-        Span::styled(" ▶ ", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        Span::styled(" ▶ ", Style::new().fg(theme::key()).add_modifier(Modifier::BOLD))
     } else {
         Span::raw("   ")
     }
@@ -59,9 +60,9 @@ pub(super) fn cursor_span(on: bool) -> Span<'static> {
 
 fn badge(needs: NeedsIr) -> Span<'static> {
     match needs {
-        NeedsIr::No => Span::styled(" IR incluse ", Style::new().fg(Color::DarkGray)),
-        NeedsIr::Yes => Span::styled(" IR requise ", Style::new().fg(Color::Yellow)),
-        NeedsIr::Maybe => Span::styled(" IR ?      ", Style::new().fg(Color::DarkGray)),
+        NeedsIr::No => Span::styled(" IR incluse ", Style::new().fg(theme::dim())),
+        NeedsIr::Yes => Span::styled(" IR requise ", Style::new().fg(theme::warn())),
+        NeedsIr::Maybe => Span::styled(" IR ?      ", Style::new().fg(theme::dim())),
     }
 }
 
@@ -69,9 +70,9 @@ fn badge(needs: NeedsIr) -> Span<'static> {
 /// banc d'essai.
 fn ab_badge(s: &State) -> Vec<Span<'static>> {
     let on = |t: String, bg: Color| {
-        Span::styled(t, Style::new().fg(Color::Black).bg(bg).add_modifier(Modifier::BOLD))
+        Span::styled(t, Style::new().fg(theme::on_accent()).bg(bg).add_modifier(Modifier::BOLD))
     };
-    let off = |t: String| Span::styled(t, Style::new().fg(Color::DarkGray));
+    let off = |t: String| Span::styled(t, Style::new().fg(theme::dim()));
     let name = |i: usize| s.irs[i].label.chars().take(24).collect::<String>();
     let mname = |i: usize| s.models[i].label.chars().take(28).collect::<String>();
     if let (Some(rm), false) = (s.ref_model, s.bypass) {
@@ -81,14 +82,14 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
         match s.ab_state() {
             AbState::Same => v.push(Span::styled(
                 format!("{b} = modèle en cours : choisis-en un autre"),
-                Style::new().fg(Color::Yellow),
+                Style::new().fg(theme::warn()),
             )),
             AbState::B => v.extend([
                 off(format!("A {a}  ")),
-                on(format!(" B {b} "), Color::Yellow),
+                on(format!(" B {b} "), theme::reference_b()),
                 off("  (r)".into()),
             ]),
-            _ => v.extend([on(format!(" A {a} "), Color::Cyan), off(format!("  B {b}  (r)"))]),
+            _ => v.extend([on(format!(" A {a} "), theme::chain()), off(format!("  B {b}  (r)"))]),
         }
         return v;
     }
@@ -99,9 +100,9 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
         }
         AbState::Same => v.push(Span::styled(
             format!("◆ {} = IR en cours : choisis-en une autre", name(s.reference.expect("épinglée"))),
-            Style::new().fg(Color::Yellow),
+            Style::new().fg(theme::warn()),
         )),
-        AbState::Bypass => v.push(on(" IR COUPÉE — b ".into(), Color::Red)),
+        AbState::Bypass => v.push(on(" IR COUPÉE — b ".into(), theme::clip())),
         st => {
             let a = match s.ir {
                 IrChoice::Item(i) => name(i),
@@ -110,11 +111,11 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
             };
             let b = format!("◆ {}", name(s.reference.expect("épinglée")));
             if st == AbState::A {
-                v.extend([on(format!(" A {a} "), Color::Cyan), off(format!("  B {b}  (r)"))]);
+                v.extend([on(format!(" A {a} "), theme::chain()), off(format!("  B {b}  (r)"))]);
             } else {
                 v.extend([
                     off(format!("A {a}  ")),
-                    on(format!(" B {b} "), Color::Yellow),
+                    on(format!(" B {b} "), theme::reference_b()),
                     off("  (r)".into()),
                 ]);
             }
@@ -126,29 +127,29 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
 /// Couleur du grain : clair vert, crunch jaune, saturé rouge.
 fn grain_style(g: &str) -> Style {
     let c = if g.starts_with("clair") {
-        Color::Green
+        theme::grain_clean()
     } else if g.starts_with("crunch") {
-        Color::Yellow
+        theme::grain_crunch()
     } else {
-        Color::Red
+        theme::grain_hot()
     };
     Style::new().fg(c)
 }
 
 /// Ce que le **banc** joue : `◀ écouté` (un modèle) / `◀ écoutée` (une IR), § 3.
 fn playing() -> Span<'static> {
-    Span::styled("  ◀ écouté", Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD))
+    Span::styled("  ◀ écouté", Style::new().fg(theme::library()).add_modifier(Modifier::BOLD))
 }
 
 fn playing_ir() -> Span<'static> {
-    Span::styled("  ◀ écoutée", Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD))
+    Span::styled("  ◀ écoutée", Style::new().fg(theme::library()).add_modifier(Modifier::BOLD))
 }
 
 /// Le cadre de la Bibliothèque, avec le bandeau du banc d'essai (§ 2).
 fn bench_block() -> Block<'static> {
-    Block::bordered().border_style(Style::new().fg(Color::Magenta)).title(Span::styled(
+    Block::bordered().border_style(Style::new().fg(theme::library())).title(Span::styled(
         " ♪ BANC D'ESSAI · basse › modèle › IR · sans effets, la chaîne n'est pas touchée ",
-        Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+        Style::new().fg(theme::library()).add_modifier(Modifier::BOLD),
     ))
 }
 
@@ -182,9 +183,9 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         Span::styled(
             format!(" {text} "),
             if on {
-                Style::new().fg(Color::Black).bg(color).add_modifier(Modifier::BOLD)
+                Style::new().fg(theme::on_accent()).bg(color).add_modifier(Modifier::BOLD)
             } else {
-                Style::new().fg(Color::Gray)
+                Style::new().fg(theme::text())
             },
         )
     };
@@ -201,21 +202,21 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             Span::styled(" namfoop run  ", Style::new().add_modifier(Modifier::BOLD)),
             Span::styled(
                 format!(" 🔒 SET  {} ", set_title(s)),
-                Style::new().fg(Color::Black).bg(set::ACCENT).add_modifier(Modifier::BOLD),
+                Style::new().fg(theme::on_accent()).bg(theme::set()).add_modifier(Modifier::BOLD),
             ),
         ]
     } else {
         vec![
             Span::styled(" namfoop browse  ", Style::new().add_modifier(Modifier::BOLD)),
-            space_span(lib, "1 Bibliothèque".into(), Color::Magenta),
+            space_span(lib, "1 Bibliothèque".into(), theme::library()),
             Span::raw(" "),
             space_span(
                 s.space == Space::Chain,
                 format!("2 Chaîne ● {n} bloc{}", if n > 1 { "s" } else { "" }),
-                Color::Cyan,
+                theme::chain(),
             ),
             Span::raw(" "),
-            space_span(s.space == Space::Set, set_badge(s), set::ACCENT),
+            space_span(s.space == Space::Set, set_badge(s), theme::set()),
         ]
     };
     // le tempo et **d'où il vient** (ADR 0008) : sans la source, on ne saurait pas pourquoi le
@@ -253,10 +254,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             ),
             match src {
                 // une horloge perdue doit sauter aux yeux : le son ne suit plus le groupe
-                TempoSource::ClockLost => Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-                TempoSource::MidiClock => Style::new().fg(Color::Green),
-                TempoSource::Tap => Style::new().fg(Color::Cyan),
-                TempoSource::Preset => Style::new().fg(Color::DarkGray),
+                TempoSource::ClockLost => Style::new().fg(theme::warn()).add_modifier(Modifier::BOLD),
+                TempoSource::MidiClock => Style::new().fg(theme::ok()),
+                TempoSource::Tap => Style::new().fg(theme::value()),
+                TempoSource::Preset => Style::new().fg(theme::dim()),
             },
         ));
     }
@@ -268,7 +269,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         head.push(Span::raw(" ".repeat(pad)));
         head.push(Span::styled(
             right,
-            if up_to_date { Style::new().fg(Color::Green) } else { Style::new().fg(Color::Yellow) },
+            if up_to_date { Style::new().fg(theme::ok()) } else { Style::new().fg(theme::warn()) },
         ));
     }
     f.render_widget(Paragraph::new(Line::from(head)), spaces);
@@ -276,9 +277,9 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     // les onglets de la Bibliothèque, et l'indicateur A/B à leur droite
     let tab = |t: Tab, label: String| {
         let style = if s.tab == t {
-            Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD)
+            Style::new().fg(theme::library()).add_modifier(Modifier::BOLD)
         } else {
-            Style::new().fg(Color::Gray)
+            Style::new().fg(theme::text())
         };
         Span::styled(format!("  {label}"), style)
     };
@@ -300,10 +301,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     } else if s.fx.bypass_all {
         Line::from(Span::styled(
             " SANS EFFETS — r ",
-            Style::new().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::on_accent()).bg(theme::warn()).add_modifier(Modifier::BOLD),
         ))
     } else {
-        Line::from(Span::styled("  r : avec / sans effets", Style::new().fg(Color::DarkGray)))
+        Line::from(Span::styled("  r : avec / sans effets", Style::new().fg(theme::dim())))
     };
     f.render_widget(Paragraph::new(tab_line), tabs);
 
@@ -312,17 +313,17 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             Line::from(vec![
                 Span::styled(
                     if s.naming_preset { " nom du preset : " } else { " nom du mélange : " },
-                    Style::new().fg(Color::Yellow),
+                    Style::new().fg(theme::edit()),
                 ),
                 Span::raw(format!("{name}█")),
             ])
         } else if s.filtering || !s.filter.is_empty() {
             Line::from(vec![
-                Span::styled(" filtre : ", Style::new().fg(Color::Cyan)),
+                Span::styled(" filtre : ", Style::new().fg(theme::key())),
                 Span::raw(format!("{}{}", s.filter, if s.filtering { "█" } else { "" })),
             ])
         } else {
-            Line::from(Span::styled(" / pour filtrer", Style::new().fg(Color::DarkGray)))
+            Line::from(Span::styled(" / pour filtrer", Style::new().fg(theme::dim())))
         };
         f.render_widget(Paragraph::new(filter_line), filter);
     }
@@ -347,7 +348,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                         let mut spans = vec![
                             cursor_span(i == cur),
                             Span::raw("       son direct (DI, sans modèle)"),
-                            Span::styled("  pour écouter une IR seule", Style::new().fg(Color::DarkGray)),
+                            Span::styled("  pour écouter une IR seule", Style::new().fg(theme::dim())),
                         ];
                         if s.model.is_none() {
                             spans.push(playing());
@@ -359,12 +360,12 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 };
                 let m = &s.models[idx];
                 let mark = if s.ref_model == Some(idx) {
-                    Span::styled("◆", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    Span::styled("◆", Style::new().fg(theme::reference_b()).add_modifier(Modifier::BOLD))
                 } else if s.used_by_chain(true, idx) {
                     // rappel : la chaîne utilise ce modèle (§ 3) ; le curseur n'y touche pas
-                    Span::styled("●", Style::new().fg(Color::Green))
+                    Span::styled("●", Style::new().fg(theme::ok()))
                 } else if m.corrected() {
-                    Span::styled("✎", Style::new().fg(Color::Magenta))
+                    Span::styled("✎", Style::new().fg(theme::corrected()))
                 } else {
                     Span::raw(" ")
                 };
@@ -373,14 +374,14 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 match (s.ref_model.is_some(), s.listen_ref) {
                     (true, true) if refd => {
                         tail.push(playing());
-                        tail.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
+                        tail.push(Span::styled(" (B)", Style::new().fg(theme::reference_b())));
                     }
                     (true, true) if chosen => {
-                        tail.push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray)))
+                        tail.push(Span::styled("  A (r pour revenir)", Style::new().fg(theme::dim())))
                     }
                     (true, false) if chosen && !refd => {
                         tail.push(playing());
-                        tail.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
+                        tail.push(Span::styled(" (A)", Style::new().fg(theme::chain())));
                     }
                     _ if chosen => tail.push(playing()),
                     _ => {}
@@ -410,13 +411,16 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     IrRow::Ir { index, recommended } => {
                         let in_blend = s.blend.iter().any(|p| p.ir == index);
                         let mark = if s.reference == Some(index) {
-                            Span::styled(" ◆ ", Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                            Span::styled(
+                                " ◆ ",
+                                Style::new().fg(theme::reference_b()).add_modifier(Modifier::BOLD),
+                            )
                         } else if s.used_by_chain(false, index) {
-                            Span::styled(" ● ", Style::new().fg(Color::Green))
+                            Span::styled(" ● ", Style::new().fg(theme::ok()))
                         } else if recommended {
-                            Span::styled(" ★ ", Style::new().fg(Color::Yellow))
+                            Span::styled(" ★ ", Style::new().fg(theme::recommended()))
                         } else if in_blend {
-                            Span::styled(" ● ", Style::new().fg(Color::Magenta))
+                            Span::styled(" ● ", Style::new().fg(theme::blend()))
                         } else {
                             Span::raw("   ")
                         };
@@ -431,17 +435,18 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                         match ab {
                             AbState::Bypass if chosen => tail.push(Span::styled(
                                 "  ◀ choisie, IR coupée (b)",
-                                Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
+                                Style::new().fg(theme::clip()).add_modifier(Modifier::BOLD),
                             )),
                             AbState::B if refd => {
                                 tail.push(playing_ir());
-                                tail.push(Span::styled(" (B)", Style::new().fg(Color::Yellow)));
+                                tail.push(Span::styled(" (B)", Style::new().fg(theme::reference_b())));
                             }
-                            AbState::B if chosen => tail
-                                .push(Span::styled("  A (r pour revenir)", Style::new().fg(Color::DarkGray))),
+                            AbState::B if chosen => {
+                                tail.push(Span::styled("  A (r pour revenir)", Style::new().fg(theme::dim())))
+                            }
                             AbState::A if chosen => {
                                 tail.push(playing_ir());
-                                tail.push(Span::styled(" (A)", Style::new().fg(Color::Cyan)));
+                                tail.push(Span::styled(" (A)", Style::new().fg(theme::chain())));
                             }
                             _ if chosen => tail.push(playing_ir()),
                             _ => {}
@@ -459,10 +464,10 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 let it = &s.irs[p.ir];
                 lines.push(Line::from(vec![
                     cursor_span(i == cur),
-                    Span::styled(format!("{:+5.0} dB ", p.gain_db), Style::new().fg(Color::Magenta)),
+                    Span::styled(format!("{:+5.0} dB ", p.gain_db), Style::new().fg(theme::blend())),
                     Span::raw(if p.invert { "ø " } else { "  " }),
                     Span::raw(it.label.clone()),
-                    Span::styled(format!("  [{}]", it.pack), Style::new().fg(Color::DarkGray)),
+                    Span::styled(format!("  [{}]", it.pack), Style::new().fg(theme::dim())),
                 ]));
             }
             lines.push(Line::raw(""));
@@ -507,7 +512,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         } else {
             " → modèle  -inf".to_string()
         };
-        meters.push(Span::styled(text, Style::new().fg(Color::DarkGray)));
+        meters.push(Span::styled(text, Style::new().fg(theme::dim())));
     }
     meters.push(Span::raw("   out "));
     meters.extend(meter_width(st.out_peak, 12));
@@ -518,11 +523,11 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }));
     meters.push(Span::raw(format!("   dsp {:>4.0} %  xruns {}", st.load * 100.0, st.xruns)));
     if st.loading {
-        meters.push(Span::styled("  chargement…", Style::new().fg(Color::Yellow)));
+        meters.push(Span::styled("  chargement…", Style::new().fg(theme::warn())));
     }
     // préchargement de la banque : visible seulement tant qu'il reste des places
     if let Some((done, total)) = st.bank.filter(|(d, t)| d < t) {
-        meters.push(Span::styled(format!("  banque {done}/{total}"), Style::new().fg(Color::DarkGray)));
+        meters.push(Span::styled(format!("  banque {done}/{total}"), Style::new().fg(theme::dim())));
     }
     // la ligne d'écoute : on sait toujours ce qu'on entend (§ 2, règle 2)
     let (heard, second) = if s.space == Space::Set {
@@ -537,7 +542,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         };
         (
             Line::from(vec![
-                Span::styled(" ♪ set : ", Style::new().fg(set::ACCENT).add_modifier(Modifier::BOLD)),
+                Span::styled(" ♪ set : ", Style::new().fg(theme::set()).add_modifier(Modifier::BOLD)),
                 Span::raw(format!("{where_}basse › {}", s.chain_text())),
             ]),
             // la **mesure** à côté du tempo (§ 11) : celle de la mesure en cours, donc celle de
@@ -549,32 +554,32 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                     s.tempo_source().label(),
                     s.band_time_sig()
                 ),
-                Style::new().fg(Color::DarkGray),
+                Style::new().fg(theme::dim()),
             )),
         )
     } else if lib {
         (
             Line::from(vec![
-                Span::styled(" ♪ banc : ", Style::new().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+                Span::styled(" ♪ banc : ", Style::new().fg(theme::library()).add_modifier(Modifier::BOLD)),
                 Span::raw(s.heard_bench()),
             ]),
             Line::from(Span::styled(
                 format!("   chaîne (non écoutée) : {}", s.chain_text()),
-                Style::new().fg(Color::DarkGray),
+                Style::new().fg(theme::dim()),
             )),
         )
     } else {
         (
             Line::from(vec![
-                Span::styled(" ♪ chaîne : ", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                Span::styled(" ♪ chaîne : ", Style::new().fg(theme::chain()).add_modifier(Modifier::BOLD)),
                 Span::raw(format!("basse › {}", s.chain_text())),
             ]),
             Line::from(Span::styled(
                 trial_line(s).unwrap_or_default(),
                 Style::new().fg(if s.picker.as_ref().is_some_and(|p| p.ab) {
-                    Color::Green
+                    theme::ok()
                 } else {
-                    Color::Yellow
+                    theme::trial()
                 }),
             )),
         )
@@ -586,7 +591,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             Line::from(meters),
             Line::from(Span::styled(
                 s.message.clone().unwrap_or_else(|| format!(" {}", st.device)),
-                Style::new().fg(Color::Yellow),
+                Style::new().fg(theme::warn()),
             )),
         ]),
         now,
@@ -641,7 +646,7 @@ fn help_bar(keys: &str, width: u16) -> Vec<Line<'static>> {
     /// Les segments de sortie, jamais coupés.
     const SORTIES: usize = 3;
     let w = (width as usize).max(24) - 1;
-    let grey = Style::new().fg(Color::DarkGray);
+    let grey = Style::new().fg(theme::dim());
     let seg: Vec<&str> = keys.split("   ").filter(|p| !p.is_empty()).collect();
     let cut = seg.len().saturating_sub(SORTIES);
     // range les segments sur deux lignes au plus ; `None` : ça ne tient pas

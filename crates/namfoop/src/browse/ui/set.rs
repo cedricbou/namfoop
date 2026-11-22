@@ -10,8 +10,9 @@
 //! on y voit les PC, les tempos, les sons et leurs volumes de **tous** les morceaux à la fois,
 //! parce que bâtir une set list, c'est comparer des lignes entre elles. Le prompteur est masqué.
 
+use crate::theme;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
@@ -29,19 +30,16 @@ const NARROW: u16 = 70;
 const LIST_WIDE: u16 = 44;
 const LIST_NARROW: u16 = 30;
 
-/// La couleur d'accent de l'espace Set (Bibliothèque magenta, Chaîne cyan).
-pub const ACCENT: Color = Color::Green;
-
 pub fn render(s: &State, f: &mut Frame, area: Rect) {
     let Some(set) = s.set.as_ref() else {
         let lines = vec![
             Line::raw(""),
-            Line::styled("   Aucun set actif.", Style::new().fg(Color::Gray)),
+            Line::styled("   Aucun set actif.", Style::new().fg(theme::text())),
             Line::raw(""),
-            Line::styled("   L : choisir un set de concert.", Style::new().fg(Color::DarkGray)),
+            Line::styled("   L : choisir un set de concert.", Style::new().fg(theme::dim())),
             Line::styled(
                 "   Un set liste les morceaux d'un concert et leurs sons (guide, § 11).",
-                Style::new().fg(Color::DarkGray),
+                Style::new().fg(theme::dim()),
             ),
         ];
         f.render_widget(Paragraph::new(lines).block(frame_block(" ♪ Set ")), area);
@@ -68,7 +66,7 @@ pub fn render(s: &State, f: &mut Frame, area: Rect) {
 /// `2/6 Le Phare ● Fuzz Face → 3 Néon` : ce que montre un terminal trop étroit pour la set list.
 fn compact_line(set: &ActiveSet) -> Line<'static> {
     let Some(at) = set.at else {
-        return Line::styled(" aucun son joué — Entrée joue le morceau visé", Style::new().fg(Color::Gray));
+        return Line::styled(" aucun son joué — Entrée joue le morceau visé", Style::new().fg(theme::text()));
     };
     let songs = set.spec.songs.len();
     let title = set.spec.songs.get(at.0).map(|x| x.label()).unwrap_or("?");
@@ -85,8 +83,8 @@ fn compact_line(set: &ActiveSet) -> Line<'static> {
         .unwrap_or_else(|| " → fin du set".into());
     Line::from(vec![
         Span::styled(format!(" {}/{songs} {title} ", at.0 + 1,), Style::new().add_modifier(Modifier::BOLD)),
-        Span::styled(format!("● {sound}"), Style::new().fg(ACCENT)),
-        Span::styled(next, Style::new().fg(Color::DarkGray)),
+        Span::styled(format!("● {sound}"), Style::new().fg(theme::set())),
+        Span::styled(next, Style::new().fg(theme::dim())),
     ])
 }
 
@@ -99,7 +97,7 @@ fn frame_block(title: &str) -> Block<'_> {
     Block::default()
         .borders(Borders::ALL)
         .title(title.to_string())
-        .border_style(Style::new().fg(Color::DarkGray))
+        .border_style(Style::new().fg(theme::dim()))
 }
 
 /// La **colonne set list** : une ligne par morceau, l'essentiel seulement. Le morceau joué porte
@@ -136,9 +134,11 @@ fn render_list(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
                 lines.push(Line::styled(
                     text,
                     match (here, missing) {
-                        (_, true) => Style::new().fg(Color::Yellow),
-                        (true, _) => Style::new().fg(Color::Black).bg(ACCENT).add_modifier(Modifier::BOLD),
-                        _ => Style::new().fg(Color::Gray),
+                        (_, true) => Style::new().fg(theme::warn()),
+                        (true, _) => {
+                            Style::new().fg(theme::on_accent()).bg(theme::set()).add_modifier(Modifier::BOLD)
+                        }
+                        _ => Style::new().fg(theme::text()),
                     },
                 ));
             }
@@ -148,7 +148,7 @@ fn render_list(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
                     Some(_) => " · prompteur",
                     None => "",
                 };
-                lines.push(Line::styled(format!("      {pc}{prompt}"), Style::new().fg(Color::DarkGray)));
+                lines.push(Line::styled(format!("      {pc}{prompt}"), Style::new().fg(theme::dim())));
             }
         }
     }
@@ -157,7 +157,7 @@ fn render_list(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     if lines.len() > room {
         let hidden = lines.len() + 1 - room;
         lines.truncate(room.saturating_sub(1));
-        lines.push(Line::styled(format!("   … {hidden} lignes plus bas"), Style::new().fg(Color::DarkGray)));
+        lines.push(Line::styled(format!("   … {hidden} lignes plus bas"), Style::new().fg(theme::dim())));
     }
     let place = match set.at {
         Some((i, _)) => format!(" · {}/{}", i + 1, set.spec.songs.len()),
@@ -206,9 +206,9 @@ fn song_line(
     Line::styled(
         text,
         match (playing, aimed) {
-            (true, _) => Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
-            (_, true) => Style::new().fg(Color::Black).bg(Color::DarkGray),
-            _ => Style::new().fg(Color::Gray),
+            (true, _) => Style::new().fg(theme::set()).add_modifier(Modifier::BOLD),
+            (_, true) => Style::new().fg(theme::on_accent()).bg(theme::dim()),
+            _ => Style::new().fg(theme::text()),
         },
     )
 }
@@ -219,8 +219,8 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     let Some(at) = set.at else {
         let lines = vec![
             Line::raw(""),
-            Line::styled("   ↑↓ viser un morceau, Entrée le jouer.", Style::new().fg(Color::Gray)),
-            Line::styled("   PgDn / PgUp : son suivant / précédent.", Style::new().fg(Color::DarkGray)),
+            Line::styled("   ↑↓ viser un morceau, Entrée le jouer.", Style::new().fg(theme::text())),
+            Line::styled("   PgDn / PgUp : son suivant / précédent.", Style::new().fg(theme::dim())),
         ];
         f.render_widget(Paragraph::new(lines).block(frame_block(" aucun son joué ")), area);
         return;
@@ -257,10 +257,10 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
                 song.label(),
                 song.tempo_bpm.map(|b| format!("♩{b:.0}")).unwrap_or_default()
             ),
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         ));
         for sound in &song.sounds {
-            lines.push(Line::styled(format!("     {}", sound.preset), Style::new().fg(Color::DarkGray)));
+            lines.push(Line::styled(format!("     {}", sound.preset), Style::new().fg(theme::dim())));
         }
     }
     f.render_widget(
@@ -279,9 +279,6 @@ fn clip(s: &str, w: usize) -> String {
 
 // ------------------------------------------------------------- l'édition (`e`, § 8)
 
-/// La couleur de l'édition : **jaune**, comme tout ce qui n'est pas enregistré dans `browse`.
-const EDIT: Color = Color::Yellow;
-
 /// La table d'édition, **pleine largeur** : PC, tempo, sons et volumes de **tous** les morceaux
 /// (§ 8). Le prompteur est masqué — on ne lit pas un texte pendant qu'on bâtit une set list, et
 /// c'est cette largeur-là qui permet de voir les sons d'un morceau sur une ligne.
@@ -292,7 +289,8 @@ fn render_edit(set: &ActiveSet, edit: &Edit, f: &mut Frame, area: Rect) {
     let mut lines: Vec<Line> = Vec::new();
     if set.spec.songs.is_empty() {
         lines.push(Line::raw(""));
-        lines.push(Line::styled("   Set vide : a ajoute un premier morceau.", Style::new().fg(EDIT)));
+        lines
+            .push(Line::styled("   Set vide : a ajoute un premier morceau.", Style::new().fg(theme::edit())));
     }
     for (i, song) in set.spec.songs.iter().enumerate() {
         lines.push(edit_row(set, edit, i, song, title_w, untitled));
@@ -308,7 +306,7 @@ fn render_edit(set: &ActiveSet, edit: &Edit, f: &mut Frame, area: Rect) {
             // coupé à la largeur, avec son « … » : un rappel tronqué au milieu d'un mot ferait
             // croire à une touche qui n'existe pas (l'aide `h` donne la liste entière)
             let text = clip(&format!("   {}", text.join("   ")), w);
-            lines.push(Line::styled(text, Style::new().fg(Color::DarkGray)));
+            lines.push(Line::styled(text, Style::new().fg(theme::dim())));
         }
     }
     let songs = set.spec.songs.len();
@@ -321,11 +319,9 @@ fn render_edit(set: &ActiveSet, edit: &Edit, f: &mut Frame, area: Rect) {
         if sounds > 1 { "s" } else { "" },
     );
     f.render_widget(
-        Paragraph::new(lines).block(
-            Block::bordered()
-                .border_style(Style::new().fg(EDIT))
-                .title(Span::styled(clip(&title, w), Style::new().fg(EDIT).add_modifier(Modifier::BOLD))),
-        ),
+        Paragraph::new(lines).block(Block::bordered().border_style(Style::new().fg(theme::edit())).title(
+            Span::styled(clip(&title, w), Style::new().fg(theme::edit()).add_modifier(Modifier::BOLD)),
+        )),
         area,
     );
 }
@@ -348,7 +344,7 @@ fn edit_row(
     let playing = set.at.map(|(j, _)| j) == Some(i);
     let mut spans = vec![Span::styled(
         format!(" {} ", if playing { "▶" } else { " " }),
-        Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+        Style::new().fg(theme::set()).add_modifier(Modifier::BOLD),
     )];
     // la tête du morceau : n°, titre, PC, tempo, prompteur. Visée (et pas au niveau d'un son) :
     // elle est en vidéo inverse, parce que c'est elle que `r`, `T`, `p`, `X` changent
@@ -360,32 +356,29 @@ fn edit_row(
     spans.push(Span::styled(
         head,
         match (aimed_song && aimed_sound.is_none(), playing) {
-            (true, _) => Style::new().fg(Color::Black).bg(EDIT).add_modifier(Modifier::BOLD),
+            (true, _) => Style::new().fg(theme::on_accent()).bg(theme::edit()).add_modifier(Modifier::BOLD),
             (_, true) => Style::new().add_modifier(Modifier::BOLD),
             _ => Style::new(),
         },
     ));
     // le PC : sans lui, le morceau n'est pas joignable au pied (§ 7), donc son absence est jaune
     spans.push(match song.pc {
-        Some(pc) => Span::styled(format!("PC {pc:<3} "), Style::new().fg(Color::Cyan)),
-        None => Span::styled("PC —   ", Style::new().fg(EDIT)),
+        Some(pc) => Span::styled(format!("PC {pc:<3} "), Style::new().fg(theme::value())),
+        None => Span::styled("PC —   ", Style::new().fg(theme::warn())),
     });
     spans.push(match song.tempo_bpm {
-        Some(b) => Span::styled(format!("♩{b:<4.0}"), Style::new().fg(Color::Cyan)),
+        Some(b) => Span::styled(format!("♩{b:<4.0}"), Style::new().fg(theme::value())),
         // `♩---` : le morceau suit le tempo de ses presets (§ 8), ce n'est pas un trou
-        None => Span::styled("♩--- ", Style::new().fg(Color::DarkGray)),
+        None => Span::styled("♩--- ", Style::new().fg(theme::dim())),
     });
-    spans.push(Span::styled(
-        if song.prompt.is_some() { "≡ " } else { "  " },
-        Style::new().fg(Color::DarkGray),
-    ));
+    spans.push(Span::styled(if song.prompt.is_some() { "≡ " } else { "  " }, Style::new().fg(theme::dim())));
     if song.sounds.is_empty() {
-        spans.push(Span::styled("(aucun son : + pour en ajouter)", Style::new().fg(EDIT)));
+        spans.push(Span::styled("(aucun son : + pour en ajouter)", Style::new().fg(theme::edit())));
         return Line::from(spans);
     }
     for (k, sound) in song.sounds.iter().enumerate() {
         if k > 0 {
-            spans.push(Span::styled(" · ", Style::new().fg(Color::DarkGray)));
+            spans.push(Span::styled(" · ", Style::new().fg(theme::dim())));
         }
         let here = set.at == Some((i, k));
         let missing = set.slot((i, k)).is_none();
@@ -396,15 +389,16 @@ fn edit_row(
         spans.push(Span::styled(
             name,
             match (aimed_sound == Some(k), here, missing) {
-                (true, _, _) => Style::new().fg(Color::Black).bg(EDIT).add_modifier(Modifier::BOLD),
-                (_, _, true) => Style::new().fg(Color::Red),
-                (_, true, _) => Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
-                _ => Style::new().fg(Color::Gray),
+                (true, _, _) => {
+                    Style::new().fg(theme::on_accent()).bg(theme::edit()).add_modifier(Modifier::BOLD)
+                }
+                (_, _, true) => Style::new().fg(theme::error()),
+                (_, true, _) => Style::new().fg(theme::set()).add_modifier(Modifier::BOLD),
+                _ => Style::new().fg(theme::text()),
             },
         ));
         if sound.volume_db != 0.0 {
-            spans
-                .push(Span::styled(format!(" {:+.1} dB", sound.volume_db), Style::new().fg(Color::DarkGray)));
+            spans.push(Span::styled(format!(" {:+.1} dB", sound.volume_db), Style::new().fg(theme::dim())));
         }
     }
     Line::from(spans)
@@ -416,12 +410,12 @@ pub(super) fn render_typing(s: &State, f: &mut Frame, area: Rect) {
     let Some(t) = s.set_edit.as_ref().and_then(|e| e.typing.as_ref()) else { return };
     let lines = vec![
         Line::from(vec![
-            Span::styled(format!(" {} : ", t.field.label()), Style::new().fg(Color::Gray)),
+            Span::styled(format!(" {} : ", t.field.label()), Style::new().fg(theme::text())),
             Span::styled(t.text.clone(), Style::new().add_modifier(Modifier::BOLD)),
-            Span::styled("▏", Style::new().fg(ACCENT)),
+            Span::styled("▏", Style::new().fg(theme::set())),
         ]),
         Line::raw(""),
-        Line::styled(" Entrée valider · Échap annuler", Style::new().fg(Color::DarkGray)),
+        Line::styled(" Entrée valider · Échap annuler", Style::new().fg(theme::dim())),
     ];
     window(f, area, " ✎ saisie ", lines, 54);
 }
@@ -439,27 +433,27 @@ pub(super) fn render_picking(s: &State, f: &mut Frame, area: Rect) {
             Span::styled(
                 format!(" {} {:<24}", if on { "▶" } else { " " }, clip(&preset.name, 24)),
                 if on {
-                    Style::new().fg(Color::Black).bg(EDIT).add_modifier(Modifier::BOLD)
+                    Style::new().fg(theme::on_accent()).bg(theme::edit()).add_modifier(Modifier::BOLD)
                 } else {
                     Style::new()
                 },
             ),
             Span::styled(
                 format!("  {}", preset.broken.clone().unwrap_or_default()),
-                Style::new().fg(Color::Red),
+                Style::new().fg(theme::error()),
             ),
         ]));
     }
     if s.presets.len() > room {
         lines.push(Line::styled(
             format!("   … {} presets de plus", s.presets.len() - room),
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         ));
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         " ↑↓ essayer (on l'entend) · Entrée garder · Échap annuler",
-        Style::new().fg(Color::DarkGray),
+        Style::new().fg(theme::dim()),
     ));
     let what = if p.is_new { "ajouter un son" } else { "remplacer le preset du son" };
     window(f, area, &format!(" {what} — morceau {} ", p.at.0 + 1), lines, 60);
@@ -476,9 +470,9 @@ pub(super) fn render_confirm_remove(s: &State, f: &mut Frame, area: Rect) {
         .map(|x| x.label().to_string())
         .unwrap_or_default();
     let lines = vec![
-        Line::from(Span::styled(format!(" Retirer « {who} » du set ?"), Style::new().fg(EDIT))),
+        Line::from(Span::styled(format!(" Retirer « {who} » du set ?"), Style::new().fg(theme::edit()))),
         Line::raw(""),
-        Line::styled(" X confirmer · Échap le garder", Style::new().fg(Color::DarkGray)),
+        Line::styled(" X confirmer · Échap le garder", Style::new().fg(theme::dim())),
     ];
     window(f, area, " ✎ retirer un morceau ", lines, 50);
 }
@@ -497,9 +491,12 @@ fn window(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line<'static>>, min
     f.render_widget(
         Paragraph::new(lines).block(
             Block::bordered()
-                .border_style(Style::new().fg(EDIT))
-                .title(Span::styled(title.to_string(), Style::new().fg(EDIT).add_modifier(Modifier::BOLD)))
-                .style(Style::new().bg(Color::Black)),
+                .border_style(Style::new().fg(theme::edit()))
+                .title(Span::styled(
+                    title.to_string(),
+                    Style::new().fg(theme::edit()).add_modifier(Modifier::BOLD),
+                ))
+                .style(Style::new().bg(theme::popup_bg())),
         ),
         win,
     );
@@ -518,13 +515,12 @@ fn prompt_lines(s: &State, set: &ActiveSet, at: (usize, usize), w: usize, room: 
     let song = &set.spec.songs[at.0];
     let Some(loaded) = s.prompt_of(at.0) else {
         // pas de `prompt =` dans le set : on dit **comment** en avoir un, pas « rien »
-        let mut v =
-            vec![Line::styled("  pas de prompteur pour ce morceau", Style::new().fg(Color::DarkGray))];
+        let mut v = vec![Line::styled("  pas de prompteur pour ce morceau", Style::new().fg(theme::dim()))];
         if !s.locked {
             let file = crate::browse::state::set::prompt::prompt_file_name(song.label());
             v.push(Line::styled(
                 format!("  t l'écrit dans ton éditeur (ChordPro : prompts/{file})"),
-                Style::new().fg(Color::DarkGray),
+                Style::new().fg(theme::dim()),
             ));
         }
         return v;
@@ -533,13 +529,13 @@ fn prompt_lines(s: &State, set: &ActiveSet, at: (usize, usize), w: usize, room: 
         Loaded::Ok(p) => p,
         // fichier absent ou illisible : **jamais** d'erreur bloquante, un message dans le cadre
         Loaded::Failed(why) => {
-            return vec![Line::styled(format!("  ⚠ {why}"), Style::new().fg(Color::Yellow))];
+            return vec![Line::styled(format!("  ⚠ {why}"), Style::new().fg(theme::warn()))];
         }
     };
     if prompt.sections.is_empty() {
         return vec![Line::styled(
             format!("  prompteur vide{}", if s.locked { "" } else { " : t pour l'écrire" }),
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         )];
     }
     // on met tout à plat une fois : c'est la seule façon de faire défiler le texte **et** ses
@@ -605,15 +601,15 @@ fn section_head(
     let mut spans = vec![Span::styled(
         format!(" {mark} {:<14}{:<8}{extra}", sec.label.to_uppercase(), bars),
         match state {
-            Was::Now => Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
-            Was::Past => Style::new().fg(Color::DarkGray),
+            Was::Now => Style::new().fg(theme::set()).add_modifier(Modifier::BOLD),
+            Was::Past => Style::new().fg(theme::dim()),
             Was::Next => Style::new().add_modifier(Modifier::BOLD),
         },
     )];
     if let Some(sound) = sec.sound.as_deref() {
         spans.push(Span::styled(
             format!("  → {sound}"),
-            Style::new().fg(if state == Was::Now { ACCENT } else { Color::DarkGray }),
+            Style::new().fg(if state == Was::Now { theme::set() } else { theme::dim() }),
         ));
     }
     Line::from(spans)
@@ -624,9 +620,9 @@ fn section_head(
 fn lyric_lines(line: &library::prompt::Line, w: usize, cur: bool, past: bool) -> Vec<Line<'static>> {
     let text_style = match (cur, past, line.cue) {
         // une cue n'est pas du texte à chanter : elle est en jaune (§ 10)
-        (_, _, true) => Style::new().fg(Color::Yellow),
-        (true, _, _) => Style::new().fg(Color::Black).bg(ACCENT).add_modifier(Modifier::BOLD),
-        (_, true, _) => Style::new().fg(Color::DarkGray),
+        (_, _, true) => Style::new().fg(theme::cue()),
+        (true, _, _) => Style::new().fg(theme::on_accent()).bg(theme::set()).add_modifier(Modifier::BOLD),
+        (_, true, _) => Style::new().fg(theme::dim()),
         _ => Style::new(),
     };
     let mark = if cur { "›" } else { " " };
@@ -641,7 +637,7 @@ fn lyric_lines(line: &library::prompt::Line, w: usize, cur: bool, past: bool) ->
     vec![
         Line::from(Span::styled(
             format!("     {chord_line}"),
-            Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::chord()).add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(format!("   {mark} {}", clip(&line.text, w)), text_style)),
     ]

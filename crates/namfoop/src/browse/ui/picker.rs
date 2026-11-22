@@ -9,8 +9,8 @@ use crate::browse::state::chain::{Leaf, Mode, Spot};
 /// Le contenu du bloc `nam` / `ir` sous le curseur, en entier — ou, sur la **sortie** d'un
 /// parallèle, ce qu'elle somme. `None` : il y a des réglages à montrer à la place.
 pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
-    let dim = Style::new().fg(Color::DarkGray);
-    let amp = Style::new().fg(Color::Green).add_modifier(Modifier::BOLD);
+    let dim = Style::new().fg(theme::dim());
+    let amp = Style::new().fg(theme::amp()).add_modifier(Modifier::BOLD);
     if s.fx.chain.spot(s.fx.cursor) == Spot::Merge {
         let sp = s.fx.chain.split_at(s.fx.cursor.top())?;
         let gains: Vec<String> = (0..sp.branches.len())
@@ -21,7 +21,7 @@ pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
                 Span::styled(format!(" ◇ somme de {} branches", sp.branches.len()), amp),
                 Span::styled(format!("   {}", if sp.mode == Mode::Bands { "bandes" } else { "copie" }), dim),
             ]),
-            Line::styled(format!(" {}", gains.join("  ·  ")), Style::new().fg(Color::Blue)),
+            Line::styled(format!(" {}", gains.join("  ·  ")), Style::new().fg(theme::branch())),
             Line::styled(
                 " a : ajouter après le parallèle · i : à la fin de la 1re branche · ↑ : le parallèle (◆)",
                 dim,
@@ -42,7 +42,7 @@ pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
                     let mut second =
                         vec![Span::styled(format!(" {}", it.id), dim), Span::raw("  "), badge(it.needs)];
                     if let Some(d) = &it.profile {
-                        second.push(Span::styled(format!(" {}", d.spark), Style::new().fg(Color::Cyan)));
+                        second.push(Span::styled(format!(" {}", d.spark), Style::new().fg(theme::curve())));
                         if let Some(g) = &d.grain {
                             second.push(Span::styled(format!("  {g}"), grain_style(g)));
                         }
@@ -66,7 +66,7 @@ pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
                     ]));
                     let mut second = vec![Span::styled(format!(" {}", it.id), dim)];
                     if let Some(d) = &it.profile {
-                        second.push(Span::styled(format!("  {}", d.spark), Style::new().fg(Color::Cyan)));
+                        second.push(Span::styled(format!("  {}", d.spark), Style::new().fg(theme::curve())));
                         second.push(Span::raw(format!("  {}", d.tags.join(", "))));
                     }
                     lines.push(Line::from(second));
@@ -92,14 +92,14 @@ pub(super) fn picker_lines(s: &State, height: usize) -> Vec<Line<'static>> {
     let cur = s.pick_cursor();
     let mut lines = vec![if p.filtering || !p.filter.is_empty() {
         Line::from(vec![
-            Span::styled(" filtre : ", Style::new().fg(Color::Cyan)),
+            Span::styled(" filtre : ", Style::new().fg(theme::key())),
             Span::raw(format!("{}{}", p.filter, if p.filtering { "█" } else { "" })),
         ])
     } else {
-        Line::styled(" / pour filtrer", Style::new().fg(Color::DarkGray))
+        Line::styled(" / pour filtrer", Style::new().fg(theme::dim()))
     }];
     if list.is_empty() {
-        lines.push(Line::styled("   rien ne correspond au filtre", Style::new().fg(Color::DarkGray)));
+        lines.push(Line::styled("   rien ne correspond au filtre", Style::new().fg(theme::dim())));
         return lines;
     }
     let label_w = rows::label_width(
@@ -119,30 +119,30 @@ pub(super) fn picker_lines(s: &State, height: usize) -> Vec<Line<'static>> {
             tail.push(if p.ab {
                 Span::styled(
                     "  ● actuel ◀ écouté (c)",
-                    Style::new().fg(Color::Green).add_modifier(Modifier::BOLD),
+                    Style::new().fg(theme::ok()).add_modifier(Modifier::BOLD),
                 )
             } else {
-                Span::styled("  ● actuel", Style::new().fg(Color::Green))
+                Span::styled("  ● actuel", Style::new().fg(theme::ok()))
             });
         }
         if p.trial == Some(row.index) && !is_current {
             tail.push(Span::styled(
                 "  ◀ à l'essai",
-                Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::new().fg(theme::trial()).add_modifier(Modifier::BOLD),
             ));
         }
         lines.push(if p.nam {
             let mark = if s.models[row.index].corrected() {
-                Span::styled("✎", Style::new().fg(Color::Magenta))
+                Span::styled("✎", Style::new().fg(theme::corrected()))
             } else {
                 Span::raw(" ")
             };
             rows::model_line(s, row.index, i == cur, mark, label_w, tail)
         } else {
             let mark = if row.recommended {
-                Span::styled(" ★ ", Style::new().fg(Color::Yellow))
+                Span::styled(" ★ ", Style::new().fg(theme::recommended()))
             } else if row.blend {
-                Span::styled(" ≡ ", Style::new().fg(Color::Magenta))
+                Span::styled(" ≡ ", Style::new().fg(theme::blend()))
             } else {
                 Span::raw("   ")
             };
@@ -150,7 +150,7 @@ pub(super) fn picker_lines(s: &State, height: usize) -> Vec<Line<'static>> {
         });
     }
     if rest > 0 {
-        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(Color::DarkGray)));
+        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(theme::dim())));
     }
     lines
 }

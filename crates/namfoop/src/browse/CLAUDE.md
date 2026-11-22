@@ -334,6 +334,9 @@ Ratatui, testé sur `TestBackend` : un fichier par zone (`mod.rs` listes et barr
   sont les **temps** — c'est la largeur des cases qui se serre, pour qu'un 7/8 montre ses sept
   croches sur 80 colonnes. « Allumé » est une **inversion** et non une couleur de plus, pour qu'un
   temps qui sonne reste reconnaissable comme temps 1 (jaune) ou comme autre temps (vert) ;
+- **aucune couleur en dur** : toute teinte vient d'une fonction de `crate::theme`, nommée par ce
+  qu'elle signifie (l'espace, l'état, le vumètre). La règle et sa vérification sont dans
+  [`crates/namfoop/CLAUDE.md`](../../CLAUDE.md) ;
 - `footer.rs` ne décide rien : il montre les touches de l'écran où l'on est, la première couche qui
   a la main gagne. `windows.rs` dessine l'**overlay d'aide** `h`, contextuel, par-dessus tout.
 

@@ -9,7 +9,8 @@
 //! Trop large pour le terminal : défilement horizontal qui garde le bloc choisi visible, sans
 //! retour à la ligne.
 
-use ratatui::style::{Color, Modifier, Style};
+use crate::theme;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use super::super::state::chain::{Block, Chain, Cursor, MeterKind, Role, Split};
@@ -22,7 +23,7 @@ const EIGHTHS: [&str; 8] = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"]
 const COMP_FULL_DB: f32 = 20.0;
 
 fn line_style() -> Style {
-    Style::new().fg(Color::DarkGray)
+    Style::new().fg(theme::dim())
 }
 
 /// Un morceau de ligne : son texte, son style, et s'il porte le curseur.
@@ -88,7 +89,7 @@ impl Grid {
 fn meter_cells(db: f32, action: f32, kind: MeterKind, w: usize, dim: bool) -> Vec<Cell> {
     let cell = |text: String, style: Style| Cell { text, style, cursor: false };
     if !dim && kind == MeterKind::Gate && action > 0.5 {
-        return vec![cell("█".repeat(w), Style::new().fg(Color::Red).add_modifier(Modifier::DIM))];
+        return vec![cell("█".repeat(w), Style::new().fg(theme::meter_gate()).add_modifier(Modifier::DIM))];
     }
     let f = ((db - FLOOR_DB) / -FLOOR_DB).clamp(0.0, 1.0) * w as f32;
     let full = f.floor() as usize;
@@ -102,20 +103,20 @@ fn meter_cells(db: f32, action: f32, kind: MeterKind, w: usize, dim: bool) -> Ve
         bar += &" ".repeat(w - used);
     }
     let color = if dim {
-        Color::DarkGray
+        theme::meter_track()
     } else if db > -1.0 {
-        Color::Red
+        theme::meter_clip()
     } else if db > -9.0 {
-        Color::Yellow
+        theme::meter_warn()
     } else {
-        Color::Green
+        theme::meter_ok()
     };
     if !dim && kind == MeterKind::Comp && action > 0.3 {
         let cells = ((action / COMP_FULL_DB * w as f32).ceil() as usize).clamp(1, w);
         let left: String = bar.chars().take(w - cells).collect();
         return vec![
             cell(left, Style::new().fg(color)),
-            cell("█".repeat(cells), Style::new().fg(Color::LightRed)),
+            cell("█".repeat(cells), Style::new().fg(theme::meter_action())),
         ];
     }
     vec![cell(bar, Style::new().fg(color))]
@@ -123,14 +124,14 @@ fn meter_cells(db: f32, action: f32, kind: MeterKind, w: usize, dim: bool) -> Ve
 
 fn block_style(role: Role, on: bool, dim: bool) -> Style {
     if !on {
-        return Style::new().fg(Color::DarkGray).add_modifier(Modifier::CROSSED_OUT);
+        return Style::new().fg(theme::dim()).add_modifier(Modifier::CROSSED_OUT);
     }
     let s = match role {
-        Role::Amp => Style::new().fg(Color::Green),
+        Role::Amp => Style::new().fg(theme::amp()),
         Role::Fx => Style::new(),
     };
     if dim {
-        s.fg(Color::DarkGray)
+        s.fg(theme::dim())
     } else {
         s
     }
@@ -161,7 +162,7 @@ pub fn build(st: &State) -> Synoptic {
             Vec::new()
         }
     };
-    let io = Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let io = Style::new().fg(theme::chain()).add_modifier(Modifier::BOLD);
     let mut cursor_cols = None;
     let mark = |g: &Grid, row: usize, start: usize, cols: &mut Option<(usize, usize)>| {
         *cols = Some((start, g.len[row]));
@@ -171,7 +172,7 @@ pub fn build(st: &State) -> Synoptic {
     g.plain(0, " ─ ", line_style());
     g.sync();
     if chain.is_empty() {
-        g.add(0, "(chaîne vide : a pour ajouter)", Style::new().fg(Color::DarkGray), true, Vec::new());
+        g.add(0, "(chaîne vide : a pour ajouter)", Style::new().fg(theme::dim()), true, Vec::new());
         g.plain(0, " ─ ", line_style());
         g.sync();
     }
@@ -203,7 +204,7 @@ pub fn build(st: &State) -> Synoptic {
                 g.add(
                     0,
                     "◆",
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::new().fg(theme::split()).add_modifier(Modifier::BOLD),
                     on_cursor,
                     Vec::new(),
                 );
@@ -221,7 +222,7 @@ pub fn build(st: &State) -> Synoptic {
                 g.plain(0, "─ ", line_style());
                 let on_merge = cursor == Cursor::Merge(i);
                 let from = g.len[0];
-                g.add(0, "◇", Style::new().fg(Color::Yellow), on_merge, Vec::new());
+                g.add(0, "◇", Style::new().fg(theme::split()), on_merge, Vec::new());
                 if on_merge {
                     cursor_cols = Some((from, g.len[0]));
                 }
@@ -235,7 +236,7 @@ pub fn build(st: &State) -> Synoptic {
     // sortie, et il annule tout gain posé dans la chaîne. Le cacher laissait croire à un vumètre
     // OUT cassé.
     if let (Some(db), false) = (st.level_align_db(), chain.is_empty()) {
-        g.add(0, &format!("niveau DI {db:+.1} dB"), Style::new().fg(Color::DarkGray), false, Vec::new());
+        g.add(0, &format!("niveau DI {db:+.1} dB"), Style::new().fg(theme::dim()), false, Vec::new());
         g.plain(0, " ─ ", line_style());
         g.sync();
     }
@@ -244,7 +245,7 @@ pub fn build(st: &State) -> Synoptic {
         g.add(
             0,
             &format!("volume {:+.0} dB", chain.volume_db),
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
             false,
             Vec::new(),
         );
@@ -271,7 +272,7 @@ fn split(
     let label_w = (0..n).map(|k| s.branch_label(k).chars().count()).max().unwrap_or(0);
     let body_w = s.branches.iter().map(|b| st.branch_width(b)).max().unwrap_or(0);
     let gain_w = s.branches.iter().map(|b| b.gain_text().chars().count()).max().unwrap_or(0);
-    let hdr = Style::new().fg(Color::Blue);
+    let hdr = Style::new().fg(theme::branch());
     let vbar = |k: usize| -> Vec<Cell> {
         if k == 0 {
             Vec::new()
@@ -281,7 +282,7 @@ fn split(
     };
     for (k, b) in s.branches.iter().enumerate() {
         let silent = !s.audible(k);
-        let dim = |x: Style| if silent { x.fg(Color::DarkGray) } else { x };
+        let dim = |x: Style| if silent { x.fg(theme::dim()) } else { x };
         let (enter, leave) = match (n, k) {
             (1, _) => ("─", "─"),
             (_, 0) => ("┬", "┬"),
@@ -298,7 +299,7 @@ fn split(
             g.add(
                 k,
                 "son direct",
-                dim(Style::new().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)),
+                dim(Style::new().fg(theme::dim()).add_modifier(Modifier::ITALIC)),
                 false,
                 Vec::new(),
             );
@@ -401,7 +402,7 @@ fn clip(cells: &[Cell], width: usize, scroll: usize) -> Line<'static> {
         let skip = scroll.saturating_sub(from);
         let take = (to.min(scroll + width)) - from.max(scroll);
         let text: String = c.text.chars().skip(skip).take(take).collect();
-        let style = if c.cursor { c.style.bg(Color::Cyan).fg(Color::Black) } else { c.style };
+        let style = if c.cursor { c.style.bg(theme::key()).fg(theme::on_accent()) } else { c.style };
         spans.push(Span::styled(text, style));
     }
     Line::from(spans)
@@ -441,10 +442,10 @@ mod tests {
         assert_eq!(bar(-30.0), "████    ", "à mi-chemin");
         // couleurs : vert, puis jaune au-dessus de -9 dB, rouge au-dessus de -1
         let color = |db: f32| meter_cells(db, 0.0, MeterKind::Peak, 8, false)[0].style.fg;
-        assert_eq!(color(-20.0), Some(Color::Green));
-        assert_eq!(color(-5.0), Some(Color::Yellow));
-        assert_eq!(color(-0.5), Some(Color::Red));
-        assert_eq!(meter_cells(-5.0, 0.0, MeterKind::Peak, 8, true)[0].style.fg, Some(Color::DarkGray));
+        assert_eq!(color(-20.0), Some(theme::meter_ok()));
+        assert_eq!(color(-5.0), Some(theme::meter_warn()));
+        assert_eq!(color(-0.5), Some(theme::meter_clip()));
+        assert_eq!(meter_cells(-5.0, 0.0, MeterKind::Peak, 8, true)[0].style.fg, Some(theme::meter_track()));
     }
 
     #[test]
@@ -460,7 +461,7 @@ mod tests {
         // gate fermé : barre pleine
         let cells = meter_cells(-60.0, 1.0, MeterKind::Gate, 6, false);
         assert_eq!(cells[0].text, "██████");
-        assert_eq!(cells[0].style.fg, Some(Color::Red));
+        assert_eq!(cells[0].style.fg, Some(theme::meter_gate()));
         // ouvert : barre normale
         assert_eq!(meter_cells(-6.0, 0.0, MeterKind::Gate, 6, false)[0].text, "█████▍");
     }

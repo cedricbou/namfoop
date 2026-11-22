@@ -30,6 +30,13 @@ amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (CLI > config >
                 AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run` et `render` n'ont pas de tap,
                 et c'est ce qui rend une mesure reproductible ; --pre / --post les effets
 config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
+theme.rs        LA liste des couleurs des écrans, nommées par ce qu'elles signifient : les espaces
+                (Bibliothèque, Chaîne, Set), les modes, les états, les vumètres, la chaîne en
+                blocs. **Aucune couleur en dur ailleurs dans le binaire** — check-arch.sh refuse
+                tout `Color::` hors de ce fichier. Des fonctions et non des constantes : la teinte
+                se choisit à l'exécution. Deux usages qui partagent une teinte aujourd'hui gardent
+                deux noms dès qu'ils peuvent diverger (le jaune du mode Édition et celui d'un
+                vumètre qui chauffe). Les familles viennent de docs/identite/charte.md
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` et `run --set` : voir src/browse/CLAUDE.md

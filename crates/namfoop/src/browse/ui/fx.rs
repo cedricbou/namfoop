@@ -3,8 +3,9 @@
 //! (`ui::picker`) —, la **ligne de commande équivalente**, et la fenêtre du **catalogue** quand on
 //! ajoute un bloc (`a` / `i`). Plages, unités et aides viennent de `ParamInfo`.
 
+use crate::theme;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph, Wrap};
 use ratatui::Frame;
@@ -18,9 +19,9 @@ const BAR: usize = 20;
 
 fn title(text: &str, active: bool) -> Span<'static> {
     let style = if active {
-        Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(Color::Gray)
+        Style::new().fg(theme::text())
     };
     Span::styled(format!(" {text} "), style)
 }
@@ -51,7 +52,7 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     if scroll > 0 {
         lines.push(Line::styled(
             format!(" ← {scroll} colonnes à gauche (terminal étroit)"),
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         ));
     }
     let (head, warn) = synoptic::title(&s.fx.chain);
@@ -70,7 +71,7 @@ pub fn render_fx(s: &State, f: &mut Frame, area: Rect) {
     let warn = if s.place.is_some() { None } else { warn };
     let mut block = Block::bordered().title(title(&head, s.fx.focus == FxFocus::Chain));
     if let Some(w) = warn.filter(|_| !s.fx.bypass_all) {
-        block = block.title(Span::styled(w, Style::new().fg(Color::Yellow)));
+        block = block.title(Span::styled(w, Style::new().fg(theme::warn())));
     }
     f.render_widget(Paragraph::new(lines).block(block), chain);
 
@@ -101,9 +102,9 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
         let lines = super::picker::picker_lines(s, inner);
         f.render_widget(
             Paragraph::new(lines).block(
-                Block::bordered().border_style(Style::new().fg(Color::Yellow)).title(Span::styled(
+                Block::bordered().border_style(Style::new().fg(theme::edit())).title(Span::styled(
                     format!(" {} ", s.pick_title()),
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::new().fg(theme::edit()).add_modifier(Modifier::BOLD),
                 )),
             ),
             list,
@@ -131,20 +132,20 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
         lines.push(Line::from(vec![
             cursor_span(on),
             Span::raw(format!("{:<10}", field.name())),
-            Span::styled(bar(frac), Style::new().fg(if on { Color::Cyan } else { Color::Blue })),
+            Span::styled(bar(frac), Style::new().fg(if on { theme::gauge_on() } else { theme::gauge_off() })),
             Span::raw(format!(" {value:>9}")),
         ]));
     }
     match fields.get(s.fx.param) {
         Some(field) => {
-            lines.push(Line::styled(format!("   {}", s.field_help(*field)), Style::new().fg(Color::DarkGray)))
+            lines.push(Line::styled(format!("   {}", s.field_help(*field)), Style::new().fg(theme::dim())))
         }
         None => lines.push(Line::styled(
             match s.fx.chain.spot(s.fx.cursor) {
                 Spot::Empty => "   Chaîne vide : a ouvre le catalogue (nam, ir, effets).".to_string(),
                 _ => "   Rien à régler ici.".to_string(),
             },
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         )),
     }
     // un `gain` sous le curseur dans une chaîne alignée sur le DI : dire pourquoi la valeur qu'on
@@ -152,14 +153,14 @@ fn render_panel(s: &State, f: &mut Frame, params: Rect, cmd: Rect) {
     if s.gain_cancelled_by_alignment() {
         lines.push(Line::styled(
             "   ⚠ volume aligné sur le DI : ce gain ne change pas la sortie, seulement la saturation",
-            Style::new().fg(Color::Yellow),
+            Style::new().fg(theme::warn()),
         ));
     }
     // ce que le parallèle propose en plus, sous ses réglages
     if s.fx.chain.spot(s.fx.cursor) == Spot::Split {
         lines.push(Line::styled(
             "   Entrée pour régler · + ajoute une branche · x défait le parallèle (garde la branche de l'ampli)",
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         ));
     }
     f.render_widget(
@@ -195,13 +196,13 @@ fn render_command_line(s: &State, f: &mut Frame, cmd: Rect) {
         false => (
             "chaîne à enregistrer en preset (S) : les branches ne se décrivent pas en ligne de commande"
                 .to_string(),
-            Style::new().fg(Color::Yellow),
+            Style::new().fg(theme::warn()),
         ),
     };
     f.render_widget(
         Paragraph::new(vec![
             Line::styled(text, style),
-            Line::styled(" ▸ preset TOML (t)", Style::new().fg(Color::DarkGray)),
+            Line::styled(" ▸ preset TOML (t)", Style::new().fg(theme::dim())),
         ])
         .wrap(Wrap { trim: false })
         .block(Block::bordered().title(title("à copier dans namfoop run", false))),
@@ -218,15 +219,15 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
         Line::from(vec![
             Span::styled(
                 format!("ajouter {where_} le curseur"),
-                Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::new().fg(theme::key()).add_modifier(Modifier::BOLD),
             ),
             Span::raw("   filtre : "),
-            Span::styled(format!("{}▏", c.filter), Style::new().fg(Color::Green)),
+            Span::styled(format!("{}▏", c.filter), Style::new().fg(theme::typed())),
         ]),
         Line::raw(""),
     ];
     if visible.is_empty() {
-        lines.push(Line::styled("  aucun bloc", Style::new().fg(Color::DarkGray)));
+        lines.push(Line::styled("  aucun bloc", Style::new().fg(theme::dim())));
     }
     // la liste défile si le terminal est petit : l'entrée choisie reste visible
     let cur = c.cursor.min(visible.len().saturating_sub(1));
@@ -239,18 +240,18 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
             cursor_span(on),
             Span::styled(
                 format!("{:<10}", e.kind),
-                if on { Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::new() },
+                if on { Style::new().fg(theme::key()).add_modifier(Modifier::BOLD) } else { Style::new() },
             ),
-            Span::styled(e.help.to_string(), Style::new().fg(Color::DarkGray)),
+            Span::styled(e.help.to_string(), Style::new().fg(theme::dim())),
         ]));
     }
     if rest > 0 {
-        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(Color::DarkGray)));
+        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(theme::dim())));
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         "tape pour filtrer · ↑↓ · Entrée ajoute · Échap annule",
-        Style::new().fg(Color::DarkGray),
+        Style::new().fg(theme::dim()),
     ));
     let w = (lines.iter().map(|l| l.width()).max().unwrap_or(40) as u16 + 4).min(body.width);
     let h = (lines.len() as u16 + 2).min(body.height);
@@ -262,8 +263,9 @@ fn render_catalog(s: &State, body: Rect, f: &mut Frame) {
     };
     f.render_widget(Clear, area);
     f.render_widget(
-        Paragraph::new(lines)
-            .block(Block::bordered().title(title("catalogue", true)).style(Style::new().bg(Color::Black))),
+        Paragraph::new(lines).block(
+            Block::bordered().title(title("catalogue", true)).style(Style::new().bg(theme::popup_bg())),
+        ),
         area,
     );
 }

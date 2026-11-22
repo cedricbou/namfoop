@@ -1,5 +1,6 @@
 //! Rendu plein écran de l'assistant (ratatui). Lecture seule de l'état.
 
+use crate::theme;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -12,7 +13,7 @@ use crate::tui::meter;
 
 fn cursor(on: bool) -> Span<'static> {
     if on {
-        Span::styled(" ▶ ", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        Span::styled(" ▶ ", Style::new().fg(theme::key()).add_modifier(Modifier::BOLD))
     } else {
         Span::raw("   ")
     }
@@ -23,7 +24,7 @@ fn tag(text: &str, color: Color) -> Span<'static> {
 }
 
 fn help(text: &str) -> Line<'static> {
-    Line::from(Span::styled(text.to_string(), Style::new().fg(Color::DarkGray)))
+    Line::from(Span::styled(text.to_string(), Style::new().fg(theme::dim())))
 }
 
 pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
@@ -46,7 +47,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                     cursor(i == s.backend),
                     Span::styled(*name, Style::new().bold_if(i == s.backend)),
                 ]));
-                lines.push(Line::from(Span::styled(format!("      {desc}"), Style::new().fg(Color::Gray))));
+                lines.push(Line::from(Span::styled(format!("      {desc}"), Style::new().fg(theme::text()))));
             }
             "↑↓ choisir   Entrée valider   Échap quitter"
         }
@@ -64,7 +65,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                 let style = if d.usable() {
                     Style::new().bold_if(i == s.card)
                 } else {
-                    Style::new().fg(Color::DarkGray)
+                    Style::new().fg(theme::dim())
                 };
                 let mut spans = vec![
                     cursor(i == s.card),
@@ -72,7 +73,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                     Span::raw(format!("  — {chans}")),
                 ];
                 if let Some(n) = &d.note {
-                    spans.push(Span::styled(format!("  ({n})"), Style::new().fg(Color::Yellow)));
+                    spans.push(Span::styled(format!("  ({n})"), Style::new().fg(theme::warn())));
                 }
                 lines.push(Line::from(spans));
             }
@@ -88,11 +89,11 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                 let mut spans = vec![cursor(c == s.in_cursor), Span::raw(format!("Entrée {:<3}", c + 1))];
                 spans.extend(meter(s.levels.get(c).copied().unwrap_or(0.0)));
                 if s.bass_in == Some(c) {
-                    spans.push(tag("BASSE", Color::Cyan));
+                    spans.push(tag("BASSE", theme::input_bass()));
                 } else if s.mic_in == Some(c) {
-                    spans.push(tag("MICRO", Color::Magenta));
+                    spans.push(tag("MICRO", theme::input_mic()));
                 } else if loud == Some(c) {
-                    spans.push(tag("signal", Color::Green));
+                    spans.push(tag("signal", theme::signal()));
                 }
                 lines.push(Line::from(spans));
             }
@@ -104,7 +105,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
             ));
             lines.push(Line::from(Span::styled(
                 "⚠ baisse le volume de l'ampli / du casque avant le premier bip.",
-                Style::new().fg(Color::Yellow),
+                Style::new().fg(theme::warn()),
             )));
             lines.push(Line::raw(""));
             for c in 0..s.n_out {
@@ -115,9 +116,9 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                     Span::styled(
                         role.map_or("?", |r| r.label()).to_string(),
                         Style::new().fg(if role == Some(super::state::OutRole::Nothing) {
-                            Color::DarkGray
+                            theme::dim()
                         } else {
-                            Color::Cyan
+                            theme::monitored()
                         }),
                     ),
                 ]));
@@ -132,11 +133,11 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
             for (i, b) in s.buffers.iter().enumerate() {
                 let ms = b.frames as f64 * 1000.0 / 48000.0;
                 let (txt, color) = match &b.test {
-                    BufferTest::Pending => ("en attente".to_string(), Color::DarkGray),
-                    BufferTest::Running => ("test en cours…".to_string(), Color::Yellow),
-                    BufferTest::Done { xruns: 0, .. } => ("stable, 0 xrun ✓".to_string(), Color::Green),
-                    BufferTest::Done { xruns, .. } => (format!("{xruns} xrun(s) ✗"), Color::Red),
-                    BufferTest::Failed(e) => (format!("échec : {e}"), Color::Red),
+                    BufferTest::Pending => ("en attente".to_string(), theme::dim()),
+                    BufferTest::Running => ("test en cours…".to_string(), theme::warn()),
+                    BufferTest::Done { xruns: 0, .. } => ("stable, 0 xrun ✓".to_string(), theme::ok()),
+                    BufferTest::Done { xruns, .. } => (format!("{xruns} xrun(s) ✗"), theme::error()),
+                    BufferTest::Failed(e) => (format!("échec : {e}"), theme::error()),
                 };
                 lines.push(Line::from(vec![
                     cursor(i == s.buf_cursor && !s.buffer_running()),
@@ -154,7 +155,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
             lines.push(Line::raw("Quel pédalier MIDI (ou quelle application) namfoop doit-il écouter ?"));
             lines.push(Line::from(Span::styled(
                 "Branche-le maintenant : il apparaît dans la liste (r pour relister).",
-                Style::new().fg(Color::Gray),
+                Style::new().fg(theme::text()),
             )));
             lines.push(Line::raw(""));
             if s.midi_ports.is_empty() {
@@ -167,7 +168,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                     Span::styled(p.label.clone(), Style::new().bold_if(i == s.midi_cursor)),
                 ];
                 if s.midi == super::state::MidiChoice::Port(p.id.clone()) {
-                    spans.push(tag("ÉCOUTÉ", Color::Cyan));
+                    spans.push(tag("ÉCOUTÉ", theme::monitored()));
                 }
                 lines.push(Line::from(spans));
             }
@@ -175,7 +176,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                 lines.push(Line::raw(""));
                 lines.push(Line::from(Span::styled(
                     "   MIDI coupé : aucun pédalier, aucune horloge.",
-                    Style::new().fg(Color::Yellow),
+                    Style::new().fg(theme::warn()),
                 )));
             }
             lines.push(Line::raw(""));
@@ -211,7 +212,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
 
     let mut foot = vec![help(keys)];
     if let Some(m) = &s.message {
-        foot.insert(0, Line::from(Span::styled(m.clone(), Style::new().fg(Color::Yellow))));
+        foot.insert(0, Line::from(Span::styled(m.clone(), Style::new().fg(theme::warn()))));
     }
     f.render_widget(Paragraph::new(foot), bottom);
 }
@@ -223,7 +224,7 @@ trait BoldIf {
 impl BoldIf for Style {
     fn bold_if(self, on: bool) -> Self {
         if on {
-            self.add_modifier(Modifier::BOLD).fg(Color::Cyan)
+            self.add_modifier(Modifier::BOLD).fg(theme::key())
         } else {
             self
         }

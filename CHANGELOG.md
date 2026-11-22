@@ -19,6 +19,13 @@ section prend le numéro de version.
   README liste les licences de ce que namfoop embarque et rappelle que les marques citées
   appartiennent à leurs propriétaires ; le logo reste tous droits réservés.
 
+### Interne (#372)
+- **Toutes les couleurs des écrans se règlent à un seul endroit** : un module `theme` les nomme par
+  ce qu'elles signifient — l'espace (Bibliothèque, Chaîne, Set), le mode, l'état, le vumètre, la
+  chaîne en blocs. Rien ne change à l'écran. Les trois cents couleurs vivaient dans quatorze
+  fichiers : passer aux teintes de la charte, ou corriger un contraste pour la scène, demandait de
+  les retrouver une à une. `scripts/check-arch.sh` refuse maintenant toute couleur en dur ailleurs.
+
 ### Interne (#362)
 - **Les essais matériels se lancent sur n'importe quelle carte** : la carte, le canal de bouclage,
   l'entrée de la basse et le routage se donnent en variables, aux valeurs de l'iTwo par défaut.

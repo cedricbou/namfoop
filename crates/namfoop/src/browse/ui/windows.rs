@@ -17,11 +17,11 @@ pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
             Line::raw("  Le set joue."),
             Line::raw(""),
             Line::from(vec![
-                Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                Span::styled("  Q", Style::new().fg(theme::danger()).add_modifier(Modifier::BOLD)),
                 Span::raw("       quitter la scène"),
             ]),
             Line::from(vec![
-                Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                Span::styled("  Échap", Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)),
                 Span::raw("   rester (par défaut)"),
             ]),
         ];
@@ -39,9 +39,9 @@ pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
                 Block::bordered()
                     .title(Span::styled(
                         " Quitter la scène ? ",
-                        Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                        Style::new().fg(theme::warn()).add_modifier(Modifier::BOLD),
                     ))
-                    .style(Style::new().bg(Color::Black)),
+                    .style(Style::new().bg(theme::popup_bg())),
             ),
             area,
         );
@@ -53,23 +53,23 @@ pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
     if let Some(what) = &empty {
         lines.push(Line::from(Span::styled(
             format!("Tu écoutes au banc {what}, mais ce son n'est"),
-            Style::new().fg(Color::Yellow),
+            Style::new().fg(theme::warn()),
         )));
         lines.push(Line::from(Span::styled(
             "pas dans la chaîne : la commande affichée en quittant ne le jouera pas.",
-            Style::new().fg(Color::Yellow),
+            Style::new().fg(theme::warn()),
         )));
         lines.push(Line::raw(""));
         lines.push(Line::from(vec![
-            Span::styled("  Entrée", Style::new().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled("  Entrée", Style::new().fg(theme::ok()).add_modifier(Modifier::BOLD)),
             Span::raw("  le mettre dans la chaîne et rester (2 pour la voir)"),
         ]));
         lines.push(Line::from(vec![
-            Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled("  Q", Style::new().fg(theme::danger()).add_modifier(Modifier::BOLD)),
             Span::raw("       quitter quand même"),
         ]));
         lines.push(Line::from(vec![
-            Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled("  Échap", Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)),
             Span::raw("   rester (par défaut)"),
         ]));
     }
@@ -83,17 +83,17 @@ pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
             Style::new().add_modifier(Modifier::BOLD),
         )));
         for what in unsaved {
-            lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
+            lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(theme::warn()))));
         }
     }
     if empty.is_none() {
         lines.push(Line::raw(""));
         lines.push(Line::from(vec![
-            Span::styled("  Q", Style::new().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled("  Q", Style::new().fg(theme::danger()).add_modifier(Modifier::BOLD)),
             Span::raw("     quitter sans enregistrer"),
         ]));
         lines.push(Line::from(vec![
-            Span::styled("  Échap", Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled("  Échap", Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)),
             Span::raw(" ou toute autre touche : rester (par défaut)"),
         ]));
     }
@@ -117,9 +117,9 @@ pub(super) fn render_confirm_quit(s: &State, body: Rect, f: &mut Frame) {
                     } else {
                         " Modifications non enregistrées "
                     },
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::new().fg(theme::warn()).add_modifier(Modifier::BOLD),
                 ))
-                .style(Style::new().bg(Color::Black)),
+                .style(Style::new().bg(theme::popup_bg())),
         ),
         area,
     );
@@ -145,7 +145,7 @@ pub(super) fn render_send(s: &State, body: Rect, f: &mut Frame) {
         lines.push(Line::from(vec![
             Span::styled(
                 format!("  [{}] ", if send.checked { "x" } else { " " }),
-                Style::new().fg(Color::Cyan),
+                Style::new().fg(theme::key()),
             ),
             Span::raw(text),
         ]));
@@ -153,7 +153,7 @@ pub(super) fn render_send(s: &State, body: Rect, f: &mut Frame) {
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         format!("  Entrée valider{} · Échap annuler", if send.with_ir { " · Espace cocher" } else { "" }),
-        Style::new().fg(Color::DarkGray),
+        Style::new().fg(theme::dim()),
     ));
     let title = format!(" Mettre « {} » dans la chaîne ", send.what);
     let w = (lines.iter().map(|l| l.width()).max().unwrap_or(0).max(title.chars().count()) as u16 + 4)
@@ -169,9 +169,9 @@ pub(super) fn render_send(s: &State, body: Rect, f: &mut Frame) {
     f.render_widget(
         Paragraph::new(lines).block(
             Block::bordered()
-                .border_style(Style::new().fg(Color::Cyan))
-                .title(Span::styled(title, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)))
-                .style(Style::new().bg(Color::Black)),
+                .border_style(Style::new().fg(theme::key()))
+                .title(Span::styled(title, Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)))
+                .style(Style::new().bg(theme::popup_bg())),
         ),
         area,
     );
@@ -180,7 +180,7 @@ pub(super) fn render_send(s: &State, body: Rect, f: &mut Frame) {
 /// Une ligne de l'aide : les touches, puis ce qu'elles font.
 fn key_line(keys: &str, what: &str) -> Line<'static> {
     Line::from(vec![
-        Span::styled(format!(" {keys:<14}"), Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(format!(" {keys:<14}"), Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)),
         Span::raw(what.to_string()),
     ])
 }
@@ -199,17 +199,16 @@ pub(super) fn render_set_picker(s: &State, f: &mut Frame, area: Rect) {
             Span::styled(
                 format!(" {} {:<left$}  ", if on { "▶" } else { " " }, a, left = left),
                 if on {
-                    Style::new().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD)
+                    Style::new().fg(theme::on_accent()).bg(theme::set()).add_modifier(Modifier::BOLD)
                 } else {
                     Style::new()
                 },
             ),
-            Span::styled(b.clone(), Style::new().fg(Color::DarkGray)),
+            Span::styled(b.clone(), Style::new().fg(theme::dim())),
         ]));
     }
     lines.push(Line::raw(""));
-    lines
-        .push(Line::styled("  ↑↓ choisir · Entrée activer · Échap fermer", Style::new().fg(Color::DarkGray)));
+    lines.push(Line::styled("  ↑↓ choisir · Entrée activer · Échap fermer", Style::new().fg(theme::dim())));
     let h = (lines.len() as u16 + 2).min(area.height);
     let w = (left as u16 + 56).min(area.width);
     let win = Rect {
@@ -221,7 +220,7 @@ pub(super) fn render_set_picker(s: &State, f: &mut Frame, area: Rect) {
     f.render_widget(Clear, win);
     f.render_widget(
         Paragraph::new(lines)
-            .block(Block::bordered().title(" Choisir le set ").border_style(Style::new().fg(Color::Green))),
+            .block(Block::bordered().title(" Choisir le set ").border_style(Style::new().fg(theme::set()))),
         win,
     );
 }
@@ -247,7 +246,7 @@ fn help_lines(s: &State) -> (String, Vec<Line<'static>>) {
     if !notes.is_empty() {
         v.push(Line::raw(""));
         for n in notes {
-            v.push(Line::styled(n, Style::new().fg(Color::DarkGray)));
+            v.push(Line::styled(n, Style::new().fg(theme::dim())));
         }
     }
     (help_title(s, ctx), v)
@@ -320,7 +319,7 @@ pub(super) fn render_help(s: &State, area: Rect, f: &mut Frame) {
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         " h ou n'importe quelle touche : fermer cette aide",
-        Style::new().fg(Color::DarkGray),
+        Style::new().fg(theme::dim()),
     ));
     let title = format!(" Aide · {what} ");
     let w = (lines.iter().map(|l| l.width()).max().unwrap_or(40).max(title.chars().count()) as u16 + 4)
@@ -336,9 +335,9 @@ pub(super) fn render_help(s: &State, area: Rect, f: &mut Frame) {
     f.render_widget(
         Paragraph::new(lines).block(
             Block::bordered()
-                .border_style(Style::new().fg(Color::Cyan))
-                .title(Span::styled(title, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)))
-                .style(Style::new().bg(Color::Black)),
+                .border_style(Style::new().fg(theme::key()))
+                .title(Span::styled(title, Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)))
+                .style(Style::new().bg(theme::popup_bg())),
         ),
         at,
     );
@@ -352,11 +351,11 @@ pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
     let cur = s.bank_cursor();
     let mut lines = vec![if bank.filtering || !bank.filter.is_empty() {
         Line::from(vec![
-            Span::styled(" filtre : ", Style::new().fg(Color::Cyan)),
+            Span::styled(" filtre : ", Style::new().fg(theme::key())),
             Span::raw(format!("{}{}", bank.filter, if bank.filtering { "█" } else { "" })),
         ])
     } else {
-        Line::styled(" / pour filtrer", Style::new().fg(Color::DarkGray))
+        Line::styled(" / pour filtrer", Style::new().fg(theme::dim()))
     }];
     if rows.is_empty() {
         lines.push(Line::styled(
@@ -365,7 +364,7 @@ pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
             } else {
                 "   rien ne correspond au filtre"
             },
-            Style::new().fg(Color::DarkGray),
+            Style::new().fg(theme::dim()),
         ));
     }
     let name_w = rows.iter().map(|&i| s.presets[i].name.chars().count()).max().unwrap_or(0).min(32);
@@ -378,31 +377,31 @@ pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
         let courant = s.preset.as_ref().is_some_and(|r| r.path == p.path);
         lines.push(Line::from(vec![
             cursor_span(k == cur),
-            Span::styled(format!("{:<6}", p.id), Style::new().fg(Color::DarkGray)),
+            Span::styled(format!("{:<6}", p.id), Style::new().fg(theme::dim())),
             Span::styled(
                 format!("{:<w$}", p.name, w = name_w),
                 if broken {
-                    Style::new().fg(Color::DarkGray)
+                    Style::new().fg(theme::dim())
                 } else if courant {
-                    Style::new().fg(Color::Green).add_modifier(Modifier::BOLD)
+                    Style::new().fg(theme::ok()).add_modifier(Modifier::BOLD)
                 } else {
                     Style::new()
                 },
             ),
             Span::styled(
                 format!("  {}", s.preset_line(i)),
-                if broken { Style::new().fg(Color::Red) } else { Style::new().fg(Color::DarkGray) },
+                if broken { Style::new().fg(theme::error()) } else { Style::new().fg(theme::dim()) },
             ),
-            Span::styled(if courant { "  ◀ en place" } else { "" }, Style::new().fg(Color::Green)),
+            Span::styled(if courant { "  ◀ en place" } else { "" }, Style::new().fg(theme::ok())),
         ]));
     }
     if rest > 0 {
-        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(Color::DarkGray)));
+        lines.push(Line::styled(format!("   … {rest} de plus"), Style::new().fg(theme::dim())));
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         "  ↑↓ choisir · Entrée charger · / filtrer · Échap fermer · S enregistrer la chaîne",
-        Style::new().fg(Color::DarkGray),
+        Style::new().fg(theme::dim()),
     ));
     let title = " Banque de presets ";
     let w = (lines.iter().map(|l| l.width()).max().unwrap_or(40).max(title.chars().count()) as u16 + 4)
@@ -418,9 +417,9 @@ pub(super) fn render_bank(s: &State, area: Rect, f: &mut Frame) {
     f.render_widget(
         Paragraph::new(lines).block(
             Block::bordered()
-                .border_style(Style::new().fg(Color::Cyan))
-                .title(Span::styled(title, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)))
-                .style(Style::new().bg(Color::Black)),
+                .border_style(Style::new().fg(theme::key()))
+                .title(Span::styled(title, Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)))
+                .style(Style::new().bg(theme::popup_bg())),
         ),
         at,
     );
@@ -437,9 +436,9 @@ pub(super) fn render_confirm_switch(s: &State, body: Rect, f: &mut Frame) {
         ),
         None => String::new(),
     };
-    let mut lines = vec![Line::from(Span::styled(what, Style::new().fg(Color::Yellow)))];
+    let mut lines = vec![Line::from(Span::styled(what, Style::new().fg(theme::warn())))];
     for what in s.unsaved() {
-        lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(Color::Yellow))));
+        lines.push(Line::from(Span::styled(format!("  • {what}"), Style::new().fg(theme::warn()))));
     }
     lines.push(Line::raw(""));
     let go = if s.pending_switch == Some(Pending::New) { "repartir" } else { "charger" };
@@ -449,7 +448,7 @@ pub(super) fn render_confirm_switch(s: &State, body: Rect, f: &mut Frame) {
         ("  Échap", "  rester (par défaut)".to_string()),
     ] {
         lines.push(Line::from(vec![
-            Span::styled(k, Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(k, Style::new().fg(theme::key()).add_modifier(Modifier::BOLD)),
             Span::raw(t),
         ]));
     }
@@ -467,9 +466,9 @@ pub(super) fn render_confirm_switch(s: &State, body: Rect, f: &mut Frame) {
             Block::bordered()
                 .title(Span::styled(
                     " La chaîne n'est pas enregistrée ",
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::new().fg(theme::warn()).add_modifier(Modifier::BOLD),
                 ))
-                .style(Style::new().bg(Color::Black)),
+                .style(Style::new().bg(theme::popup_bg())),
         ),
         at,
     );
