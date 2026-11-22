@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#362)
+- **Les essais matériels se lancent sur n'importe quelle carte** : la carte, le canal de bouclage,
+  l'entrée de la basse et le routage se donnent en variables, aux valeurs de l'iTwo par défaut.
+  Ils étaient écrits en dur, et vérifier une autre carte — une Soundcraft Signature 12 MTK, basse
+  sur l'entrée 3 — demandait de retaper les quatre commandes à la main. Le script affiche de plus
+  le câblage qu'il a employé : un résultat sans son câblage ne se compare à rien.
+
 ### MIDI (#354)
 - **L'en-tête dit si la source d'horloge lit ou s'est arrêtée** : `♩ 120 ⏵ (MIDI)` au `Start`,
   `⏸` au `Stop`, et la ligne d'état de `run` porte le même champ. namfoop en tenait déjà compte —
