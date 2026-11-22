@@ -21,7 +21,7 @@ pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
                 Span::styled(format!(" ◇ somme de {} branches", sp.branches.len()), amp),
                 Span::styled(format!("   {}", if sp.mode == Mode::Bands { "bandes" } else { "copie" }), dim),
             ]),
-            Line::styled(format!(" {}", gains.join("  ·  ")), Style::new().fg(theme::branch())),
+            Line::styled(format!(" {}", gains.join("  ·  ")), theme::branch()),
             Line::styled(
                 " a : ajouter après le parallèle · i : à la fin de la 1re branche · ↑ : le parallèle (◆)",
                 dim,

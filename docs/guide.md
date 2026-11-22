@@ -2681,6 +2681,22 @@ au pack, avec `--all`) un gain d'entrée propre : `namfoop meta <mots-clés> --a
 architecture n'est pas reconnue par la version de NeuralAmpModelerCore de namfoop. Signale-le dans
 une issue avec le nom du pack.
 
+**Les écrans ne sont pas aux couleurs de namfoop** (le magenta de la Bibliothèque, le cyan de la
+Chaîne ressemblent à ceux du thème du terminal). namfoop n'envoie les teintes exactes de la
+[charte](identite/charte.md) qu'à un terminal qui l'annonce par `COLORTERM=truecolor` (ou `24bit`),
+ce que font kitty, alacritty, GNOME Terminal ou Konsole ; sinon il garde les couleurs de base, et
+l'écran est lisible pareil. Un terminal récent qui ne l'annonce pas — souvent tmux, ou une session
+SSH qui ne transmet pas la variable — se force ainsi :
+
+```sh
+COLORTERM=truecolor namfoop browse
+```
+
+Pour de bon, ajoute `export COLORTERM=truecolor` au `~/.bashrc` ou au `~/.zshrc`. Sous tmux, il
+faut aussi lui permettre de passer les teintes : `set -as terminal-features ",*:RGB"` dans
+`~/.tmux.conf`. La console du Pi sans session graphique (`TERM=linux`) ne sait pas les afficher :
+ne la force pas, elle reste en couleurs de base. Et `NO_COLOR=1` retire toute couleur.
+
 **Le son de l'ordinateur n'arrive pas dans le casque de la table.** Voir le
 [§ 2](#2-matériel-et-câblage) : le retour USB doit passer par une tranche qui alimente l'aux.
 

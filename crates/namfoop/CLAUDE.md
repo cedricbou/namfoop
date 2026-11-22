@@ -36,7 +36,12 @@ theme.rs        LA liste des couleurs des écrans, nommées par ce qu'elles sign
                 tout `Color::` hors de ce fichier. Des fonctions et non des constantes : la teinte
                 se choisit à l'exécution. Deux usages qui partagent une teinte aujourd'hui gardent
                 deux noms dès qu'ils peuvent diverger (le jaune du mode Édition et celui d'un
-                vumètre qui chauffe). Les familles viennent de docs/identite/charte.md
+                vumètre qui chauffe). Les familles viennent de docs/identite/charte.md.
+                Deux palettes, choisies une fois (OnceLock) : `COLORTERM` = truecolor / 24bit
+                → teintes exactes de la charte, sinon les couleurs de base (colonne
+                « Terminal » de la charte). Seuls les accents changent (text, popup_bg, inherit : jamais).
+                En test, la palette est celle de base sauf dans `theme::with_palette` (par fil),
+                et `tui::screen_colors` vérifie un écran entier dans les deux
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` et `run --set` : voir src/browse/CLAUDE.md

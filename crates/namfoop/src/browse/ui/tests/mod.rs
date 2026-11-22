@@ -349,3 +349,30 @@ fn a_song_position_is_announced_without_a_set() {
     s.on_midi(midi_io::Event::SongPosition(16), 1000, 0);
     assert_eq!(s.message.as_deref(), Some("position reçue : temps 5"), "{:?}", s.message);
 }
+
+/// La palette ne change que les couleurs : même texte, et en couleurs exactes plus aucune couleur
+/// de base, sauf celles qui ne sont pas des accents (texte courant, fond d'une fenêtre, héritée).
+#[test]
+fn exact_palette_changes_colors_only() {
+    use crate::theme::{with_palette, Palette};
+    let mut lib = sample();
+    lib.on_key(Key::Down);
+    lib.on_key(Key::Down);
+    let mut chain = sample();
+    chain.on_key(Key::Char('2'));
+    let mut set = sample();
+    set.on_key(Key::Char('3'));
+    for s in [&lib, &chain, &set] {
+        let draw = |f: &mut ratatui::Frame| render(s, &Status::default(), f);
+        let text = |p| with_palette(p, || crate::tui::screen_text(160, 50, draw));
+        assert_eq!(text(Palette::Ansi), text(Palette::Exact));
+        let ansi = with_palette(Palette::Ansi, || crate::tui::screen_colors(160, 50, draw));
+        assert!(ansi.iter().all(|c| !c.starts_with("Rgb")), "{ansi:?}");
+        let exact = with_palette(Palette::Exact, || crate::tui::screen_colors(160, 50, draw));
+        let neutral = ["Reset", "Gray", "Black"];
+        let base: Vec<_> =
+            exact.iter().filter(|c| !c.starts_with("Rgb") && !neutral.contains(&c.as_str())).collect();
+        assert!(base.is_empty(), "couleurs de base restées : {base:?}");
+        assert!(exact.iter().any(|c| c.starts_with("Rgb")), "{exact:?}");
+    }
+}
