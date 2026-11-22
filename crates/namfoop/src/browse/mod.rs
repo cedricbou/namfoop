@@ -390,25 +390,22 @@ pub fn run(
                     // mesure le tempo, pas le tour de boucle (`saturating_duration_since` parce
                     // qu'un message peut précéder le départ de la boucle)
                     let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
-                    let a = st.on_midi(msg.event, at_us);
+                    let a = st.on_midi(msg.event, at_us, msg.clock_seq);
                     if a != Action::None {
                         midi_pending = a;
                     }
                 }
-                // **La phase du clic, ici et pas plus loin.** Le compteur de tops et le comptage
-                // de l'arbitre doivent être au même point : la file vient d'être vidée, donc ils
-                // le sont. Plus bas dans le tour, des tops seraient arrivés sans être drainés et
-                // la soustraction se tromperait d'autant.
-                if let Some(c) = &clock_ticks {
-                    let phase = st.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed));
-                    if phase != clock_phase.get() {
-                        clock_phase.set(phase);
-                        // tracée parce qu'elle doit être **immobile** : une phase qui bouge fait
-                        // reculer puis avancer le temps, et le clic double. C'est ce que vérifie
-                        // `scripts/check-e2e.py`, et ce qu'on lit quand un clic sonne faux.
-                        if phase.is_finite() {
-                            trace(&format!("phase={phase:.0}"));
-                        }
+                // **La phase du clic** : le numéro du top qui porte le temps. Elle ne dépend
+                // d'aucune lecture de compteur ni d'aucun instant — le top l'a apportée — donc
+                // l'endroit du tour où on l'écrit n'a plus d'importance.
+                let phase = st.clock_phase();
+                if phase != clock_phase.get() {
+                    clock_phase.set(phase);
+                    // tracée parce qu'elle doit être **immobile** : une phase qui bouge fait
+                    // reculer puis avancer le temps, et le clic double. C'est ce que vérifie
+                    // `scripts/check-e2e.py`, et ce qu'on lit quand un clic sonne faux.
+                    if phase.is_finite() {
+                        trace(&format!("phase={phase:.0}"));
                     }
                 }
             }

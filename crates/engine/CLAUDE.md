@@ -47,15 +47,16 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   pas la position du temps (24 octets identiques par noire) et que beaucoup de sources n'envoient
   aucun transport ; les frontières suivantes se comptent sans recaler le temps 1, sinon le clic
   suivrait la granularité de la boucle d'écran. `realign_downbeat` est la moitié « phase » d'un tap,
-  pour qui veut recaler sans rien dire du tempo. `clock_phase` est le **pont** vers le fil audio, et
-  il est **tout entier** : le numéro du top qui porte le temps est la différence de deux nombres de
-  tops (le compteur de `midi-io` moins le comptage de l'arbitre depuis sa dernière frontière). Donc
-  rien à arrondir — ce qui est le fond de l'affaire. Le déduire d'une durée
-  (`(maintenant − frontière) / période`) plaçait une limite de décision là où la gigue du câble
-  passe et repasse : **656 basculements en 20 s** à 142 BPM, mesurés, et autant de temps qui
-  reculaient puis avançaient. Contrepartie : l'appelant doit lire le compteur **juste après** avoir
-  vidé la file des messages, sans quoi les deux comptages ne sont plus au même point. Pas de phase
-  sans verrou : le tempo ne serait pas encore celui de la source.
+  pour qui veut recaler sans rien dire du tempo. `clock_phase` **est** le numéro du top d'ancrage,
+  modulo une noire : une constante entre deux ancrages, que le fil audio compare au compteur
+  partagé. Rien à arrondir, rien à lire au bon moment, rien à verrouiller — le top porte son
+  numéro (`midi_io::Message::clock_seq`). Les deux formes essayées avant échouaient : déduire la
+  position d'une durée (`(maintenant − frontière) / période`) plaçait une limite de décision là où
+  la gigue du câble passe et repasse — **656 basculements en 20 s** à 142 BPM, mesurés —, et la
+  déduire de deux comptages tenus séparément exigeait de les lire au même instant, ce qui n'est
+  jamais tout à fait vrai. Pas de phase sans verrou : le tempo ne serait pas encore celui de la
+  source. Un **tap** pose l'ancre sur le top le plus proche du geste, seul endroit où une durée
+  sert encore à compter des tops — une fois, sur un geste qui vaut déjà ±30 ms.
   `clock_phase_confirmed` distingue une ancre **observée** (silence puis reprise, transport, tap)
   d'une ancre **devinée** (on s'est raccroché au milieu d'un flux, et le premier top n'y est un
   début de temps qu'une fois sur vingt-quatre) : l'écran doit le dire, c'est indiscernable d'un
@@ -67,10 +68,9 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   si bien que rallumer tombe juste. **Quand une horloge MIDI donne le temps, la grille vient d'elle**
   et non du tempo : `clock_ticks` (le compteur de `midi_io::Input`) et `clock_phase` (quel top porte
   le temps) suffisent à placer le clic au top près, position **absolue** donc insensible à la dérive
-  comme aux changements de tempo. La phase est une **référence verrouillée**, relue au seul
-  recalage du temps 1 : la relire à chaque bloc rendrait le clic sensible au moindre tremblement de
-  la case, et un tremblement d'un top fait reculer puis avancer le temps, donc sonner deux fois.
-  Compter des échantillons depuis le temps précédent accumulait au contraire la moindre erreur de
+  comme aux changements de tempo. Seul un franchissement **vers l'avant** sonne (un temps qui
+  recule est une réancre, pas un temps), et l'accent de mesure avance de l'écart réel, qui peut
+  valoir plus d'un temps. Compter des échantillons depuis le temps précédent accumulait au contraire la moindre erreur de
   période — 0,3 BPM à 142 BPM font une demi-seconde en quatre
   minutes — et décalait la grille pour de bon à chaque changement de tempo. Sans compteur ou sans
   phase connue, la grille au tempo reprend la main, à l'identique.

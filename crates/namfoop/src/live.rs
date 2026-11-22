@@ -150,7 +150,7 @@ pub fn run(
                 log::debug!("MIDI : {}", midi_io::describe(&msg.event));
                 let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
                 match msg.event {
-                    midi_io::Event::ClockTick if clock_on => tempo.clock_tick(at_us),
+                    midi_io::Event::ClockTick if clock_on => tempo.clock_tick(at_us, msg.clock_seq),
                     midi_io::Event::ClockStart if clock_on => tempo.clock_start(),
                     midi_io::Event::ClockContinue if clock_on => tempo.clock_continue(),
                     midi_io::Event::ClockStop if clock_on => tempo.clock_stop(),
@@ -175,15 +175,11 @@ pub fn run(
             if epoch != click_downbeat.get() {
                 click_downbeat.set(epoch);
             }
-            if let Some(c) = &clock_ticks {
-                // la file vient d'être vidée : le compteur de tops et le comptage de l'arbitre
-                // sont au même point, ce que la soustraction exige
-                let phase = tempo.clock_phase(c.load(std::sync::atomic::Ordering::Relaxed));
-                // `NaN != NaN` : une phase inconnue se réécrit à chaque tour, ce qui ne coûte
-                // qu'un store relâché et évite une comparaison à cas particulier
-                if phase != clock_phase.get() {
-                    clock_phase.set(phase);
-                }
+            // le numéro du top qui porte le temps ; `NaN != NaN`, donc une phase inconnue se
+            // réécrit à chaque tour — un store relâché, et pas de cas particulier à écrire
+            let phase = tempo.clock_phase();
+            if phase != clock_phase.get() {
+                clock_phase.set(phase);
             }
         }
         if seconds.is_some_and(|s| start.elapsed().as_secs_f64() >= s) {

@@ -64,6 +64,19 @@ pub enum Event {
 pub struct Message {
     pub at: Instant,
     pub event: Event,
+    /// **Le numéro du top d'horloge** : combien de tops avaient été reçus quand ce message a été
+    /// vu. Pour un `ClockTick`, c'est donc **son** numéro.
+    ///
+    /// Il est là parce que la position d'un temps est un numéro de top, et qu'un numéro ne se
+    /// reconstitue pas : le déduire en comparant le compteur partagé
+    /// ([`Input::clock_ticks`]) à un comptage tenu ailleurs oblige à lire les deux au même
+    /// instant, ce qui n'est jamais tout à fait vrai — un top compté entre les deux lectures
+    /// décale la position d'un top, soit 17,6 ms à 142 BPM, et rien ne le signale. Porté par le
+    /// message, le numéro est juste par construction.
+    ///
+    /// Sur un message qui n'est pas un top, c'est le nombre de tops reçus **à son arrivée** : ce
+    /// qui permet de caler un tap au pied sur le top le plus proche.
+    pub clock_seq: u64,
 }
 
 /// Quel port écouter. Traduit depuis la CLI et la config par le binaire : cette crate ne lit ni
@@ -123,10 +136,15 @@ impl Sink {
     /// débordait : le top a bien eu lieu, et c'est son numéro qui porte la phase. Perdre le
     /// message coûte une mesure de tempo ; perdre le comptage décalerait la grille pour de bon.
     fn push(&mut self, event: Event) {
-        if event == Event::ClockTick {
-            self.clock_ticks.fetch_add(1, Ordering::Relaxed);
-        }
-        let msg = Message { at: Instant::now(), event };
+        // Compté **avant** d'être poussé, donc compté même si la file débordait : le top a bien eu
+        // lieu, et c'est son numéro qui porte la phase. `fetch_add` rend la valeur d'avant, et le
+        // numéro de ce top-ci est donc celle-là plus un.
+        let clock_seq = if event == Event::ClockTick {
+            self.clock_ticks.fetch_add(1, Ordering::Relaxed) + 1
+        } else {
+            self.clock_ticks.load(Ordering::Relaxed)
+        };
+        let msg = Message { at: Instant::now(), event, clock_seq };
         if self.tx.push(msg).is_err() {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
@@ -176,6 +194,9 @@ impl Input {
     /// `Start`, ni sur `Stop`, ni après un silence. Diviser par 24 pour obtenir des noires, décider
     /// qu'un silence invalide la phase, placer le temps 1 — tout cela demande de savoir ce qu'un
     /// message *veut dire*, ce que cette crate ignore par construction.
+    ///
+    /// Le côté contrôle, lui, n'a pas besoin de ce compteur : chaque message porte son
+    /// [`Message::clock_seq`], qui est juste sans dépendre de l'instant où on lit.
     pub fn clock_ticks(&self) -> Arc<AtomicU64> {
         self.clock_ticks.clone()
     }

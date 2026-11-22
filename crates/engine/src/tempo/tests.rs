@@ -16,13 +16,20 @@ fn beat_us(bpm: f32) -> u64 {
     (60_000_000.0 / bpm as f64).round() as u64
 }
 
+/// Un top, **numéroté à la suite** du précédent : c'est ce que fait le fil de lecture, et un
+/// compteur de tops ne recule jamais.
+fn tick(a: &mut Arbiter, at: u64) {
+    let seq = a.last_seq + 1;
+    a.clock_tick(at, seq);
+}
+
 /// Une horloge régulière à `bpm`, `beats` noires de tops, depuis `t0` ; rend le dernier top.
 fn feed_clock(a: &mut Arbiter, t0: u64, bpm: f32, beats: u32) -> u64 {
     let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
     let mut t = t0;
     for _ in 0..beats * TICKS_PER_BEAT {
         t += step;
-        a.clock_tick(t);
+        tick(a, t);
     }
     t
 }
@@ -114,7 +121,7 @@ fn the_clock_locks_then_only_moves_on_a_real_change() {
     let mut t = 0;
     for _ in 0..TICKS_PER_BEAT - 1 {
         t += step;
-        a.clock_tick(t);
+        tick(&mut a, t);
     }
     assert_eq!((a.bpm(), a.source()), (92.0, TempoSource::Preset), "pas de verrou trop tôt");
 
@@ -146,7 +153,7 @@ fn a_big_tempo_change_is_followed_instead_of_rejected_forever() {
     let mut at = t;
     for _ in 0..CLOCK_REJECTS_BEFORE_RESTART {
         at += step;
-        a.clock_tick(at);
+        tick(&mut a, at);
     }
     assert_eq!((a.bpm(), a.source()), (120.0, TempoSource::MidiClock), "aucun saut, aucune panne");
 
@@ -241,7 +248,7 @@ fn a_dead_clock_keeps_the_last_tempo_and_says_so() {
     let mut a = Arbiter::new();
     let t = feed_clock(&mut a, 0, 120.0, 2);
     let before = a.bpm();
-    a.clock_tick(t + ms(2000));
+    tick(&mut a, t + ms(2000));
     assert_eq!(a.source(), TempoSource::ClockLost);
     assert_eq!(a.bpm(), before);
 }
@@ -284,8 +291,8 @@ fn a_clock_going_backwards_is_harmless() {
     a.tap(ms(1000));
     a.tap(ms(500)); // en arrière
     assert!(a.bpm().is_finite() && (MIN_BPM..=MAX_BPM).contains(&a.bpm()), "{}", a.bpm());
-    a.clock_tick(ms(1000));
-    a.clock_tick(ms(0));
+    tick(&mut a, ms(1000));
+    tick(&mut a, ms(0));
     a.poll(0);
     assert!(a.bpm().is_finite());
 }
@@ -307,22 +314,21 @@ fn the_clock_phase_never_wobbles() {
     for bpm in [90.0f32, 142.0, 200.0, 260.0] {
         let mut a = Arbiter::new();
         let tick_us = (60_000_000.0 / bpm / TICKS_PER_BEAT as f32) as u64;
-        let (mut counter, mut next_tick, mut next_loop) = (0u64, ms(1), 0u64);
+        let (mut next_tick, mut next_loop) = (ms(1), 0u64);
         let mut seen: Vec<f32> = Vec::new();
         let mut seed = 12_345u64;
-        // 20 secondes simulées : le fil de lecture compte les tops à l'instant juste, la
-        // boucle d'écran lit le compteur toutes les 25 ms
+        // 20 secondes simulées : les tops arrivent avec leur gigue, la boucle d'écran lit la
+        // phase toutes les 25 ms — et elle ne doit jamais la voir changer
         for now in (0..20_000_000u64).step_by(1_000) {
             if now >= next_tick {
-                counter += 1;
-                a.clock_tick(now);
+                tick(&mut a, now);
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
                 let jitter = ((seed >> 33) % 1_200) as i64 - 600;
                 next_tick = (next_tick as i64 + tick_us as i64 + jitter) as u64;
             }
             if now >= next_loop {
                 next_loop = now + 25_000;
-                let p = a.clock_phase(counter);
+                let p = a.clock_phase();
                 if p.is_finite() && seen.last() != Some(&p) {
                     seen.push(p);
                 }
@@ -340,218 +346,159 @@ fn every_source_has_a_label() {
     }
 }
 
-/// **Le pont entre le compteur de tops et la grille du clic.** La phase dit quel top porte le
-/// temps, modulo 24 : ancrée sur le top n° 1, elle vaut 1 — et elle vaut **toujours** 1,
-/// qu'on la demande juste après une frontière ou vingt-trois tops plus tard. C'est cette
-/// stabilité qui permet au fil audio de ne faire que compter.
+/// **La phase est le numéro du top d'ancrage**, modulo une noire. Ancrée sur le top n° 1, elle
+/// vaut 1 — et elle vaut toujours 1, parce que rien ne la recalcule : c'est une constante entre
+/// deux ancrages. C'est tout l'intérêt de faire porter au top son numéro.
 #[test]
-fn the_clock_phase_says_which_tick_carries_the_beat() {
+fn the_clock_phase_is_the_anchor_tick_number() {
     let mut a = Arbiter::new();
-    let bpm = 142.0;
-    let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
-    let mut ticks = 0u64;
-    let mut t = ms(10);
+    let step = beat_us(142.0) / TICKS_PER_BEAT as u64;
+    let mut at = ms(10);
 
-    // l'ancre, puis deux noires de tops : il faut une noire pour verrouiller le tempo, et sans
-    // verrou il n'y a pas de phase (l'arrondi se ferait sur la période du preset)
-    a.clock_tick(t);
-    ticks += 1;
-    assert!(a.clock_phase(ticks).is_nan(), "pas encore de verrou");
-    for _ in 1..(TICKS_PER_BEAT as u64 * 2) {
-        t += step;
-        a.clock_tick(t);
-        ticks += 1;
+    tick(&mut a, at);
+    assert!(a.clock_phase().is_nan(), "pas encore de verrou : le tempo n'est pas celui de la source");
+
+    // une noire de tops verrouille, puis la phase ne bouge plus de trois noires
+    for _ in 1..(TICKS_PER_BEAT as u64 * 4) {
+        at += step;
+        tick(&mut a, at);
+        if a.clock_phase().is_finite() {
+            assert_eq!(a.clock_phase(), 1.0, "au top {}", a.last_seq);
+        }
     }
-    assert_eq!(a.source(), TempoSource::MidiClock, "verrouillé");
-    assert_eq!(a.clock_phase(ticks), 1.0, "ancré sur le top n° 1");
+    assert_eq!(a.source(), TempoSource::MidiClock);
+    assert_eq!(a.clock_phase(), 1.0, "l'ancre est le premier top du flux");
+    assert_eq!(a.clock_anchor_seq(), Some(1));
 
-    // trois noires de plus : la phase ne doit pas bouger d'un iota
-    for _ in 0..(TICKS_PER_BEAT as u64 * 3) {
-        t += step;
-        a.clock_tick(t);
-        ticks += 1;
-        assert_eq!(a.clock_phase(ticks), 1.0, "au top {ticks}");
-    }
-
-    // ce que le clic en déduit : les frontières tombent sur 1, 25, 49…
-    let off = a.clock_phase(ticks) as u64;
+    // ce que le clic en déduit : les temps tombent sur les tops 1, 25, 49…
+    let off = a.clock_phase() as u64;
     for c in [1u64, 25, 49, 73] {
         assert_eq!((c - off) % TICKS_PER_BEAT as u64, 0, "le top {c} porte un temps");
     }
 }
 
-/// Sans horloge ancrée, il n'y a pas de phase : le clic doit alors tourner sur le tempo, et
-/// c'est `NaN` qui le lui dit.
+/// Sans horloge verrouillée, il n'y a pas de phase : le clic tourne alors sur le tempo, et c'est
+/// `NaN` qui le lui dit.
 #[test]
 fn no_clock_means_no_phase() {
     let mut a = Arbiter::new();
-    assert!(a.clock_phase(0).is_nan(), "aucun top reçu");
+    assert!(a.clock_phase().is_nan(), "aucun top reçu");
     a.preset(120.0);
-    assert!(a.clock_phase(42).is_nan(), "un preset ne donne pas de phase");
+    assert!(a.clock_phase().is_nan(), "un preset ne donne pas de phase");
     let last = feed_clock(&mut a, 0, 120.0, 2);
-    assert!(a.clock_phase(48).is_finite(), "l'horloge, elle, en donne une");
+    assert!(a.clock_phase().is_finite(), "l'horloge, elle, en donne une");
     a.poll(last + ms(CLOCK_LOST_MS + 1));
-    assert!(a.clock_phase(48).is_nan(), "et l'horloge perdue la retire");
+    assert!(a.clock_phase().is_nan(), "et l'horloge perdue la retire");
 }
 
 /// **Une phase devinée doit se dire.** Entré au milieu d'un flux, le premier top reçu n'est un
 /// début de temps qu'une fois sur vingt-quatre : l'écran doit l'annoncer, parce que c'est
-/// indiscernable d'un tempo faux à l'oreille. Observer le flux se taire puis reprendre, un
-/// transport, ou un tap la confirment.
+/// indiscernable d'un tempo faux à l'oreille. Un silence observé, un transport ou un tap la
+/// confirment.
 #[test]
 fn a_guessed_phase_is_not_a_confirmed_one() {
     let mut a = Arbiter::new();
     let last = feed_clock(&mut a, 0, 120.0, 2);
-    assert!(a.clock_beat_at_us().is_some());
+    assert!(a.clock_anchor_seq().is_some());
     assert!(!a.clock_phase_confirmed(), "on est arrivé au milieu d'un flux : phase devinée");
 
-    // un tap la confirme (et la pose)
     a.tap(last + ms(10));
     assert!(a.clock_phase_confirmed(), "un tap dit où tombe le temps");
 
-    // un silence observé puis une reprise la confirment aussi
     let mut b = Arbiter::new();
     let last = feed_clock(&mut b, 0, 120.0, 2);
     assert!(!b.clock_phase_confirmed());
     b.poll(last + ms(CLOCK_LOST_MS + 1));
     assert!(!b.clock_phase_confirmed(), "sans phase du tout, rien à confirmer");
-    // la reprise ancre dès son premier top, et le verrou revient après une noire de tops —
-    // la confirmation ne s'affiche qu'une fois les deux acquis
     feed_clock(&mut b, last + ms(CLOCK_LOST_MS + 100), 120.0, 2);
     assert!(b.clock_phase_confirmed(), "le début d'un flux observé est une vraie ancre");
 
-    // un transport la confirme sans attendre de silence
     let mut c = Arbiter::new();
     c.clock_start();
     feed_clock(&mut c, ms(5), 120.0, 2);
     assert!(c.clock_phase_confirmed(), "Start dit où tombe le temps");
 }
 
-/// **Un tap raccroche la grille de l'horloge à la sienne.** Sans cela, la frontière suivante
-/// retomberait sur l'ancienne grille et le tap serait annulé une noire plus tard.
+/// **Un tap pose l'ancre sur le top le plus proche de lui.** Un geste ne tombe jamais pile sur un
+/// top ; le quantifier borne l'erreur à un demi-intervalle — 8,8 ms à 142 BPM —, là où prendre le
+/// dernier top reçu la laisserait valoir un intervalle entier.
 #[test]
-fn a_tap_moves_the_clock_grid_onto_its_own() {
-    let mut a = Arbiter::new();
+fn a_tap_anchors_on_the_nearest_tick() {
     let bpm = 120.0;
     let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
+
+    let mut a = Arbiter::new();
     let last = feed_clock(&mut a, 0, bpm, 2);
+    let avant = a.last_seq;
+    assert_eq!(avant, 2 * TICKS_PER_BEAT as u64, "48 tops reçus");
+    // on tape huit tops après le dernier reçu : l'ancre s'y pose, pas sur le dernier
+    a.tap(last + 8 * step);
+    assert_eq!(a.clock_anchor_seq(), Some(avant + 8), "l'ancre suit le geste");
+    assert_eq!(a.clock_phase(), ((avant + 8) % TICKS_PER_BEAT as u64) as f32);
 
-    // on tape à un tiers de noire de la grille de l'horloge
-    let tap_at = last + beat_us(bpm) / 3;
-    a.tap(tap_at);
-    assert_eq!(a.clock_beat_at_us(), Some(tap_at), "le tap EST la frontière");
-
-    // la frontière suivante tombe 24 tops après le tap, pas après l'ancienne grille
-    let mut t = tap_at;
-    for _ in 0..TICKS_PER_BEAT {
-        t += step;
-        a.clock_tick(t);
-    }
-    assert_eq!(a.clock_beat_at_us(), Some(t), "la grille suit le tap");
+    // un geste à un cheveu d'un top se pose sur CE top
+    let mut b = Arbiter::new();
+    let last = feed_clock(&mut b, 0, bpm, 2);
+    b.tap(last + step / 10);
+    assert_eq!(b.clock_anchor_seq(), Some(2 * TICKS_PER_BEAT as u64), "arrondi au plus proche");
 }
 
 /// **Le cas d'un métronome de clavier** : des tops, aucun message de transport. Le premier top
-/// ancre la phase et recale le temps 1 ; les frontières suivantes se comptent, sans recaler.
+/// ancre la phase et recale le temps 1, et rien ne recale ensuite — sans quoi le clic suivrait la
+/// granularité de la boucle d'écran au lieu de l'horloge.
 #[test]
 fn a_clock_without_transport_anchors_on_its_first_tick() {
     let mut a = Arbiter::new();
-    assert_eq!(a.clock_beat_at_us(), None, "rien à suivre avant le premier top");
+    assert_eq!(a.clock_anchor_seq(), None, "rien à suivre avant le premier top");
     let epoch = a.beat_epoch();
-    let step = beat_us(142.0) / TICKS_PER_BEAT as u64;
-    let t0 = ms(10);
 
-    a.clock_tick(t0);
-    assert_eq!(a.clock_beat_at_us(), Some(t0), "le premier top EST une frontière de temps");
-    assert_eq!(a.beat_epoch(), epoch + 1, "et il recale le temps 1");
-
-    // les 23 tops suivants ne franchissent rien
-    for k in 1..TICKS_PER_BEAT as u64 {
-        a.clock_tick(t0 + k * step);
-    }
-    assert_eq!(a.clock_beat_at_us(), Some(t0), "pas de frontière avant le 24e top");
-    assert_eq!(a.beat_epoch(), epoch + 1);
-
-    // le 24e, lui, la franchit — mais ne demande PAS de recalage : le clic suivrait sinon la
-    // granularité de la boucle d'écran au lieu de l'horloge
-    let beat = t0 + TICKS_PER_BEAT as u64 * step;
-    a.clock_tick(beat);
-    assert_eq!(a.clock_beat_at_us(), Some(beat));
-    assert_eq!(a.beat_epoch(), epoch + 1, "une frontière ordinaire ne recale pas");
+    feed_clock(&mut a, ms(10), 142.0, 3);
+    assert_eq!(a.clock_anchor_seq(), Some(1), "l'ancre est le premier top du flux");
+    assert_eq!(a.beat_epoch(), epoch + 1, "il recale le temps 1, une fois et une seule");
 }
 
-/// Après un `Start`, le premier top prend la phase mais **ne recale pas** une seconde fois :
-/// le transport l'a déjà fait, et deux recalages coup sur coup n'ont pas de sens.
+/// Après un `Start`, le premier top prend la phase mais **ne recale pas** une seconde fois : le
+/// transport l'a déjà fait, et deux recalages coup sur coup n'ont pas de sens.
 #[test]
 fn a_tick_after_start_takes_the_phase_without_recalling_beat_one() {
     let mut a = Arbiter::new();
     let epoch = a.beat_epoch();
     a.clock_start();
     assert_eq!(a.beat_epoch(), epoch + 1, "Start recale");
-    let t0 = ms(7);
-    a.clock_tick(t0);
-    assert_eq!(a.clock_beat_at_us(), Some(t0), "et le premier top donne la phase");
+    feed_clock(&mut a, ms(7), 120.0, 2);
+    assert_eq!(a.clock_anchor_seq(), Some(1), "et le premier top donne la phase");
     assert_eq!(a.beat_epoch(), epoch + 1, "sans recaler deux fois");
 }
 
-/// La phase suit **les tops**, pas le tempo publié : c'est ce qui la rend insensible à
-/// l'hystérésis de 0,3 BPM, dont l'erreur gelée dériverait d'une demi-seconde en quatre minutes.
-#[test]
-fn beat_boundaries_follow_the_ticks_not_the_published_tempo() {
-    let mut a = Arbiter::new();
-    let bpm = 142.0;
-    let step = beat_us(bpm) / TICKS_PER_BEAT as u64;
-    let t0 = ms(1);
-    a.clock_tick(t0);
-    let mut seen = Vec::new();
-    for k in 1..=(TICKS_PER_BEAT as u64 * 8) {
-        a.clock_tick(t0 + k * step);
-        if let Some(b) = a.clock_beat_at_us() {
-            if seen.last() != Some(&b) {
-                seen.push(b);
-            }
-        }
-    }
-    // 8 noires de tops -> l'ancre plus 8 frontières
-    assert_eq!(seen.len(), 9, "une frontière par noire : {seen:?}");
-    for w in seen.windows(2) {
-        let d = w[1] - w[0];
-        let want = TICKS_PER_BEAT as u64 * step;
-        assert_eq!(d, want, "frontières espacées d'une noire exacte");
-    }
-    // et le tempo publié, lui, est bien celui-là
-    assert!((a.bpm() - bpm).abs() < 0.3, "{} BPM", a.bpm());
-}
-
-/// Un tap garde la **phase** comme il garde le tempo (ADR 0008) : l'horloge continue d'être
-/// suivie, mais elle n'impose plus le temps 1.
+/// Un tap garde la **phase** comme il garde le tempo (ADR 0008) : l'horloge est suivie, mais elle
+/// n'impose plus le temps 1.
 #[test]
 fn a_tap_keeps_the_phase_too() {
     let mut a = Arbiter::new();
     tap_at(&mut a, ms(0), 120.0, 2);
     assert_eq!(a.source(), TempoSource::Tap);
     let epoch = a.beat_epoch();
-    let t0 = ms(5000);
-    a.clock_tick(t0);
-    assert_eq!(a.clock_beat_at_us(), Some(t0), "la grille de l'horloge est suivie");
-    assert_eq!(a.beat_epoch(), epoch, "mais elle ne recale pas le temps 1 : le tap a la main");
+    feed_clock(&mut a, ms(5000), 120.0, 2);
+    assert_eq!(a.beat_epoch(), epoch, "l'horloge ne recale pas : le tap a la main");
 }
 
-/// Une horloge qui se tait **oublie la phase** : le prochain top réancrera, plutôt que de
-/// compter depuis une frontière périmée.
+/// Une horloge qui se tait **oublie la phase** : le prochain top réancrera, plutôt que de compter
+/// depuis un top périmé. Le tempo, lui, est gardé.
 #[test]
 fn a_dead_clock_forgets_the_phase_but_keeps_the_tempo() {
     let mut a = Arbiter::new();
     let last = feed_clock(&mut a, ms(0), 120.0, 2);
-    assert!(a.clock_beat_at_us().is_some());
+    assert!(a.clock_anchor_seq().is_some());
     let bpm = a.bpm();
 
     a.poll(last + ms(CLOCK_LOST_MS + 1));
-    assert_eq!(a.clock_beat_at_us(), None, "plus de phase connue");
+    assert_eq!(a.clock_anchor_seq(), None, "plus de phase connue");
+    assert!(a.clock_phase().is_nan());
     assert_eq!(a.bpm(), bpm, "le tempo, lui, est gardé");
     assert_eq!(a.source(), TempoSource::ClockLost);
 
-    // la reprise réancre
-    let t = last + ms(CLOCK_LOST_MS + 100);
-    a.clock_tick(t);
-    assert_eq!(a.clock_beat_at_us(), Some(t));
+    // la reprise réancre sur le top qui la commence
+    let avant = a.last_seq;
+    feed_clock(&mut a, last + ms(CLOCK_LOST_MS + 100), 120.0, 2);
+    assert_eq!(a.clock_anchor_seq(), Some(avant + 1), "l'ancre est le premier top de la reprise");
 }

@@ -129,7 +129,7 @@ mod tests {
     use midi_io::{Event, Message};
 
     fn msg(event: Event, at: Instant) -> Message {
-        Message { at, event }
+        Message { at, event, clock_seq: 0 }
     }
 
     #[test]

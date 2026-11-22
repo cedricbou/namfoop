@@ -23,6 +23,9 @@ section prend le numéro de version.
 - **Quel top porte le temps** s'apprend d'un `Start` ou d'un Song Position Pointer, du début d'un
   flux quand namfoop écoutait déjà, ou d'un appui sur `*`. Comme la grille reste ensuite verrouillée
   sur les tops, **un seul appui suffit** pour toute la session.
+- **Un tap se cale sur le top le plus proche** quand une horloge tourne, donc à moins d'un
+  demi-intervalle — 8,8 ms à 142 BPM — au lieu de l'intervalle entier que coûtait « le dernier top
+  reçu ». Et comme la grille reste verrouillée sur les tops, ce tap-là tient pour la session.
 - **Le clic ne double plus et ne décale plus.** Premier essai sur le matériel : des doubles clics,
   d'autant plus nombreux que le tempo montait, et des décalages qui persistaient. La position du
   temps était déduite d'une durée, donc d'un arrondi posé là où la gigue du câble passe et repasse
