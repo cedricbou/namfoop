@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#359)
+- **La latence annoncée dit à quel buffer elle a été mesurée**, et ce qu'elle vaut à l'autre :
+  6,35 ms à 64, **5,10 ms à 48** sur la même boucle, soit 60 frames pour 16 frames de buffer. Un
+  changement de buffer déplace le chiffre bien plus que n'importe quelle chaîne d'effets.
+
 ### Interne (#357)
 - **La taille de bloc maximale pour laquelle un son est préparé n'est écrite qu'à un seul endroit.**
   Elle l'était cinq fois — une par partie du programme qui prend la carte, plus la calibration — et

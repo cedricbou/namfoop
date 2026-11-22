@@ -2532,7 +2532,13 @@ Chaque chaîne donne **deux lignes** :
 Mesuré sur une Signature 12 MTK (buffer 64, 3 périodes) : aller-retour 305 frames (6,35 ms), les
 cinq lignes « à côté » toutes à +0, et de +16 à +18 frames (0,4 ms) dans le trajet selon la chaîne —
 modèle seul, avec IR, avec effets ou à quatre modèles en parallèle, l'attaque met le même temps à
-monter. L'aller-retour, lui, dépend du buffer : c'est une mesure à refaire quand on en change.
+monter.
+
+**La latence annoncée vaut pour le buffer où elle a été mesurée**, et l'écart est du même ordre que
+ce qu'une pédale ajoute : la même boucle donne 6,35 ms à `--buffer 64` et **5,10 ms à `--buffer 48`**
+(245 frames), soit 60 frames gagnées pour 16 frames de buffer. Changer de buffer déplace donc le
+chiffre bien plus que n'importe quelle chaîne d'effets — c'est la première chose à vérifier avant de
+conclure qu'une mesure a changé.
 
 La **charge DSP** par bloc (médiane, p99,9, blocs au-delà de 80 % et de 100 % du budget) est donnée
 sur la ligne **« à côté »**, la seule où la chaîne travaille sur du signal : dans le trajet, elle ne

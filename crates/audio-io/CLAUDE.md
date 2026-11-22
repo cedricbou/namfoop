@@ -41,8 +41,10 @@ matériel (utilisateur seulement, câble sortie 1 -> entrée 2) : `scripts/test-
 - **Latence sous charge** (`latency --chains --count 10`, Soundcraft Signature 12 MTK, ALSA
   buffer 64 / 3 périodes, boucle sortie 3 (AUX) -> entrée 2, retour à 0 dBFS sur un bruit de fond à
   -90 dBFS, modèle d'exemple WaveNet 3 canaux) : aller-retour **305 frames = 6,35 ms**,
-  **dispersion 0** sur les dix mesures comptées, **0 xrun**. La valeur vaut pour ce buffer-là : la
-  boucle grandit avec lui, et cette pente n'est pas mesurée.
+  **dispersion 0** sur les dix mesures comptées, **0 xrun**. **La boucle suit la taille du
+  buffer** : la même, à **48**, donne **245 frames = 5,10 ms**, soit **60 frames pour 16 frames de
+  buffer**. Deux points ne font pas une loi — ne pas extrapoler à 32, à 128 ni à une autre carte —,
+  mais ils suffisent à ne pas prendre un changement de buffer pour une régression.
   **La charge ne décale pas la latence** : les cinq lignes « à côté » donnent 305 frames, à la frame
   près, jusqu'à quatre `nam › ir` en parallèle. L'écart de la ligne « dans le trajet » — 16 frames
   pour un modèle seul, 18 (0,4 ms) pour tout le reste du catalogue — est le temps que l'**attaque**
