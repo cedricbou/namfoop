@@ -49,6 +49,28 @@ impl Args {
     }
 }
 
+/// Les fichiers jetables de la mesure (modèle d'exemple, IR de synthèse) : effacés quand la portée
+/// se referme, **y compris** quand une chaîne refuse de se bâtir. Un nettoyage écrit à la fin de
+/// [`build`] ne couvre pas ce cas, et laisse un `.nam` et un `.wav` dans le dossier temporaire.
+#[derive(Default)]
+struct Scratch(Vec<PathBuf>);
+
+impl Scratch {
+    /// Retient un fichier à effacer, et rend son chemin.
+    fn keep(&mut self, p: PathBuf) -> PathBuf {
+        self.0.push(p.clone());
+        p
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        for p in self.0.drain(..) {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+}
+
 /// Les chaînes demandées, bâties **et préchauffées avant d'ouvrir la carte** : tout ce qui alloue,
 /// charge un modèle ou touche au disque se fait ici, pas dans le callback.
 fn build(cfg: &audio_io::Settings, args: &Args) -> Result<Vec<(String, dsp::Chain)>> {
@@ -59,22 +81,14 @@ fn build(cfg: &audio_io::Settings, args: &Args) -> Result<Vec<(String, dsp::Chai
         return Ok(Vec::new());
     }
     let dir = std::env::temp_dir();
-    let mut scratch: Vec<PathBuf> = Vec::new();
+    let mut scratch = Scratch::default();
     let model = match &args.model {
         Some(q) => library::resolve(q, &args.library, "nam")?,
-        None => {
-            let p = dsp::bench::write_example_model(&dir).context("modèle d'exemple")?;
-            scratch.push(p.clone());
-            p
-        }
+        None => scratch.keep(dsp::bench::write_example_model(&dir).context("modèle d'exemple")?),
     };
     let ir = match &args.ir {
         Some(q) => library::resolve(q, &args.library, "wav")?,
-        None => {
-            let p = dsp::bench::write_synthetic_ir(&dir, cfg.rate).context("IR de synthèse")?;
-            scratch.push(p.clone());
-            p
-        }
+        None => scratch.keep(dsp::bench::write_synthetic_ir(&dir, cfg.rate).context("IR de synthèse")?),
     };
     let catalog = dsp::bench::chains(&model, &ir);
     let known: Vec<&str> = catalog.iter().map(|(n, _)| *n).collect();
@@ -92,9 +106,6 @@ fn build(cfg: &audio_io::Settings, args: &Args) -> Result<Vec<(String, dsp::Chai
         engine::rt::prewarm(&mut chain, cfg.buffer as usize, cfg.rate);
         log::info!("chaîne « {name} » prête : {}", describe(&spec));
         built.push((name.to_string(), chain));
-    }
-    for p in scratch {
-        let _ = std::fs::remove_file(p);
     }
     Ok(built)
 }
@@ -384,4 +395,35 @@ fn table(
         bail!("{}", no_return(&rows[0], args.out_ch, args.in_ch));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Une chaîne qui ne se bâtit pas ne laisse pas de fichier jetable derrière elle : le modèle
+    /// d'exemple et l'IR de synthèse sont écrits **avant** que le nom de chaîne soit contrôlé, et
+    /// un dossier temporaire qui se remplit à chaque faute de frappe ne se voit jamais.
+    #[test]
+    fn a_failed_build_leaves_no_scratch_file() {
+        let args = Args {
+            out_ch: 1,
+            in_ch: 2,
+            count: 1,
+            chains: false,
+            chain: Some("chaine-qui-n-existe-pas".to_string()),
+            model: None,
+            ir: None,
+            library: PathBuf::new(),
+        };
+        let Err(err) = build(&audio_io::Settings::default(), &args) else {
+            panic!("une chaîne inconnue devrait être refusée");
+        };
+        assert!(err.to_string().contains("inconnue"), "{err}");
+        // un fichier par processus (`dsp::bench`), donc ceux de ce test et d'aucun autre
+        for ext in ["nam", "wav"] {
+            let p = std::env::temp_dir().join(format!("namfoop-bench-{}.{ext}", std::process::id()));
+            assert!(!p.exists(), "{} est resté", p.display());
+        }
+    }
 }
