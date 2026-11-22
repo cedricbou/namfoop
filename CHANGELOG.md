@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Licence (#392)
+- **namfoop passe sous GPL-3.0-or-later** (fichier `LICENSE`), au lieu de la MIT annoncée jusque-là
+  sans texte de licence : une version redistribuée, modifiée ou non, reste libre avec son code. Le
+  README liste les licences de ce que namfoop embarque et rappelle que les marques citées
+  appartiennent à leurs propriétaires ; le logo reste tous droits réservés.
+
 ### Interne (#362)
 - **Les essais matériels se lancent sur n'importe quelle carte** : la carte, le canal de bouclage,
   l'entrée de la basse et le routage se donnent en variables, aux valeurs de l'iTwo par défaut.
