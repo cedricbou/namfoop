@@ -527,3 +527,85 @@ fn a_dead_clock_forgets_the_phase_but_keeps_the_tempo() {
     feed_clock(&mut a, last + ms(CLOCK_LOST_MS + 100), 120.0, 2);
     assert_eq!(a.clock_anchor_seq(), Some(avant as i64 + 1), "l'ancre est le premier top de la reprise");
 }
+
+/// **Une horloge nue ne dit rien de son transport** : pas d'état inventé, donc rien à montrer.
+/// C'est le cas d'un métronome de clavier, qui n'émet que des tops.
+#[test]
+fn a_bare_clock_says_nothing_about_its_transport() {
+    let mut a = Arbiter::new();
+    assert_eq!(a.transport(), None, "rien reçu, rien à dire");
+    feed_clock(&mut a, ms(0), 120.0, 3);
+    assert_eq!(a.source(), TempoSource::MidiClock, "l'horloge mène bien le tempo");
+    assert_eq!(a.transport(), None, "des tops ne sont pas un transport");
+}
+
+/// **`Start` dit « je lis », `Stop` dit « je m'arrête »** — et un `Stop` survit au silence qu'il
+/// provoque : la source l'a annoncé, l'écran doit donc continuer à le montrer.
+#[test]
+fn the_transport_says_playing_then_stopped() {
+    let mut a = Arbiter::new();
+    a.clock_start();
+    let last = feed_clock(&mut a, ms(0), 120.0, 3);
+    assert_eq!(a.transport(), Some(Transport::Playing), "les tops confirment la lecture");
+
+    a.clock_stop();
+    assert_eq!(a.transport(), Some(Transport::Stopped));
+    // l'horloge se tait forcément après un Stop : ce silence-là est attendu, il n'efface rien
+    a.poll(last + ms(CLOCK_LOST_MS + 1));
+    assert_eq!(a.transport(), Some(Transport::Stopped), "un arrêt annoncé reste vrai");
+}
+
+/// **Un trou dans le flux n'efface pas ce que la source a dit.** Avec « horloge perdue », un `⏵`
+/// distingue « j'ai perdu son horloge alors qu'elle lisait » — câble, source éteinte — de « elle
+/// s'est arrêtée », et c'est ce diagnostic qu'on cherche sur scène. L'effacer coûtait de plus
+/// l'indication pour de bon dès le premier intervalle aberrant, et il en arrive pendant la
+/// demi-seconde de verrouillage.
+#[test]
+fn a_clock_that_dies_mid_playback_still_says_the_source_was_playing() {
+    let mut a = Arbiter::new();
+    a.clock_start();
+    let last = feed_clock(&mut a, ms(0), 120.0, 3);
+    assert_eq!(a.transport(), Some(Transport::Playing));
+
+    a.poll(last + ms(CLOCK_LOST_MS + 1));
+    assert_eq!(a.source(), TempoSource::ClockLost, "l'horloge perdue est dite par la source");
+    assert_eq!(a.transport(), Some(Transport::Playing), "la source, elle, n'a jamais dit stop");
+}
+
+/// **Un accroc d'un seul intervalle ne doit rien coûter.** Avant le verrouillage, un intervalle
+/// aberrant appelle la perte d'horloge sans même changer la source : effacer le transport là
+/// faisait disparaître `⏵` de l'écran pour toute la lecture, sans que rien ne le signale.
+#[test]
+fn a_single_bad_interval_does_not_cost_the_transport() {
+    let mut a = Arbiter::new();
+    a.clock_start();
+    // un trou franc au milieu du verrouillage, puis l'horloge reprend normalement
+    let last = feed_clock(&mut a, ms(0), 120.0, 1);
+    tick(&mut a, last + ms(CLOCK_LOST_MS + 10));
+    assert_eq!(a.source(), TempoSource::Preset, "pas encore verrouillée : la source n'a pas bougé");
+    feed_clock(&mut a, last + ms(CLOCK_LOST_MS + 10), 120.0, 3);
+    assert_eq!(a.source(), TempoSource::MidiClock);
+    assert_eq!(a.transport(), Some(Transport::Playing), "la lecture annoncée a survécu");
+}
+
+/// **`Continue` est une lecture aussi** : il ne se distingue de `Start` que par le temps 1.
+#[test]
+fn a_continue_is_playing_as_well() {
+    let mut a = Arbiter::new();
+    a.clock_continue();
+    feed_clock(&mut a, ms(0), 120.0, 3);
+    assert_eq!(a.transport(), Some(Transport::Playing));
+}
+
+/// **Un `Start` sans horloge derrière ne s'affiche pas.** Un pédalier mal réglé ou une piste MIDI
+/// oubliée en envoie ; sans top pour le démentir, l'écran annoncerait une lecture pour toute la
+/// session. Le transport ne se montre donc qu'au côté d'une horloge.
+#[test]
+fn a_stray_start_without_a_clock_shows_nothing() {
+    let mut a = Arbiter::new();
+    a.clock_start();
+    assert_eq!(a.source(), TempoSource::Preset, "aucune horloge : le preset mène");
+    assert_eq!(a.transport(), None, "rien à montrer tant qu'aucun top n'arrive");
+    a.poll(ms(10_000));
+    assert_eq!(a.transport(), None, "et le temps qui passe n'y change rien");
+}

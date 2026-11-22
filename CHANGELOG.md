@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#354)
+- **L'en-tête dit si la source d'horloge lit ou s'est arrêtée** : `♩ 120 ⏵ (MIDI)` au `Start`,
+  `⏸` au `Stop`, et la ligne d'état de `run` porte le même champ. namfoop en tenait déjà compte —
+  le temps 1 se recale, la battue part et s'arrête — mais ne le montrait pas, et sans set ouvert
+  rien ne bougeait à l'écran : impossible de distinguer « je reçois le transport » de « je ne
+  reçois que des tops », qui est pourtant ce qui décide si le temps 1 est tenu ou s'il reste à
+  taper. Un clavier qui n'envoie que l'horloge n'affiche ni l'un ni l'autre, parce qu'il n'y a
+  alors pas de transport à montrer.
+- **`⏵` avec « horloge perdue »** veut dire que l'horloge s'est tue sans que la source annonce
+  l'arrêt — câble débranché, source éteinte —, et c'est ce qui le distingue d'un arrêt voulu.
+- **Une position dans le morceau reçue sans morceau joué s'affiche** (`position reçue : temps 5`) :
+  la bande de mesure, qui montrerait le saut, n'est alors pas à l'écran.
+
 ### Documentation (#359)
 - **La latence annoncée dit à quel buffer elle a été mesurée**, et ce qu'elle vaut à l'autre :
   6,35 ms à 64, **5,10 ms à 48** sur la même boucle, soit 60 frames pour 16 frames de buffer. Un

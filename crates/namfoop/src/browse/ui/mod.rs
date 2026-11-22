@@ -226,8 +226,20 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         head.push(Span::raw("  "));
         head.push(Span::styled(
             format!(
-                "♩ {:.0} ({}{}){}",
+                "♩ {:.0}{} ({}{}){}",
                 s.heard_tempo_bpm(),
+                // **l'état du transport**, quand la source en envoie un : c'est lui qui dit si le
+                // temps 1 est tenu par la source ou s'il reste à taper, et sans set à l'écran
+                // rien d'autre ne le montre. Les mêmes signes que la bande de battue
+                // (`docs/design/set.md` § 11), pour qu'un seul vocabulaire serve aux deux.
+                //
+                // **Avant** la parenthèse, et non après : « horloge perdue » pousse déjà
+                // l'en-tête au-delà de 80 colonnes, où le dernier champ se fait couper.
+                match s.transport() {
+                    Some(engine::tempo::Transport::Playing) => " ⏵",
+                    Some(engine::tempo::Transport::Stopped) => " ⏸",
+                    None => "",
+                },
                 src.label(),
                 // Une horloge nue ne dit pas lequel de ses 24 tops porte le temps : entré au
                 // milieu d'un flux, on l'a deviné. Le dire, parce que c'est à l'oreille

@@ -107,11 +107,16 @@ impl State {
                 // compte en doubles-croches), et c'est ce décalage qui dit où le prochain top
                 // tombe dans son temps. Indépendant du set : c'est l'horloge, pas le morceau.
                 self.tempo.clock_song_position(sixteenths);
-                if self.set.as_ref().is_some_and(|s| s.at.is_some())
-                    && !self.beat_seek_sixteenths(sixteenths, at_us / 1000)
-                {
-                    self.message =
-                        Some(format!("position {sixteenths} : au-delà de ce que le morceau déclare"));
+                if self.set.as_ref().is_some_and(|s| s.at.is_some()) {
+                    if !self.beat_seek_sixteenths(sixteenths, at_us / 1000) {
+                        self.message =
+                            Some(format!("position {sixteenths} : au-delà de ce que le morceau déclare"));
+                    }
+                } else {
+                    // Sans morceau joué, la bande de battue — qui montrerait le saut — n'est pas
+                    // à l'écran : on le dit. En **temps**, car une double-croche vaut le quart
+                    // d'une noire quelle que soit la mesure, qu'une horloge nue ne donne pas.
+                    self.message = Some(format!("position reçue : temps {}", sixteenths / 4 + 1));
                 }
                 Action::None
             }

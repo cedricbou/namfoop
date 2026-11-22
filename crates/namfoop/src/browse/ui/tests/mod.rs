@@ -302,3 +302,50 @@ fn the_spectrum_panel_appears_from_128_columns() {
 mod beat;
 mod chain;
 mod set;
+
+/// **L'en-tête dit si la source d'horloge lit ou s'est arrêtée** : `⏵` et `⏸`,
+/// les signes de la bande de battue (`docs/design/set.md` § 11). Sans set à l'écran, c'est la
+/// seule chose qui le montre — et un clavier qui n'envoie que des tops n'affiche rien, parce
+/// qu'il n'y a alors pas de transport à montrer.
+#[test]
+fn the_header_shows_whether_the_clock_source_is_playing() {
+    use midi_io::Event;
+
+    // des tops seuls : le tempo vient de l'horloge, et rien ne parle de transport
+    let mut s = sample();
+    let step = 60_000_000 / 120 / engine::tempo::TICKS_PER_BEAT as u64;
+    let mut at = 0;
+    let feed = |s: &mut State, at: &mut u64, beats: u32, seq0: u64| {
+        for k in 0..beats * engine::tempo::TICKS_PER_BEAT {
+            *at += step;
+            s.on_midi(Event::ClockTick, *at, seq0 + k as u64 + 1);
+        }
+    };
+    feed(&mut s, &mut at, 3, 0);
+    let t = screen(&s);
+    // « temps à confirmer » : on s'est raccroché au milieu d'un flux, c'est attendu ici
+    assert!(t.contains("♩ 120 (MIDI, temps à confirmer"), "le tempo vient de l'horloge\n{t}");
+    assert!(!t.contains('⏵') && !t.contains('⏸'), "aucun transport reçu : rien à montrer\n{t}");
+
+    // la source lance sa lecture : l'en-tête le dit
+    s.on_midi(Event::ClockStart, at + 1, 72);
+    feed(&mut s, &mut at, 3, 72);
+    let t = screen(&s);
+    assert!(t.contains('⏵'), "la lecture est lancée\n{t}");
+
+    // elle l'arrête : l'en-tête le dit aussi, et le silence qui suit ne l'efface pas
+    s.on_midi(Event::ClockStop, at + 1, 144);
+    let t = screen(&s);
+    assert!(t.contains('⏸'), "l'arrêt est annoncé\n{t}");
+    assert!(!t.contains('⏵'), "et plus de lecture\n{t}");
+}
+
+/// **Une position dans le morceau se voit, même sans set ouvert** : la bande de battue, qui
+/// montrerait le saut, n'est alors pas à l'écran. En **temps**, parce qu'une double-croche vaut le
+/// quart d'une noire quelle que soit la mesure — qu'une horloge nue ne donne pas.
+#[test]
+fn a_song_position_is_announced_without_a_set() {
+    let mut s = sample();
+    s.on_midi(midi_io::Event::SongPosition(16), 1000, 0);
+    assert_eq!(s.message.as_deref(), Some("position reçue : temps 5"), "{:?}", s.message);
+}
