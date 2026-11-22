@@ -298,6 +298,9 @@ sans erreur :
 Les directives propres à namfoop suivent la convention `x_` de ChordPro (les autres logiciels les
 ignorent).
 
+Les grilles d'accords de ChordPro (`{start_of_grid}`), le son d'une section choisi dans le set et
+l'ajout d'un morceau à partir de son prompteur sont spécifiés dans [`prompteur.md`](prompteur.md).
+
 Défilement : il suit la **position** de la battue (§ 11). En marche, chaque section dure ses
 mesures, et ses lignes se partagent ces mesures. **À l'arrêt, la position suit le son** : changer de
 son amène à la prochaine section liée à ce son. **En marche, elle suit le temps** : changer de son
