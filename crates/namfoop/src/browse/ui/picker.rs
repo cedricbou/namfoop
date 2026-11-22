@@ -10,7 +10,7 @@ use crate::browse::state::chain::{Leaf, Mode, Spot};
 /// parallèle, ce qu'elle somme. `None` : il y a des réglages à montrer à la place.
 pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
     let dim = Style::new().fg(theme::dim());
-    let amp = Style::new().fg(theme::amp()).add_modifier(Modifier::BOLD);
+    let amp = theme::amp();
     if s.fx.chain.spot(s.fx.cursor) == Spot::Merge {
         let sp = s.fx.chain.split_at(s.fx.cursor.top())?;
         let gains: Vec<String> = (0..sp.branches.len())
@@ -44,7 +44,7 @@ pub(super) fn block_info(s: &State) -> Option<Vec<Line<'static>>> {
                     if let Some(d) = &it.profile {
                         second.push(Span::styled(format!(" {}", d.spark), Style::new().fg(theme::curve())));
                         if let Some(g) = &d.grain {
-                            second.push(Span::styled(format!("  {g}"), grain_style(g)));
+                            second.push(Span::styled(format!("  {g}"), grain_style(g, s)));
                         }
                     }
                     second.push(Span::styled(format!("  {}", it.detail), dim));

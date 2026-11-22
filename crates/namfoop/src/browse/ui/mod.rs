@@ -124,16 +124,25 @@ fn ab_badge(s: &State) -> Vec<Span<'static>> {
     v
 }
 
-/// Couleur du grain : clair vert, crunch jaune, saturé rouge.
-fn grain_style(g: &str) -> Style {
-    let c = if g.starts_with("clair") {
-        theme::grain_clean()
+/// La couleur des gradations de l'espace où l'on est (`theme::grade`).
+fn accent(s: &State) -> theme::Accent {
+    match s.space {
+        Space::Library => theme::Accent::Library,
+        Space::Chain => theme::Accent::Chain,
+        Space::Set => theme::Accent::Set,
+    }
+}
+
+/// Couleur du grain, dans la rampe de l'espace : clair, crunch, saturé.
+fn grain_style(g: &str, s: &State) -> Style {
+    let step = if g.starts_with("clair") {
+        theme::Step::Low
     } else if g.starts_with("crunch") {
-        theme::grain_crunch()
+        theme::Step::Mid
     } else {
-        theme::grain_hot()
+        theme::Step::High
     };
-    Style::new().fg(c)
+    theme::grade(accent(s), step)
 }
 
 /// Ce que le **banc** joue : `◀ écouté` (un modèle) / `◀ écoutée` (une IR), § 3.
@@ -503,7 +512,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
     }
 
     let mut meters = vec![Span::raw(" in ")];
-    meters.extend(meter_marked(st.in_peak, 12, st.in_mark));
+    meters.extend(meter_marked(st.in_peak, 12, st.in_mark, accent(s)));
     if let Some(m) = s.model {
         // ce que reçoit le modèle : carte + trim + entrée propre (+ essai dans l'éditeur)
         let model_db = s.saved_meta(m).input_db + s.input_offset();
@@ -515,7 +524,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         meters.push(Span::styled(text, Style::new().fg(theme::dim())));
     }
     meters.push(Span::raw("   out "));
-    meters.extend(meter_width(st.out_peak, 12));
+    meters.extend(meter_width(st.out_peak, 12, accent(s)));
     meters.push(Span::raw(if st.limiter > 0.05 {
         format!("   lim -{:.1} dB", st.limiter)
     } else {

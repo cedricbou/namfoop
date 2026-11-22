@@ -694,7 +694,8 @@ Trois règles tiennent l'ensemble :
   Les zones sont celles des étiquettes : sub (40–80 Hz), grave (80–200), bas-médium (200–500),
   médium (0,5–1,5 kHz), haut-médium (1,5–3,5 kHz), présence (3,5–7 kHz), air (7–14 kHz). L'échelle
   va de -12 à +12 dB, un demi-bloc valant 3 dB ; `▲` / `▼` signalent une zone qui sort de
-  l'échelle. Vert dans ±3 dB, jaune jusqu'à ±8, rouge au-delà. Le zéro n'est pas un volume : c'est
+  l'échelle. Dans la couleur de l'espace : assombrie dans ±3 dB, pleine jusqu'à ±8, blanc gras
+  au-delà. Le zéro n'est pas un volume : c'est
   la moyenne 80 Hz – 5 kHz de la chaîne elle-même, donc les colonnes montrent sa **couleur**, pas
   son niveau.
 
@@ -712,8 +713,8 @@ Trois règles tiennent l'ensemble :
   changent dès que tu bouges le curseur, sans rien coûter au son. À partir de 128 colonnes le
   panneau se glisse sous la courbe du Spectre et ne prend aucune ligne de liste : il est alors
   affiché d'office. Sur un terminal plus étroit il s'empile sous la liste et attend `z`.
-- **Onglet Modèles** : chaque modèle affiche son mini-spectre, son **grain** (vert clair, jaune
-  crunch, rouge saturé) et ses étiquettes ([profil des modèles](#profil-sonore-et-grain-des-modèles)).
+- **Onglet Modèles** : chaque modèle affiche son mini-spectre, son **grain** (en magenta assombri
+  s'il est clair, en magenta plein s'il est crunch, en blanc gras s'il est saturé) et ses étiquettes ([profil des modèles](#profil-sonore-et-grain-des-modèles)).
   Le panneau Spectre y montre la courbe du modèle sous le curseur (avec son IR), et une ligne
   « grain : … · ◆ … » compare au modèle de référence.
 - **A/B entre modèles** : dans l'onglet Modèles, **`c`** épingle le modèle sous le curseur (◆).
@@ -1171,7 +1172,8 @@ de -30 dBFS, le repère est à -8,5 dBFS.
   Si `lim` travaille en permanence, baisse `--master-db`. Ne baisse pas l'entrée : elle change le
   grain, pas le volume.
 
-Échelle : de -60 à 0 dBFS. Vert en dessous de -12, jaune de -12 à -3, rouge au-dessus de -3. La
+Échelle : de -60 à 0 dBFS. La barre est de la couleur de l'espace où l'on est (blanche dans
+`setup` et `run`) en dessous de -12, jaune de -12 à -3, rouge au-dessus de -3. La
 barre garde la crête et retombe en douceur. Sans calibration, il n'y a pas de repère.
 
 ### Rejouer un preset : `namfoop presets`, `run --preset`

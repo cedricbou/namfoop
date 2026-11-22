@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Modifié (#400)
+- **Les dégradés prennent la couleur de l'espace** : le grain des modèles, le panneau Bandes et le
+  corps des vumètres montent en trois paliers dans la teinte de l'espace où l'on est — teinte
+  assombrie, teinte pleine, blanc gras —, au lieu de passer du vert au jaune puis au rouge. Seules
+  les alarmes de niveau en sortent : jaune près du plafond, rouge au plafond. La réduction de gain
+  du compresseur devient blanche, le gate fermé gris, les blocs de modèle et d'IR blanc gras ; dans
+  `setup` et `run`, le vumètre monte en blanc. La règle vaut aussi en couleurs de base ; la charte
+  la décrit, et `docs/identite/gradations.html` la montre dans les trois espaces.
+
 ### Ajouté (#373)
 - **Les vraies couleurs de namfoop dans le terminal** : dans un terminal qui annonce les couleurs
   exactes (`COLORTERM=truecolor`), les écrans prennent les teintes de la charte — Bibliothèque en

@@ -29,12 +29,12 @@
   .box.act > .t{color:var(--cyan)}
   pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow-x:auto}
   .line{color:var(--line)} .io{color:var(--dim);font-weight:bold}
-  .fx{color:var(--fg)} .amp{color:var(--green)} .node{color:var(--yellow);font-weight:bold}
+  .fx{color:var(--fg)} .amp{color:var(--white);font-weight:bold} .node{color:var(--yellow);font-weight:bold}
   .hdr{color:var(--white);font-weight:bold} .dim{color:var(--dim);font-style:italic}
   .off{color:var(--dim);text-decoration:line-through}
   .mute{opacity:.35}
-  .mgrn{color:var(--green)} .myel{color:var(--yellow)} .mred{color:var(--red)} .mdim{color:#4C4C58}
-  .mgr{color:#FF8983} .mgate{color:#872522}
+  .mgrn{color:var(--cyan)} .myel{color:var(--yellow)} .mred{color:var(--red)} .mdim{color:#4C4C58}
+  .mgr{color:var(--white)} .mgate{color:var(--dim)}
   .mgrn,.myel,.mred,.mdim,.mgr,.mgate{display:inline-block;transform:scaleY(.45);transform-origin:50% 85%}
   .fold{padding:2px 12px 0;color:var(--dim);cursor:pointer;white-space:pre}
   .fold:hover{color:var(--fg)}
@@ -120,9 +120,9 @@ $ <span class="ok">▏</span></pre>
     <div class="card">
       <h2>Vumètres</h2>
       <div class="keys">
-        <span style="color:var(--green)">███</span><span>niveau de sortie (jaune &gt; -9 dB, rouge &gt; -1 dB)</span>
-        <span><span style="color:var(--green)">█</span><span style="color:#FF8983">██</span></span><span>comp : réduction de gain en rouge éclairci depuis la droite (20 dB = toute la barre)</span>
-        <span style="color:#872522">███</span><span>gate fermé</span>
+        <span style="color:var(--cyan)">███</span><span>niveau de sortie (jaune &gt; -9 dB, rouge &gt; -1 dB)</span>
+        <span><span style="color:var(--cyan)">█</span><span style="color:var(--white)">██</span></span><span>comp : réduction de gain en blanc depuis la droite (20 dB = toute la barre)</span>
+        <span style="color:var(--dim)">███</span><span>gate fermé</span>
         <span style="color:#4C4C58">███</span><span>bloc coupé ou branche muette</span>
       </div>
     </div>
@@ -134,7 +134,7 @@ $ <span class="ok">▏</span></pre>
         <li>Mode <b>bandes</b> (2 à 4 bandes, N−1 fréquences) en plus de <b>copie</b> : utile au-delà de 2 ?</li>
         <li>NAM et IR en blocs séparés, plusieurs NAM permis (fuzz capturée + ampli) avec alerte de charge CPU ?</li>
         <li>Solo de branche : indispensable pour régler 3–4 branches ?</li>
-        <li>Vumètres : la réduction de gain du comp dans la même barre que le niveau (rouge éclairci depuis la droite) reste-t-elle lisible ?</li>
+        <li>Vumètres : la réduction de gain du comp dans la même barre que le niveau (blanche depuis la droite) reste-t-elle lisible ?</li>
       </ol>
     </div>
   </div>
@@ -320,7 +320,7 @@ function simulate(dt){
 }
 // Barre de vumètre sur `w` caractères, -60 … 0 dBFS, en huitièmes de caractère.
 const EIGHTHS = ["","▏","▎","▍","▌","▋","▊","▉"];
-// Comp : la réduction de gain remplit la barre en rouge éclairci depuis la droite (20 dB = toute la largeur).
+// Comp : la réduction de gain remplit la barre en blanc depuis la droite (20 dB = toute la largeur).
 // Gate : fermé = barre pleine rouge sombre.
 function meter(key, w, dim){
   const db = DISP.get(key) ?? FLOOR;

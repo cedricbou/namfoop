@@ -53,7 +53,7 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
   place si muette.
 - Étiquettes de blocs : `nam·<modèle>`, `ir·<ir>`, `lpf <freq>`, `hpf <freq>`, `comp <ratio>:1`,
   `gate <seuil>`, sinon le nom de l'effet.
-- Couleurs : effets en clair, `nam` / `ir` en vert, `◆` en jaune gras, en-têtes de branche en
+- Couleurs : effets en clair, `nam` / `ir` en blanc gras, `◆` en jaune gras, en-têtes de branche en
   blanc gras, traits en gris. Bloc coupé : gris barré. Branche muette, ou hors solo quand une
   branche est en solo : toute la ligne assombrie. Curseur : fond cyan.
 - Chaîne vide : `IN ─ (chaîne vide : a pour ajouter) ─ OUT`.
@@ -78,12 +78,13 @@ IN ─ hpf 30 ─ comp 4:1 ─ ◆─┬─ propre ─ lpf 250 ─ comp 8:1 ─�
 - Au-dessus de chaque bloc (largeur = celle de l'étiquette, 3 au moins), de chaque gain de branche
   (niveau de la branche avant la somme), de `IN` et de `OUT`.
 - Crête de sortie, -60 à 0 dBFS sur la largeur, en huitièmes de caractère (`▏▎▍▌▋▊▉█`), barre
-  fine (en terminal : choisir le rendu le plus discret lisible). Vert ; jaune au-dessus de -9 dB ;
-  rouge au-dessus de -1 dB.
+  fine (en terminal : choisir le rendu le plus discret lisible). Cyan, la couleur de l'espace ;
+  jaune au-dessus de -9 dB ; rouge au-dessus de -1 dB (les gradations de la
+  [charte](../identite/charte.md#les-gradations)).
 - Balistique : montée immédiate, descente 28 dB/s ; rafraîchissement ~25 images/s.
-- `comp` : la réduction de gain remplit la barre **en rouge éclairci depuis la droite** (20 dB =
+- `comp` : la réduction de gain remplit la barre **en blanc depuis la droite** (20 dB =
   toute la barre, au moins une case dès 0,3 dB) ; montée immédiate, retour selon le `release` de l'effet.
-- `gate` fermé : barre pleine **rouge assombri** ; se ferme en douceur (selon `release`), se rouvre
+- `gate` fermé : barre pleine **grise** ; se ferme en douceur (selon `release`), se rouvre
   tout de suite.
 - Bloc coupé, branche muette ou hors solo : barre sombre.
 - `v` masque / affiche toutes les lignes de vumètres.

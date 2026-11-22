@@ -375,4 +375,10 @@ fn exact_palette_changes_colors_only() {
         assert!(base.is_empty(), "couleurs de base restées : {base:?}");
         assert!(exact.iter().any(|c| c.starts_with("Rgb")), "{exact:?}");
     }
+    // les gradations de la Bibliothèque (grain, vumètres) sont magenta : plus de vert du Set
+    let lib_colors = with_palette(Palette::Exact, || {
+        crate::tui::screen_colors(160, 50, |f| render(&lib, &Status::default(), f))
+    });
+    assert!(!lib_colors.contains("Rgb(0, 230, 118)"), "{lib_colors:?}");
+    assert!(lib_colors.contains("Rgb(255, 0, 127)"), "{lib_colors:?}");
 }

@@ -83,9 +83,11 @@ const STEEL: Color = Color::Rgb(0x8A, 0x8A, 0x9C);
 const WHITE: Color = Color::Rgb(0xFF, 0xFF, 0xFF);
 /// Le noir d'encre, pour le texte posé sur un aplat.
 const INK: Color = Color::Rgb(0x0F, 0x0F, 0x14);
-/// Le rouge clip éclairci (60 % de rouge, 40 % de blanc) : la réduction de gain du compresseur,
-/// voisine du rouge de la saturation sans se confondre avec lui.
-const RED_LIGHT: Color = Color::Rgb(0xFF, 0x89, 0x83);
+/// Les teintes assombries de la rampe : le mélange avec le noir d'encre le plus sombre qui reste
+/// lisible à 3:1 au moins (`docs/identite/gradations.html`).
+const MAGENTA_DARK: Color = Color::Rgb(0xBC, 0x04, 0x61);
+const CYAN_DARK: Color = Color::Rgb(0x07, 0x8B, 0x95);
+const GREEN_DARK: Color = Color::Rgb(0x07, 0x85, 0x4A);
 /// Le gris acier à mi-chemin du noir d'encre : la part vide d'un vumètre, qui ne doit pas briller
 /// autant que le texte secondaire.
 const TRACK: Color = Color::Rgb(0x4C, 0x4C, 0x58);
@@ -185,11 +187,6 @@ pub fn popup_bg() -> Color {
 
 // --- Les vumètres ---------------------------------------------------------------------------
 
-/// Niveau sain.
-pub fn meter_ok() -> Color {
-    pick(Color::Green, GREEN)
-}
-
 /// Niveau qui approche du plafond.
 pub fn meter_warn() -> Color {
     pick(Color::Yellow, YELLOW)
@@ -200,14 +197,15 @@ pub fn meter_clip() -> Color {
     pick(Color::Red, RED)
 }
 
-/// La part de la barre que le compresseur réduit, prise sur la droite.
+/// La part de la barre que le compresseur réduit, prise sur la droite : neutre, pour que le jaune
+/// et le rouge restent aux alarmes.
 pub fn meter_action() -> Color {
-    pick(Color::LightRed, RED_LIGHT)
+    pick(Color::White, WHITE)
 }
 
-/// Le gate fermé : la barre entière.
+/// Le gate fermé : la barre entière, éteinte.
 pub fn meter_gate() -> Color {
-    pick(Color::Red, RED)
+    pick(Color::DarkGray, STEEL)
 }
 
 /// La part non remplie de la barre, et la barre d'un bloc coupé ou d'une branche muette.
@@ -218,6 +216,48 @@ pub fn meter_track() -> Color {
 /// Le repère de calibration posé sur la barre.
 pub fn meter_mark() -> Color {
     pick(Color::White, WHITE)
+}
+
+// --- Les gradations : la rampe de l'espace ----------------------------------------------------
+
+/// La couleur dans laquelle une gradation se décline : celle de l'espace où elle s'affiche, ou le
+/// blanc hors des espaces (`setup`, `run`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Accent {
+    Library,
+    Chain,
+    Set,
+    Neutral,
+}
+
+/// Un palier d'une gradation : un son clair ou un écart faible, le milieu, le plus fort.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    Low,
+    Mid,
+    High,
+}
+
+/// Le palier d'une gradation (grain, écart de spectre, corps d'un vumètre) : teinte assombrie,
+/// teinte pleine, blanc gras (« chauffé à blanc »). Les alarmes de niveau n'en font pas partie :
+/// [`meter_warn`] et [`meter_clip`] sortent de l'espace. Les paliers et leurs mesures :
+/// `docs/identite/gradations.html`. En couleurs de base, la teinte assombrie est l'attribut
+/// atténué du terminal.
+pub fn grade(accent: Accent, step: Step) -> Style {
+    let (base, full, dark) = match accent {
+        Accent::Library => (Color::Magenta, MAGENTA, MAGENTA_DARK),
+        Accent::Chain => (Color::Cyan, CYAN, CYAN_DARK),
+        Accent::Set => (Color::Green, GREEN, GREEN_DARK),
+        Accent::Neutral => (Color::White, WHITE, STEEL),
+    };
+    let s = Style::new();
+    match (palette(), step) {
+        (_, Step::High) => s.fg(pick(Color::White, WHITE)).add_modifier(Modifier::BOLD),
+        (_, Step::Mid) => s.fg(pick(base, full)),
+        (Palette::Exact, Step::Low) => s.fg(dark),
+        (Palette::Ansi, Step::Low) if accent == Accent::Neutral => s.fg(Color::DarkGray),
+        (Palette::Ansi, Step::Low) => s.fg(base).add_modifier(Modifier::DIM),
+    }
 }
 
 // --- La chaîne en blocs -----------------------------------------------------------------------
@@ -236,9 +276,9 @@ pub fn branch() -> Style {
     }
 }
 
-/// Le bloc qui fait le son : modèle d'ampli.
-pub fn amp() -> Color {
-    pick(Color::Green, GREEN)
+/// Le bloc qui fait le son (modèle, IR) : blanc gras, comme les en-têtes de branche.
+pub fn amp() -> Style {
+    Style::new().fg(pick(Color::White, WHITE)).add_modifier(Modifier::BOLD)
 }
 
 /// La jauge du réglage sous le curseur.
@@ -249,36 +289,6 @@ pub fn gauge_on() -> Color {
 /// La jauge d'un réglage au repos.
 pub fn gauge_off() -> Color {
     pick(Color::Blue, STEEL)
-}
-
-/// Le grain d'un modèle : clair, crunch, saturé.
-pub fn grain_clean() -> Color {
-    pick(Color::Green, GREEN)
-}
-
-/// Voir [`grain_clean`].
-pub fn grain_crunch() -> Color {
-    pick(Color::Yellow, YELLOW)
-}
-
-/// Voir [`grain_clean`].
-pub fn grain_hot() -> Color {
-    pick(Color::Red, RED)
-}
-
-/// L'écart entre deux courbes : dans la tolérance, à la limite, loin.
-pub fn delta_ok() -> Color {
-    pick(Color::Green, GREEN)
-}
-
-/// Voir [`delta_ok`].
-pub fn delta_warn() -> Color {
-    pick(Color::Yellow, YELLOW)
-}
-
-/// Voir [`delta_ok`].
-pub fn delta_far() -> Color {
-    pick(Color::Red, RED)
 }
 
 /// Le mini-spectre d'une ligne et les courbes de réponse.
@@ -398,11 +408,63 @@ mod tests {
     }
 
     #[test]
-    fn meters_keep_three_distinct_colors() {
+    fn the_meter_body_never_looks_like_an_alarm() {
         with_palette(Palette::Exact, || {
-            let (g, y, r) = (meter_ok(), meter_warn(), meter_clip());
-            assert!(g != y && y != r && g != r);
+            for a in [Accent::Library, Accent::Chain, Accent::Set, Accent::Neutral] {
+                let body = grade(a, Step::Mid).fg.unwrap();
+                assert!(body != meter_warn() && body != meter_clip(), "{a:?}");
+            }
             assert_ne!(meter_action(), meter_clip(), "le compresseur ne se confond pas avec la saturation");
+            assert_ne!(meter_gate(), meter_clip(), "le gate fermé n'est pas une alarme");
+        });
+    }
+
+    fn luminance(c: Color) -> f64 {
+        let Color::Rgb(r, g, b) = c else { panic!("{c:?} n'est pas une teinte exacte") };
+        let lin = |v: u8| {
+            let v = v as f64 / 255.0;
+            if v <= 0.04045 {
+                v / 12.92
+            } else {
+                ((v + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    fn ratio(a: Color, b: Color) -> f64 {
+        let (x, y) = (luminance(a), luminance(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    #[test]
+    fn each_step_of_a_ramp_reads_apart_from_the_next() {
+        with_palette(Palette::Exact, || {
+            for a in [Accent::Library, Accent::Chain, Accent::Set, Accent::Neutral] {
+                let [lo, mid, hi] = [Step::Low, Step::Mid, Step::High].map(|s| grade(a, s).fg.unwrap());
+                assert!(ratio(lo, INK) >= 3.0, "{a:?} : le palier faible se lit sur le noir");
+                assert!(ratio(lo, mid) >= 1.5, "{a:?} faible → moyen : {:.2}", ratio(lo, mid));
+                if a != Accent::Neutral {
+                    assert!(ratio(mid, hi) >= 1.3, "{a:?} moyen → fort : {:.2}", ratio(mid, hi));
+                }
+                assert!(grade(a, Step::High).add_modifier.contains(Modifier::BOLD));
+            }
+        });
+    }
+
+    #[test]
+    fn base_colors_keep_three_steps() {
+        with_palette(Palette::Ansi, || {
+            assert_eq!(
+                grade(Accent::Library, Step::Low),
+                Style::new().fg(Color::Magenta).add_modifier(Modifier::DIM)
+            );
+            assert_eq!(grade(Accent::Library, Step::Mid), Style::new().fg(Color::Magenta));
+            assert_eq!(
+                grade(Accent::Chain, Step::High),
+                Style::new().fg(Color::White).add_modifier(Modifier::BOLD)
+            );
+            assert_eq!(grade(Accent::Neutral, Step::Low), Style::new().fg(Color::DarkGray));
         });
     }
 }

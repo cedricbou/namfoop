@@ -84,12 +84,12 @@ impl Grid {
 }
 
 /// Barre de vumètre sur `w` caractères, de [`FLOOR_DB`] à 0 dBFS, en huitièmes de caractère.
-/// `comp` : la réduction de gain remplit la barre en orange depuis la droite. `gate` fermé : barre
-/// pleine rouge sombre. Bloc coupé, branche muette ou hors solo : barre sombre.
+/// `comp` : la réduction de gain remplit la barre en blanc depuis la droite. `gate` fermé : barre
+/// pleine grise. Bloc coupé, branche muette ou hors solo : barre sombre.
 fn meter_cells(db: f32, action: f32, kind: MeterKind, w: usize, dim: bool) -> Vec<Cell> {
     let cell = |text: String, style: Style| Cell { text, style, cursor: false };
     if !dim && kind == MeterKind::Gate && action > 0.5 {
-        return vec![cell("█".repeat(w), Style::new().fg(theme::meter_gate()).add_modifier(Modifier::DIM))];
+        return vec![cell("█".repeat(w), Style::new().fg(theme::meter_gate()))];
     }
     let f = ((db - FLOOR_DB) / -FLOOR_DB).clamp(0.0, 1.0) * w as f32;
     let full = f.floor() as usize;
@@ -102,24 +102,22 @@ fn meter_cells(db: f32, action: f32, kind: MeterKind, w: usize, dim: bool) -> Ve
     if used < w {
         bar += &" ".repeat(w - used);
     }
-    let color = if dim {
-        theme::meter_track()
+    // le synoptique est dans l'espace Chaîne : sa rampe est la sienne
+    let style = if dim {
+        Style::new().fg(theme::meter_track())
     } else if db > -1.0 {
-        theme::meter_clip()
+        Style::new().fg(theme::meter_clip())
     } else if db > -9.0 {
-        theme::meter_warn()
+        Style::new().fg(theme::meter_warn())
     } else {
-        theme::meter_ok()
+        theme::grade(theme::Accent::Chain, theme::Step::Mid)
     };
     if !dim && kind == MeterKind::Comp && action > 0.3 {
         let cells = ((action / COMP_FULL_DB * w as f32).ceil() as usize).clamp(1, w);
         let left: String = bar.chars().take(w - cells).collect();
-        return vec![
-            cell(left, Style::new().fg(color)),
-            cell("█".repeat(cells), Style::new().fg(theme::meter_action())),
-        ];
+        return vec![cell(left, style), cell("█".repeat(cells), Style::new().fg(theme::meter_action()))];
     }
-    vec![cell(bar, Style::new().fg(color))]
+    vec![cell(bar, style)]
 }
 
 fn block_style(role: Role, on: bool, dim: bool) -> Style {
@@ -127,7 +125,7 @@ fn block_style(role: Role, on: bool, dim: bool) -> Style {
         return Style::new().fg(theme::dim()).add_modifier(Modifier::CROSSED_OUT);
     }
     let s = match role {
-        Role::Amp => Style::new().fg(theme::amp()),
+        Role::Amp => theme::amp(),
         Role::Fx => Style::new(),
     };
     if dim {
@@ -442,7 +440,7 @@ mod tests {
         assert_eq!(bar(-30.0), "████    ", "à mi-chemin");
         // couleurs : vert, puis jaune au-dessus de -9 dB, rouge au-dessus de -1
         let color = |db: f32| meter_cells(db, 0.0, MeterKind::Peak, 8, false)[0].style.fg;
-        assert_eq!(color(-20.0), Some(theme::meter_ok()));
+        assert_eq!(color(-20.0), theme::grade(theme::Accent::Chain, theme::Step::Mid).fg);
         assert_eq!(color(-5.0), Some(theme::meter_warn()));
         assert_eq!(color(-0.5), Some(theme::meter_clip()));
         assert_eq!(meter_cells(-5.0, 0.0, MeterKind::Peak, 8, true)[0].style.fg, Some(theme::meter_track()));
