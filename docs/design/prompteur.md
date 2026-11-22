@@ -18,6 +18,10 @@ l'utilisateur : à ouvrir dans un navigateur, elle se pilote au clavier et montr
 s'allume, les deux fenêtres de l'édition et l'écran étroit. Le morceau, ses paroles et ses sons
 sont fictifs, et son JavaScript n'est pas à reprendre.
 
+**Couleurs** : « magenta », « cyan », « vert », « jaune », « rouge » et « gris » désignent ici le
+magenta électrique, le cyan néon, le vert signal, le jaune ambre, le rouge clip et le gris acier de la
+[charte](../identite/charte.md), qui dit aussi quand le terminal les remplace par ses couleurs de base.
+
 ## 1. Le besoin et les règles
 
 Sur scène, un bassiste **compte des mesures**. Le prompteur dit d'abord où on en est dans la

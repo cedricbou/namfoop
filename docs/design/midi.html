@@ -13,29 +13,29 @@
   --muted: #56606b;
   --panel: #ffffff;
   --line: #cfd4d9;
-  --accent: #2a55c4;
-  --good: #1e7a3c;
+  --accent: #007C85;
+  --good: #0b6b3f;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, monospace;
-  /* Le terminal garde ses couleurs dans les deux thèmes : c'est un terminal. */
-  --t-bg: #14161a;
-  --t-ink: #d6d9de;
-  --t-dim: #8a919c;
+  /* Le terminal garde ses couleurs dans les deux thèmes ; ses accents sont ceux de la charte. */
+  --t-bg: #0F0F14;
+  --t-ink: #e6e6ec;
+  --t-dim: #8A8A9C;
   --t-lab: #a3aab5;
-  --t-acc: #7aa8ff;
-  --t-ok: #7fd18b;
-  --t-warn: #e6c35c;
-  --t-win: #1b1f26;
+  --t-acc: #00F0FF;
+  --t-ok: #00E676;
+  --t-warn: #FFD600;
+  --t-win: #1E1E28;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #7aa8ff; --good: #7fd18b;
+    --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #00F0FF; --good: #00E676;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #7aa8ff; --good: #7fd18b;
+  --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #00F0FF; --good: #00E676;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }

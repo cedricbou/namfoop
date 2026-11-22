@@ -9,8 +9,8 @@
 <title>namfoop browse — maquette de l'éditeur de chaîne parallèle</title>
 <style>
   :root{
-    --bg:#0b0e14; --term:#0f131a; --fg:#d7dae0; --dim:#5c6370; --line:#4b5263;
-    --cyan:#56d4e8; --green:#8bd17c; --yellow:#e5c07b; --red:#e06c75; --blue:#61afef; --mag:#c678dd;
+    --bg:#0F0F14; --term:#0F0F14; --fg:#d7dae0; --dim:#8A8A9C; --line:#8A8A9C; --graph:#1E1E28; --edge:#2E2E3C;
+    --cyan:#00F0FF; --green:#00E676; --yellow:#FFD600; --red:#FF3B30; --white:#FFFFFF; --mag:#FF007F;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -18,51 +18,51 @@
   @media (max-width:900px){.wrap{grid-template-columns:1fr}}
   h1{font-size:17px;margin:0 0 4px;font-weight:600}
   .sub{color:var(--dim);margin:0 0 12px;font-size:13px}
-  .term{background:var(--term);border:1px solid #232a35;border-radius:8px;overflow:hidden;
+  .term{background:var(--term);border:1px solid var(--edge);border-radius:8px;overflow:hidden;
         font:13px/1.35 "JetBrains Mono","DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;outline:none}
-  .term:focus{border-color:#2f6f7a}
-  .tabs{display:flex;gap:2px;padding:6px 8px;border-bottom:1px solid #232a35;color:var(--dim);white-space:pre}
+  .term:focus{border-color:#08747E}
+  .tabs{display:flex;gap:2px;padding:6px 8px;border-bottom:1px solid var(--edge);color:var(--dim);white-space:pre}
   .tabs .on{color:var(--cyan);font-weight:bold}
-  .box{border:1px solid #2a313d;margin:8px;border-radius:2px;position:relative}
+  .box{border:1px solid var(--edge);margin:8px;border-radius:2px;position:relative}
   .box.act{border-color:var(--cyan)}
   .box > .t{position:absolute;top:-9px;left:10px;background:var(--term);padding:0 6px;color:var(--dim);font-weight:bold}
   .box.act > .t{color:var(--cyan)}
   pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow-x:auto}
   .line{color:var(--line)} .io{color:var(--dim);font-weight:bold}
   .fx{color:var(--fg)} .amp{color:var(--green)} .node{color:var(--yellow);font-weight:bold}
-  .hdr{color:var(--blue)} .dim{color:var(--dim);font-style:italic}
+  .hdr{color:var(--white);font-weight:bold} .dim{color:var(--dim);font-style:italic}
   .off{color:var(--dim);text-decoration:line-through}
   .mute{opacity:.35}
-  .mgrn{color:#3fa66a} .myel{color:var(--yellow)} .mred{color:var(--red)} .mdim{color:#2b3340}
-  .mgr{color:#e8913a} .mgate{color:#8a3340}
+  .mgrn{color:var(--green)} .myel{color:var(--yellow)} .mred{color:var(--red)} .mdim{color:#4C4C58}
+  .mgr{color:#FF8983} .mgate{color:#872522}
   .mgrn,.myel,.mred,.mdim,.mgr,.mgate{display:inline-block;transform:scaleY(.45);transform-origin:50% 85%}
   .fold{padding:2px 12px 0;color:var(--dim);cursor:pointer;white-space:pre}
   .fold:hover{color:var(--fg)}
-  .sel{background:var(--cyan);color:#0b0e14 !important;font-weight:bold;text-decoration:none;opacity:1}
-  .selp{background:#1d3b42}
+  .sel{background:var(--cyan);color:#0F0F14 !important;font-weight:bold;text-decoration:none;opacity:1}
+  .selp{background:#0C383E}
   [data-cur]{cursor:pointer}
   /* chaque glyphe hors ASCII (traits, ◆, barres) occupe exactement une cellule : rien ne se décale */
   i.c{display:inline-block;width:1ch;font-style:normal;text-align:left;overflow:visible;white-space:pre}
   .warn{color:var(--yellow)} .ok{color:var(--green)} .err{color:var(--red)}
-  .bar{color:var(--blue)} .bar.on{color:var(--cyan)}
+  .bar{color:var(--dim)} .bar.on{color:var(--cyan)}
   .msg{padding:4px 12px 8px;min-height:22px;color:var(--yellow);white-space:pre-wrap}
   .help{padding:0 12px 10px;color:var(--dim);white-space:pre-wrap}
   .help b{color:var(--fg);font-weight:normal}
-  .popup{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:min(440px,92%);background:#121821;
+  .popup{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:min(440px,92%);background:var(--graph);
          border:1px solid var(--cyan);border-radius:3px;box-shadow:0 10px 40px #000a;z-index:5}
   .popup pre{padding:8px 10px;max-height:300px;overflow:auto}
   .side{display:flex;flex-direction:column;gap:14px}
-  .card{background:#11161e;border:1px solid #232a35;border-radius:8px;padding:12px 14px}
+  .card{background:var(--graph);border:1px solid var(--edge);border-radius:8px;padding:12px 14px}
   .card h2{font-size:13px;margin:0 0 8px;color:var(--cyan);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
   .ex{display:flex;flex-direction:column;gap:6px}
-  button{font:inherit;background:#1a212c;color:var(--fg);border:1px solid #2c3543;border-radius:6px;padding:7px 10px;cursor:pointer;text-align:left}
+  button{font:inherit;background:var(--graph);color:var(--fg);border:1px solid var(--edge);border-radius:6px;padding:7px 10px;cursor:pointer;text-align:left}
   button:hover{border-color:var(--cyan)}
   button.cur{border-color:var(--cyan);color:var(--cyan)}
   .keys{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px}
-  .keys kbd{font:12px ui-monospace,Menlo,monospace;background:#1a212c;border:1px solid #2c3543;border-radius:4px;padding:0 5px;color:var(--fg);white-space:nowrap}
+  .keys kbd{font:12px ui-monospace,Menlo,monospace;background:var(--graph);border:1px solid var(--edge);border-radius:4px;padding:0 5px;color:var(--fg);white-space:nowrap}
   .keybar{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
   .keybar button{padding:4px 8px;font:12px ui-monospace,Menlo,monospace;text-align:center;min-width:30px}
-  .q{font-size:12.5px;color:#aab;margin:0;padding-left:18px}
+  .q{font-size:12.5px;color:var(--dim);margin:0;padding-left:18px}
   .q li{margin-bottom:5px}
   .rel{position:relative}
 </style>
@@ -120,10 +120,10 @@ $ <span class="ok">▏</span></pre>
     <div class="card">
       <h2>Vumètres</h2>
       <div class="keys">
-        <span style="color:#3fa66a">███</span><span>niveau de sortie (jaune &gt; -9 dB, rouge &gt; -1 dB)</span>
-        <span><span style="color:#3fa66a">█</span><span style="color:#e8913a">██</span></span><span>comp : réduction de gain en orange depuis la droite (20 dB = toute la barre)</span>
-        <span style="color:#8a3340">███</span><span>gate fermé</span>
-        <span style="color:#2b3340">███</span><span>bloc coupé ou branche muette</span>
+        <span style="color:var(--green)">███</span><span>niveau de sortie (jaune &gt; -9 dB, rouge &gt; -1 dB)</span>
+        <span><span style="color:var(--green)">█</span><span style="color:#FF8983">██</span></span><span>comp : réduction de gain en rouge éclairci depuis la droite (20 dB = toute la barre)</span>
+        <span style="color:#872522">███</span><span>gate fermé</span>
+        <span style="color:#4C4C58">███</span><span>bloc coupé ou branche muette</span>
       </div>
     </div>
     <div class="card">
@@ -134,7 +134,7 @@ $ <span class="ok">▏</span></pre>
         <li>Mode <b>bandes</b> (2 à 4 bandes, N−1 fréquences) en plus de <b>copie</b> : utile au-delà de 2 ?</li>
         <li>NAM et IR en blocs séparés, plusieurs NAM permis (fuzz capturée + ampli) avec alerte de charge CPU ?</li>
         <li>Solo de branche : indispensable pour régler 3–4 branches ?</li>
-        <li>Vumètres : la réduction de gain du comp dans la même barre que le niveau (orange depuis la droite) reste-t-elle lisible ?</li>
+        <li>Vumètres : la réduction de gain du comp dans la même barre que le niveau (rouge éclairci depuis la droite) reste-t-elle lisible ?</li>
       </ol>
     </div>
   </div>
@@ -320,7 +320,7 @@ function simulate(dt){
 }
 // Barre de vumètre sur `w` caractères, -60 … 0 dBFS, en huitièmes de caractère.
 const EIGHTHS = ["","▏","▎","▍","▌","▋","▊","▉"];
-// Comp : la réduction de gain remplit la barre en orange depuis la droite (20 dB = toute la largeur).
+// Comp : la réduction de gain remplit la barre en rouge éclairci depuis la droite (20 dB = toute la largeur).
 // Gate : fermé = barre pleine rouge sombre.
 function meter(key, w, dim){
   const db = DISP.get(key) ?? FLOOR;
