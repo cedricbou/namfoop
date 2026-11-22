@@ -4,6 +4,10 @@ name: pr-rules
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+# Les vérifications ne font que lire le dépôt.
+permissions:
+  contents: read
+
 jobs:
   rules:
     runs-on: ubuntu-latest

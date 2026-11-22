@@ -25,7 +25,7 @@ Quatre piliers portent tout ce qu'on dessine :
   zéro fioriture.
 - **Fiabilité de scène** : écran de concert verrouillé, chaînes préchargées en mémoire, queues de
   réverbe et de delay qui finissent de sonner.
-- **Culture libre et ligne de commande** : fichiers TOML lisibles, code Rust, licence MIT.
+- **Culture libre et ligne de commande** : fichiers TOML lisibles, code Rust, licence GPL-3.0.
 - **Énergie instrumentale** : une esthétique nocturne, électrique et directe, tirée des racks de
   studio, des pédaliers modernes et des terminaux Linux.
 
@@ -122,4 +122,4 @@ qui réclament une image matricielle.
 
 Le logo, l'icône, l'onde et la bannière de ce dossier sont **tous droits réservés**. On peut s'en
 servir pour parler de namfoop ou y renvoyer ; pas pour un autre projet, pas pour un produit dérivé.
-Le code de namfoop, lui, reste sous licence MIT.
+Le code de namfoop, lui, est sous licence GPL-3.0-or-later.
