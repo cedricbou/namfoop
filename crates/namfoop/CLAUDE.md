@@ -65,7 +65,11 @@ latency/        mesure de latence par impulsion (câble de bouclage ; engine::ra
                 l'autre) — le SEUIL de ce début doit sortir du bruit, sinon la fenêtre est rendue
                 trop faible plutôt que mesurée sur un pic de bruit —, et `Runner`, qui enchaîne les
                 passes des chaînes de référence (`dsp::bench`) en ne comptant ni les premières
-                fenêtres ni leur charge. Deux machines à états pures, testées sans carte et sous
+                fenêtres ni leur charge, et qui renonce à une passe après MAX_WEAK fenêtres
+                comptées **consécutives** sans retour (dispersées, elles disent un câble qui
+                grésille, et l'affichage annonce toute passe écourtée). Une seule passe = une seule
+                place, le trajet nu étant la seule sans chaîne : c'est le même type qui les porte,
+                sans état impossible. Deux machines à états pures, testées sans carte et sous
                 `assert_no_alloc` (la garde est dans `drive`, le pilote de test : tout test de la
                 mesure vérifie du même coup la règle temps réel)
 calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le
