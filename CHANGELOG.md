@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#388)
+- **Le prompteur en grille a sa spécification et sa maquette** (`docs/design/prompteur.md`,
+  `docs/design/prompteur.html`) : la grille d'accords standard de ChordPro suivie à la mesure, le
+  son de chaque section choisi dans le set, un morceau ajouté à partir de son prompteur. C'est la
+  cible de trois stories de l'épique « Jouer un concert avec ma set list » : rien ne change encore
+  dans namfoop, et la spécification dit elle-même ce qui reste à construire.
+
 ### Licence (#392)
 - **namfoop passe sous GPL-3.0-or-later** (fichier `LICENSE`), au lieu de la MIT annoncée jusque-là
   sans texte de licence : une version redistribuée, modifiée ou non, reste libre avec son code. Le
