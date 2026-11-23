@@ -241,7 +241,10 @@ fn the_locked_stage_shows_the_padlock_and_only_its_own_keys() {
     assert!(out.contains("▶ 2 Le Phare") && out.contains("● fuzz"), "{out}");
     // la barre du bas : ni L, ni les espaces
     // « PgDn » apparaît aussi dans le cadre du morceau : la barre est la DERNIÈRE de ces lignes
-    let bar = out.lines().rfind(|l| l.contains("PgDn")).expect("la barre du bas");
+    // la barre tient sur les DEUX dernières lignes
+    let lines: Vec<&str> = out.lines().collect();
+    let at = lines.iter().rposition(|l| l.contains("PgDn")).expect("la barre du bas");
+    let bar = lines[at..].join(" ");
     assert!(bar.contains("i détail") && bar.contains("* tap") && bar.contains("q quitter"), "{bar}");
     assert!(!bar.contains("L sets"), "{bar}");
     assert!(!bar.contains("espaces"), "{bar}");
@@ -475,13 +478,124 @@ fn an_unreadable_prompt_is_said_in_the_frame() {
 fn the_prompt_keys_are_announced() {
     let s = with_prompt((1, 0));
     let out = shot(&s, 160, 24);
-    let bar = out.lines().rfind(|l| l.contains("PgDn")).expect("la barre du bas");
+    // la barre tient sur les DEUX dernières lignes
+    let lines: Vec<&str> = out.lines().collect();
+    let at = lines.iter().rposition(|l| l.contains("PgDn")).expect("la barre du bas");
+    let bar = lines[at..].join(" ");
     assert!(bar.contains("Fin/Début section"), "{bar}");
     assert!(bar.contains("t prompteur"), "{bar}");
     let mut s = with_prompt((1, 0));
     s.locked = true;
     let out = shot(&s, 160, 24);
-    let bar = out.lines().rfind(|l| l.contains("PgDn")).expect("la barre du bas");
+    // la barre tient sur les DEUX dernières lignes
+    let lines: Vec<&str> = out.lines().collect();
+    let at = lines.iter().rposition(|l| l.contains("PgDn")).expect("la barre du bas");
+    let bar = lines[at..].join(" ");
     assert!(bar.contains("Fin/Début section"), "{bar}");
     assert!(!bar.contains("t prompteur"), "rien ne s'édite sur scène : {bar}");
+}
+
+// ------------------------------------------------------------------ l'accordeur
+
+fn reading(midi: i32, cents: f32) -> Option<dsp::pitch::Reading> {
+    Some(dsp::pitch::Reading { freq_hz: 0.0, midi, cents, clarity: 1.0 })
+}
+
+/// **Sur scène, l'accordeur prend la colonne du prompteur** (`docs/design/accordeur.md` § 4) : la
+/// set list reste à gauche, le morceau suivant sous l'accordeur, le bandeau dans l'en-tête.
+#[test]
+fn the_tuner_takes_the_prompter_column_on_stage() {
+    for (w, h) in [(80, 25), (160, 50)] {
+        let mut s = staged(concert(), Some((1, 0)));
+        s.on_key(Key::Char('u'));
+        s.tuner_reading(reading(39, 7.0)); // E♭2, +7 cents
+        let out = shot(&s, w, h);
+        assert!(out.contains("BASSE COUPÉE"), "{w}×{h} : le bandeau\n{out}");
+        assert!(out.contains("ACCORDEUR"), "{w}×{h}\n{out}");
+        assert!(out.contains("▶ 2 Le Phare"), "{w}×{h} : la set list reste\n{out}");
+        assert!(out.contains("ensuite (→) : 3 · Néon"), "{w}×{h} : le morceau suivant\n{out}");
+        assert!(out.contains("+7 cents") && out.contains("▼ descends"), "{w}×{h}\n{out}");
+        assert!(out.contains("octave 2"), "{w}×{h} : la note en grand\n{out}");
+        assert!(out.contains("basse coupée · ni traitée ni en DI"), "{w}×{h} : l'écoute\n{out}");
+        assert!(out.contains("u rendre le son"), "{w}×{h} : la barre\n{out}");
+    }
+}
+
+/// Ailleurs, une fenêtre centrée ; juste à ±3 cents, et `joue une corde` sans lecture.
+#[test]
+fn the_tuner_is_a_window_in_the_chain() {
+    let mut s = with_chain(vec![]);
+    s.on_key(Key::Char('u'));
+    let out = shot(&s, 100, 30);
+    assert!(out.contains("ACCORDEUR") && out.contains("joue une corde"), "{out}");
+    s.tuner_reading(reading(28, -2.0));
+    let out = shot(&s, 100, 30);
+    assert!(out.contains("✓ juste") && out.contains("−2 cents"), "{out}");
+    // un terminal bas : la note sur une ligne
+    let out = shot(&s, 80, 16);
+    assert!(out.contains("E1"), "{out}");
+    // le son rendu : le bandeau vert, plus d'accordeur
+    s.on_key(Key::Char('u'));
+    let out = shot(&s, 100, 30);
+    assert!(out.contains("SON RENDU") && !out.contains("ACCORDEUR"), "{out}");
+}
+
+/// **Seul l'accordeur s'allume** (§ 7) : avec la basse coupée, aucune cellule ne garde une couleur
+/// d'espace — ni le vert de la scène, ni le cyan de la Chaîne, ni le magenta de la Bibliothèque.
+#[test]
+fn behind_the_tuner_everything_is_grey() {
+    use crate::theme;
+    use ratatui::style::Color;
+    let colors = |s: &State| -> Vec<Color> {
+        let mut t = ratatui::Terminal::new(ratatui::backend::TestBackend::new(160, 50)).unwrap();
+        t.draw(|f| render(s, &Status::default(), f)).unwrap();
+        t.backend().buffer().content.iter().flat_map(|c| [c.fg, c.bg]).collect()
+    };
+    theme::with_palette(theme::Palette::Exact, || {
+        let mut s = staged(concert(), Some((1, 0)));
+        assert!(colors(&s).contains(&theme::set()), "sans coupure, la scène est verte");
+        s.on_key(Key::Char('u'));
+        let c = colors(&s);
+        for (name, accent) in
+            [("Set", theme::set()), ("Chaîne", theme::chain()), ("Bibliothèque", theme::library())]
+        {
+            assert!(!c.contains(&accent), "une cellule garde la couleur de l'espace {name}");
+        }
+        assert!(c.contains(&theme::cut()), "le violet de la basse coupée");
+    });
+}
+
+/// **Jamais muet au début d'un titre** (§ 1, règle 3) : changer de son ou de morceau rend le son,
+/// et le message le dit ; une touche qui ne change rien au son le laisse coupé.
+#[test]
+fn changing_sound_or_song_gives_the_sound_back() {
+    for locked in [false, true] {
+        let gestures: [(&str, Key); 4] =
+            [("PgDn", Key::PageDown), ("PgUp", Key::PageUp), ("→", Key::Right), ("←", Key::Left)];
+        for (what, key) in gestures {
+            let mut s = staged(concert(), Some((1, 1)));
+            s.locked = locked;
+            s.on_key(Key::Char('u'));
+            assert!(s.bass_cut());
+            s.on_key(key);
+            assert!(!s.bass_cut(), "{what} (verrou {locked}) rend le son");
+            assert!(s.sound_back(), "{what} : le bandeau « son rendu »");
+            assert!(s.message.as_deref().unwrap_or("").ends_with("son rendu"), "{what} : {:?}", s.message);
+        }
+        // `Entrée` sur un morceau visé
+        let mut s = staged(concert(), Some((1, 0)));
+        s.locked = locked;
+        s.on_key(Key::Char('u'));
+        s.on_key(Key::Down);
+        assert!(s.bass_cut(), "viser n'est pas jouer : la basse reste coupée");
+        s.on_key(Key::Enter);
+        assert!(!s.bass_cut(), "Entrée joue le morceau, et rend le son");
+        // une touche qui ne change pas le son
+        let mut s = staged(concert(), Some((1, 0)));
+        s.locked = locked;
+        s.on_key(Key::Char('u'));
+        s.on_key(Key::Char('i'));
+        s.on_key(Key::Char('k'));
+        assert!(s.bass_cut(), "i et k ne rendent pas le son");
+    }
 }

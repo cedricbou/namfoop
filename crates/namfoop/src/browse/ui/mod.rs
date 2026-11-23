@@ -24,6 +24,8 @@ mod rows;
 mod set;
 mod spectrum;
 pub mod synoptic;
+/// L'accordeur, la basse coupée et le gris derrière.
+mod tuner;
 mod windows;
 
 use editor::*;
@@ -225,9 +227,22 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
                 theme::chain(),
             ),
             Span::raw(" "),
-            space_span(s.space == Space::Set, set_badge(s), theme::set()),
+            // la basse coupée sur un écran étroit : le bandeau a besoin de la place du nom du set,
+            // que le titre de la set list porte déjà
+            space_span(
+                s.space == Space::Set,
+                if tuner::banner(s).is_some() && spaces.width < 120 { "3 Set".into() } else { set_badge(s) },
+                theme::set(),
+            ),
         ]
     };
+    // la basse coupée, ou le son qui vient d'être rendu : après le nom du set, avant le tempo
+    let banner = tuner::banner(s).map(|b| {
+        head.push(Span::raw("  "));
+        let x = Line::from(head.clone()).width() as u16;
+        head.push(b.clone());
+        (x, b)
+    });
     // le tempo et **d'où il vient** (ADR 0008) : sans la source, on ne saurait pas pourquoi le
     // delay ne suit pas ce qu'on croit avoir réglé
     {
@@ -539,7 +554,16 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         meters.push(Span::styled(format!("  banque {done}/{total}"), Style::new().fg(theme::dim())));
     }
     // la ligne d'écoute : on sait toujours ce qu'on entend (§ 2, règle 2)
-    let (heard, second) = if s.space == Space::Set {
+    let (heard, second) = if s.bass_cut() {
+        // l'écoute dit la coupure, en violet : c'est la première chose qu'on vérifie
+        (
+            Line::styled(
+                " ♪ basse coupée · ni traitée ni en DI · micro et clic continuent",
+                Style::new().fg(theme::cut()).add_modifier(Modifier::BOLD),
+            ),
+            Line::raw(""),
+        )
+    } else if s.space == Space::Set {
         // § 6 : morceau › son › la chaîne en une ligne, et le volume du morceau s'il y en a un
         let where_ = match (s.set.as_ref(), s.set.as_ref().and_then(|x| x.at)) {
             (Some(set), Some(at)) => format!("{} › ", set.label(at)),
@@ -593,6 +617,7 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             )),
         )
     };
+    let heard_cut = heard.clone();
     f.render_widget(
         Paragraph::new(vec![
             heard,
@@ -606,7 +631,18 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         now,
     );
 
-    let keys = footer::keys(s, lib);
+    let keys = if s.bass_cut() {
+        // pendant l'accordage, la barre dit d'abord comment rendre le son (§ 9)
+        let u = s.tuner_key.label();
+        if s.space == Space::Set {
+            format!("{u} rendre le son   →/← morceau (rend le son)   PgDn/PgUp son (rend le son)   q quitter")
+        } else {
+            let usual = footer::keys(s, lib).replace(&format!("{u} accordeur   "), "");
+            format!("{u} rendre le son   {usual}")
+        }
+    } else {
+        footer::keys(s, lib)
+    };
     f.render_widget(Paragraph::new(help_bar(&keys, foot.width)), foot);
 
     if s.confirm_quit {
@@ -633,6 +669,21 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
         } else if e.confirm_remove {
             set::render_confirm_remove(s, f, body);
         }
+    }
+    // **la basse coupée** (`docs/design/accordeur.md` § 7) : tout l'écran passe en gris, puis
+    // l'accordeur, le bandeau et la ligne d'écoute se dessinent par-dessus
+    if s.bass_cut() {
+        tuner::grey_out(f.buffer_mut());
+        match (s.space == Space::Set && s.editor.is_none()).then(|| set::tuner_column(s, body)).flatten() {
+            Some((area, below)) => tuner::render_column(s, f, area, below),
+            None => tuner::render_window(s, f, body),
+        }
+        f.render_widget(Paragraph::new(heard_cut), Rect { height: 1, ..now });
+    }
+    if let Some((x, b)) = banner {
+        let w = Line::from(b.clone()).width() as u16;
+        let r = Rect { x: spaces.x + x, width: w.min(spaces.width.saturating_sub(x)), height: 1, ..spaces };
+        f.render_widget(Paragraph::new(Line::from(b)), r);
     }
     // l'aide passe par-dessus tout (y compris le catalogue et le sélecteur)
     if s.help {

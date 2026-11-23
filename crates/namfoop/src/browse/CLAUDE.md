@@ -186,6 +186,22 @@ preset : `unsaved()` ne le voit pas) et il ne va que dans les sorties déclarée
 garantit qu'il n'atteint jamais le sondier. `State::metronome_routed` dit si une sortie le reçoit ;
 sinon `k` renvoie à `setup` au lieu d'allumer un clic inaudible.
 
+**L'accordeur** (`state/tuner.rs`, `ui/tuner.rs`, `docs/design/accordeur.md`) : `State::tuner`
+**est** la basse coupée — un seul état, pas de muet sans accordeur. La boucle en tire la case
+`engine::cut::BassCut`, au même endroit que le volume, et ne lit le tap d'entrée (vidé à chaque tour)
+**que** pendant l'accordage : `dsp::pitch` toutes les 50 ms, lissé par `Smoother`, tracé
+(`basse=coupée`, `accordeur A1 +0 cents`) pour `scripts/check-e2e.py`. Trois choses à ne pas
+casser :
+
+1. **le retour automatique vit dans `apply_pending`**, seul passage de tout chargement de son
+   (clavier, banque, set, MIDI) : ne pas le recopier ailleurs. `play_set_sound` réécrit le message
+   après coup, d'où son propre `· son rendu` ;
+2. `u` est une touche **réglable** de l'étage pédale (`KeySpec::Tuner`, `State::tuner_key`) :
+   `pedal_owns` est donc une méthode, et la scène verrouillée la laisse passer ;
+3. **le gris se pose sur le tampon**, pas dans le thème : `ui::render` dessine tout, puis
+   `tuner::grey_out`, puis l'accordeur, la ligne d'écoute et le bandeau. Le test
+   `behind_the_tuner_everything_is_grey` vérifie qu'aucune couleur d'espace ne survit.
+
 ## L'exécution des actions — `actions/`
 
 `state` **décide** et c'est testé sans terminal ni carte ; `actions/` **exécute**. La frontière est

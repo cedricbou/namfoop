@@ -108,6 +108,27 @@ pub struct Config {
     /// rien n'est écrit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub midi: Option<Midi>,
+    /// Réglages de l'**accordeur** (`docs/design/accordeur.md` § 10). Absent : les valeurs par
+    /// défaut, et rien n'est écrit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tuner: Option<Tuner>,
+}
+
+/// L'**accordeur** : le La de référence et la touche qui coupe la basse pour s'accorder.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Tuner {
+    /// Le La de référence (Hz), de 415 à 466. Défaut 440.
+    pub a4: f32,
+    /// La touche qui coupe la basse et affiche l'accordeur, puis rend le son (défaut `u`). Nom
+    /// crossterm, comme les touches de `[set]` : pour coller à un pédalier qui tape des touches.
+    pub key: String,
+}
+
+impl Default for Tuner {
+    fn default() -> Self {
+        Self { a4: 440.0, key: "u".into() }
+    }
 }
 
 /// L'entrée **MIDI** : le port qu'on écoute, écrit par `namfoop setup`. Les numéros de message,
@@ -242,6 +263,7 @@ impl Default for Config {
             metronome: None,
             set: None,
             midi: None,
+            tuner: None,
         }
     }
 }

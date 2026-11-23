@@ -1197,6 +1197,52 @@ dit). Les réglages qui ne sont pas dans la chaîne — trim, niveau (`--level`)
 Le rendu est **identique au bit près** à celui des options équivalentes : un preset ne change rien
 au son, il le décrit.
 
+### S'accorder en silence : `u`
+
+Une touche coupe ta basse et affiche l'accordeur : la salle n'entend rien pendant que tu
+t'accordes. La même touche rend le son.
+
+```sh
+namfoop browse                        # u dans n'importe quel espace, puis u pour rendre le son
+namfoop run --set                     # sur scène : u entre deux morceaux, le set reste à gauche
+namfoop run --preset p3k8             # sans écran : la ligne d'état devient l'accordeur
+```
+
+**Ce qui est coupé** : ta basse, traitée **et** en DI, sur toutes les sorties — façade comme
+in-ears, parce que la DI part elle aussi en façade. Le **micro** et le **clic** continuent : tu peux
+parler pendant une scénette, et le groupe garde le tempo. La coupure se fait en 20 ms, mais la
+réverbe ou le delay de la dernière note **finissent de sonner** (2 s au plus, comme quand on change
+de son) : un morceau qui se termine sur l'accordeur ne se fait pas tronquer. Ni la coupure ni le
+retour ne font de clic.
+
+**L'affichage** : la note en grandes lettres, en bémols (E♭, B♭…), son octave, une aiguille de
+-50 à +50 cents, l'écart et le geste à faire — `▲ monte`, `▼ descends`, `✓ juste` à ±3 cents.
+L'écart est blanc au-delà de ±10 cents, vert atténué en approchant, vert quand c'est juste. Quand la
+corde s'éteint, la dernière note reste grisée 2 secondes, puis l'accordeur dit `joue une corde`.
+L'accordeur lit la basse **avant** la chaîne : une fuzz ne le trompe pas. Il est chromatique, du La
+à 27,5 Hz (le Si grave d'une 5 ou 6 cordes) jusqu'aux aigus d'une guitare.
+
+Tant que la basse est coupée, un bandeau violet `🔇 BASSE COUPÉE` le dit dans l'en-tête et le reste
+de l'écran passe en gris : seul l'accordeur s'allume. Dans l'espace Set et avec `run --set`,
+l'accordeur prend la colonne du prompteur ; la set list reste à gauche et le morceau suivant
+dessous. Dans la Bibliothèque et la Chaîne, c'est une fenêtre au milieu de l'écran.
+
+**Jamais muet au début d'un titre** : changer de son (`PgDn` / `PgUp`) ou de morceau (`→` / `←`,
+`Entrée` sur un morceau) rend le son tout seul, et `♪ SON RENDU` s'allume en vert 2 secondes. Au
+démarrage, la basse n'est jamais coupée.
+
+Le La de référence (440 Hz par défaut) et la touche se règlent dans la config — la touche, pour
+coller à un pédalier qui tape des touches (un nom crossterm, comme celles du mode Set) :
+
+```toml
+[tuner]
+a4 = 442.0       # le La de référence, en Hz (415 à 466)
+key = "u"        # la touche de l'accordeur
+```
+
+Avec `run --preset`, la touche n'est lue que dans un terminal (pas sous un service), et seulement
+un caractère simple.
+
 ### Options de `run`
 
 | Option | Rôle |
@@ -2630,6 +2676,10 @@ off = false                          # true : aucune écoute MIDI (comme --no-mi
 cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
 cc_tap = 14                          # le CC du tap tempo (convention Fractal)
 clock = true                         # false : ne pas écouter l'horloge MIDI (le tap reste actif)
+
+[tuner]                              # l'accordeur ([§ 8](#8-jouer))
+a4 = 440.0                           # le La de référence (Hz)
+key = "u"                            # la touche qui coupe la basse et affiche l'accordeur
 ```
 
 Les options de la ligne de commande priment toujours sur ce fichier.

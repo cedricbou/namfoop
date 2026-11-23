@@ -81,6 +81,8 @@ const YELLOW: Color = Color::Rgb(0xFF, 0xD6, 0x00);
 const RED: Color = Color::Rgb(0xFF, 0x3B, 0x30);
 const STEEL: Color = Color::Rgb(0x8A, 0x8A, 0x9C);
 const WHITE: Color = Color::Rgb(0xFF, 0xFF, 0xFF);
+/// Le violet UV : la basse coupée, et rien d'autre.
+const UV: Color = Color::Rgb(0xBF, 0x40, 0xFF);
 /// Le noir d'encre, pour le texte posé sur un aplat.
 const INK: Color = Color::Rgb(0x0F, 0x0F, 0x14);
 /// Les teintes assombries de la rampe : le mélange avec le noir d'encre le plus sombre qui reste
@@ -122,6 +124,31 @@ pub fn reference_b() -> Color {
 /// Saturation, écrêtage, IR coupée : ce qui abîme le son.
 pub fn clip() -> Color {
     pick(Color::Red, RED)
+}
+
+/// **La basse coupée** (l'accordeur) : le bandeau de l'en-tête, le cadre de l'accordeur, la
+/// ligne d'écoute. Le rouge reste au danger : une coupure voulue n'en est pas un.
+pub fn cut() -> Color {
+    pick(Color::LightBlue, UV)
+}
+
+// --- L'accordeur ----------------------------------------------------------------------------
+// Les trois paliers de la charte, toujours verts quel que soit l'espace : « juste » garde la même
+// couleur sous les yeux. Écart loin : blanc ; proche : vert atténué ; juste : vert signal.
+
+/// L'accordeur : écart au-delà de ±10 cents, et les flèches « monte » / « descends ».
+pub fn tuner_far() -> Style {
+    Style::new().fg(pick(Color::White, WHITE)).add_modifier(Modifier::BOLD)
+}
+
+/// L'accordeur : écart de ±3 à ±10 cents.
+pub fn tuner_near() -> Style {
+    grade(Accent::Set, Step::Low).add_modifier(Modifier::BOLD)
+}
+
+/// L'accordeur : juste, à ±3 cents.
+pub fn tuner_in() -> Style {
+    Style::new().fg(set()).add_modifier(Modifier::BOLD)
 }
 
 // --- Le texte -------------------------------------------------------------------------------

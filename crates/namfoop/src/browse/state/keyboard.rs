@@ -453,7 +453,7 @@ fn all_keys() -> Vec<(String, Key)> {
     let mut chars: Vec<char> = Context::ALL
         .iter()
         .flat_map(|c| bindings(*c).iter().flat_map(|b| b.keys.iter()))
-        .filter_map(|spec| match spec.resolve(st.song_keys, st.prompt_keys, st.play_key) {
+        .filter_map(|spec| match spec.resolve(st.song_keys, st.prompt_keys, st.play_key, st.tuner_key) {
             Key::Char(c) => Some(c),
             _ => None,
         })
@@ -785,7 +785,7 @@ fn everything_declared_is_actually_owned() {
         for b in bindings(ctx) {
             for spec in b.keys {
                 let mut s = (case.build)();
-                let key = spec.resolve(s.song_keys, s.prompt_keys, s.play_key);
+                let key = spec.resolve(s.song_keys, s.prompt_keys, s.play_key, s.tuner_key);
                 s.unhandled = None;
                 s.on_key(key);
                 if s.unhandled.is_some() {
@@ -823,6 +823,8 @@ fn everything_that_acts_is_declared() {
         Key::Char('?'),
         Key::Char('*'),
         Key::Char('k'),
+        // l'accordeur (`[tuner] key`, `u` par défaut) : la touche réglable de l'étage
+        Key::Char('u'),
     ];
     // **Les contextes qui répondent à TOUTE touche par construction**, chacun pour une raison que
     // sa table déclare en une ligne plutôt qu'en cinquante.
@@ -864,7 +866,9 @@ fn everything_that_acts_is_declared() {
         let s = (case.build)();
         let declared: Vec<Key> = bindings(ctx)
             .iter()
-            .flat_map(|b| b.keys.iter().map(|spec| spec.resolve(s.song_keys, s.prompt_keys, s.play_key)))
+            .flat_map(|b| {
+                b.keys.iter().map(|spec| spec.resolve(s.song_keys, s.prompt_keys, s.play_key, s.tuner_key))
+            })
             .collect();
         for (name, key) in all_keys() {
             if declared.contains(&key) || (PEDAL.contains(&key) && !a_space(ctx)) {

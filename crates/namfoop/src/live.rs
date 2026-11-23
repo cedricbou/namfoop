@@ -76,7 +76,7 @@ pub fn run(
     let mut tempo = engine::tempo::Arbiter::new();
     tempo.preset(spec.tempo.bpm());
 
-    let engine = Engine::start(
+    let mut engine = Engine::start(
         EngineConfig {
             audio: cfg.clone(),
             routing: routing.clone(),
@@ -85,7 +85,8 @@ pub fn run(
             trails_ms: if trails { TRAILS_MS } else { 0.0 },
             quiet: false,
             limiter_meter: limiter,
-            input_tap: None,
+            // le signal brut de la basse, pour l'accordeur (`u`) : lu seulement pendant l'accordage
+            input_tap: Some(cfg.rate as usize),
             // le clic du métronome : allumé d'emblée par `--click`, et seulement dans les sorties
             // déclarées in-ear (`namfoop setup`). Son tempo part de celui du preset ou de
             // `--tempo`, puis **suit l'horloge MIDI** si elle tourne (ADR 0008) : un clic qui
@@ -131,9 +132,44 @@ pub fn run(
     let clock_on = conf.config.midi.as_ref().is_none_or(|m| m.clock);
     let mut ticks = 0u32;
     let mut heard_src = tempo.source();
+    // **l'accordeur** (`docs/design/accordeur.md`) : la touche coupe la basse et la ligne d'état
+    // devient l'accordeur ; une seconde frappe rend le son
+    let tuner_conf = conf.config.tuner.clone().unwrap_or_default();
+    let tuner_key = crate::tui::Key::from_name(&tuner_conf.key).unwrap_or(crate::tui::Key::Char('u'));
+    let mut keys = Keys::open();
+    let bass_cut = engine.bass_cut();
+    let mut tap = engine.take_input_tap();
+    let mut pitch = dsp::pitch::PitchDetector::new(cfg.rate, tuner_conf.a4);
+    let mut smooth = dsp::pitch::Smoother::new();
+    let mut last_note: Option<(dsp::pitch::Reading, Instant)> = None;
+    if keys.is_some() {
+        log::info!("{} : accordeur (coupe la basse, micro et clic continuent)", tuner_key.label());
+    }
     loop {
         if rx.recv_timeout(Duration::from_millis(POLL_MS)).is_ok() {
             break;
+        }
+        match keys.as_mut().and_then(Keys::poll) {
+            Some(KeyIn::Key(k)) if k == tuner_key => {
+                let cut = !bass_cut.get();
+                bass_cut.set(cut);
+                pitch.clear();
+                smooth.clear();
+                last_note = None;
+                eprint!("\r\x1b[2K");
+                log::info!("{} → {}", k.label(), if cut { "basse coupée, accordeur" } else { "son rendu" });
+            }
+            _ => {}
+        }
+        if let Some(rx) = tap.as_mut() {
+            if let Ok(chunk) = rx.read_chunk(rx.slots()) {
+                if bass_cut.get() {
+                    let (a, b) = chunk.as_slices();
+                    pitch.push(a);
+                    pitch.push(b);
+                }
+                chunk.commit_all();
+            }
         }
         // L'entrée MIDI est vidée ici, hors du fil audio. `run` joue **une** chaîne : il n'a ni
         // banque ni set, donc un Program Change n'y désigne rien — c'est dans les écrans
@@ -200,6 +236,21 @@ pub fn run(
         if seconds.is_some_and(|s| start.elapsed().as_secs_f64() >= s) {
             break;
         }
+        // pendant l'accordage, la ligne d'état est l'accordeur, rafraîchie à chaque tour
+        if bass_cut.get() {
+            let r = smooth.push(pitch.read());
+            if let Some(r) = r {
+                last_note = Some((r, Instant::now()));
+            }
+            if !quiet {
+                eprint!(
+                    "\r\x1b[2K  🔇 BASSE COUPÉE ({} rend le son)   {}",
+                    tuner_key.label(),
+                    tuner_line(r, last_note)
+                );
+            }
+            continue;
+        }
         // Le vumètre ne se lit que par tranches de DISPLAY_MS : `meters()` **remet les crêtes à
         // zéro**, donc le lire au rythme du MIDI ne montrerait que les 20 dernières millisecondes.
         ticks += 1;
@@ -247,6 +298,7 @@ pub fn run(
             );
         }
     }
+    drop(keys);
     let xruns = engine.xruns();
     let load = engine.load_summary();
     let m = engine.meters();
@@ -277,4 +329,88 @@ pub fn run(
     }
     log::info!("arrêt : charge DSP max {:.1} %, {xruns} xrun(s)", max_load * 100.0);
     Ok(())
+}
+
+/// L'accordeur sur une ligne : la note, l'écart et le geste, ou `joue une corde`. La dernière note
+/// d'une corde éteinte reste 2 s, marquée comme telle.
+fn tuner_line(r: Option<dsp::pitch::Reading>, last: Option<(dsp::pitch::Reading, Instant)>) -> String {
+    use crate::browse::tuner_rules::{IN_TUNE_CENTS, LAST_NOTE_MS};
+    match (r, last) {
+        (Some(r), _) => {
+            let gesture = if r.cents.abs() <= IN_TUNE_CENTS {
+                "✓ juste"
+            } else if r.cents > 0.0 {
+                "▼ descends"
+            } else {
+                "▲ monte"
+            };
+            format!("{}{}  {:+.0} cents  {gesture}", r.name(), r.octave(), r.cents)
+        }
+        (None, Some((r, at))) if at.elapsed() < Duration::from_millis(LAST_NOTE_MS) => {
+            format!("{}{}  (corde éteinte)", r.name(), r.octave())
+        }
+        _ => "joue une corde".into(),
+    }
+}
+
+/// Ce que le clavier demande à `run`.
+enum KeyIn {
+    Key(crate::tui::Key),
+}
+
+/// Le clavier de `run`, **seulement** dans un terminal : lancé par un service ou un script, `run` ne
+/// lit rien et se pilote comme avant (Ctrl+C, `--seconds`). Le terminal passe sans écho ni mode
+/// ligne, une touche arrive donc sans Entrée ; Ctrl+C reste un signal et les journaux gardent leurs
+/// retours à la ligne. Le réglage d'origine est rendu à la sortie, même sur erreur.
+struct Keys {
+    saved: libc::termios,
+}
+
+impl Keys {
+    fn open() -> Option<Self> {
+        use std::io::IsTerminal;
+        if !std::io::stdin().is_terminal() {
+            return None;
+        }
+        // SAFETY : `termios` est une structure C simple, remplie par `tcgetattr` avant tout usage
+        unsafe {
+            let mut t: libc::termios = std::mem::zeroed();
+            if libc::tcgetattr(libc::STDIN_FILENO, &mut t) != 0 {
+                return None;
+            }
+            let saved = t;
+            t.c_lflag &= !(libc::ICANON | libc::ECHO);
+            t.c_cc[libc::VMIN] = 0;
+            t.c_cc[libc::VTIME] = 0;
+            if libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &t) != 0 {
+                return None;
+            }
+            Some(Keys { saved })
+        }
+    }
+
+    /// Une touche tapée depuis le dernier appel, sans attendre. Les touches spéciales (flèches)
+    /// arrivent en séquences d'échappement : seuls les caractères simples sont pris.
+    fn poll(&mut self) -> Option<KeyIn> {
+        let mut buf = [0u8; 16];
+        // SAFETY : lecture non bloquante (VMIN = VTIME = 0) dans un tampon local
+        let n = unsafe { libc::read(libc::STDIN_FILENO, buf.as_mut_ptr().cast(), buf.len()) };
+        if n <= 0 || buf[0] == 0x1b {
+            return None;
+        }
+        std::str::from_utf8(&buf[..n as usize])
+            .ok()?
+            .chars()
+            .next()
+            .map(|c| KeyIn::Key(crate::tui::Key::Char(c)))
+    }
+}
+
+impl Drop for Keys {
+    fn drop(&mut self) {
+        // SAFETY : on rend le réglage lu à l'ouverture
+        unsafe {
+            libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &self.saved);
+        }
+    }
 }

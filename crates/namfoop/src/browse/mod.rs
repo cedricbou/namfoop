@@ -14,6 +14,9 @@ mod plan;
 mod state;
 mod ui;
 
+/// Les règles de l'accordeur (seuils, durées), que `run` reprend sur sa ligne d'état.
+pub(crate) use state::tuner as tuner_rules;
+
 use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -246,7 +249,9 @@ pub fn run(
             trails_ms: if trails { TRAILS_MS } else { 0.0 },
             quiet: true,
             limiter_meter: limiter.clone(),
-            input_tap: None,
+            // le signal brut de la basse, pour l'accordeur : vidé à chaque tour, lu seulement
+            // pendant l'accordage (une seconde de marge)
+            input_tap: Some(cfg.rate as usize),
             metronome: Some(metronome),
         },
         dsp::Chain::new(),
@@ -255,6 +260,15 @@ pub fn run(
         bail!("le flux tourne à {} Hz, attendu {} Hz (option --rate)", engine.sample_rate(), cfg.rate);
     }
     let handle = engine.take_chain_sender().expect("pris une seule fois");
+    // **l'accordeur** (`docs/design/accordeur.md`) : la case « basse coupée » que la boucle écrit
+    // d'après l'état, et la lecture de hauteur, sur ce fil — jamais dans le fil audio
+    let bass_cut = engine.bass_cut();
+    let mut tap = engine.take_input_tap();
+    let a4 = conf.config.tuner.clone().unwrap_or_default().a4;
+    let mut pitch = dsp::pitch::PitchDetector::new(cfg.rate, a4);
+    let mut smooth = dsp::pitch::Smoother::new();
+    let mut next_reading = 0u64;
+    let mut traced_note: Option<(i32, i32)> = None;
     // construction des chaînes hors temps réel, et préchargement de la banque de presets
     let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size, live.clone())?;
 
@@ -306,6 +320,15 @@ pub fn run(
         st.prompt_keys =
             (read(&keys.prompt_next, crate::tui::Key::End), read(&keys.prompt_prev, crate::tui::Key::Home));
         st.play_key = read(&keys.prompt_play, crate::tui::Key::Char(' '));
+        // l'accordeur : sa touche se règle comme celles de la scène, pour coller au pédalier
+        let tuner = conf.config.tuner.clone().unwrap_or_default();
+        st.tuner_key = match crate::tui::Key::from_name(&tuner.key) {
+            Some(k) => k,
+            None => {
+                log::warn!("[tuner] touche « {} » inconnue : u gardée", tuner.key);
+                crate::tui::Key::Char('u')
+            }
+        };
     }
     // les numéros de message MIDI écoutés (ADR 0011), réglables par [midi]
     if let Some(m) = conf.config.midi.as_ref() {
@@ -474,6 +497,42 @@ pub fn run(
             if heard_tempo != tempo.get() {
                 tempo.set(heard_tempo);
                 trace(&format!("tempo={heard_tempo:.1} ({})", st.tempo_source().label()));
+            }
+            // la basse coupée : posée au même endroit que le volume, pour la même raison
+            if st.bass_cut() != bass_cut.get() {
+                bass_cut.set(st.bass_cut());
+                trace(if st.bass_cut() { "basse=coupée" } else { "basse=jouée" });
+                pitch.clear();
+                smooth.clear();
+                traced_note = None;
+            }
+            // le tap de l'entrée, vidé à chaque tour ; on ne calcule rien hors de l'accordage
+            if let Some(rx) = tap.as_mut() {
+                if let Ok(chunk) = rx.read_chunk(rx.slots()) {
+                    if st.bass_cut() {
+                        let (a, b) = chunk.as_slices();
+                        pitch.push(a);
+                        pitch.push(b);
+                    }
+                    chunk.commit_all();
+                }
+            }
+            let now_ms = start.elapsed().as_millis() as u64;
+            if st.bass_cut() && now_ms >= next_reading {
+                // ~20 lectures par seconde, la médiane des ~250 dernières ms
+                next_reading = now_ms + 50;
+                let r = smooth.push(pitch.read());
+                st.tuner_reading(r);
+                // tracée quand elle change de note ou de cent : c'est ce que lit le test de bout en
+                // bout, l'écran ne réécrivant que les cellules modifiées
+                let key = r.map(|r| (r.midi, r.cents.round() as i32));
+                if key != traced_note {
+                    traced_note = key;
+                    trace(&match r {
+                        Some(r) => format!("accordeur {}{} {:+.0} cents", r.name(), r.octave(), r.cents),
+                        None => "accordeur rien".into(),
+                    });
+                }
             }
             while let Ok((m, input_db, text)) = rx_grain_done.try_recv() {
                 if st.editor.as_ref().is_some_and(|e| e.model == m && e.draft.input_db == input_db) {

@@ -37,6 +37,12 @@ pub(super) const STAGE: &[Binding] = &[
     ),
     bind!(&[k('*')], "*", "tap tempo", "* tap"),
     bind!(&[k('k')], "k", "clic du métronome", "k clic"),
+    bind!(
+        &[KeySpec::Tuner],
+        "u",
+        "accordeur : coupe la basse, puis rend le son · changer de son ou de morceau le rend aussi",
+        "u accordeur"
+    ),
     bind!(&[k('h'), k('?')], "h", "cette aide", "h aide"),
     bind!(&[k('q')], "q", "quitter la scène (confirmation)", "q quitter"),
 ];

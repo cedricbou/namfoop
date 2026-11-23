@@ -3,6 +3,7 @@
 //! Voir `CLAUDE.md` de la crate.
 
 pub mod bank;
+pub mod cut;
 mod error;
 pub mod meters;
 pub mod metronome;
@@ -73,6 +74,8 @@ struct Tap {
 struct Callback {
     router: Router,
     swap: SwapChain,
+    /// La sortie traitée s'éteint une fois la queue jouée, quand la basse est coupée.
+    gate: cut::OutputGate,
     meters: Arc<Meters>,
     frame_secs: f32,
     tap: Option<Tap>,
@@ -101,8 +104,11 @@ impl Callback {
                 }
             }
         }
-        let swap = &mut self.swap;
-        let st = self.router.process(io, |buf| dsp::Stage::process(swap, buf));
+        let (swap, gate) = (&mut self.swap, &mut self.gate);
+        let st = self.router.process(io, |buf| {
+            dsp::Stage::process(swap, buf);
+            gate.process(buf);
+        });
         let m = &self.meters;
         if st.in_clips > 0 {
             m.in_clips.fetch_add(st.in_clips, Ordering::Relaxed);
@@ -136,8 +142,11 @@ fn callback(
     cfg: &EngineConfig,
     initial: dsp::Chain,
     meters: Arc<Meters>,
+    bass_cut: &cut::BassCut,
 ) -> Result<(Callback, SwapHandle, Option<TapRx>)> {
-    let router = Router::with_metronome(&cfg.routing, cfg.max_block, cfg.metronome.clone(), cfg.audio.rate)?;
+    let router = Router::with_metronome(&cfg.routing, cfg.max_block, cfg.metronome.clone(), cfg.audio.rate)?
+        .with_cut(bass_cut.clone(), cfg.audio.rate);
+    let gate = cut::OutputGate::new(bass_cut.clone(), cfg.audio.rate, cfg.trails_ms);
     let (swap, handle) =
         dsp::swap::swap_pair(initial, cfg.audio.rate, cfg.max_block, cfg.fade_ms, cfg.trails_ms);
     let (tap, tap_rx) = match cfg.input_tap {
@@ -148,7 +157,8 @@ fn callback(
         }
         None => (None, None),
     };
-    let cb = Callback { router, swap, meters, frame_secs: 1.0 / cfg.audio.rate as f32, tap, ftz: false };
+    let cb =
+        Callback { router, swap, gate, meters, frame_secs: 1.0 / cfg.audio.rate as f32, tap, ftz: false };
     Ok((cb, handle, tap_rx))
 }
 
@@ -213,6 +223,7 @@ pub struct Engine {
     meters: Arc<Meters>,
     description: String,
     tap: Option<TapRx>,
+    bass_cut: cut::BassCut,
 }
 
 impl Engine {
@@ -224,13 +235,14 @@ impl Engine {
         rt::prepare_process(cfg.audio.cpu);
         rt::prewarm(&mut initial, cfg.audio.buffer as usize, cfg.audio.rate);
         let meters = Arc::new(Meters { limiter: cfg.limiter_meter.clone(), ..Default::default() });
-        let (cb, handle, tap) = callback(&cfg, initial, meters.clone())?;
+        let bass_cut = cut::BassCut::new();
+        let (cb, handle, tap) = callback(&cfg, initial, meters.clone(), &bass_cut)?;
         let check = Router::new(&cfg.routing, cfg.max_block)?; // validé une fois la carte ouverte
         let description = check.describe();
         let stream = audio_io::start_with(&cfg.audio, cb, cfg.quiet)?;
         check.validate(stream.n_in(), stream.n_out())?;
         let sender = ChainSender { handle, block: stream.buffer_size() as usize, rate: stream.sample_rate() };
-        Ok(Engine { stream, sender: Some(sender), meters, description, tap })
+        Ok(Engine { stream, sender: Some(sender), meters, description, tap, bass_cut })
     }
 
     /// Change de chaîne par fondu ; rend la chaîne si une autre attend encore d'être prise (ou
@@ -251,6 +263,12 @@ impl Engine {
     /// Confie l'envoi des chaînes à un autre thread (une seule fois).
     pub fn take_chain_sender(&mut self) -> Option<ChainSender> {
         self.sender.take()
+    }
+
+    /// **La basse coupée** (accordeur, `cut.rs`) : la case que le contrôle écrit. Coupée, la basse
+    /// ne sort plus ni traitée ni en DI ; le micro et le clic continuent. Au démarrage : jouée.
+    pub fn bass_cut(&self) -> cut::BassCut {
+        self.bass_cut.clone()
     }
 
     /// File du tap d'entrée (une seule fois), si `input_tap` était demandé.
@@ -345,7 +363,8 @@ mod tests {
             .collect();
         let mut bare = spec().build(48000, cfg.max_block).unwrap();
         let (mut cb, _handle, _) =
-            callback(&cfg, spec().build(48000, cfg.max_block).unwrap(), Arc::default()).unwrap();
+            callback(&cfg, spec().build(48000, cfg.max_block).unwrap(), Arc::default(), &cut::BassCut::new())
+                .unwrap();
         for block in input.chunks(64) {
             let mut want = block.to_vec();
             bare.process(&mut want);
@@ -362,14 +381,22 @@ mod tests {
     fn callback_does_not_allocate() {
         let mut cfg = config();
         cfg.input_tap = Some(64); // plus petit que le bloc : perte comptée, sans allocation
+        let flag = cut::BassCut::new();
         let (mut cb, _handle, tap) =
-            callback(&cfg, spec().build(48000, cfg.max_block).unwrap(), Arc::default()).unwrap();
+            callback(&cfg, spec().build(48000, cfg.max_block).unwrap(), Arc::default(), &flag).unwrap();
         let ins = vec![vec![0.1f32; 256]; 2];
         let mut outs = vec![vec![0.0f32; 256]; 2];
         assert_no_alloc::assert_no_alloc(|| {
             cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 256 });
         });
-        assert_eq!(tap.unwrap().lost.load(Ordering::Relaxed), 256);
+        // la basse coupée, en rampe puis éteinte : toujours sans allocation
+        flag.set(true);
+        assert_no_alloc::assert_no_alloc(|| {
+            for _ in 0..10 {
+                cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 256 });
+            }
+        });
+        assert_eq!(tap.unwrap().lost.load(Ordering::Relaxed), 256 * 11);
     }
 
     /// Le tap rend l'entrée basse brute, bloc par bloc.
@@ -378,13 +405,106 @@ mod tests {
         let mut cfg = config();
         cfg.routing.bass_in = 2;
         cfg.input_tap = Some(1000);
-        let (mut cb, _h, tap) = callback(&cfg, dsp::Chain::new(), Arc::default()).unwrap();
+        let (mut cb, _h, tap) =
+            callback(&cfg, dsp::Chain::new(), Arc::default(), &cut::BassCut::new()).unwrap();
         let mut rx = tap.unwrap().rx.unwrap();
         let ins = vec![vec![0.1f32; 64], (0..64).map(|i| i as f32 / 64.0).collect()];
         let mut outs = vec![vec![0.0f32; 64]; 2];
         cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 64 });
         let got: Vec<f32> = std::iter::from_fn(|| rx.pop().ok()).collect();
         assert_eq!(got, ins[1]);
+    }
+
+    /// **La basse coupée** (accordeur) : traitée et DI à zéro après la coupure, la réverbe finit
+    /// de sonner, le micro continue, et ni la coupure ni le retour ne sautent.
+    #[test]
+    fn bass_cut_silences_processed_and_di_but_not_the_mic() {
+        use std::str::FromStr;
+        let mut cfg = config();
+        cfg.trails_ms = 500.0;
+        cfg.routing = Routing {
+            bass_in: 1,
+            mic_in: Some(2),
+            outputs: vec![
+                OutputRoute { channel: 1, source: Source::Processed, click: false },
+                OutputRoute { channel: 2, source: Source::Di, click: false },
+                OutputRoute { channel: 3, source: Source::Mic, click: false },
+            ],
+        };
+        let reverb = dsp::chain::AmpSpec {
+            post: vec![dsp::fx::FxSpec::from_str("reverb:mix=100,decay=2").unwrap()],
+            ..Default::default()
+        };
+        let flag = cut::BassCut::new();
+        let (mut cb, _h, _) =
+            callback(&cfg, reverb.build(48000, cfg.max_block).unwrap(), Arc::default(), &flag).unwrap();
+        let block = 64;
+        let mut outs_all: Vec<Vec<f32>> = vec![Vec::new(); 3];
+        let run = |cb: &mut Callback, outs_all: &mut Vec<Vec<f32>>, blocks: usize, offset: usize| {
+            for b in 0..blocks {
+                let t0 = (offset + b) * block;
+                let bass: Vec<f32> = (t0..t0 + block).map(|i| 0.3 * (i as f32 * 0.0144).sin()).collect();
+                let mic = vec![0.2f32; block];
+                let ins = vec![bass, mic];
+                let mut outs = vec![vec![0.0f32; block]; 3];
+                cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: block });
+                for (all, o) in outs_all.iter_mut().zip(&outs) {
+                    all.extend_from_slice(o);
+                }
+            }
+        };
+        run(&mut cb, &mut outs_all, 150, 0); // 200 ms de jeu
+        flag.set(true);
+        run(&mut cb, &mut outs_all, 750, 150); // 1 s coupée
+        let cut_at = 150 * block;
+        let ms = |n: usize| n * 48;
+        let (processed, di, mic) = (&outs_all[0], &outs_all[1], &outs_all[2]);
+        // la DI s'éteint en 20 ms
+        assert!(di[cut_at + ms(21)..].iter().all(|x| *x == 0.0), "DI coupée");
+        // la réverbe finit de sonner : la sortie traitée vit encore 100 ms après la coupure
+        let rms = |s: &[f32]| (s.iter().map(|x| x * x).sum::<f32>() / s.len() as f32).sqrt();
+        assert!(rms(&processed[cut_at + ms(100)..cut_at + ms(150)]) > 1e-3, "la queue sonne");
+        // puis le silence, une fois la queue jouée (20 ms + 500 ms + 20 ms)
+        assert!(processed[cut_at + ms(545)..].iter().all(|x| *x == 0.0), "sortie traitée coupée");
+        // le micro n'est jamais touché
+        assert!(mic.iter().all(|x| *x == 0.2), "le micro continue");
+        // aucun saut d'échantillon : à 0,3 × sin(0,0144 n), l'écart entre deux échantillons voisins
+        // ne dépasse jamais 0,0044 ; une coupure sèche en ferait jusqu'à 0,3
+        let jump = |s: &[f32]| s.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0.0, f32::max);
+        assert!(jump(di) < 0.005, "DI : saut de {}", jump(di));
+        // le retour
+        flag.set(false);
+        for o in outs_all.iter_mut() {
+            o.clear();
+        }
+        run(&mut cb, &mut outs_all, 150, 900);
+        let di = &outs_all[1];
+        assert!(jump(di) < 0.005, "retour DI : saut de {}", jump(di));
+        assert!(di[ms(21)..].iter().any(|x| x.abs() > 0.29), "la DI est rendue");
+        assert!(rms(&outs_all[0][ms(60)..]) > 1e-3, "la basse traitée est rendue");
+    }
+
+    /// Un changement de chaîne pendant la coupure : la nouvelle chaîne entre muette.
+    #[test]
+    fn a_chain_swapped_while_cut_stays_silent() {
+        let cfg = config();
+        let flag = cut::BassCut::new();
+        let (mut cb, mut h, _) = callback(&cfg, dsp::Chain::new(), Arc::default(), &flag).unwrap();
+        flag.set(true);
+        let ins = vec![vec![0.3f32; 64]; 2];
+        for i in 0..100 {
+            if i == 20 {
+                let mut c = dsp::Chain::new();
+                c.push(dsp::gain::Gain::db(6.0, "g"));
+                assert!(h.send(c).is_ok());
+            }
+            let mut outs = vec![vec![0.0f32; 64]; 2];
+            cb.process(&mut VecIo { ins: &ins, outs: &mut outs, frames: 64 });
+            // la rampe d'entrée dure 20 ms, soit 15 blocs de 64
+            if i > 15 {
+                assert!(outs[0].iter().all(|x| *x == 0.0), "bloc {i} : la nouvelle chaîne entre muette");
+            }
+        }
     }
 
     /// Carte simulée : démarrage, deux chaînes successives, vumètres non nuls, arrêt.

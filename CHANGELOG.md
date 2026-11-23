@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#403)
+- **S'accorder en silence** : la touche `u` coupe la basse et affiche l'accordeur, dans les trois
+  espaces de `browse`, dans `run --set` et dans `run --preset` ; une seconde frappe rend le son. La
+  basse ne sort plus nulle part, ni traitée ni en DI ; le micro et le clic continuent, et la queue
+  d'une réverbe ou d'un delay finit de sonner. L'accordeur montre la note en grand et en bémols,
+  une aiguille d'écart, le geste à faire, et passe au vert à ±3 cents. Un bandeau violet
+  `🔇 BASSE COUPÉE` le dit dans l'en-tête et le reste de l'écran passe en gris ; changer de son ou de
+  morceau rend le son tout seul, et `♪ SON RENDU` s'allume en vert. `[tuner]` règle le La de
+  référence (`a4`, 440 Hz) et la touche (`key`).
+
 ### Interne (#402)
 - **namfoop sait lire la hauteur d'une note**, du La grave à 27,5 Hz (le Si grave d'une basse 5 ou
   6 cordes) jusqu'au-delà du Mi aigu d'une guitare, au cent près, avec un La de référence réglable.

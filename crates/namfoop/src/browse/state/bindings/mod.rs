@@ -44,6 +44,8 @@ pub enum KeySpec {
     PromptPrev,
     /// La battue (`Espace` par défaut) : son appui est le 1.
     PromptPlay,
+    /// L'accordeur (`u` par défaut, `[tuner] key`) : coupe la basse, puis rend le son.
+    Tuner,
 }
 
 /// Ce qu'un contexte déclare : des touches, leur étiquette, et ce qu'elles font.
@@ -122,6 +124,13 @@ const PEDAL: &[Binding] = &[
         "k",
         "clic du métronome, dans les sorties in-ear seulement · éteint au démarrage",
         "k clic"
+    ),
+    bind!(
+        &[KeySpec::Tuner],
+        "u",
+        "accordeur : coupe la basse (traitée et DI, micro et clic continuent), puis rend le son \
+         · tout changement de son ou de morceau le rend aussi ([tuner] key)",
+        "u accordeur"
     ),
 ];
 
@@ -218,7 +227,13 @@ impl KeySpec {
     /// La touche réelle : les réglables sont résolues contre la config lue au démarrage. Comme
     /// `Binding::keys`, lu par la jointure seulement.
     #[allow(dead_code, reason = "lu par la jointure annoncé ↔ possédé, dans keyboard.rs")]
-    pub fn resolve(self, song_keys: (Key, Key), prompt_keys: (Key, Key), play_key: Key) -> Key {
+    pub fn resolve(
+        self,
+        song_keys: (Key, Key),
+        prompt_keys: (Key, Key),
+        play_key: Key,
+        tuner_key: Key,
+    ) -> Key {
         match self {
             KeySpec::Fixed(k) => k,
             KeySpec::NextSong => song_keys.0,
@@ -226,6 +241,7 @@ impl KeySpec {
             KeySpec::PromptNext => prompt_keys.0,
             KeySpec::PromptPrev => prompt_keys.1,
             KeySpec::PromptPlay => play_key,
+            KeySpec::Tuner => tuner_key,
         }
     }
 }

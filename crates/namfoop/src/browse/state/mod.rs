@@ -298,6 +298,12 @@ pub struct State {
     /// qui s'**enregistre** est `fx.chain.tempo_bpm`, et seuls un tap ou un chargement de preset
     /// le changent. Les deux diffèrent dès qu'une horloge tourne, et l'en-tête le dit.
     tempo: engine::tempo::Arbiter,
+    /// **L'accordeur**, et donc la basse coupée (`tuner.rs`) : `None`, la basse joue.
+    pub tuner: Option<tuner::Tuner>,
+    /// La touche **réglable** de l'accordeur (`[tuner] key`, défaut `u`).
+    pub tuner_key: Key,
+    /// L'instant (ms) où le son a été rendu : le bandeau « ♪ SON RENDU » s'allume 2 s.
+    pub sound_back_at: Option<u64>,
     /// Le **numéro du dernier top d'horloge** reçu (`midi_io::Message::clock_seq`). Avec l'ancre
     /// de l'arbitre, il donne la position dans la noire sans jamais dériver : c'est ce qui place
     /// la battue, comme il place le clic.
@@ -357,6 +363,9 @@ impl State {
             midi_pc: None,
             tempo: engine::tempo::Arbiter::new(),
             clock_seq: 0,
+            tuner: None,
+            tuner_key: Key::Char('u'),
+            sound_back_at: None,
             set: None,
             song_keys: (Key::Right, Key::Left),
             set_picker: None,
@@ -674,6 +683,8 @@ pub mod send;
 pub mod set;
 pub mod space;
 mod target;
+/// L'accordeur et la basse coupée.
+pub mod tuner;
 
 #[cfg(test)]
 pub mod tests;
