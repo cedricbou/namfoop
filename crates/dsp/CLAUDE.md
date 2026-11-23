@@ -177,7 +177,7 @@ les coûts absolus sont les mêmes). Modèles mesurés par `namfoop bench`, effe
 | parallèle, 2 / 3 / 4 bandes | 0,67 / 1,74 / 3,23 | jusqu'à 0,24 % |
 | table de vumètres (7 sondes) | +0,24 | +0,02 % |
 
-`namfoop bench` sur les 139 modèles de la bibliothèque, bloc 64 : 41 µs le plus léger, 42 µs de
+`namfoop bench` sur les modèles de la bibliothèque (139 au moment de la mesure), bloc 64 : 41 µs le plus léger, 42 µs de
 médiane, 104 µs le plus lourd (3,1 à 7,8 %), 246 µs au pire cas. **Le Pi 5 reste à mesurer** : lui
 seul dira s'il faut une limite dure.
 
@@ -333,7 +333,7 @@ est 4 à 10 ms trop court.
   `engine::meters()` les publie déjà.
 - `Level::Normalize` normalise **chaque** bloc NAM à la cible (règle uniforme, identique au bit près
   au cas d'un seul modèle) : à revoir à l'écoute si plusieurs NAM en série deviennent courants.
-- `AmpSpec` reste l'entrée des options CLI : à retirer quand les presets décriront les blocs.
+- `AmpSpec` reste l'entrée des options CLI alors que les presets décrivent les blocs : à retirer.
 - `comp` n'a pas de détecteur RMS (crête seulement) : à ajouter si le besoin se confirme à l'écoute.
 - Limiteur sans lookahead (attaque instantanée) : colore les transitoires qui dépassent -1 dBFS ;
   un lookahead de ~1 ms serait plus propre mais ajoute de la latence.

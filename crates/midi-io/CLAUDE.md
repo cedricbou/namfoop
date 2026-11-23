@@ -31,7 +31,7 @@ CC 34 = son, CC 14 = tap) et [ADR 0008](../../docs/adr/0008-tempo-et-divisions.m
 Elles ne sont **pas** ici : cette crate ne sait pas ce qu'un numéro veut dire.
 
 **Ce qui tient le temps réel.** Le fil de lecture n'est **pas** le fil audio : lire un port bloque,
-et les règles du `CLAUDE.md` racine l'interdisent dans un callback. `Input` tient donc son fil et
+et les règles temps réel de `crates/dsp/CLAUDE.md` l'interdisent dans un callback. `Input` tient donc son fil et
 publie dans une file `rtrb` sans verrou ; l'appelant la vide au rythme de sa boucle. Une file pleine
 **compte une perte** (`Input::dropped`) au lieu de bloquer, et le port se ferme au drop (le fil voit
 l'ordre d'arrêt en 200 ms au pire, le délai de son `poll`).
@@ -41,8 +41,8 @@ choses, et il faut les deux :
 
 - `Message::clock_seq` : **chaque message porte** le nombre de tops reçus à son arrivée — donc,
   pour un `ClockTick`, son propre numéro. C'est ce que lit le côté contrôle. Le déduire après coup,
-  en comparant un compteur partagé à un comptage tenu ailleurs, obligeait à lire les deux au même
-  instant : jamais tout à fait vrai, et un top compté entre les deux lectures décalait la position
+  en comparant un compteur partagé à un comptage tenu ailleurs, obligerait à lire les deux au même
+  instant : jamais tout à fait vrai, et un top compté entre les deux lectures décalerait la position
   d'un top — 17,6 ms à 142 BPM — sans que rien le signale.
 - `Input::clock_ticks` : le même compteur en `Arc<AtomicU64>`, que le **fil audio** lit d'un `load`
   relâché pour savoir où en est l'horloge *maintenant*. Il ne peut pas passer par la file : vidée
@@ -64,8 +64,7 @@ porte le temps 1 demande de savoir ce qu'un message *veut dire* — l'affaire d'
   conversion est faite à l'entrée, une fois — `seq.rs` ajoute 1, le format texte lit 1 à 128 — pour
   qu'aucun consommateur n'ait à y penser.
 - **Tous les canaux MIDI sont acceptés** et le canal n'est pas transmis : namfoop est un seul
-  instrument, et un pédalier sur son canal d'usine doit marcher sans réglage. Le jour où une piste
-  de la table parlera sur le même port, le filtre se posera ici (un champ de `Settings`).
+  instrument, et un pédalier sur son canal d'usine doit marcher sans réglage.
 - **Une valeur hors des 7 bits est ignorée**, pas écrêtée (contrôleur 14 bits, NRPN) : ce n'est pas
   un message qui nous parle, et l'écrêter inventerait un geste.
 - Le **port simulé s'ouvre sans bloquer** (`O_NONBLOCK`) : un tube nommé sans écrivain bloquerait

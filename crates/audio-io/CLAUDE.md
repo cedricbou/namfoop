@@ -20,8 +20,8 @@ et pile préchargée, appelé au démarrage des threads ALSA et sim). Le flush-t
 **d'assembleur aarch64** qu'aucune compilation x86 ne regarde : `scripts/check-aarch64.sh` le
 compile (en `cargo build`, un `cargo check` ne validant pas le contenu d'un `asm!`).
 
-**Règles temps réel** : celles du `CLAUDE.md` racine s'appliquent aux callbacks (aucune
-allocation, lock, I/O, log ni panic ; buffers de n'importe quelle longueur).
+**Règles temps réel** : celles de [`crates/dsp/CLAUDE.md`](../dsp/CLAUDE.md) s'appliquent aux
+callbacks (aucune allocation, lock, I/O, log ni panic ; buffers de n'importe quelle longueur).
 
 **Tester sans matériel** : `cargo test -p audio-io`, puis le test de fumée
 `namfoop --no-config --backend sim --device 4x6 run -q --seconds 2 --master-db -120`. Sur le
