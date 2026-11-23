@@ -49,7 +49,7 @@ impl State {
         // jamais *derrière* elle, ce qui est la règle des modales. Restent au-dessus de la pédale
         // les **saisies** (une lettre y est une lettre) et les **murs** (une confirmation attend sa
         // réponse). Aucune de ces fenêtres ne lie `1 2 3 q * k` : rien ne lui est volé.
-        if Self::pedal_owns(key)
+        if self.pedal_owns(key)
             && !self.typing()
             && matches!(ctx, C::Bank | C::Send | C::Place | C::Picker | C::SetPicker)
         {
@@ -103,8 +103,8 @@ impl State {
     /// elle doit pouvoir expliquer la fenêtre elle-même. Le test
     /// `the_pedal_list_matches_the_dispatch` vérifie que cette liste est exactement celle de
     /// [`State::pedal_key`] — deux listes qui divergent sont le défaut que l'ADR 0009 a chassé.
-    fn pedal_owns(key: Key) -> bool {
-        matches!(key, Key::Char('1' | '2' | '3' | '*' | 'k' | 'q' | 'h' | '?'))
+    fn pedal_owns(&self, key: Key) -> bool {
+        key == self.tuner_key || matches!(key, Key::Char('1' | '2' | '3' | '*' | 'k' | 'q' | 'h' | '?'))
     }
 
     /// **Les quatre étages** de l'ADR 0009, pour les seuls contextes d'espace. Une touche les
@@ -194,6 +194,10 @@ impl State {
     /// l'oreille) qui doivent répondre pareil partout — quand ils n'ont rien à faire là, ils le
     /// **disent** (`tap_tempo` le fait) au lieu de ne rien faire.
     fn pedal_key(&mut self, key: Key) -> Option<Action> {
+        // `u` (réglable) : l'accordeur, qui coupe la basse — un geste du pied, comme `*`
+        if key == self.tuner_key {
+            return Some(self.toggle_tuner());
+        }
         Some(match key {
             Key::Char('1') => self.go_to(space::Space::Library),
             Key::Char('2') => self.go_to(space::Space::Chain),
@@ -405,6 +409,8 @@ impl State {
         }
         let (song, prompt, play) = (self.song_keys, self.prompt_keys, self.play_key);
         match key {
+            // l'accordeur **passe** le verrou : sur scène, c'est entre deux morceaux qu'on s'accorde
+            k if k == self.tuner_key => self.toggle_tuner(),
             Key::PageDown => self.step_set(true),
             Key::PageUp => self.step_set(false),
             k if k == song.0 => self.step_set_song(true),

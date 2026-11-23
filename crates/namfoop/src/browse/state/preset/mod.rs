@@ -466,11 +466,20 @@ impl State {
     }
 
     /// Installe ce qui attendait : la chaîne du preset, ou une chaîne vierge.
+    ///
+    /// C'est le **seul** passage de tout changement de son (clavier, banque, set, MIDI) : la basse
+    /// coupée y revient (`tuner.rs`, « jamais muet au début d'un titre »).
     pub fn apply_pending(&mut self, what: Pending) -> Action {
-        match what {
+        let action = match what {
             Pending::Preset(i) => self.load_preset(i),
             Pending::New => self.new_chain(),
+        };
+        if self.sound_changed() {
+            if let Some(m) = self.message.as_mut() {
+                m.push_str(" · son rendu");
+            }
         }
+        action
     }
 
     /// La chaîne devient **vide** et plus aucun preset n'est courant : `S` proposera donc un nom

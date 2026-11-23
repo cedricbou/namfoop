@@ -63,6 +63,23 @@ impl Key {
     }
 }
 
+impl Key {
+    /// Comment on l'écrit dans un message : le caractère lui-même, sinon le nom de la touche.
+    pub fn label(self) -> String {
+        match self {
+            Key::Char(' ') => "Espace".into(),
+            Key::Char(c) => c.to_string(),
+            Key::PageDown => "PgDn".into(),
+            Key::PageUp => "PgUp".into(),
+            Key::End => "Fin".into(),
+            Key::Home => "Début".into(),
+            Key::Enter => "Entrée".into(),
+            Key::Esc => "Échap".into(),
+            other => format!("{other:?}"),
+        }
+    }
+}
+
 pub fn map_key(code: KeyCode) -> Option<Key> {
     Some(match code {
         KeyCode::Up => Key::Up,

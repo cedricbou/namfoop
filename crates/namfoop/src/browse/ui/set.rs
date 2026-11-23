@@ -247,26 +247,72 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     let room = (area.height as usize).saturating_sub(8);
     lines.extend(prompt_lines(s, set, at, area.width.saturating_sub(4) as usize, room));
     // le morceau suivant, pour voir venir (§ 6)
-    if let Some(n) = (at.0 + 1 < songs).then(|| at.0 + 1) {
-        let song = &set.spec.songs[n];
+    let next = next_song_lines(s, set, at, false);
+    if !next.is_empty() {
         lines.push(Line::raw(""));
-        lines.push(Line::styled(
-            format!(
-                " ── ensuite (→) : {} · {}  {}",
-                n + 1,
-                song.label(),
-                song.tempo_bpm.map(|b| format!("♩{b:.0}")).unwrap_or_default()
-            ),
-            Style::new().fg(theme::dim()),
-        ));
-        for sound in &song.sounds {
-            lines.push(Line::styled(format!("     {}", sound.preset), Style::new().fg(theme::dim())));
-        }
+        lines.extend(next);
     }
     f.render_widget(
         Paragraph::new(lines).block(frame_block(&clip(&title, area.width.saturating_sub(4) as usize))),
         area,
     );
+}
+
+/// **Le morceau suivant** : son titre et ses sons — et, sous l'accordeur (`with_cue`), ses
+/// premières lignes, dont une cue de scénette garde son jaune (`docs/design/accordeur.md` § 4).
+/// Vide en fin de set.
+fn next_song_lines(s: &State, set: &ActiveSet, at: (usize, usize), with_cue: bool) -> Vec<Line<'static>> {
+    let n = at.0 + 1;
+    let Some(song) = set.spec.songs.get(n) else { return Vec::new() };
+    let mut lines = vec![Line::styled(
+        format!(
+            " ── ensuite (→) : {} · {}  {}",
+            n + 1,
+            song.label(),
+            song.tempo_bpm.map(|b| format!("♩{b:.0}")).unwrap_or_default()
+        ),
+        Style::new().fg(theme::dim()),
+    )];
+    for sound in &song.sounds {
+        lines.push(Line::styled(format!("     {}", sound.preset), Style::new().fg(theme::dim())));
+    }
+    if with_cue {
+        use crate::browse::state::set::prompt::Loaded;
+        if let Some(Loaded::Ok(p)) = s.prompt_of(n) {
+            let first = p
+                .sections
+                .iter()
+                .flat_map(|sec| sec.lines.iter())
+                .filter(|l| l.cue || !l.text.trim().is_empty())
+                .take(2);
+            for l in first {
+                lines.push(if l.cue {
+                    Line::styled(format!("    › {}", l.text), Style::new().fg(theme::cue()))
+                } else {
+                    Line::styled(format!("    {}", l.text), Style::new().fg(theme::dim()))
+                });
+            }
+        }
+    }
+    lines
+}
+
+/// **Où va l'accordeur** dans l'espace Set : la colonne du prompteur, la set list restant à
+/// gauche ; `None` quand il n'y a pas de colonne (pas de set, édition du set) — il prend alors
+/// une fenêtre. Le même découpage que [`render`].
+pub(super) fn tuner_column(s: &State, area: Rect) -> Option<(Rect, Vec<Line<'static>>)> {
+    let set = s.set.as_ref()?;
+    if s.set_edit.is_some() {
+        return None;
+    }
+    let below = set.at.map(|at| next_song_lines(s, set, at, true)).unwrap_or_default();
+    if area.width < NARROW {
+        let [_, rest] = Layout::vertical([Constraint::Length(1), Constraint::Min(3)]).areas(area);
+        return Some((rest, below));
+    }
+    let list_w = if area.width >= WIDE { LIST_WIDE } else { LIST_NARROW };
+    let [_, right] = Layout::horizontal([Constraint::Length(list_w), Constraint::Min(20)]).areas(area);
+    Some((right, below))
 }
 
 /// Tronque à `w` caractères, en comptant des caractères et non des octets.

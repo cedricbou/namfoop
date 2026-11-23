@@ -2,6 +2,7 @@
 //! Configuré par `namfoop setup` ([routing] de la config) ou les options --bass-in / --mic-in / --route.
 //! Canaux numérotés à partir de 1 dans la config et la CLI, à partir de 0 en interne.
 
+use crate::cut::{BassCut, InputCut};
 use crate::error::{bail, Result};
 use crate::metronome::{Metronome, MetronomeConfig};
 use audio_io::Io;
@@ -37,6 +38,8 @@ pub struct Router {
     /// Le générateur de clic et son tampon. `None` : aucune sortie ne l'a demandé, donc rien n'est
     /// même calculé.
     metronome: Option<(Metronome, Vec<f32>)>,
+    /// La basse coupée (accordeur) : l'entrée de la chaîne et la DI, jamais le micro ni le clic.
+    cut: InputCut,
     scratch: Vec<f32>,
 }
 
@@ -74,8 +77,16 @@ impl Router {
             routes: outs.iter().map(|o| (o.channel - 1, o.source)).collect(),
             click_outs,
             metronome,
+            cut: InputCut::new(BassCut::new(), sample_rate, n),
             scratch: vec![0.0; n],
         })
+    }
+
+    /// Suit cette case « basse coupée » (`cut.rs`) : l'entrée de la chaîne et les sorties DI
+    /// s'éteignent en 20 ms quand elle est posée. Hors temps réel.
+    pub fn with_cut(mut self, cut: BassCut, sample_rate: u32) -> Self {
+        self.cut = InputCut::new(cut, sample_rate, self.scratch.len());
+        self
     }
 
     /// Vérifie le routage pour une carte à `n_in` entrées / `n_out` sorties.
@@ -128,6 +139,7 @@ impl Router {
             return st;
         }
         let max = self.scratch.len();
+        self.cut.begin_block();
         let mut start = 0;
         while start < frames {
             let len = (frames - start).min(max);
@@ -139,6 +151,8 @@ impl Router {
                 st.in_peak = st.in_peak.max(a);
                 st.in_clips += (a >= IN_CLIP) as u32;
             }
+            // les vumètres d'entrée ont lu avant la coupure : l'accordeur, lui, lit le tap brut
+            let shape = self.cut.chain_input(buf);
             chain(buf);
             for x in buf.iter() {
                 let a = x.abs();
@@ -153,7 +167,7 @@ impl Router {
                     Source::Processed => io.output(c)[range.clone()].copy_from_slice(buf),
                     Source::Di => {
                         let (i, o) = io.in_out(self.bass, c);
-                        o[range.clone()].copy_from_slice(&i[range.clone()]);
+                        self.cut.di(shape, &i[range.clone()], &mut o[range.clone()]);
                     }
                     Source::Mic => match self.mic {
                         Some(m) if m < n_in => {

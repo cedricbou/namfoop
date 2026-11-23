@@ -306,6 +306,46 @@ def scenario_browse(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_accordeur(binaire, lignes, colonnes):
+    """**L'accordeur** (`docs/design/accordeur.md`), de bout en bout : `u` coupe la basse — la case
+    lue par le thread audio passe à « coupée » —, l'accordeur lit la note que joue la carte
+    simulée (un La à 55 Hz, une fois par seconde), et `u` rend le son.
+
+    Le silence des sorties, lui, se vérifie dans les tests d'`engine` : la carte simulée jette ce
+    qu'elle reçoit. Ici, c'est la trace qui fait foi (piège 7)."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-") as tmp:
+        bib = bibliotheque_jetable(os.path.join(tmp, "library"))
+        trace = os.path.join(tmp, "trace.log")
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "browse", "--library", bib],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(2.5)
+            ec.taper("u", 2.5)
+            tr = ec.lignes_de_trace()
+            verifier(any("basse=coupée" in l for l in tr), f"{taille} : `u` coupe la basse")
+            notes = [l for l in tr if "accordeur A1" in l]
+            verifier(notes, f"{taille} : l'accordeur lit le La1 de la carte simulée ({tr[-3:]})")
+            for l in notes:
+                cents = int(l.split("accordeur A1")[1].split()[0])
+                verifier(abs(cents) <= 2, f"{taille} : à ±2 cents près ({l.strip()})")
+            verifier(not any("accordeur " in l and "A1" not in l and "rien" not in l for l in tr),
+                     f"{taille} : aucune autre note lue")
+            verifier("BASSE COUPÉE" in ec.voir(), f"{taille} : le bandeau de l'en-tête")
+            ec.taper("u", 1.0)
+            tr = ec.lignes_de_trace()
+            verifier(tr and any("basse=jouée" in l for l in tr), f"{taille} : `u` rend le son")
+            ec.taper("q", 0.6)
+            ec.taper("Q", 0.6)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : quitte proprement (code {code})")
+        finally:
+            ec.tuer()
+
+
 def scenario_battue(binaire, lignes, colonnes):
     """**La bande de battue** (§ 11), de bout en bout : elle se dessine, `Espace` la lance, elle
     avance au tempo jusqu'au changement de mesure, et **rien n'entre dans le fil audio**.
@@ -668,6 +708,7 @@ def main():
     for lignes, colonnes in ((25, 80), (50, 160)):
         scenario_browse(binaire, lignes, colonnes)
         scenario_battue(binaire, lignes, colonnes)
+        scenario_accordeur(binaire, lignes, colonnes)
     # une seule taille : le MIDI ne dessine presque rien, la taille d'écran n'y change rien
     scenario_midi(binaire, 25, 80)
     scenario_midi_horloge(binaire, 25, 80)

@@ -66,6 +66,9 @@ live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre
                 par valeur publiée en donnait des dizaines par seconde sur une horloge qui gigue
                 (l'hystérésis republie à chaque croisement de sa bande) et elles se mêlaient à la
                 ligne d'état, qui se réécrit sans retour chariot ;
+                L'ACCORDEUR : la touche de [tuner] (lue par termios, sans écho ni mode ligne,
+                SEULEMENT dans un terminal : Ctrl+C reste un signal et les journaux gardent leurs
+                retours à la ligne) coupe la basse ; la ligne d'état devient alors l'accordeur ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit

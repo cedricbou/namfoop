@@ -7,10 +7,10 @@ l'[ADR 0011](../adr/0011-midi-conventions-fractal.md), l'ordre des étages du cl
 l'[ADR 0009](../adr/0009-clavier-de-browse.md), la vue scène dans [`set.md`](set.md) § 6 et § 9, les
 couleurs dans la [charte](../identite/charte.md).
 
-**État** : spécification d'un écran **à construire**. Rien ici n'est vérifié par un test : c'est la
-cible que suivent les stories de l'épique « M'accorder en silence, en répétition comme entre deux
-morceaux ». À mesure qu'elles sont livrées, le code et l'oracle du clavier font foi, et ce
-paragraphe se retire.
+**État** : la coupure, la touche `u` et l'écran sont **livrés** — le code, l'oracle du clavier
+(`keyboard.ref.txt`) et les tests d'écran font foi pour eux. Le **MIDI** (CC 15, retour par `Start`,
+§ 3 et § 8) reste la cible de la story suivante de l'épique « M'accorder en silence, en répétition
+comme entre deux morceaux ».
 
 La maquette [`accordeur.html`](accordeur.html) est une **illustration actionnable** validée avec
 l'utilisateur : à ouvrir dans un navigateur, elle se pilote au clavier, simule une basse, le MIDI et
@@ -48,7 +48,9 @@ l'accordeur s'affiche.
 | micro | **continue** | je parle pendant une scénette |
 | clic du métronome | **continue** | le groupe garde le tempo |
 
-La coupure et le retour se font en 20 ms : ni l'un ni l'autre ne fait de clic. La chaîne continue
+La coupure et le retour se font en 20 ms : ni l'un ni l'autre ne fait de clic. La queue sonne au
+plus 2 s, le plafond de la queue d'un changement de son ; ensuite la sortie traitée s'éteint
+elle aussi, pour que le plancher de bruit d'un modèle n'aille pas en façade. La chaîne continue
 de tourner, alimentée en silence, comme la queue d'un changement de son ([`set.md`](set.md) § 4).
 L'accordeur lit la basse **avant** la chaîne : une fuzz ne trompe pas la lecture.
 
@@ -108,9 +110,11 @@ reste sous l'accordeur avec ses premières lignes : pendant une scénette, sa cu
 
 ## 5. Ailleurs : une fenêtre
 
-Dans la Bibliothèque, la Chaîne et `namfoop run --preset`, l'accordeur est une **fenêtre centrée**,
-par-dessus l'écran grisé. Elle porte le même contenu que la colonne de scène, sans le morceau
-suivant.
+Dans la Bibliothèque et la Chaîne, l'accordeur est une **fenêtre centrée**, par-dessus l'écran
+grisé. Elle porte le même contenu que la colonne de scène, sans le morceau suivant.
+`namfoop run --preset` n'a pas d'écran plein : sa **ligne d'état** devient l'accordeur
+(`🔇 BASSE COUPÉE (u rend le son)   E♭1  +7 cents  ▼ descends`), et la touche n'y est lue que dans un
+terminal.
 
 ```
 ┌ ACCORDEUR · ma basse est coupée partout · micro et clic continuent ──┐

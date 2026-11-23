@@ -56,7 +56,9 @@ mod locked_tests {
         // avec les réglages par défaut c'est la même touche
         let allowed: Vec<Key> = bindings(Context::Stage)
             .iter()
-            .flat_map(|b| b.keys.iter().map(|k| k.resolve(s.song_keys, s.prompt_keys, s.play_key)))
+            .flat_map(|b| {
+                b.keys.iter().map(|k| k.resolve(s.song_keys, s.prompt_keys, s.play_key, s.tuner_key))
+            })
             .collect();
         let before = format!("{:?}", s.fx.chain);
         let mut tried = 0;
@@ -66,7 +68,7 @@ mod locked_tests {
             }
             for b in bindings(*ctx) {
                 for spec in b.keys {
-                    let key = spec.resolve(s.song_keys, s.prompt_keys, s.play_key);
+                    let key = spec.resolve(s.song_keys, s.prompt_keys, s.play_key, s.tuner_key);
                     if allowed.contains(&key) {
                         continue;
                     }
@@ -326,15 +328,12 @@ mod tier_tests {
     /// qui divergent, c'est le défaut que l'ADR 0009 a chassé cinq fois.
     #[test]
     fn the_pedal_list_matches_the_dispatch() {
-        for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStTvxXz".chars() {
+        for c in " *+,-./=?[]{}123abceéhikLmnoPpqQrsStTuvxXz".chars() {
             let key = Key::Char(c);
             let mut s = sample();
+            let owns = s.pedal_owns(key);
             let dispatched = s.pedal_key(key).is_some();
-            assert_eq!(
-                State::pedal_owns(key),
-                dispatched,
-                "{key:?} : la garde et le dispatch ne sont pas d'accord"
-            );
+            assert_eq!(owns, dispatched, "{key:?} : la garde et le dispatch ne sont pas d'accord");
         }
     }
 

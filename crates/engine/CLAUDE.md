@@ -90,13 +90,21 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   un test le vérifie. Le clic est ajouté **après** le limiteur et n'entre pas dans `RouteStats` :
   sur une sortie déjà au plafond, la somme peut donc écrêter sans que `[CLIP SORTIE]` le dise (dit
   dans le guide ; à reprendre si ça gêne à l'usage).
+- `cut.rs` : **la basse coupée** (l'accordeur). `BassCut`, la case que le contrôle écrit et que
+  `Engine::bass_cut()` rend ; `InputCut` dans le routeur (rampe de 20 ms sur l'entrée de la chaîne
+  **et** la DI, qui suit le même gain échantillon par échantillon) et `OutputGate` après la chaîne
+  (la sortie traitée s'éteint une fois passés la rampe et `trails_ms`, le plafond de la queue de
+  preset). Le micro et le clic ne sont jamais touchés ; les vumètres d'entrée et le tap lisent
+  **avant** la coupure, l'accordeur en a besoin. Le plafond fixe plutôt que `Stage::tail_ms` :
+  `SwapChain` ne publie pas la queue de ses chaînes, et une réverbe tronquée à 2 s est le
+  comportement déjà retenu pour un changement de son.
 - `meters.rs` (`Meters`, `fetch_max`, `take`), `error.rs` (erreurs `thiserror` dont les messages
   sont vus par l'utilisateur : ne pas les changer à la légère).
 
 **Règles temps réel** (`CLAUDE.md` racine) : `Callback::process` et `Router::process` n'allouent
 pas, ne verrouillent pas, ne loguent pas et ne paniquent pas ; un canal hors limites est ignoré
-dans le callback ET refusé dans `start`. Tests : `callback_does_not_allocate` (tap compris),
-`process_does_not_allocate`.
+dans le callback ET refusé dans `start`. Tests : `callback_does_not_allocate` (tap et basse coupée
+compris), `process_does_not_allocate`.
 
 ## Tester
 

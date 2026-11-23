@@ -269,6 +269,7 @@ impl State {
             return Action::None;
         };
         let (volume, tempo, label) = (s.volume_db(at), s.tempo_bpm(at), s.label(at));
+        let was_cut = self.bass_cut();
         // **le prompteur suit le son** (§ 10) : avant de bouger `at`, parce que la règle dépend de
         // si l'on change de morceau ou seulement de son
         self.follow_prompt(at);
@@ -281,7 +282,9 @@ impl State {
             s.cursor = at.0;
         }
         self.apply_set_sound(volume, tempo);
-        self.message = Some(label);
+        // le son a pu être rendu par le chargement (`apply_pending`) : le message le redit
+        let back = was_cut && !self.bass_cut();
+        self.message = Some(if back { format!("{label} · son rendu") } else { label });
         action
     }
 
