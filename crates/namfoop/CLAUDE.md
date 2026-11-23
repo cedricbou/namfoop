@@ -68,7 +68,8 @@ live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre
                 ligne d'état, qui se réécrit sans retour chariot ;
                 L'ACCORDEUR : la touche de [tuner] (lue par termios, sans écho ni mode ligne,
                 SEULEMENT dans un terminal : Ctrl+C reste un signal et les journaux gardent leurs
-                retours à la ligne) coupe la basse ; la ligne d'état devient alors l'accordeur ;
+                retours à la ligne) coupe la basse, comme le CC de l'accordeur ; un PC, le CC de son
+                et `Start` la rendent ; la ligne d'état devient alors l'accordeur ;
                 FADE_MS / TRAILS_MS, le fondu et la QUEUE DE PRESET (--no-trails la coupe), sont les
                 mêmes constantes que browse/mod.rs ; `run --click` allume le clic, et refuse de
                 démarrer si aucune sortie ne le reçoit
@@ -96,7 +97,8 @@ import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'
                 `--review` ouvre browse sur les modèles importés (browse::Start)
 meta_cmd.rs     `meta` : affichage d'un modèle
 midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair (`Horloge` résume les
-                tops à une ligne par noire). N'ouvre pas la carte son : c'est la commande des
+                tops à une ligne par noire ; `en_clair` dit ce que fait le CC de l'accordeur, APRÈS
+                la ligne brute, qui reste recopiable dans un port simulé). N'ouvre pas la carte son : c'est la commande des
                 essais matériels MIDI
                 L'écran plein écran qui la remplacera est spécifié dans
                 docs/design/midi.md (maquette : docs/design/midi.html)

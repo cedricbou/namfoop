@@ -150,6 +150,9 @@ pub struct Midi {
     pub cc_sound: u8,
     /// Le CC du **tap tempo** (défaut 14, le tap Fractal) : il agit comme la touche `*`.
     pub cc_tap: u8,
+    /// Le CC de l'**accordeur** (défaut 15, celui de l'Axe-Fx II) : 64 ou plus coupe la basse et
+    /// affiche l'accordeur, moins de 64 rend le son. Ce n'est pas une bascule.
+    pub cc_tuner: u8,
     /// Écouter l'**horloge** MIDI (Beat Clock, `Start` / `Stop`) ? Faux : le tempo ne vient plus
     /// que du preset et du tap. Une horloge bruyante en jam est un risque, pas un service
     /// (ADR 0008).
@@ -159,7 +162,7 @@ pub struct Midi {
 impl Default for Midi {
     /// Les numéros de l'ADR 0011 : le défaut est ce qui évite de configurer.
     fn default() -> Self {
-        Self { input: None, off: false, cc_sound: 34, cc_tap: 14, clock: true }
+        Self { input: None, off: false, cc_sound: 34, cc_tap: 14, cc_tuner: 15, clock: true }
     }
 }
 

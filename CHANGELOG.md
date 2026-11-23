@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#404)
+- **L'accordeur au pied ou depuis Ableton** : un CC 15 de valeur 64 ou plus coupe la basse et
+  affiche l'accordeur, un CC 15 sous 64 rend le son — avec ou sans set, dans `browse`,
+  `run --set` et `run --preset`. Le Program Change du morceau suivant, un CC 34 et un `Start`
+  rendent aussi le son : on ne reste jamais muet au début d'un titre. `namfoop midi` traduit le
+  CC 15 en clair. Le numéro se règle par `[midi] cc_tuner` ; le guide montre comment le faire
+  envoyer par un clip d'Ableton et par un pédalier.
+
 ### Ajouté (#403)
 - **S'accorder en silence** : la touche `u` coupe la basse et affiche l'accordeur, dans les trois
   espaces de `browse`, dans `run --set` et dans `run --preset` ; une seconde frappe rend le son. La

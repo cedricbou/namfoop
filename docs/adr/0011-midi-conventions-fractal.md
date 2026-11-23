@@ -26,6 +26,7 @@ configurer, pas ce qui l'interdit.
 | le **morceau** | Program Change | preset | le morceau dont le `pc` vaut n, sur son premier son |
 | le **son** du morceau | **CC 34**, valeur 0-7 | scene 1-8 | le son n+1 du morceau joué |
 | le **tap tempo** | **CC 14** | tap tempo | une frappe de `*` |
+| l'**accordeur** | **CC 15**, ≥ 64 / < 64 | tuner | coupe la basse et l'affiche / rend le son |
 | le **tempo** | Beat Clock (`0xF8`) | horloge | l'arbitre de tempo (ADR 0008) |
 | la **position** | `Start` / `Stop` / `Continue`, SPP | — | le temps 1, la battue, la carte des mesures |
 | le **set** | Bank Select **CC#0** + PC | banque de presets | plus tard (hors périmètre) |
@@ -69,6 +70,11 @@ au-delà d'un morceau.
 - `docs/design/set.md` : le son d'un morceau est appelé par **CC 34**, et non plus par CC 69. La
   décision du § 14 (« MIDI à la Helix ») est amendée ici.
 - L'[ADR 0008](0008-tempo-et-divisions.md) annonçait « un CC de tap » sans numéro : c'est **CC 14**.
+- **Amendement — l'accordeur, CC 15** : le numéro de l'accordeur sur l'Axe-Fx II, de la même famille
+  que le CC 14 du tap. Ce n'est pas une bascule : 64 ou plus coupe la basse, moins de 64 rend le son
+  (Fractal envoie 127 puis 0), et un Program Change, un CC 34 ou un `Start` le rendent aussi
+  ([`accordeur.md`](../design/accordeur.md) § 3). Rien ne garantit qu'un gabarit Fractal de
+  pédalier tiers l'envoie déjà : à vérifier sur le matériel.
 - Le choix du **set** par MIDI, quand il viendra, passera par **Bank Select CC#0** et non par le
   CC 32 des setlists Helix.
 

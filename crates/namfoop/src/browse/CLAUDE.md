@@ -194,7 +194,9 @@ sinon `k` renvoie à `setup` au lieu d'allumer un clic inaudible.
 casser :
 
 1. **le retour automatique vit dans `apply_pending`**, seul passage de tout chargement de son
-   (clavier, banque, set, MIDI) : ne pas le recopier ailleurs. `play_set_sound` réécrit le message
+   (clavier, banque, set, MIDI) : ne pas le recopier ailleurs. Le MIDI n'y ajoute que `Start`
+   (en tête de `on_midi`, même horloge coupée) et le CC de l'accordeur (`midi_tuner`), qui n'est
+   **pas** une bascule. `play_set_sound` réécrit le message
    après coup, d'où son propre `· son rendu` ;
 2. `u` est une touche **réglable** de l'étage pédale (`KeySpec::Tuner`, `State::tuner_key`) :
    `pedal_owns` est donc une méthode, et la scène verrouillée la laisse passer ;

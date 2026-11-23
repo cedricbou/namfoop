@@ -71,12 +71,17 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
     let debut = Instant::now();
     let fin = args.seconds.map(|s| debut + Duration::from_secs_f64(s));
     let mut horloge = Horloge::default();
+    let cc_tuner = conf.config.midi.clone().unwrap_or_default().cc_tuner;
     let mut vus = 0u64;
     while !stop.load(Ordering::Relaxed) && fin.is_none_or(|f| Instant::now() < f) {
         while let Some(m) = input.try_pop() {
             vus += 1;
             if let Some(ligne) = horloge.ligne(&m) {
-                println!("  {:>7.2} s  {ligne}", (m.at - debut).as_secs_f64());
+                println!(
+                    "  {:>7.2} s  {ligne}{}",
+                    (m.at - debut).as_secs_f64(),
+                    en_clair(&m.event, cc_tuner)
+                );
             }
         }
         std::thread::sleep(Duration::from_millis(20));
@@ -93,6 +98,17 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
         );
     }
     Ok(())
+}
+
+/// Ce que namfoop fait d'un message, quand la ligne brute ne le dit pas : le CC de l'accordeur.
+/// Écrit **après** le message, que la ligne garde recopiable dans un port simulé.
+fn en_clair(event: &midi_io::Event, cc_tuner: u8) -> String {
+    match event {
+        midi_io::Event::Control { cc, value } if *cc == cc_tuner => {
+            format!("   (accordeur : {})", if *value >= 64 { "basse coupée" } else { "son rendu" })
+        }
+        _ => String::new(),
+    }
 }
 
 /// Les tops d'horloge ne s'affichent pas un par un : une ligne par noire, avec le tempo mesuré.
@@ -130,6 +146,15 @@ mod tests {
 
     fn msg(event: Event, at: Instant) -> Message {
         Message { at, event, clock_seq: 0 }
+    }
+
+    #[test]
+    fn le_cc_de_l_accordeur_se_lit_en_clair() {
+        let on = Event::Control { cc: 15, value: 127 };
+        assert_eq!(en_clair(&on, 15), "   (accordeur : basse coupée)");
+        assert_eq!(en_clair(&Event::Control { cc: 15, value: 0 }, 15), "   (accordeur : son rendu)");
+        assert_eq!(en_clair(&on, 20), "", "un autre numéro réglé : le 15 n'est plus l'accordeur");
+        assert_eq!(en_clair(&Event::Control { cc: 34, value: 1 }, 15), "");
     }
 
     #[test]

@@ -564,6 +564,34 @@ def scenario_midi_set(binaire, lignes, colonnes):
             ec.lire(0.8)
             verifier("⏸" in ec.voir(), f"{taille} : `stop` arrête la battue")
 
+            # **l'accordeur depuis Ableton** (CC 15) : entrée, idempotence, sortie, puis le retour
+            # automatique par un PC et par un Start
+            def coupures():
+                return [l.split()[-1] for l in ec.lignes_de_trace() if " basse=" in l]
+            os.write(fd, b"cc 15 127\n")
+            ec.lire(0.8)
+            verifier(coupures()[-1:] == ["basse=coupée"], f"{taille} : CC 15 = 127 coupe la basse")
+            verifier("BASSE COUPÉE" in ec.voir(), f"{taille} : le bandeau de l'en-tête")
+            n = len(coupures())
+            os.write(fd, b"cc 15 127\n")
+            ec.lire(0.6)
+            verifier(len(coupures()) == n, f"{taille} : un second CC 15 = 127 ne change rien")
+            os.write(fd, b"cc 15 0\n")
+            ec.lire(0.6)
+            verifier(coupures()[-1:] == ["basse=jouée"], f"{taille} : CC 15 = 0 rend le son")
+            for retour in (b"pc 1\n", b"cc 34 0\n", b"start\n"):
+                os.write(fd, b"cc 15 127\n")
+                ec.lire(0.6)
+                os.write(fd, retour)
+                ec.lire(0.8)
+                verifier(
+                    coupures()[-2:] == ["basse=coupée", "basse=jouée"],
+                    f"{taille} : « {retour.decode().strip()} » rend le son",
+                )
+            os.write(fd, b"stop\n")
+            ec.lire(0.3)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+
             # une valeur hors du morceau est ignorée **en le disant**, et ne change pas le son
             avant = len(chaines)
             os.write(fd, b"cc 34 9\n")

@@ -51,6 +51,8 @@ pub struct MidiKeys {
     pub cc_sound: u8,
     /// Le CC du **tap tempo** : il fait exactement ce que fait la touche `*`.
     pub cc_tap: u8,
+    /// Le CC de l'**accordeur** : 64 ou plus coupe la basse, moins de 64 rend le son.
+    pub cc_tuner: u8,
     /// Écouter l'horloge et le transport ? Coupée, le tempo ne vient plus que du preset et du tap
     /// — et le tap, lui, marche toujours : ce n'est pas le MIDI qu'on coupe, c'est l'horloge.
     pub clock: bool,
@@ -59,7 +61,7 @@ pub struct MidiKeys {
 impl Default for MidiKeys {
     fn default() -> Self {
         let m = model::Midi::default();
-        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, clock: m.clock }
+        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner, clock: m.clock }
     }
 }
 
@@ -73,6 +75,11 @@ impl State {
     /// et un top d'horloge vaut 20,8 ms à 120 BPM — l'horodater au tour de boucle rendrait toute
     /// mesure de tempo fausse (ADR 0008).
     pub fn on_midi(&mut self, event: Event, at_us: u64, clock_seq: u64) -> Action {
+        // **`Start` rend le son** (`docs/design/accordeur.md` § 3) : Ableton lance le morceau, on
+        // ne reste pas muet — que l'horloge soit écoutée ou non. `Continue` et l'horloge, non.
+        if event == Event::ClockStart && self.restore_sound() {
+            self.message = Some("Start → son rendu".into());
+        }
         match event {
             Event::ProgramChange(n) => self.midi_program(n, at_us),
             Event::Control { cc, value } => self.midi_control(cc, value, at_us),
@@ -201,12 +208,34 @@ impl State {
         self.play_set_sound((song, k as usize))
     }
 
+    /// **CC de l'accordeur** (`docs/design/accordeur.md` § 3) : 64 ou plus coupe la basse, moins
+    /// de 64 rend le son. **Pas une bascule** : un CC qui demande l'état où l'on est déjà ne
+    /// change rien, et le dit — Fractal envoie 127 puis 0, et un message répété ne doit pas
+    /// rendre le son au milieu d'un accordage.
+    fn midi_tuner(&mut self, cc: u8, value: u8) -> Action {
+        self.message = Some(if value >= 64 {
+            if self.cut_bass() {
+                format!("CC {cc} = {value} → basse coupée, accordeur")
+            } else {
+                format!("CC {cc} = {value} : la basse est déjà coupée, rien ne change")
+            }
+        } else if self.restore_sound() {
+            format!("CC {cc} = {value} → son rendu")
+        } else {
+            format!("CC {cc} = {value} : la basse n'est pas coupée, rien ne change")
+        });
+        Action::None
+    }
+
     /// Les CC que namfoop connaît. Les autres ne disent rien ici et sont ignorés sans bruit : un
     /// pédalier en envoie à chaque pression, et noyer la ligne d'état les rendrait inutiles tous.
     fn midi_control(&mut self, cc: u8, value: u8, at_us: u64) -> Action {
         if cc == self.midi.cc_tap {
             // le tap du pédalier EST la touche `*` : mêmes règles, même message, même recalage
             return self.tap_tempo_at(at_us / 1000);
+        }
+        if cc == self.midi.cc_tuner {
+            return self.midi_tuner(cc, value);
         }
         if cc == CC_BANK_SELECT {
             self.message =
@@ -634,5 +663,56 @@ mod tests {
         s.on_midi(Event::ProgramChange(4), 0, 0);
         assert!(matches!(s.tick(100), Action::Play { .. }));
         assert_eq!(at(&s), Some((1, 0)));
+    }
+
+    /// **CC 15 : l'accordeur** (`docs/design/accordeur.md` § 3 et § 8). 64 ou plus coupe, moins de
+    /// 64 rend le son, et ce n'est pas une bascule : chaque demande déjà satisfaite le dit.
+    #[test]
+    fn cc_15_cuts_and_gives_back_and_is_not_a_toggle() {
+        let mut s = bank();
+        s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+        assert!(s.bass_cut());
+        assert_eq!(s.message.as_deref(), Some("CC 15 = 127 → basse coupée, accordeur"));
+        s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+        assert!(s.bass_cut(), "pas une bascule");
+        assert_eq!(s.message.as_deref(), Some("CC 15 = 127 : la basse est déjà coupée, rien ne change"));
+        s.on_midi(Event::Control { cc: 15, value: 0 }, 0, 0);
+        assert!(!s.bass_cut());
+        assert_eq!(s.message.as_deref(), Some("CC 15 = 0 → son rendu"));
+        s.on_midi(Event::Control { cc: 15, value: 0 }, 0, 0);
+        assert_eq!(s.message.as_deref(), Some("CC 15 = 0 : la basse n'est pas coupée, rien ne change"));
+    }
+
+    /// **Jamais muet au début d'un titre** : un PC et un `Start` rendent le son ; `Continue` et
+    /// l'horloge, non.
+    #[test]
+    fn a_program_change_or_start_gives_the_sound_back() {
+        let mut s = bank();
+        s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+        s.on_midi(Event::ClockContinue, 0, 0);
+        s.on_midi(Event::ClockTick, 0, 1);
+        assert!(s.bass_cut(), "ni Continue ni l'horloge ne rendent le son");
+        s.on_midi(Event::ProgramChange(2), 0, 0);
+        assert!(!s.bass_cut(), "un PC rend le son");
+        assert!(s.message.as_deref().unwrap_or("").ends_with("son rendu"), "{:?}", s.message);
+        s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+        s.on_midi(Event::ClockStart, 0, 0);
+        assert!(!s.bass_cut(), "Start rend le son");
+        // l'horloge coupée par la config ne change rien à cette règle
+        s.midi.clock = false;
+        s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+        s.on_midi(Event::ClockStart, 0, 0);
+        assert!(!s.bass_cut(), "Start rend le son même sans écouter l'horloge");
+    }
+
+    /// `[midi] cc_tuner` réglé à un autre numéro : le 15 n'agit plus.
+    #[test]
+    fn the_tuner_cc_is_settable() {
+        let mut s = bank();
+        s.midi.cc_tuner = 20;
+        s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+        assert!(!s.bass_cut(), "le 15 n'est plus l'accordeur");
+        s.on_midi(Event::Control { cc: 20, value: 127 }, 0, 0);
+        assert!(s.bass_cut());
     }
 }
