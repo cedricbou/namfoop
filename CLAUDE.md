@@ -21,7 +21,8 @@ crates/namfoop/   binaire : CLI, écrans, une fonction par commande ; anyhow
 scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, gen-cli-doc.sh,
                   gen-demarrage.py (refait les images du démarrage rapide, sur la carte simulée),
                   check-aarch64.sh (compile la cible du Pi 5), install-hooks.sh, feature.sh,
-                  test-feature.sh (le cycle lui-même, hors-ligne), test-backends.sh (matériel)
+                  test-feature.sh (le cycle lui-même, hors-ligne, dans un dépôt jetable même lancé
+                  depuis un worktree), test-backends.sh (matériel)
 docs/             demarrage-rapide.md (le parcours en images ; demarrage/ : ses captures),
                   guide.md, cli.md (généré), architecture.md, adr/, design/ (spécifications d'écran
                   et maquettes), identite/ (charte.md : palette, polices, logo, icône, bannière)
@@ -72,7 +73,9 @@ on reporte chaque décision dans l'issue, puis on retire l'étiquette. Une story
 le besoin reste flou naît ainsi (`feature.sh issue --refine …`) ; `feature.sh refine` les liste.
 
 - jamais de commit ni de push sur `main` (`NAMFOOP_ALLOW_MAIN=1` : urgence demandée par l'utilisateur) ;
-- une branche = une issue (`feat|fix|docs/<n°>-...`) ; la PR met à jour `CHANGELOG.md` si elle
+- une branche = une issue (`feat|fix|docs/<n°>-...`) ; plusieurs agents en parallèle : un
+  `git worktree` chacun, avec son propre `CARGO_TARGET_DIR` (un dossier `target` partagé les
+  sérialise) ; la PR met à jour `CHANGELOG.md` si elle
   touche au code ; `Refs #n` tant que des tests matériels restent (label `hardware-test`, à
   demander à l'utilisateur) ;
 - une PR de déplacement ne change aucun comportement ; une issue touche au plus deux crates (le

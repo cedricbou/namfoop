@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Corrigé (#410)
+- **Le contrôle avant commit ne touche plus jamais au vrai dépôt** : lancé depuis une copie de
+  travail secondaire (`git worktree`), il rejouait le cycle de développement dans le vrai dépôt au
+  lieu de son dépôt jetable — il pouvait le marquer comme dépôt nu, y créer des branches et en
+  pousser sur GitHub. Il s'arrête désormais avant toute commande git si git peut viser un autre dépôt,
+  et un essai fait un commit depuis deux copies à la fois pour le prouver.
+
 ### Ajouté (#404)
 - **L'accordeur au pied ou depuis Ableton** : un CC 15 de valeur 64 ou plus coupe la basse et
   affiche l'accordeur, un CC 15 sous 64 rend le son — avec ou sans set, dans `browse`,

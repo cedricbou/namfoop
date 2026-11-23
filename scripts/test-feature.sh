@@ -5,9 +5,17 @@
 #
 #   scripts/test-feature.sh          (appelé par scripts/check.sh)
 set -euo pipefail
+# Lancé par un hook git, ce script hérite de GIT_DIR et GIT_INDEX_FILE ; depuis une copie de travail
+# secondaire (worktree), GIT_DIR désigne le vrai dépôt et non « .git » : chaque commande git du dépôt
+# jetable — init --bare, branches, push vers origin — irait alors dans le vrai dépôt. On les efface
+# toutes, avant la moindre commande git.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
 cd "$(dirname "$0")/.."
+SELF=$PWD/scripts/$(basename "$0")   # le script lancé : l'essai 8 relance CETTE version
 SRC=${NAMFOOP_FEATURE_SH:-$PWD/scripts/feature.sh}   # pointer l'ancienne version prouve que le test voit le bug
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(cd "$TMP" && pwd -P)
 export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.invalid
 export GIT_COMMITTER_NAME=Test GIT_COMMITTER_EMAIL=test@example.invalid
 export GH_STATE=$TMP/state GH_ORIGIN=$TMP/origin
@@ -128,10 +136,24 @@ GH
 chmod +x "$TMP/bin/gh"
 
 # ---------------------------------------------------------------- dépôt jetable
+# Garde-fou : aucune commande git ne part tant que git peut viser un autre dépôt que le jetable.
+isolated() {
+  local v
+  for v in $(git rev-parse --local-env-vars); do
+    [[ -z ${!v+x} ]] || { echo "✗ $v est posé : git viserait un autre dépôt que le dépôt jetable" >&2; exit 1; }
+  done
+  if (($#)); then
+    [[ $(git -C "$1" rev-parse --absolute-git-dir) == "$2" ]] ||
+      { echo "✗ git ne vise pas le dépôt jetable $2" >&2; exit 1; }
+  fi
+}
 setup() {
+  isolated
   rm -rf "$TMP/origin" "$TMP/work" "$TMP/state"; mkdir -p "$TMP/state"
   git init -q --bare -b main "$TMP/origin"
   git init -q -b main "$TMP/work"
+  isolated "$TMP/origin" "$TMP/origin"
+  isolated "$TMP/work" "$TMP/work/.git"
   cd "$TMP/work"
   mkdir -p scripts
   install -m 755 "$SRC" scripts/feature.sh
@@ -266,6 +288,42 @@ run_ok "issue créée : #129, à cadrer" "issue --refine crée l'issue à cadrer
   scripts/feature.sh issue --refine story "Changer d'instrument sans recalibrer" "$TMP/corps.md"
 has "$(cat "$TMP/state/labels")" "story,needs-refinement" "elle porte les deux étiquettes"
 run_ok "label needs-refinement" "refine liste les issues à cadrer" scripts/feature.sh refine
+
+# 8. lancé par le hook d'une copie de travail secondaire, le test ne touche qu'à son dépôt jetable —
+#    et deux copies qui font un commit en même temps ne se gênent pas. Le témoin a ses copies, un
+#    origin et un hook pre-commit qui relance ce script : ses branches, sa config et son origin ne
+#    doivent pas bouger.
+if [[ -z ${NAMFOOP_TF_INNER:-} ]]; then
+  echo "== lancé depuis une copie de travail secondaire"
+  T=$TMP/temoin; rm -rf "$T"; mkdir -p "$T"; cd "$T"
+  git init -q --bare -b main origin
+  git init -q -b main depot
+  git -C depot commit -q --allow-empty -m "départ"
+  git -C depot remote add origin "$T/origin"; git -C depot push -q origin main
+  git -C depot worktree add -q ../copie1 -b copie1
+  git -C depot worktree add -q ../copie2 -b copie2
+  hook=$(git -C depot rev-parse --git-path hooks)/pre-commit
+  # Le hook ne se relance pas : sans protection, les commits du test relancé passeraient par lui.
+  printf '#!/usr/bin/env bash\n[[ -z ${NAMFOOP_TF_INNER:-} ]] || exit 0\nNAMFOOP_TF_INNER=1 exec %q\n' \
+    "$SELF" > "depot/$hook"
+  chmod +x "depot/$hook"
+  snapshot() {
+    git -C depot for-each-ref --format='%(refname)' | grep -v '^refs/heads/copie[12]$'
+    git -C depot config --list --local; git -C depot worktree list --porcelain | grep -c '^worktree'
+    git -C origin for-each-ref --format='%(refname) %(objectname)'
+  }
+  avant=$(snapshot)
+  (cd copie1 && git commit -q --allow-empty -m un > "$T/log1" 2>&1) & p1=$!
+  (cd copie2 && git commit -q --allow-empty -m deux > "$T/log2" 2>&1) & p2=$!
+  wait $p1 && echo "  ✓ commit de la copie 1, contrôle compris" || fail "commit de la copie 1 : $(cat "$T/log1")"
+  wait $p2 && echo "  ✓ commit de la copie 2, en même temps" || fail "commit de la copie 2 : $(cat "$T/log2")"
+  apres=$(snapshot)
+  [[ $avant == "$apres" ]] && echo "  ✓ le dépôt témoin et son origin n'ont pas bougé" ||
+    fail "le dépôt témoin a changé :$(diff <(echo "$avant") <(echo "$apres") | sed 's/^/ /')"
+  has "$(git -C depot config core.bare)" "false" "le témoin n'est pas devenu un dépôt nu"
+  has "$(git -C copie1 log -1 --format=%s copie1) $(git -C copie2 log -1 --format=%s copie2)" "un deux" \
+    "chaque commit est sur la branche de sa copie"
+fi
 
 cd "$OLDPWD" 2>/dev/null || true
 if (( ko )); then echo "✗ $ko vérification(s) en échec" >&2; exit 1; fi
