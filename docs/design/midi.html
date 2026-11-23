@@ -3,111 +3,104 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Maquette de l'écran MIDI (namfoop midi). Référence de comportement : docs/design/midi.md. Ports, morceaux et sons fictifs. Le code n'est pas à reprendre. -->
+<!-- Maquette de l'écran MIDI (namfoop midi). Référence de comportement : docs/design/midi.md. Appareils, morceaux et sons fictifs. Le code n'est pas à reprendre. -->
 <title>namfoop — maquette : l'écran MIDI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <style>
+/* La palette de docs/identite/charte.md, et elle seule. L'écran MIDI est neutre : blanc et gris
+   acier ; le jaune dit la saisie et l'attention, le rouge le refus, le vert le reçu, le violet la
+   basse coupée. Polices : Chakra Petch (titre), Inter (texte), JetBrains Mono (le terminal). */
 :root {
-  /* Disposition : l'écran de terminal à gauche, le matériel simulé et le parcours à droite. */
-  --bg: #eef0ee;
-  --ink: #1b1f24;
-  --muted: #56606b;
-  --panel: #ffffff;
-  --line: #cfd4d9;
-  --accent: #007C85;
-  --good: #0b6b3f;
-  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, monospace;
-  /* Le terminal garde ses couleurs dans les deux thèmes ; ses accents sont ceux de la charte. */
-  --t-bg: #0F0F14;
-  --t-ink: #e6e6ec;
-  --t-dim: #8A8A9C;
-  --t-lab: #a3aab5;
-  --t-acc: #00F0FF;
-  --t-ok: #00E676;
-  --t-warn: #FFD600;
-  --t-win: #1E1E28;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #00F0FF; --good: #00E676;
-  }
-}
-:root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #00F0FF; --good: #00E676;
+  --encre: #0F0F14;
+  --graphite: #1E1E28;
+  --acier: #8A8A9C;
+  --blanc: #FFFFFF;
+  --magenta: #FF007F;
+  --vert: #00E676;
+  --jaune: #FFD600;
+  --rouge: #FF3B30;
+  --uv: #BF40FF;
+  --font-titre: "Chakra Petch", "Inter", system-ui, sans-serif;
+  --font-texte: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, "Noto Sans Symbols 2", "Adwaita Mono", monospace;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
-.page { display: flex; flex-direction: column; gap: 16px; padding: 20px 16px 32px; max-width: 1360px; margin: 0 auto; }
+body { background: var(--encre); color: var(--blanc); font-family: var(--font-texte); font-size: 15px; line-height: 1.45; overflow-x: clip; }
+.page { display: flex; flex-direction: column; gap: 16px; padding: 20px 16px 32px; max-width: 1400px; margin: 0 auto; }
 .intro { display: flex; flex-direction: column; gap: 4px; }
-h1 { margin: 0; font-size: 22px; font-weight: 600; text-wrap: balance; }
-.intro p { margin: 0; color: var(--muted); max-width: 70ch; }
+h1 { margin: 0; font-family: var(--font-titre); font-weight: 700; font-size: 24px; letter-spacing: 0.01em; text-wrap: balance; }
+h1 .onde { color: var(--magenta); }
+.intro p { margin: 0; color: var(--acier); max-width: 78ch; }
 .work { display: flex; flex-direction: column; gap: 16px; --avail: calc(100vw - 32px); }
 .left { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .termwrap { overflow-x: auto; }
 .term {
-  width: fit-content; background: var(--t-bg); color: var(--t-ink); font-family: var(--font-mono);
-  font-size: min(14px, calc(var(--avail) / 65)); line-height: 1.55; padding: 1em 1.5em; border-radius: 8px;
-  border: 1px solid var(--line); outline: none;
+  width: fit-content; background: var(--encre); color: var(--blanc); font-family: var(--font-mono);
+  font-size: min(14px, calc(var(--avail) / 62)); line-height: 1.55; padding: 1em 1.5em; border-radius: 8px;
+  border: 1px solid var(--acier); outline: none;
 }
-.term:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.term:focus-visible { box-shadow: 0 0 0 2px var(--blanc); }
 .ln { white-space: pre; height: 1.55em; overflow: hidden; }
 .hd { display: flex; justify-content: space-between; gap: 2ch; }
-.frame { position: relative; border: 1px solid var(--t-acc); margin: 0.9em 0 0.5em; padding: 0.8em 1em 0.5em; }
-.ftitle { position: absolute; top: -0.8em; left: 1em; padding: 0 0.6em; background: var(--t-bg); color: var(--t-acc); font-weight: 700; white-space: pre; }
-.modal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--t-win); border: 1px solid var(--t-acc); padding: 1.2em 1.5em 0.9em; }
-.modal .ftitle { background: var(--t-win); }
-.help { position: absolute; inset: 0; background: var(--t-win); padding: 0.8em 1em; }
+.frame { position: relative; border: 1px solid var(--acier); margin: 0.9em 0 0.5em; padding: 0.8em 1em 0.5em; }
+.ftitle { position: absolute; top: -0.8em; left: 1em; padding: 0 0.6em; background: var(--encre); color: var(--blanc); font-weight: 700; white-space: pre; }
+.modal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--graphite); border: 1px solid var(--acier); padding: 1.2em 1.5em 0.9em; }
+.modal .ftitle { background: var(--graphite); }
+.modal.saisie { border-color: var(--jaune); }
+.modal.saisie > .ftitle { color: var(--jaune); }
+.help { position: absolute; inset: 0; background: var(--graphite); padding: 0.8em 1em; }
 .b { font-weight: 700; }
-.w { color: #ffffff; }
-.dim { color: var(--t-dim); }
-.lab { color: var(--t-lab); }
-.acc { color: var(--t-acc); }
-.ok { color: var(--t-ok); }
-.warn { color: var(--t-warn); }
-.sel { background: var(--t-acc); color: var(--t-bg); font-weight: 700; }
-.tabon { background: var(--t-acc); color: var(--t-bg); font-weight: 700; }
-.inp { color: #ffffff; font-weight: 700; border-bottom: 2px solid var(--t-acc); }
+.w { color: var(--blanc); }
+.dim { color: var(--acier); }
+.ok { color: var(--vert); }
+.warn { color: var(--jaune); }
+.err { color: var(--rouge); }
+.uv { color: var(--uv); }
+.sel, .tabon { background: var(--blanc); color: var(--encre); font-weight: 700; }
+.inp { color: var(--jaune); font-weight: 700; border-bottom: 2px solid var(--jaune); }
 .keys { display: flex; flex-wrap: wrap; gap: 6px; }
-.keys button, .sim, .plain {
-  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
-}
-.keys button { font-family: var(--font-mono); font-size: 13px; padding: 5px 9px; min-width: 34px; }
-.keys button:hover, .sim:hover, .plain:hover { border-color: var(--accent); }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.hint { margin: 0; color: var(--muted); font-size: 13px; }
+button { font: inherit; color: var(--blanc); background: var(--encre); border: 1px solid var(--acier); border-radius: 6px; cursor: pointer; }
+button:hover { border-color: var(--blanc); }
+button:focus-visible { outline: 2px solid var(--blanc); outline-offset: 1px; }
+.keys button { font-family: var(--font-mono); font-size: 13px; padding: 5px 9px; min-width: 34px; min-height: 32px; }
+.hint { margin: 0; color: var(--acier); font-size: 13px; }
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
-h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card { background: var(--graphite); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+h2 { margin: 0; font-family: var(--font-titre); font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
 .steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .steps li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
-.steps .mark { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.steps li.done .mark { background: var(--good); border-color: var(--good); color: var(--panel); }
-.steps li.done .txt { color: var(--muted); }
+.steps .mark { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--acier); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--acier); }
+.steps li.done .mark { background: var(--vert); border-color: var(--vert); color: var(--encre); }
+.steps li.done .txt { color: var(--acier); }
 .grp { display: flex; flex-direction: column; gap: 6px; }
-.grp .who { font-size: 13px; color: var(--muted); }
-.grp .who b { color: var(--ink); font-weight: 600; }
+.grp .who { font-size: 13px; color: var(--acier); }
+.grp .who b { color: var(--blanc); font-weight: 500; }
 .sims { display: flex; flex-wrap: wrap; gap: 6px; }
 .sim { display: flex; flex-direction: column; align-items: flex-start; padding: 5px 9px; font-size: 13px; line-height: 1.25; }
-.sim span { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+.sim span { font-family: var(--font-mono); font-size: 11.5px; color: var(--acier); }
+.sim.on { border-color: var(--vert); }
+.sim.on span { color: var(--vert); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .plain { padding: 6px 12px; font-size: 14px; }
-#copy-note { font-size: 13px; color: var(--muted); }
-#fiche-text { width: 100%; min-height: 160px; font-family: var(--font-mono); font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+#copy-note { font-size: 13px; color: var(--acier); }
+#fiche-text { width: 100%; min-height: 160px; font-family: var(--font-mono); font-size: 12px; color: var(--blanc); background: var(--encre); border: 1px solid var(--acier); border-radius: 6px; padding: 8px; }
 #fiche-text[hidden] { display: none; }
-@media (min-width: 1180px) {
-  .work { flex-direction: row; align-items: flex-start; --avail: calc(min(100vw, 1360px) - 32px - 16px - 340px); }
-  .side { flex: none; width: 340px; }
+@media (min-width: 1200px) {
+  .work { flex-direction: row; align-items: flex-start; --avail: calc(min(100vw, 1400px) - 32px - 16px - 360px); }
+  .side { flex: none; width: 360px; }
 }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <div class="page">
   <div class="intro">
-    <h1>namfoop midi, maquette à essayer</h1>
-    <p>Le clavier pilote l'écran, comme dans namfoop. Les boutons de droite jouent le matériel : ton pédalier, l'Ableton du groupe, les lights. Rien n'est réel, les noms sont des exemples.</p>
+    <h1><span class="onde">∿</span> namfoop midi · appareils et canaux</h1>
+    <p>Maquette de docs/design/midi.md. Le clavier pilote l'écran, comme dans namfoop. Les boutons de droite jouent le matériel : l'entrée DIN où arrivent Ableton et les lights, ton pédalier USB, un clavier USB. Rien n'est réel, les noms sont des exemples.</p>
   </div>
   <div class="work">
     <div class="left">
@@ -138,62 +131,60 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; }
 'use strict';
 
 var W = 98, BODY = 18;
-var PORTS = ['UM-ONE · 24:0', 'MC6 MKII MIDI 1 · 28:0', 'Midi Through Port-0 · 14:0'];
-var GABARITS = [{ n: 'Fractal', son: 34, tap: 14 }, { n: 'Quad Cortex', son: 43, tap: 44 }];
-var ROWS = [
-  { head: "LE GROUPE · ce qu'on a convenu" },
-  { s: 'groupe', k: 'port' }, { s: 'groupe', k: 'canal' }, { s: 'groupe', k: 'pc' },
-  { s: 'groupe', k: 'ccSon' }, { s: 'groupe', k: 'clock' }, { s: 'groupe', k: 'ccTap' },
-  { blank: true },
-  { head: 'MON PÉDALIER · répétitions et secours' },
-  { s: 'pedalier', k: 'port' }, { s: 'pedalier', k: 'canal' }, { s: 'pedalier', k: 'gabarit' },
-  { s: 'pedalier', k: 'pc' }, { s: 'pedalier', k: 'ccSon' }, { s: 'pedalier', k: 'ccTap' }
-];
-var SEL = ROWS.filter(function (r) { return r.k; });
-var NOM = { groupe: 'groupe', pedalier: 'pédalier' };
+var DEF = { son: 34, tap: 14, tuner: 15 };
+var GESTES = [['pc', 'Morceau'], ['son', 'Son du morceau'], ['tap', 'Tap tempo'], ['tuner', 'Accordeur']];
+var GNAME = { son: 'le son du morceau', tap: 'le tap tempo', tuner: "l'accordeur" };
+var DEVICES = ['UM-ONE', 'MC6 Pro', 'Digital Piano'];
 var SIM = [
-  { g: 'Mon pédalier', sub: 'canal 1, sur sa propre prise', b: [
-    ['Bouton A', 'PC 1', { src: 'pedalier', type: 'pc', n: 1, ch: 1 }],
-    ['Bouton B', 'PC 2', { src: 'pedalier', type: 'pc', n: 2, ch: 1 }],
-    ['Son 1', 'CC 69 = 0', { src: 'pedalier', type: 'cc', n: 69, v: 0, ch: 1 }],
-    ['Son 2', 'CC 69 = 1', { src: 'pedalier', type: 'cc', n: 69, v: 1, ch: 1 }],
-    ['Tap', 'CC 14', { src: 'pedalier', type: 'cc', n: 14, v: 127, ch: 1 }]
+  { g: 'Ableton', sub: 'par UM-ONE, canal 5', b: [
+    ['Ouverture', 'PC 1', { dev: 'UM-ONE', type: 'pc', n: 1, ch: 5 }],
+    ['Le Phare', 'PC 2', { dev: 'UM-ONE', type: 'pc', n: 2, ch: 5 }],
+    ['Rappel', 'PC 6', { dev: 'UM-ONE', type: 'pc', n: 6, ch: 5 }],
+    ['Son 1', 'CC 20 = 0', { dev: 'UM-ONE', type: 'cc', n: 20, v: 0, ch: 5 }],
+    ['Son 2', 'CC 20 = 1', { dev: 'UM-ONE', type: 'cc', n: 20, v: 1, ch: 5 }],
+    ['Son 6', 'CC 20 = 5', { dev: 'UM-ONE', type: 'cc', n: 20, v: 5, ch: 5 }],
+    ['Accordeur', 'CC 15 = 127', { dev: 'UM-ONE', type: 'cc', n: 15, v: 127, ch: 5 }],
+    ['Son rendu', 'CC 15 = 0', { dev: 'UM-ONE', type: 'cc', n: 15, v: 0, ch: 5 }],
+    ['Horloge', '124 BPM', { dev: 'UM-ONE', type: 'clock', bpm: 124 }],
+    ['Start', 'transport', { dev: 'UM-ONE', type: 'start' }]
   ] },
-  { g: "Le groupe, depuis Ableton", sub: 'canal 5', b: [
-    ['Ouverture', 'PC 1', { src: 'groupe', type: 'pc', n: 1, ch: 5 }],
-    ['Le Phare', 'PC 2', { src: 'groupe', type: 'pc', n: 2, ch: 5 }],
-    ['Rappel', 'PC 6', { src: 'groupe', type: 'pc', n: 6, ch: 5 }],
-    ['Son 1', 'CC 20 = 0', { src: 'groupe', type: 'cc', n: 20, v: 0, ch: 5 }],
-    ['Son 2', 'CC 20 = 1', { src: 'groupe', type: 'cc', n: 20, v: 1, ch: 5 }],
-    ['Son 6', 'CC 20 = 5', { src: 'groupe', type: 'cc', n: 20, v: 5, ch: 5 }],
-    ['Horloge', '124 BPM', { src: 'groupe', type: 'clock', bpm: 124 }],
-    ['Start', 'transport', { src: 'groupe', type: 'start' }]
+  { g: 'Les lights', sub: 'par UM-ONE, canal 10', b: [
+    ['Scène', 'PC 2', { dev: 'UM-ONE', type: 'pc', n: 2, ch: 10 }],
+    ['Fader', 'CC 20 = 90', { dev: 'UM-ONE', type: 'cc', n: 20, v: 90, ch: 10 }]
   ] },
-  { g: 'Les lights', sub: 'canal 10, sur le câble du groupe', b: [
-    ['Scène', 'PC 2', { src: 'groupe', type: 'pc', n: 2, ch: 10 }],
-    ['Fader', 'CC 20 = 90', { src: 'groupe', type: 'cc', n: 20, v: 90, ch: 10 }]
+  { g: 'MC6 Pro', sub: 'pédalier USB, canal 1', b: [
+    ['Bouton A', 'PC 1', { dev: 'MC6 Pro', type: 'pc', n: 1, ch: 1 }],
+    ['Bouton B', 'PC 2', { dev: 'MC6 Pro', type: 'pc', n: 2, ch: 1 }],
+    ['Son 1', 'CC 69 = 0', { dev: 'MC6 Pro', type: 'cc', n: 69, v: 0, ch: 1 }],
+    ['Son 2', 'CC 69 = 1', { dev: 'MC6 Pro', type: 'cc', n: 69, v: 1, ch: 1 }],
+    ['Tap', 'CC 14', { dev: 'MC6 Pro', type: 'cc', n: 14, v: 127, ch: 1 }],
+    ['Horloge', '120 BPM', { dev: 'MC6 Pro', type: 'clock', bpm: 120 }]
+  ] },
+  { g: 'Digital Piano', sub: 'clavier USB, canal 1', b: [
+    ['Sonorité', 'PC 5', { dev: 'Digital Piano', type: 'pc', n: 5, ch: 1 }],
+    ['Câble', 'débrancher', { dev: 'Digital Piano', type: 'plug' }]
   ] }
 ];
 var STEPS = [
-  'Appuie sur « Son 2 » de ton pédalier : namfoop ne le connaît pas encore.',
-  'Relie-le : vise « Son du morceau » sous Mon pédalier, Entrée, puis appuie sur « Son 2 ».',
-  'Fais envoyer une scène aux lights : ton morceau change. Règle le canal du groupe sur 5.',
-  'Le groupe a choisi le CC 20 pour les sons : tape-le sur sa ligne « Son du morceau ».',
+  'Le clavier change de sonorité (PC 5) : ton morceau change, car il parle sur le canal 1 comme ton pédalier. Décoche-le : b sur sa ligne.',
+  "Démarre l'horloge d'Ableton : elle est ignorée, le pédalier a battu le premier. Confie l'horloge à UM-ONE : Entrée sur sa ligne.",
+  "Les lights reçoivent une scène (PC 2) : ton morceau change. Ajoute le canal d'Ableton : a, puis appuie sur « Le Phare ».",
+  'Ton pédalier est maintenant ignoré. Ajoute son canal : a, puis appuie sur un de ses boutons.',
+  'Il appelle ses sons par le CC 69 : sous Canal 1, vise « Son du morceau », Entrée, puis appuie sur son « Son 2 ».',
+  'Le groupe a choisi le CC 20 pour les sons : tape-le sur « Son du morceau » du canal 5.',
   'Onglet Plan du set : donne le numéro 6 à « Rappel ».',
-  'Onglet Fiche : Entrée écrit la fiche. Copie-la avec le bouton ci-dessous.',
-  'Enregistre avec S, sur Sources puis sur Plan du set.'
+  "Onglet Fiche : Entrée l'écrit. Copie-la avec le bouton ci-dessous.",
+  'Enregistre avec S, sur Appareils et canaux puis sur Plan du set.'
 ];
 
 var st;
 
 function snap(o) { return JSON.stringify(o); }
+function nums(from) { return { son: from.son, tap: from.tap, tuner: from.tuner, cut: JSON.parse(JSON.stringify(from.cut)) }; }
 function fresh() {
   var s = {
-    tab: 0, cur: [0, 0], scroll: 0,
-    cfg: {
-      groupe: { port: PORTS[0], canal: null, ccSon: 34, ccTap: null, cut: {} },
-      pedalier: { port: PORTS[1], canal: null, gabarit: 'Fractal', ccSon: 34, ccTap: 14, cut: {} }
-    },
+    tab: 0, cur0: 'dev:UM-ONE', scroll0: 0, curSong: 0, scroll2: 0, ficheCh: null,
+    cfg: { off: {}, clockFrom: null, chans: [], tous: { son: DEF.son, tap: DEF.tap, tuner: DEF.tuner, cut: {} } },
     set: { name: 'Groupe 1 · Live Mairie', file: 'groupe-1', songs: [
       { t: 'Ouverture', bpm: 96, pc: 1, sounds: ['Clean SVT'] },
       { t: 'Le Phare', bpm: 124, pc: 2, sounds: ['Fuzz Face', 'Clean SVT'] },
@@ -202,11 +193,12 @@ function fresh() {
       { t: 'Sur le fil', bpm: 117, pc: 5, sounds: ['Drive B7K'] },
       { t: 'Rappel', bpm: 110, pc: null, sounds: ['Fuzz Face'] }
     ] },
-    open: { 1: true }, playing: null, tempo: null, transport: false,
-    log: [], nfm: { groupe: { count: 0, chans: [] }, pedalier: { count: 0, chans: [] } },
-    seen: { groupe: [], pedalier: [] }, last: {},
+    present: { 'UM-ONE': true, 'MC6 Pro': true, 'Digital Piano': true },
+    beating: { 'MC6 Pro': 120 }, beatOrder: ['MC6 Pro'], followed: 'MC6 Pro',
+    open: { 1: true }, playing: null, muted: false, transport: false,
+    log: [], other: { count: 0, chans: [] }, devIgnored: {}, seen: {}, last: {},
     modal: null, help: false, msg: null,
-    flags: { unbound: false, fiche: false, saved: false }
+    flags: { fiche: false, saved: false }
   };
   s.savedCfg = snap(s.cfg);
   s.savedSet = snap(s.set);
@@ -232,7 +224,43 @@ function ago(t, now) {
   return 'il y a ' + Math.floor(d / 60) + ' min';
 }
 function say(t, c) { st.msg = { t: t, c: c || '' }; }
-function chans(a) { return a.slice().sort(function (x, y) { return x - y; }).join(' · '); }
+function list(a) { return a.slice().sort(function (x, y) { return x - y; }).join(' · '); }
+function plural(n, one, many) { return n + ' ' + (n > 1 ? many : one); }
+
+/* ---------- canaux et horloge ---------- */
+function chanOf(ch) {
+  var c = null;
+  st.cfg.chans.forEach(function (x) { if (x.ch === ch) c = x; });
+  return c;
+}
+function numsFor(ch) { return st.cfg.chans.length ? chanOf(ch) : st.cfg.tous; }
+function keyFor(ch) { return st.cfg.chans.length ? 'ch' + ch : 'tous'; }
+function devList() {
+  return DEVICES.filter(function (d) { return st.present[d] || st.cfg.off[d] || st.cfg.clockFrom === d; });
+}
+function listening(d) { return st.present[d] && !st.cfg.off[d]; }
+function clockDev() {
+  if (st.cfg.clockFrom) return listening(st.cfg.clockFrom) && st.beating[st.cfg.clockFrom] ? st.cfg.clockFrom : null;
+  for (var i = 0; i < st.beatOrder.length; i++) {
+    var d = st.beatOrder[i];
+    if (st.beating[d] && listening(d)) return d;
+  }
+  return null;
+}
+function clockCheck(now) {
+  var d = clockDev();
+  if (d === st.followed) return;
+  st.followed = d;
+  if (d) push({ dev: d, m: 'horloge' }, '→ ♩ ' + st.beating[d] + ',0 BPM');
+  else push({ dev: '—', m: 'horloge' }, "→ plus d'horloge suivie : le tap reprend", 'warn');
+  touchDev(d, now);
+}
+function touchDev(d, now) { if (d) st.last['dev:' + d] = { t: now || Date.now() }; }
+function ficheChan() {
+  var chs = st.cfg.chans;
+  if (!chs.length) return null;
+  return chanOf(st.ficheCh) ? st.ficheCh : chs[0].ch;
+}
 
 /* ---------- ce qui arrive ---------- */
 function mtext(m) {
@@ -241,135 +269,226 @@ function mtext(m) {
   if (m.type === 'clock') return 'horloge';
   return 'Start';
 }
-function touch(key, text, now) { st.last[key] = { t: now, text: text }; }
 function push(m, eff, cls) {
-  st.log.push({ src: m.src, ch: m.ch || null, m: mtext(m), eff: eff, cls: cls || '' });
+  st.log.push({ dev: m.dev, ch: m.ch || null, m: m.m || mtext(m), eff: eff, cls: cls || '' });
   if (st.log.length > 3) st.log.shift();
 }
+function touch(key, text, dev, now) { st.last[key] = { t: now, text: text, dev: dev }; }
 function capture(m) {
   var md = st.modal;
   if (md.type !== 'input') return;
   md.err = null;
-  if (m.type === 'clock' || m.type === 'start') { md.learned = { t: "l'horloge n'a ni canal ni numéro : rien à prendre", c: 'warn' }; return; }
-  if (md.src && md.src !== m.src) {
-    md.learned = { t: 'ce message vient ' + (m.src === 'groupe' ? 'du câble du groupe' : 'de ton pédalier') + " : il n'est pas pris ici", c: 'warn' };
+  if (m.type === 'clock' || m.type === 'start') { md.learned = null; md.err = "l'horloge n'a ni canal ni numéro : rien à prendre"; return; }
+  if (st.cfg.off[m.dev]) { md.learned = null; md.err = m.dev + " est décoché : b sur sa ligne pour l'écouter"; return; }
+  if (md.kind === 'canal') {
+    md.buf = String(m.ch);
+    md.learned = { t: '● reçu sur le canal ' + m.ch + ' · ' + m.dev, c: 'ok' };
     return;
   }
-  if (md.kind === 'canal') { md.buf = String(m.ch); md.learned = { t: '● reçu sur le canal ' + m.ch, c: 'ok' }; return; }
   if (md.kind === 'cc') {
-    if (m.type !== 'cc') { md.learned = { t: "c'est un Program Change : cette ligne attend un CC", c: 'warn' }; return; }
-    md.buf = String(m.n); md.learned = { t: '● reçu : CC ' + m.n + ' · valeur ' + m.v + ' · canal ' + m.ch, c: 'ok' }; return;
+    if (m.type !== 'cc') { md.learned = null; md.err = "c'est un Program Change : cette ligne attend un CC"; return; }
+    md.addCh = null;
+    if (md.ch !== null && m.ch !== md.ch) {
+      if (chanOf(m.ch)) { md.learned = null; md.err = 'ce message arrive sur le canal ' + m.ch + ' : cette ligne règle le canal ' + md.ch; return; }
+      md.buf = String(m.n); md.addCh = m.ch;
+      md.learned = { t: 'canal ' + m.ch + " non réglé : Entrée l'ajoute, CC " + m.n + ' pour ' + GNAME[md.g], c: 'warn' };
+      return;
+    }
+    md.buf = String(m.n);
+    md.learned = { t: '● reçu : CC ' + m.n + ' · valeur ' + m.v + ' · canal ' + m.ch + ' · ' + m.dev, c: 'ok' };
+    return;
   }
-  if (m.type !== 'pc') { md.learned = { t: "c'est un CC : un morceau s'appelle par Program Change", c: 'warn' }; return; }
-  md.buf = String(m.n); md.learned = { t: '● reçu : PC ' + m.n + ' · canal ' + m.ch, c: 'ok' };
+  if (m.type !== 'pc') { md.learned = null; md.err = "c'est un CC : un morceau s'appelle par Program Change"; return; }
+  md.buf = String(m.n);
+  md.learned = { t: '● reçu : PC ' + m.n + ' · canal ' + m.ch + ' · ' + m.dev, c: 'ok' };
+}
+function rendu() {
+  if (!st.muted) return '';
+  st.muted = false;
+  return ' · son rendu';
 }
 function receive(m, now) {
   now = now || Date.now();
+  if (m.type === 'plug') {
+    st.present[m.dev] = !st.present[m.dev];
+    say(m.dev + (st.present[m.dev] ? ' rebranché : il est repris' : ' débranché : rien ne bloque'), st.present[m.dev] ? 'ok' : '');
+    clockCheck(now);
+    return;
+  }
+  if (!st.present[m.dev]) { say(m.dev + " est débranché : rebranche-le pour qu'il parle"); return; }
+  if (m.type === 'clock') {
+    if (st.beating[m.dev]) {
+      delete st.beating[m.dev];
+      st.beatOrder = st.beatOrder.filter(function (d) { return d !== m.dev; });
+    } else {
+      st.beating[m.dev] = m.bpm;
+      st.beatOrder.push(m.dev);
+      if (st.modal) { capture(m); return; }
+    }
+    clockCheck(now);
+    return;
+  }
   if (st.modal) { capture(m); return; }
-  var c = st.cfg[m.src], songs = st.set.songs;
-  if (m.type === 'clock' || m.type === 'start') {
-    if (c.cut.clock) { push(m, "coupée : l'horloge n'est pas écoutée (b)", 'dim'); return; }
-    if (m.type === 'clock') { st.tempo = m.bpm; push(m, '→ ♩ ' + m.bpm + ',0 BPM'); }
-    else { st.transport = true; push(m, '→ la battue repart du temps 1 ⏵'); }
-    touch('groupe.clock', '', now);
+  if (st.cfg.off[m.dev]) { st.devIgnored[m.dev] = (st.devIgnored[m.dev] || 0) + 1; return; }
+  touchDev(m.dev, now);
+  if (m.type === 'start') {
+    if (clockDev() !== m.dev) { return; }
+    st.transport = true;
+    push(m, '→ la battue repart du temps 1 ⏵' + rendu());
     return;
   }
-  if (st.seen[m.src].indexOf(m.ch) < 0) st.seen[m.src].push(m.ch);
-  if (c.canal !== null && m.ch !== c.canal) {
-    var n = st.nfm[m.src]; n.count++;
-    if (n.chans.indexOf(m.ch) < 0) n.chans.push(m.ch);
+  var seen = st.seen[m.dev] || (st.seen[m.dev] = []);
+  if (seen.indexOf(m.ch) < 0) seen.push(m.ch);
+  var c = numsFor(m.ch), songs = st.set.songs;
+  if (!c) {
+    st.other.count++;
+    if (st.other.chans.indexOf(m.ch) < 0) st.other.chans.push(m.ch);
     return;
   }
+  var k = keyFor(m.ch);
+  touch(k, '', m.dev, now);
   if (m.type === 'pc') {
-    if (c.cut.pc) { push(m, 'coupé : le Program Change de cette source est ignoré (b)', 'dim'); return; }
+    if (c.cut.pc) { push(m, 'coupé : le Program Change de ce canal est ignoré (b)', 'dim'); return; }
     var i = -1;
-    songs.forEach(function (s, k) { if (s.pc === m.n) i = k; });
+    songs.forEach(function (s, j) { if (s.pc === m.n) i = j; });
     if (i < 0) { push(m, "hors accord : aucun morceau du set n'a le numéro " + m.n, 'warn'); return; }
     st.playing = { song: i, sound: 0 };
-    touch(m.src + '.pc', 'PC ' + m.n + ' « ' + songs[i].t + ' »', now);
-    touch('song.' + i, '', now); touch('sound.' + i + '.0', '', now);
-    push(m, '→ morceau « ' + songs[i].t + ' », son 1 « ' + songs[i].sounds[0] + ' »');
+    touch(k + '.pc', 'PC ' + m.n + ' « ' + songs[i].t + ' »', m.dev, now);
+    touch('song.' + i, '', m.dev, now); touch('sound.' + i + '.0', '', m.dev, now);
+    push(m, '→ morceau « ' + songs[i].t + ' », son 1 « ' + songs[i].sounds[0] + ' »' + rendu());
     return;
   }
-  if (m.n === c.ccSon) {
-    if (c.cut.ccSon) { push(m, 'coupé : le son de cette source est ignoré (b)', 'dim'); return; }
+  if (m.n === c.son) {
+    if (c.cut.son) { push(m, 'coupé : le son de ce canal est ignoré (b)', 'dim'); return; }
     if (!st.playing) { push(m, "hors accord : aucun morceau n'est joué", 'warn'); return; }
     var sg = songs[st.playing.song];
-    if (m.v >= sg.sounds.length) {
-      push(m, 'hors accord : « ' + sg.t + " » n'a que " + sg.sounds.length + (sg.sounds.length > 1 ? ' sons' : ' son'), 'warn');
-      return;
-    }
+    if (m.v >= sg.sounds.length) { push(m, 'hors accord : « ' + sg.t + " » n'a que " + plural(sg.sounds.length, 'son', 'sons'), 'warn'); return; }
     st.playing.sound = m.v;
-    touch(m.src + '.ccSon', 'valeur ' + m.v, now);
-    touch('sound.' + st.playing.song + '.' + m.v, '', now);
-    push(m, '→ son ' + (m.v + 1) + ' « ' + sg.sounds[m.v] + ' »');
+    touch(k + '.son', 'valeur ' + m.v, m.dev, now);
+    touch('sound.' + st.playing.song + '.' + m.v, '', m.dev, now);
+    push(m, '→ son ' + (m.v + 1) + ' « ' + sg.sounds[m.v] + ' »' + rendu());
     return;
   }
-  if (c.ccTap !== null && m.n === c.ccTap) {
-    if (c.cut.ccTap) { push(m, 'coupé : le tap de cette source est ignoré (b)', 'dim'); return; }
-    touch(m.src + '.ccTap', '', now);
+  if (m.n === c.tap) {
+    if (c.cut.tap) { push(m, 'coupé : le tap de ce canal est ignoré (b)', 'dim'); return; }
+    touch(k + '.tap', '', m.dev, now);
     push(m, '→ tap tempo');
     return;
   }
-  if (m.src === 'pedalier') st.flags.unbound = true;
+  if (m.n === c.tuner) {
+    if (c.cut.tuner) { push(m, "coupé : l'accordeur de ce canal est ignoré (b)", 'dim'); return; }
+    touch(k + '.tuner', 'valeur ' + m.v, m.dev, now);
+    if (m.v >= 64) {
+      if (st.muted) push(m, 'la basse est déjà coupée, rien ne change', 'dim');
+      else { st.muted = true; push(m, '→ basse coupée, accordeur', 'uv'); }
+    } else if (st.muted) { st.muted = false; push(m, '→ son rendu'); }
+    else push(m, "la basse n'est pas coupée, rien ne change", 'dim');
+    return;
+  }
   push(m, 'relié à aucun geste', 'warn');
 }
 
+/* ---------- les lignes de l'onglet Appareils et canaux ---------- */
+function rows() {
+  var r = [{ head: 'APPAREILS · tous écoutés, sauf ceux décochés' }];
+  devList().forEach(function (d) { r.push({ k: 'dev:' + d, dev: d }); });
+  r.push({ blank: true });
+  var chs = st.cfg.chans;
+  if (!chs.length) {
+    r.push({ head: 'CANAUX · aucun réglé : tous écoutés, avec les mêmes numéros' });
+    r.push({ k: 'tous', ch: null });
+    GESTES.forEach(function (g) { r.push({ k: 'tous.' + g[0], ch: null, g: g[0] }); });
+  } else {
+    r.push({ head: 'CANAUX · seuls les canaux réglés sont écoutés' });
+    chs.forEach(function (c) {
+      r.push({ k: 'ch' + c.ch, ch: c.ch });
+      GESTES.forEach(function (g) { r.push({ k: 'ch' + c.ch + '.' + g[0], ch: c.ch, g: g[0] }); });
+    });
+    r.push({ info: true });
+  }
+  return r;
+}
+function sel0() { return rows().filter(function (r) { return r.k; }); }
+function curRow() {
+  var s = sel0(), hit = null;
+  s.forEach(function (r) { if (r.k === st.cur0) hit = r; });
+  if (!hit) { hit = s[0]; st.cur0 = hit.k; }
+  return hit;
+}
+function moveCur(dir) {
+  var s = sel0(), i = 0;
+  s.forEach(function (r, j) { if (r.k === st.cur0) i = j; });
+  st.cur0 = s[Math.max(0, Math.min(s.length - 1, i + dir))].k;
+}
+
 /* ---------- fenêtres ---------- */
-function geste(k) { return k === 'ccSon' ? 'le son du morceau' : 'le tap tempo'; }
-function syncGabarit() {
-  var p = st.cfg.pedalier, g = 'personnalisé';
-  GABARITS.forEach(function (x) { if (x.son === p.ccSon && x.tap === p.ccTap) g = x.n; });
-  p.gabarit = g;
+function openCanal(mode, from) {
+  var title = mode === 'change' ? 'Régler · Canal ' + from : (st.cfg.chans.length ? 'Ajouter un canal' : 'Régler · Tous les canaux › premier canal réglé');
+  st.modal = { type: 'input', kind: 'canal', mode: mode, from: from || null, title: title, label: 'Canal :',
+    hint: 'de 1 à 16', buf: mode === 'change' ? String(from) : '', learned: null, err: null };
 }
 function regler(r) {
-  var c = st.cfg[r.s], qui = r.s === 'groupe' ? 'Le groupe' : 'Mon pédalier';
-  if (r.k === 'port') {
-    st.modal = { type: 'list', title: 'Régler · ' + qui + ' › Port', items: PORTS, idx: Math.max(0, PORTS.indexOf(c.port)), pick: 'port', src: r.s };
-  } else if (r.k === 'gabarit') {
-    var items = GABARITS.map(function (g) { return pad(g.n, 14) + 'son CC ' + g.son + ' · tap CC ' + g.tap; });
-    var idx = 0;
-    GABARITS.forEach(function (g, i) { if (g.n === c.gabarit) idx = i; });
-    st.modal = { type: 'list', title: 'Régler · Mon pédalier › Gabarit', items: items, idx: idx, pick: 'gabarit', src: r.s };
-  } else if (r.k === 'canal') {
-    st.modal = { type: 'input', kind: 'canal', src: r.s, title: 'Régler · ' + qui + ' › Canal', label: 'Canal :',
-      hint: 'de 1 à 16 · vide = tous', buf: c.canal === null ? '' : String(c.canal), learned: null, err: null };
-  } else if (r.k === 'ccSon' || r.k === 'ccTap') {
-    var def = r.k === 'ccSon' ? 34 : (r.s === 'groupe' ? null : 14);
-    st.modal = { type: 'input', kind: 'cc', src: r.s, key: r.k, def: def,
-      title: 'Régler · ' + qui + ' › ' + (r.k === 'ccSon' ? 'Son du morceau' : 'Tap tempo'), label: 'Numéro de CC :',
-      hint: 'de 1 à 127 · vide = ' + (def === null ? 'pas convenu' : def + ', le défaut'),
-      buf: c[r.k] === null ? '' : String(c[r.k]), learned: null, err: null };
-  } else if (r.k === 'pc') {
-    say("un Program Change n'a pas de numéro à régler ici : b le coupe, le Plan du set donne celui de chaque morceau");
-  } else {
-    say("rien à régler : b coupe l'horloge");
+  if (r.dev) {
+    if (st.cfg.clockFrom === r.dev) { st.cfg.clockFrom = null; say("horloge : le premier appareil qui bat", 'ok'); }
+    else { st.cfg.clockFrom = r.dev; say("horloge confiée à " + r.dev + " : celles des autres sont ignorées", 'ok'); }
+    clockCheck(Date.now());
+    return;
   }
+  if (r.k === 'tous') { openCanal('first'); return; }
+  if (!r.g) { openCanal('change', r.ch); return; }
+  if (r.g === 'pc') { say("un Program Change n'a pas de numéro à régler ici : b le coupe, le Plan du set donne celui de chaque morceau"); return; }
+  var c = r.ch === null ? st.cfg.tous : chanOf(r.ch);
+  var lab = GESTES.filter(function (g) { return g[0] === r.g; })[0][1];
+  st.modal = { type: 'input', kind: 'cc', ch: r.ch, g: r.g, def: DEF[r.g], addCh: null,
+    title: 'Régler · ' + (r.ch === null ? 'Tous les canaux' : 'Canal ' + r.ch) + ' › ' + lab, label: 'Numéro de CC :',
+    hint: 'de 1 à 127 · vide = ' + DEF[r.g] + ', le défaut', buf: String(c[r.g]), learned: null, err: null };
+}
+function newChan(ch) {
+  var base = st.cfg.chans.length ? { son: DEF.son, tap: DEF.tap, tuner: DEF.tuner, cut: {} } : st.cfg.tous;
+  var c = nums(base);
+  c.ch = ch;
+  return c;
+}
+function addChan(c) {
+  st.cfg.chans.push(c);
+  st.cfg.chans.sort(function (a, b) { return a.ch - b.ch; });
 }
 function commit() {
   var m = st.modal, v = m.buf === '' ? null : parseInt(m.buf, 10);
   if (m.kind === 'canal') {
-    if (v !== null && (v < 1 || v > 16)) { m.err = 'un canal va de 1 à 16'; return; }
-    st.cfg[m.src].canal = v;
-    say(v === null ? 'canal : tous' : 'canal ' + v + " : le reste de ce câble n'est plus pour toi", 'ok');
+    if (v === null) { m.err = 'un canal va de 1 à 16 : x retire un canal'; return; }
+    if (v < 1 || v > 16) { m.err = 'un canal va de 1 à 16'; return; }
+    if (m.mode === 'change') {
+      if (v !== m.from && chanOf(v)) { m.err = 'le canal ' + v + ' est déjà réglé'; return; }
+      chanOf(m.from).ch = v;
+      st.cfg.chans.sort(function (a, b) { return a.ch - b.ch; });
+      st.cur0 = 'ch' + v;
+      say('canal ' + m.from + ' → canal ' + v, 'ok');
+    } else {
+      if (chanOf(v)) { m.err = 'le canal ' + v + ' est déjà réglé'; return; }
+      addChan(newChan(v));
+      st.cur0 = 'ch' + v;
+      say('canal ' + v + ' ajouté : les canaux non réglés sont ignorés sans bruit', 'ok');
+    }
   } else if (m.kind === 'cc') {
     if (v === null) v = m.def;
-    if (v !== null) {
-      if (v === 0) { m.err = 'CC 0 est réservé au choix du set'; return; }
-      if (v > 127) { m.err = 'un numéro de CC va de 1 à 127'; return; }
-      var other = m.key === 'ccSon' ? 'ccTap' : 'ccSon';
-      if (st.cfg[m.src][other] === v) { m.err = 'CC ' + v + ' appelle déjà ' + geste(other) + " : un bouton ne fait qu'un geste"; return; }
-    }
-    st.cfg[m.src][m.key] = v;
-    if (m.src === 'pedalier') syncGabarit();
-    say(v === null ? geste(m.key) + ' : pas convenu' : geste(m.key) + ' : CC ' + v, 'ok');
+    if (v === 0) { m.err = 'CC 0 est réservé au choix du set'; return; }
+    if (v > 127) { m.err = 'un numéro de CC va de 1 à 127'; return; }
+    var target = m.addCh !== null ? newChan(m.addCh) : (m.ch === null ? st.cfg.tous : chanOf(m.ch));
+    var taken = null;
+    ['son', 'tap', 'tuner'].forEach(function (g) { if (g !== m.g && target[g] === v) taken = g; });
+    var where = m.addCh !== null ? m.addCh : m.ch;
+    if (taken) { m.err = 'CC ' + v + ' appelle déjà ' + GNAME[taken] + (where === null ? '' : ' du canal ' + where) + ' : un bouton, un geste'; return; }
+    target[m.g] = v;
+    if (m.addCh !== null) { addChan(target); say('canal ' + m.addCh + ' ajouté, ' + GNAME[m.g] + ' : CC ' + v, 'ok'); }
+    else say(GNAME[m.g] + (m.ch === null ? '' : ', canal ' + m.ch) + ' : CC ' + v, 'ok');
   } else {
     if (v !== null && (v < 1 || v > 128)) { m.err = 'un numéro de PC va de 1 à 128'; return; }
     var dup = -1;
     st.set.songs.forEach(function (s, i) { if (v !== null && i !== m.song && s.pc === v) dup = i; });
     if (dup >= 0) { m.err = 'PC ' + v + ' est déjà pris par « ' + st.set.songs[dup].t + ' »'; return; }
     st.set.songs[m.song].pc = v;
-    say('« ' + st.set.songs[m.song].t + ' » : ' + (v === null ? 'plus de numéro' : 'PC ' + v), 'ok');
+    say('« ' + st.set.songs[m.song].t + ' » : ' + (v === null ? 'pas de numéro' : 'PC ' + v), 'ok');
   }
   st.modal = null;
 }
@@ -390,37 +509,42 @@ function modalKey(k) {
   if (m.type === 'list') {
     if (k === 'ArrowUp') m.idx = Math.max(0, m.idx - 1);
     else if (k === 'ArrowDown') m.idx = Math.min(m.items.length - 1, m.idx + 1);
-    else if (k === 'Enter') {
-      if (m.pick === 'port') { st.cfg[m.src].port = PORTS[m.idx]; say('port : ' + PORTS[m.idx], 'ok'); }
-      else { var g = GABARITS[m.idx]; st.cfg.pedalier.ccSon = g.son; st.cfg.pedalier.ccTap = g.tap; syncGabarit(); say('gabarit ' + g.n + ' : son CC ' + g.son + ', tap CC ' + g.tap, 'ok'); }
-      st.modal = null;
-    }
+    else if (k === 'Enter') { st.ficheCh = m.items[m.idx]; st.scroll2 = 0; say('plan et fiche : canal ' + st.ficheCh, 'ok'); st.modal = null; }
     return;
   }
   if (k === 'Enter') { commit(); return; }
-  if (k === 'Backspace') { m.buf = m.buf.slice(0, -1); m.err = null; return; }
-  if (/^[0-9]$/.test(k) && m.buf.length < 3) { m.buf += k; m.err = null; }
+  if (k === 'Backspace') { m.buf = m.buf.slice(0, -1); m.err = null; m.addCh = null; return; }
+  if (/^[0-9]$/.test(k) && m.buf.length < 3) { m.buf += k; m.err = null; m.addCh = null; if (m.learned && m.learned.c === 'warn') m.learned = null; }
+}
+function chooseChan() {
+  var chs = st.cfg.chans.map(function (c) { return c.ch; });
+  if (!chs.length) { say('aucun canal réglé : le plan et la fiche valent pour tous les canaux'); return; }
+  st.modal = { type: 'list', title: 'Choisir le canal · Plan du set et Fiche', items: chs, idx: Math.max(0, chs.indexOf(ficheChan())) };
 }
 
 /* ---------- la fiche ---------- */
 function ficheLines() {
-  var g = st.cfg.groupe, out = [];
+  var ch = ficheChan(), c = ch === null ? st.cfg.tous : chanOf(ch), out = [];
   out.push("Basse (namfoop) · ce que j'attends en MIDI");
   out.push('');
-  out.push(g.canal === null ? 'Canal : pas encore choisi. Lequel tu me réserves ?' : 'Canal ' + g.canal + '. Le reste est ignoré.');
-  if (!g.cut.pc) {
+  out.push(ch === null ? 'Canal : à choisir. Lequel tu me réserves ?' : 'Canal ' + ch + '. Les autres sont ignorés.');
+  if (!c.cut.pc) {
     out.push('Morceau : Program Change, compté de 1 à 128');
-    out.push('  (si ton logiciel compte de 0 à 127, retire 1)');
+    out.push('  (logiciel qui compte de 0 à 127 : retire 1)');
   }
-  if (!g.cut.ccSon) out.push('Son du morceau : CC ' + g.ccSon + ', valeur 0 = 1er son');
-  if (g.ccTap !== null && !g.cut.ccTap) out.push('Tap tempo : CC ' + g.ccTap);
-  if (!g.cut.clock) out.push('Tempo : horloge MIDI, Start, Stop, position');
-  out.push("Je n'envoie rien. Tout autre message est ignoré.");
+  if (!c.cut.son) out.push('Son du morceau : CC ' + c.son + ', valeur 0 = 1er son');
+  if (!c.cut.tap) out.push('Tap tempo : CC ' + c.tap);
+  out.push('Tempo : horloge MIDI, Start, Stop, position');
+  if (!c.cut.tuner) {
+    out.push('Accordeur : CC ' + c.tuner + ' = 127 coupe ma basse');
+    out.push('  CC ' + c.tuner + ' = 0, un PC ou Start la rendent');
+  }
+  out.push("Je n'envoie rien. Le reste est ignoré.");
   out.push('');
   out.push('Set « ' + st.set.name + ' »');
   st.set.songs.forEach(function (s) {
-    out.push(pad(s.pc === null ? 'PC ?' : 'PC ' + s.pc, 7) + pad(s.t, 18) + '♩' + s.bpm + (s.pc === null ? '   numéro à convenir' : ''));
-    s.sounds.forEach(function (n, k) { out.push('       CC ' + g.ccSon + ' = ' + k + '  ' + n); });
+    out.push(pad(s.pc === null ? 'PC ?' : 'PC ' + s.pc, 7) + pad(s.t, 18) + '♩' + s.bpm + (s.pc === null ? '  à convenir' : ''));
+    s.sounds.forEach(function (n, k) { out.push('       CC ' + c.son + ' = ' + k + '  ' + n); });
   });
   return out;
 }
@@ -441,7 +565,7 @@ function save() {
   st.flags.saved = true;
 }
 function leave(to) {
-  if (st.tab === 0 && dirtyCfg()) say('config non enregistrée : S sur Sources pour la garder', 'warn');
+  if (st.tab === 0 && dirtyCfg()) say('config non enregistrée : S sur Appareils et canaux pour la garder', 'warn');
   else if (st.tab === 1 && dirtySet()) say('set non enregistré : S sur Plan du set pour le garder', 'warn');
   st.tab = to;
 }
@@ -457,35 +581,52 @@ function key(k, shift) {
   }
   if (k === 'Tab') { leave((st.tab + (shift ? 2 : 1)) % 3); return; }
   if (k === 'ArrowRight') { if (st.tab < 2) leave(st.tab + 1); else say('→ ne va pas plus loin : Fiche est le dernier onglet'); return; }
-  if (k === 'ArrowLeft') { if (st.tab > 0) leave(st.tab - 1); else say('← ne va pas plus loin : Sources est le premier onglet'); return; }
+  if (k === 'ArrowLeft') { if (st.tab > 0) leave(st.tab - 1); else say('← ne va pas plus loin : Appareils et canaux est le premier onglet'); return; }
   if (st.tab === 0) {
-    var r = SEL[st.cur[0]];
-    if (k === 'ArrowUp') { st.cur[0] = Math.max(0, st.cur[0] - 1); return; }
-    if (k === 'ArrowDown') { st.cur[0] = Math.min(SEL.length - 1, st.cur[0] + 1); return; }
+    var r = curRow();
+    if (k === 'ArrowUp') { moveCur(-1); return; }
+    if (k === 'ArrowDown') { moveCur(1); return; }
     if (k === 'Enter') { regler(r); return; }
+    if (k === 'a') { openCanal(st.cfg.chans.length ? 'add' : 'first'); return; }
+    if (k === 'x') {
+      if (!r.ch || r.g) { say('x retire un canal : vise sa ligne « Canal n »'); return; }
+      var gone = chanOf(r.ch);
+      st.cfg.chans = st.cfg.chans.filter(function (c) { return c.ch !== r.ch; });
+      if (!st.cfg.chans.length) { st.cfg.tous = nums(gone); st.cur0 = 'tous'; say('canal ' + r.ch + ' retiré : tous les canaux sont écoutés · S pour garder'); }
+      else { st.cur0 = 'ch' + st.cfg.chans[0].ch; say('canal ' + r.ch + ' retiré · S pour garder'); }
+      return;
+    }
     if (k === 'b') {
-      if (['pc', 'ccSon', 'clock', 'ccTap'].indexOf(r.k) < 0) { say('b coupe un geste : vise une ligne de message'); return; }
-      var cut = st.cfg[r.s].cut;
-      if (cut[r.k]) delete cut[r.k]; else cut[r.k] = true;
-      say(cut[r.k] ? 'coupé : cette source ne commande plus ce geste' : 'écouté de nouveau');
+      if (r.dev) {
+        if (st.cfg.off[r.dev]) { delete st.cfg.off[r.dev]; say(r.dev + ' écouté de nouveau', 'ok'); }
+        else { st.cfg.off[r.dev] = true; say(r.dev + " décoché : namfoop l'ignore"); }
+        clockCheck(Date.now());
+        return;
+      }
+      if (!r.g) { say('b coupe un geste ou un appareil : vise sa ligne'); return; }
+      var cut = (r.ch === null ? st.cfg.tous : chanOf(r.ch)).cut;
+      if (cut[r.g]) delete cut[r.g]; else cut[r.g] = true;
+      say(cut[r.g] ? 'coupé : ce canal ne commande plus ce geste' : 'écouté de nouveau');
       return;
     }
   } else if (st.tab === 1) {
     var n = st.set.songs.length;
-    if (k === 'ArrowUp') { st.cur[1] = Math.max(0, st.cur[1] - 1); return; }
-    if (k === 'ArrowDown') { st.cur[1] = Math.min(n - 1, st.cur[1] + 1); return; }
-    if (k === 'i') { if (st.open[st.cur[1]]) delete st.open[st.cur[1]]; else st.open[st.cur[1]] = true; return; }
+    if (k === 'ArrowUp') { st.curSong = Math.max(0, st.curSong - 1); return; }
+    if (k === 'ArrowDown') { st.curSong = Math.min(n - 1, st.curSong + 1); return; }
+    if (k === 'i') { if (st.open[st.curSong]) delete st.open[st.curSong]; else st.open[st.curSong] = true; return; }
+    if (k === 'C') { chooseChan(); return; }
     if (k === 'L') { say('un seul set dans cette maquette : L ouvrirait la liste des sets'); return; }
     if (k === 'Enter') {
-      var s = st.set.songs[st.cur[1]];
-      st.modal = { type: 'input', kind: 'pc', song: st.cur[1], title: 'Régler · Plan du set › ' + s.t, label: 'N° de PC :',
+      var s = st.set.songs[st.curSong];
+      st.modal = { type: 'input', kind: 'pc', song: st.curSong, title: 'Régler · Plan du set › ' + s.t, label: 'N° de PC :',
         hint: 'de 1 à 128 · vide = pas de numéro', buf: s.pc === null ? '' : String(s.pc), learned: null, err: null };
       return;
     }
   } else {
     var total = ficheLines().length;
-    if (k === 'ArrowUp') { st.scroll = Math.max(0, st.scroll - 1); return; }
-    if (k === 'ArrowDown') { st.scroll = Math.max(0, Math.min(total - (BODY - 1), st.scroll + 1)); return; }
+    if (k === 'ArrowUp') { st.scroll2 = Math.max(0, st.scroll2 - 1); return; }
+    if (k === 'ArrowDown') { st.scroll2 = Math.max(0, Math.min(total - (BODY - 1), st.scroll2 + 1)); return; }
+    if (k === 'C') { chooseChan(); return; }
     if (k === 'Enter') { st.flags.fiche = true; say('fiche écrite : fiche-midi.txt · colle-la dans un message', 'ok'); return; }
   }
   if (k === 'S') { save(); return; }
@@ -493,61 +634,93 @@ function key(k, shift) {
 }
 
 /* ---------- le rendu ---------- */
-function recu(key, now, extra) {
-  var l = st.last[key];
-  if (!l) return sp('○ jamais reçu', 'dim');
-  return sp('●', 'ok') + esc(' ' + (l.text ? l.text + ' · ' : '') + ago(l.t, now) + (extra || ''));
+/* Une ligne est une suite de segments [texte, classe] : le texte nu sert à la ligne visée. */
+function line(segs, on, mark) {
+  var plain = segs.map(function (s) { return s[0]; }).join('');
+  if (on) return sp(pad('▶' + plain.slice(1), W), 'sel');
+  return segs.map(function (s) { return sp(s[0], s[1]); }).join('');
 }
-function sourcesBody(now) {
-  var out = [], si = 0;
-  ROWS.forEach(function (r) {
+function recuSegs(key, now) {
+  var l = st.last[key];
+  if (!l) return [['○ jamais reçu', 'dim']];
+  return [['●', 'ok'], [' ' + (l.text ? l.text + ' · ' : '') + ago(l.t, now), '']];
+}
+function clockSegs(d) {
+  var from = st.cfg.clockFrom, f = clockDev();
+  if (from === d) {
+    if (f === d) return [['♩ ' + st.beating[d] + ' ⏵ horloge · choisie', 'ok']];
+    return [['horloge choisie · muette : le tap reprend', 'warn']];
+  }
+  if (!st.beating[d] || !listening(d)) return [];
+  if (f === d) return [['♩ ' + st.beating[d] + ' ⏵ horloge · le premier qui bat', 'ok']];
+  return [['horloge ignorée : ' + (f ? f + ' la donne' : (from ? from + ' est choisie' : 'une autre la donne')), 'warn']];
+}
+function devSegs(d) {
+  var off = !!st.cfg.off[d], here = st.present[d];
+  var head = '  ' + (off ? '☐ ' : '☑ ') + pad(d, 18) + ' ' + pad(here ? 'branché' : 'absent', 10);
+  if (off) {
+    var n = st.devIgnored[d] || 0;
+    return [[head + 'décoché' + (n ? ' · ' + plural(n, 'message ignoré', 'messages ignorés') : ''), 'dim']];
+  }
+  if (!here) return [[head, 'dim']].concat(clockSegs(d));
+  var seen = st.seen[d] || [];
+  var what = seen.length ? (seen.length > 1 ? 'canaux ' : 'canal ') + list(seen) : '';
+  return [[head, ''], [pad(what, 17), 'dim']].concat(clockSegs(d));
+}
+function chanHeadSegs(r, now) {
+  if (r.ch === null) {
+    var all = [];
+    Object.keys(st.seen).forEach(function (d) { if (listening(d)) st.seen[d].forEach(function (c) { if (all.indexOf(c) < 0) all.push(c); }); });
+    var txt = all.length > 1 ? 'vus : ' + list(all) + ' · plusieurs canaux parlent' : (all.length ? 'vu : canal ' + all[0] : '');
+    return [['  ' + pad('Tous les canaux', 46), 'b w'], [txt, all.length > 1 ? 'warn' : 'dim']];
+  }
+  var l = st.last['ch' + r.ch];
+  return [['  ' + pad('Canal ' + r.ch, 46), 'b w'], [l ? 'dernier : ' + l.dev + ' · ' + ago(l.t, now) : '○ rien reçu', 'dim']];
+}
+function gesteSegs(r, now) {
+  var c = r.ch === null ? st.cfg.tous : chanOf(r.ch), cut = !!c.cut[r.g];
+  var lab = GESTES.filter(function (g) { return g[0] === r.g; })[0][1];
+  var val = r.g === 'pc' ? 'Program Change' : 'CC ' + c[r.g] + (c[r.g] !== DEF[r.g] ? ' · défaut : ' + DEF[r.g] : '');
+  var segs = [['    ', ''], [pad(lab, 19), 'dim'], [pad(val, 27), cut ? 'dim' : '']];
+  if (cut) return segs.concat([['coupé (b pour écouter)', 'dim']]);
+  return segs.concat(recuSegs(r.ch === null ? 'tous.' + r.g : 'ch' + r.ch + '.' + r.g, now));
+}
+function appareilsBody(now) {
+  var out = [], cur = curRow(), at = 0;
+  rows().forEach(function (r) {
     if (r.blank) { out.push(''); return; }
     if (r.head) { out.push(sp(r.head, 'b w')); return; }
-    var c = st.cfg[r.s], on = si === st.cur[0];
-    si++;
-    var lab, val, rc = '', plain = '', cut = !!c.cut[r.k];
-    if (r.k === 'port') { lab = 'Port'; val = c.port; rc = sp('● branché', 'ok'); plain = '● branché'; }
-    else if (r.k === 'canal') {
-      lab = 'Canal'; val = c.canal === null ? 'tous' : String(c.canal);
-      var nf = st.nfm[r.s], seen = st.seen[r.s];
-      if (c.canal !== null && nf.count) { plain = 'pas pour moi : canal ' + chans(nf.chans); rc = sp(plain, 'dim'); }
-      else if (c.canal === null && seen.length > 1) { plain = 'vus ici : ' + chans(seen) + ' · plusieurs appareils parlent'; rc = sp(plain, 'warn'); }
-      else if (seen.length) { plain = 'vu : canal ' + chans(seen); rc = sp(plain, 'dim'); }
+    if (r.info) {
+      var o = st.other;
+      out.push(line([['  ' + pad('Autres canaux', 19), 'dim'], [pad('ignorés', 27), 'dim'],
+        [o.count ? plural(o.count, 'message', 'messages') + ' sur ' + (o.chans.length > 1 ? 'les canaux ' : 'le canal ') + list(o.chans) : 'rien reçu', 'dim']]));
+      return;
     }
-    else if (r.k === 'gabarit') { lab = 'Gabarit'; val = c.gabarit; }
-    else if (r.k === 'pc') { lab = r.s === 'groupe' ? 'Morceau' : 'Preset ou morceau'; val = 'Program Change'; }
-    else if (r.k === 'ccSon') { lab = 'Son du morceau'; val = 'CC ' + c.ccSon + (c.ccSon !== 34 ? ' · défaut : 34' : ''); }
-    else if (r.k === 'clock') { lab = 'Tempo et battue'; val = 'horloge · Start · Stop'; }
-    else { lab = 'Tap tempo'; val = c.ccTap === null ? 'pas convenu' : 'CC ' + c.ccTap; }
-    if (['pc', 'ccSon', 'ccTap', 'clock'].indexOf(r.k) >= 0) {
-      if (cut) { plain = 'coupé (b pour écouter)'; rc = sp(plain, 'dim'); }
-      else if (r.k === 'ccTap' && c.ccTap === null) { plain = ''; rc = ''; }
-      else {
-        var keyName = r.k === 'clock' ? 'groupe.clock' : r.s + '.' + r.k;
-        var l = st.last[keyName];
-        var extra = r.k === 'clock' && st.tempo ? ' · ♩ ' + st.tempo + (st.transport ? ' ⏵' : '') : '';
-        plain = l ? '● ' + (l.text ? l.text + ' · ' : '') + ago(l.t, now) + extra : '○ jamais reçu';
-        rc = recu(keyName, now, extra);
-      }
-    }
-    if (on) out.push(sp(pad('▶ ' + pad(lab, 20) + pad(val, 30) + plain, W), 'sel'));
-    else out.push('  ' + sp(pad(lab, 20), 'lab') + sp(pad(val, 30), cut || (r.k === 'ccTap' && c.ccTap === null) ? 'dim' : '') + rc);
+    var on = r.k === cur.k;
+    if (on) at = out.length;
+    var segs = r.dev ? devSegs(r.dev) : (r.g ? gesteSegs(r, now) : chanHeadSegs(r, now));
+    out.push(line(segs, on));
   });
-  return out;
+  if (at < st.scroll0) st.scroll0 = at;
+  if (at >= st.scroll0 + BODY) st.scroll0 = at - BODY + 1;
+  st.scroll0 = Math.max(0, Math.min(st.scroll0, Math.max(0, out.length - BODY)));
+  var view = out.slice(st.scroll0, st.scroll0 + BODY);
+  if (out.length > st.scroll0 + BODY) view[BODY - 1] = sp('… ' + plural(out.length - st.scroll0 - BODY + 1, 'ligne', 'lignes') + ' plus bas (↓)', 'dim');
+  return view;
 }
 function planBody(now) {
-  var out = [], g = st.cfg.groupe;
-  out.push(sp('    ' + pad('Morceau', 26) + pad('Tempo', 8) + pad('Le groupe envoie', 20) + 'Reçu', 'lab'));
+  var out = [], ch = ficheChan(), c = ch === null ? st.cfg.tous : chanOf(ch);
+  out.push(sp('    ' + pad('Morceau', 26) + pad('Tempo', 8) + pad('Program Change', 20) + 'Reçu', 'dim'));
   st.set.songs.forEach(function (s, i) {
-    var on = i === st.cur[1], play = st.playing && st.playing.song === i;
+    var on = i === st.curSong, play = st.playing && st.playing.song === i;
     var l = st.last['song.' + i];
-    var rplain = s.pc === null ? "pas de numéro : le groupe ne peut pas l'appeler" : (l ? '● ' + ago(l.t, now) : '○ pas encore');
+    var rplain = s.pc === null ? "pas de numéro : on ne peut pas l'appeler" : (l ? '● ' + ago(l.t, now) : '○ pas encore');
     var left = (on ? '▶ ' : '  ') + (i + 1) + ' ' + pad((play ? '♪ ' : '') + s.t, 26) + pad('♩' + s.bpm, 8) + pad(s.pc === null ? 'PC —' : 'PC ' + s.pc, 20);
     if (on) out.push(sp(pad(left + rplain, W), 'sel'));
-    else out.push((play ? sp(left, 'b w') : esc(left)) + (s.pc === null ? sp(rplain, 'warn') : (l ? sp('●', 'ok') + esc(' ' + ago(l.t, now)) : sp(rplain, 'dim'))));
+    else out.push((play ? sp(left, 'b w') : (s.pc === null ? sp(left, 'warn') : esc(left))) + (s.pc === null ? sp(rplain, 'warn') : (l ? sp('●', 'ok') + esc(' ' + ago(l.t, now)) : sp(rplain, 'dim'))));
     if (st.open[i]) s.sounds.forEach(function (name, k) {
       var ls = st.last['sound.' + i + '.' + k], cur = play && st.playing.sound === k;
-      out.push('      ' + sp(pad((cur ? '● ' : '○ ') + 'son ' + (k + 1) + ' · ' + name, 32), cur ? 'ok' : 'lab') + pad('CC ' + g.ccSon + ' = ' + k, 20) +
+      out.push('      ' + sp(pad((cur ? '● ' : '○ ') + 'son ' + (k + 1) + ' · ' + name, 32), cur ? 'ok' : 'dim') + pad('CC ' + c.son + ' = ' + k, 20) +
         (ls ? sp('●', 'ok') + esc(' ' + ago(ls.t, now)) : sp('○ pas encore', 'dim')));
     });
   });
@@ -557,15 +730,15 @@ function planBody(now) {
 }
 function ficheBody() {
   var all = ficheLines(), out = [], room = BODY - 1;
-  all.slice(st.scroll, st.scroll + room).forEach(function (t) {
-    out.push(/^(Basse \(|Set «)/.test(t) ? sp(t, 'b w') : (/^ {2}\(/.test(t) ? sp(t, 'lab') : esc(t)));
+  all.slice(st.scroll2, st.scroll2 + room).forEach(function (t) {
+    out.push(/^(Basse \(|Set «)/.test(t) ? sp(t, 'b w') : (/^ {2}\(/.test(t) ? sp(t, 'dim') : (/^Canal :/.test(t) ? sp(t, 'warn') : esc(t))));
   });
-  var below = all.length - (st.scroll + room);
-  out.push(below > 0 ? sp('… ' + below + (below > 1 ? ' lignes' : ' ligne') + ' plus bas (↓)', 'dim') : '');
+  var below = all.length - (st.scroll2 + room);
+  out.push(below > 0 ? sp('… ' + plural(below, 'ligne', 'lignes') + ' plus bas (↓)', 'dim') : '');
   return out;
 }
 function modalHtml() {
-  var m = st.modal, h = '<div class="modal"><div class="ftitle">' + esc(m.title) + '</div>';
+  var m = st.modal, h = '<div class="modal' + (m.type === 'input' ? ' saisie' : '') + '"><div class="ftitle">' + esc(m.title) + '</div>';
   function ln(x) { return '<div class="ln">' + (x || ' ') + '</div>'; }
   if (m.type === 'confirm') {
     if (dirtyCfg()) h += ln(esc(pad('La config MIDI a changé depuis le dernier enregistrement.', 62)));
@@ -577,38 +750,57 @@ function modalHtml() {
     return h + '</div>';
   }
   if (m.type === 'list') {
-    m.items.forEach(function (it, i) { h += ln(i === m.idx ? sp(pad('▶ ' + it, 50), 'sel') : esc(pad('  ' + it, 50))); });
+    m.items.forEach(function (it, i) { h += ln(i === m.idx ? sp(pad('▶ canal ' + it, 46), 'sel') : esc(pad('  canal ' + it, 46))); });
     h += ln('') + ln(sp('↑↓', 'b w') + ' choisir   ' + sp('Entrée', 'b w') + ' garder   ' + sp('Échap', 'b w') + ' ne rien changer');
     return h + '</div>';
   }
-  h += ln(sp(m.label + ' ', 'lab') + sp(' ' + m.buf + '▏', 'inp') + sp('   ' + m.hint, 'lab'));
+  h += ln(sp(m.label + ' ', 'dim') + sp(' ' + m.buf + '▏', 'inp') + sp('   ' + m.hint, 'dim'));
   h += ln('');
-  h += ln("Ou appuie sur le bouton, si l'appareil est branché :");
-  h += ln(m.learned ? sp(m.learned.t, m.learned.c) : sp("○ rien reçu pour l'instant", 'lab'));
-  h += ln(m.err ? sp(m.err, 'warn') : sp(pad('Tant que cette fenêtre est ouverte, aucun message ne change le son.', 70), 'lab'));
+  h += ln(m.kind === 'pc' ? 'Ou fais envoyer le Program Change :' : "Ou appuie sur le bouton, si l'appareil est branché :");
+  h += ln(m.learned ? sp(m.learned.t, m.learned.c) : sp("○ rien reçu pour l'instant", 'dim'));
+  h += ln(m.err ? sp(pad(m.err, 70), 'err') : sp(pad('Tant que cette fenêtre est ouverte, aucun message ne change le son.', 70), 'dim'));
   h += ln('');
   h += ln(sp('Entrée', 'b w') + ' garder   ' + sp('Retour', 'b w') + ' effacer   ' + sp('Échap', 'b w') + ' ne rien changer');
   return h + '</div>';
 }
 function helpHtml() {
-  var rows = [['Tab · Maj+Tab', "onglet suivant · précédent (en boucle)"], ['→ · ←', "onglet voisin"]];
-  if (st.tab === 0) rows = rows.concat([['↑↓', 'viser une ligne'], ['Entrée', "régler la ligne : taper le numéro, ou appuyer sur l'appareil"], ['b', 'couper ou écouter le geste visé, pour cette source']]);
-  else if (st.tab === 1) rows = rows.concat([['↑↓', 'viser un morceau'], ['Entrée', 'régler son n° de PC'], ['i', 'déplier ou replier ses sons'], ['L', 'choisir un autre set']]);
-  else rows = rows.concat([['↑↓', 'faire défiler la fiche'], ['Entrée', 'écrire la fiche dans un fichier texte']]);
-  rows = rows.concat([['S', "enregistrer ce qu'on a devant soi : la config, ou le set"], ['h · ?', 'cette aide'], ['q', 'quitter, après confirmation si un réglage n\'est pas enregistré'], ['Échap', 'ne quitte pas']]);
-  var h = '<div class="help"><div class="ln">' + sp('Aide · ' + ['Sources', 'Plan du set', 'Fiche'][st.tab], 'b acc') + '</div><div class="ln"> </div>';
+  var rows = [['Tab · Maj+Tab', 'onglet suivant · précédent (en boucle)'], ['→ · ←', 'onglet voisin']];
+  if (st.tab === 0) rows = rows.concat([['↑↓', 'viser une ligne'],
+    ['Entrée', "régler la ligne ; sur un appareil, lui confier l'horloge"],
+    ['a', 'ajouter un canal : taper son numéro, ou appuyer sur un bouton'],
+    ['x', 'retirer le canal visé'],
+    ['b', 'couper ou rétablir le geste visé ; décocher ou cocher un appareil']]);
+  else if (st.tab === 1) rows = rows.concat([['↑↓', 'viser un morceau'], ['Entrée', 'régler son n° de PC'], ['i', 'déplier ou replier ses sons'],
+    ['C', 'choisir le canal dont on voit les CC'], ['L', 'choisir un autre set']]);
+  else rows = rows.concat([['↑↓', 'faire défiler la fiche'], ['Entrée', 'écrire la fiche dans un fichier texte'], ['C', 'choisir le canal de la fiche']]);
+  rows = rows.concat([['S', "enregistrer ce qu'on a devant soi : la config, ou le set"], ['h · ?', 'cette aide'],
+    ['q', "quitter, après confirmation si un réglage n'est pas enregistré"], ['Échap', 'ne quitte pas']]);
+  var h = '<div class="help"><div class="ln">' + sp('Aide · ' + ['Appareils et canaux', 'Plan du set', 'Fiche'][st.tab], 'b w') + '</div><div class="ln"> </div>';
   rows.forEach(function (r) { h += '<div class="ln">' + sp(pad(r[0], 16), 'b w') + esc(r[1]) + '</div>'; });
-  return h + '<div class="ln"> </div><div class="ln">' + sp("N'importe quelle touche referme l'aide.", 'lab') + '</div></div>';
+  return h + '<div class="ln"> </div><div class="ln">' + sp("N'importe quelle touche referme l'aide.", 'dim') + '</div></div>';
 }
 function bar() {
-  function k(a, b) { return sp(a, 'b w') + sp(' ' + b + '   ', 'lab'); }
-  if (st.modal && st.modal.type === 'confirm') return [k('S', 'enregistrer puis quitter') + k('Q', 'quitter sans enregistrer') + k('Échap', 'rester'), sp('toute autre touche : rester', 'lab')];
+  function k(a, b) { return sp(a, 'b w') + sp(' ' + b + '   ', 'dim'); }
+  if (st.modal && st.modal.type === 'confirm') return [k('S', 'enregistrer puis quitter') + k('Q', 'quitter sans enregistrer') + k('Échap', 'rester'), sp('toute autre touche : rester', 'dim')];
   if (st.modal) return [st.modal.type === 'list' ? k('↑↓', 'choisir') + k('Entrée', 'garder') + k('Échap', 'ne rien changer')
-    : k('0-9', 'taper') + k('Retour', 'effacer') + k('Entrée', 'garder') + k('Échap', 'ne rien changer'), sp('ou appuie sur un bouton du matériel simulé', 'lab')];
+    : k('0-9', 'taper') + k('Retour', 'effacer') + k('Entrée', 'garder') + k('Échap', 'ne rien changer'), sp('ou appuie sur un bouton du matériel simulé', 'dim')];
   var l2 = k('S', st.tab === 1 ? 'enregistrer le set' : 'enregistrer') + k('h', 'aide') + k('q', 'quitter');
-  if (st.tab === 0) return [k('↑↓', 'ligne') + k('Entrée', 'régler') + k('b', 'couper / écouter') + k('Tab/→', 'Plan du set'), l2];
-  if (st.tab === 1) return [k('↑↓', 'morceau') + k('Entrée', 'n° de PC') + k('i', 'détail') + k('L', 'sets') + k('Tab/→', 'Fiche') + k('Maj+Tab/←', 'Sources'), l2];
-  return [k('↑↓', 'défiler') + k('Entrée', 'écrire la fiche dans un fichier') + k('Maj+Tab/←', 'Plan du set'), l2];
+  if (st.tab === 0) return [k('↑↓', 'ligne') + k('Entrée', 'régler') + k('a', 'ajouter un canal') + k('x', 'retirer') + k('b', 'couper / écouter') + k('Tab/→', 'Plan du set'), l2];
+  if (st.tab === 1) return [k('↑↓', 'morceau') + k('Entrée', 'n° de PC') + k('i', 'détail') + k('C', 'canal') + k('L', 'sets') + k('Tab/→', 'Fiche') + k('Maj+Tab/←', 'Appareils'), l2];
+  return [k('↑↓', 'défiler') + k('Entrée', 'écrire la fiche dans un fichier') + k('C', 'canal') + k('Maj+Tab/←', 'Plan du set'), l2];
+}
+function frameTitle() {
+  var chs = st.cfg.chans.length, f = clockDev(), ch = ficheChan();
+  var chTxt = ch === null ? 'tous les canaux' : 'canal ' + ch;
+  if (st.tab === 0) {
+    return 'MIDI · APPAREILS ET CANAUX — ' + plural(devList().length, 'appareil', 'appareils') + ' · horloge : ' + (f || 'aucune') +
+      ' · ' + (chs ? plural(chs, 'canal réglé', 'canaux réglés') : 'aucun canal réglé');
+  }
+  if (st.tab === 1) {
+    var sans = st.set.songs.filter(function (s) { return s.pc === null; }).length;
+    return 'MIDI · PLAN DU SET — ' + st.set.name + ' · ' + st.set.songs.length + ' morceaux' + (sans ? ' · ' + sans + ' sans numéro' : '') + ' · sons du ' + chTxt;
+  }
+  return 'MIDI · FICHE — ' + chTxt + ' · tirée des réglages et du set';
 }
 function screen(now) {
   now = now || Date.now();
@@ -616,43 +808,36 @@ function screen(now) {
   if (st.tab === 1) state = ds ? sp('set : ' + st.set.file + ' ● non enregistré (S)', 'warn') : sp('set : ' + st.set.file + ' ✓', 'ok');
   else if (st.tab === 2 && ds && !dc) state = sp('set ● non enregistré (S)', 'warn');
   else state = dc ? sp('config ● non enregistrée (S)', 'warn') : sp('config ✓', 'ok');
-  var names = ['Sources', 'Plan du set (' + st.set.songs.length + ')', 'Fiche'], dirty = [dc, ds, false];
+  var names = ['Appareils et canaux', 'Plan du set (' + st.set.songs.length + ')', 'Fiche'], dirty = [dc, ds, false];
   var tabs = '  ' + names.map(function (n, i) {
-    return sp(' ' + n + ' ', i === st.tab ? 'tabon' : 'lab') + (dirty[i] ? sp('●', 'warn') : ' ');
+    return sp(' ' + n + ' ', i === st.tab ? 'tabon' : 'dim') + (dirty[i] ? sp('●', 'warn') : ' ');
   }).join(' ');
-  var title, body;
-  if (st.tab === 0) { title = 'MIDI · SOURCES — 2 écoutées · la dernière qui parle est suivie'; body = sourcesBody(now); }
-  else if (st.tab === 1) {
-    var sans = st.set.songs.filter(function (s) { return s.pc === null; }).length;
-    title = 'MIDI · PLAN DU SET — ' + st.set.name + ' · ' + st.set.songs.length + ' morceaux' + (sans ? ' · ' + sans + ' sans numéro' : '');
-    body = planBody(now);
-  } else { title = 'MIDI · FICHE — ce que tu envoies au groupe · tirée des Sources et du Plan'; body = ficheBody(); }
+  var body = st.tab === 0 ? appareilsBody(now) : (st.tab === 1 ? planBody(now) : ficheBody());
   while (body.length < BODY) body.push('');
   var h = '<div class="ln hd"><span class="b w">namfoop midi</span><span>' + state + '</span></div>';
   h += '<div class="ln">' + tabs + '</div>';
-  h += '<div class="frame"><div class="ftitle">' + esc(title) + '</div>';
+  h += '<div class="frame"><div class="ftitle">' + esc(frameTitle()) + '</div>';
   body.slice(0, BODY).forEach(function (l) { h += '<div class="ln">' + (l || pad('', W)) + '</div>'; });
   if (st.modal) h += modalHtml();
   if (st.help) h += helpHtml();
   h += '</div>';
   h += '<div class="ln">' + (st.msg ? sp(st.msg.t, st.msg.c) : ' ') + '</div>';
-  if (!st.log.length) h += '<div class="ln">' + sp('reçu  ', 'b acc') + sp("rien pour l'instant : le matériel simulé envoie des messages", 'dim') + '</div><div class="ln"> </div><div class="ln"> </div>';
-  for (var i = 0; i < st.log.length || i < 0; i++) {
+  if (!st.log.length) h += '<div class="ln">' + sp('reçu  ', 'b w') + sp("rien pour l'instant : le matériel simulé envoie des messages", 'dim') + '</div><div class="ln"> </div><div class="ln"> </div>';
+  for (var i = 0; i < st.log.length; i++) {
     var e = st.log[i];
-    h += '<div class="ln">' + sp(i === 0 ? 'reçu  ' : '      ', 'b acc') + sp(pad(NOM[e.src], 10) + pad(e.ch ? 'can. ' + e.ch : '—', 9), 'lab') + esc(pad(e.m, 11)) + sp(e.eff, e.cls) + '</div>';
+    h += '<div class="ln">' + sp(i === 0 ? 'reçu  ' : '      ', 'b w') + sp(pad(e.dev, 14) + pad(e.ch ? 'can. ' + e.ch : '—', 9), 'dim') + esc(pad(e.m, 11)) + sp(e.eff, e.cls) + '</div>';
   }
   for (var j = st.log.length; st.log.length && j < 3; j++) h += '<div class="ln"> </div>';
-  var total = st.nfm.groupe.count + st.nfm.pedalier.count;
-  var cs = st.nfm.groupe.chans.concat(st.nfm.pedalier.chans);
-  h += '<div class="ln">' + (total ? sp('      pas pour moi : ' + total + (total > 1 ? ' messages' : ' message') + ' sur le canal ' + chans(cs) + ', ignoré' + (total > 1 ? 's' : '') + ' sans bruit', 'dim') : ' ') + '</div>';
+  var o = st.other;
+  h += '<div class="ln">' + (o.count ? sp('      canaux non réglés : ' + plural(o.count, 'message', 'messages') + ' sur ' + (o.chans.length > 1 ? 'les canaux ' : 'le canal ') + list(o.chans) + ', ignoré' + (o.count > 1 ? 's' : '') + ' sans bruit', 'dim') : ' ') + '</div>';
   var b = bar();
   h += '<div class="ln"> </div><div class="ln">' + b[0] + '</div><div class="ln">' + b[1] + '</div>';
   return h;
 }
 function done() {
-  var c = st.cfg, s = st.set.songs;
-  return [st.flags.unbound || c.pedalier.ccSon === 69, c.pedalier.ccSon === 69, c.groupe.canal === 5, c.groupe.ccSon === 20,
-    s[5].pc === 6, st.flags.fiche, st.flags.saved && !dirtyCfg() && !dirtySet()];
+  var c1 = chanOf(1), c5 = chanOf(5);
+  return [!!st.cfg.off['Digital Piano'], st.cfg.clockFrom === 'UM-ONE', !!c5, !!c1, !!c1 && c1.son === 69, !!c5 && c5.son === 20,
+    st.set.songs[5].pc === 6, st.flags.fiche, st.flags.saved && !dirtyCfg() && !dirtySet()];
 }
 
 st = fresh();
@@ -662,20 +847,30 @@ if (typeof document === 'undefined') return;
 
 /* ---------- la page ---------- */
 var term = document.getElementById('term');
+function simLabel(m, b) {
+  if (m.type === 'clock') return st.beating[m.dev] ? b[1] + ' · arrêter' : b[1];
+  if (m.type === 'plug') return st.present[m.dev] ? 'débrancher' : 'rebrancher';
+  return b[1];
+}
+function drawSims() {
+  document.getElementById('sims').innerHTML = SIM.map(function (g, gi) {
+    return '<div class="grp"><div class="who"><b>' + esc(g.g) + '</b> · ' + esc(g.sub) + '</div><div class="sims">' + g.b.map(function (b, bi) {
+      var m = b[2], on = m.type === 'clock' && st.beating[m.dev];
+      return '<button class="sim' + (on ? ' on' : '') + '" type="button" data-g="' + gi + '" data-b="' + bi + '"><b>' + esc(b[0]) + '</b><span>' + esc(simLabel(m, b)) + '</span></button>';
+    }).join('') + '</div></div>';
+  }).join('');
+}
 function draw() {
   term.innerHTML = screen();
+  drawSims();
   var d = done();
   document.getElementById('steps').innerHTML = STEPS.map(function (t, i) {
     return '<li class="' + (d[i] ? 'done' : '') + '"><span class="mark">' + (d[i] ? '✓' : i + 1) + '</span><span class="txt">' + esc(t) + '</span></li>';
   }).join('');
 }
-document.getElementById('sims').innerHTML = SIM.map(function (g, gi) {
-  return '<div class="grp"><div class="who"><b>' + esc(g.g) + '</b> · ' + esc(g.sub) + '</div><div class="sims">' + g.b.map(function (b, bi) {
-    return '<button class="sim" type="button" data-g="' + gi + '" data-b="' + bi + '"><b>' + esc(b[0]) + '</b><span>' + esc(b[1]) + '</span></button>';
-  }).join('') + '</div></div>';
-}).join('');
 var KEYS = [['↑', 'ArrowUp'], ['↓', 'ArrowDown'], ['←', 'ArrowLeft'], ['→', 'ArrowRight'], ['Tab', 'Tab'], ['Entrée', 'Enter'], ['Échap', 'Escape'], ['Retour', 'Backspace'],
-  ['S', 'S'], ['b', 'b'], ['i', 'i'], ['L', 'L'], ['h', 'h'], ['q', 'q'], ['Q', 'Q'], ['0', '0'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5'], ['6', '6'], ['7', '7'], ['8', '8'], ['9', '9']];
+  ['a', 'a'], ['x', 'x'], ['b', 'b'], ['i', 'i'], ['C', 'C'], ['L', 'L'], ['S', 'S'], ['h', 'h'], ['q', 'q'], ['Q', 'Q'],
+  ['0', '0'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5'], ['6', '6'], ['7', '7'], ['8', '8'], ['9', '9']];
 document.getElementById('keys').innerHTML = KEYS.map(function (k) { return '<button type="button" data-k="' + k[1] + '">' + esc(k[0]) + '</button>'; }).join('');
 document.addEventListener('click', function (ev) {
   var t = ev.target.closest ? ev.target.closest('button') : null;
