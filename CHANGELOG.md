@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Ajouté (#412)
+- **namfoop retrouve tes sons d'où que tu le lances** : hors du dossier du projet (console de scène,
+  Pi, binaire installé par `cargo install`), il cherche la bibliothèque dans
+  `~/.local/share/namfoop/library`. On peut la placer ailleurs une fois pour toutes, par la clé
+  `library` de la config ou la variable `NAMFOOP_LIBRARY` ; `--library` prime toujours, et
+  `library/` du dossier courant reste lu s'il existe. Introuvable, le message dit où namfoop a
+  cherché et comment la ranger ; `setup` affiche en sortant le dossier retenu.
+
 ### Corrigé (#410)
 - **Le contrôle avant commit ne touche plus jamais au vrai dépôt** : lancé depuis une copie de
   travail secondaire (`git worktree`), il rejouait le cycle de développement dans le vrai dépôt au

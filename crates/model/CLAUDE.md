@@ -2,7 +2,8 @@
 
 **Responsabilité.** Les types que plusieurs crates lisent : config de l'instrument
 (`config.rs` : `Config`, `AudioConfig`, `BackendKind`, `LevelMode`, `LoadedConfig`, chemin par
-défaut `~/.config/namfoop/config.toml` ou `$XDG_CONFIG_HOME`), routage (`routing.rs` : `Routing`,
+défaut `~/.config/namfoop/config.toml` ou `$XDG_CONFIG_HOME` ; `data_dir()` : `~/.local/share/namfoop` ou
+`$XDG_DATA_HOME`, où vit la bibliothèque par défaut), routage (`routing.rs` : `Routing`,
 `OutputRoute`, `Source`), profils de carte (`card.rs` : `CardProfile`, `MixerSetting`, profils livrés
 `profiles/*.toml` du dépôt inclus par `include_str!`, `all_profiles`, `find`, `user_dir`).
 Les presets ne sont **pas** ici : ce sont des fichiers de la bibliothèque, lus par `library`
