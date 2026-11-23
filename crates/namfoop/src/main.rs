@@ -8,6 +8,7 @@ mod config;
 mod fx_cmd;
 mod import_cmd;
 mod latency;
+mod library_dir;
 mod live;
 mod meta_cmd;
 mod midi_cmd;
@@ -123,9 +124,9 @@ enum Cmd {
         /// Mesure les effets du catalogue (aux réglages par défaut) au lieu des modèles
         #[arg(long)]
         fx: bool,
-        /// Dossier de la bibliothèque
-        #[arg(long, default_value = "library")]
-        library: PathBuf,
+        /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(long, value_name = "DOSSIER")]
+        library: Option<PathBuf>,
     },
     /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
     Import {
@@ -144,21 +145,21 @@ enum Cmd {
     },
     /// Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
     Models {
-        /// Dossier de la bibliothèque
-        #[arg(default_value = "library")]
-        library: PathBuf,
+        /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(value_name = "DOSSIER")]
+        library: Option<PathBuf>,
     },
     /// Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
     Presets {
-        /// Dossier de la bibliothèque
-        #[arg(default_value = "library")]
-        library: PathBuf,
+        /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(value_name = "DOSSIER")]
+        library: Option<PathBuf>,
     },
     /// Liste les sets de concert (identifiant, nom, morceaux et sons, avertissements)
     Sets {
-        /// Dossier de la bibliothèque
-        #[arg(default_value = "library")]
-        library: PathBuf,
+        /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(value_name = "DOSSIER")]
+        library: Option<PathBuf>,
     },
     /// Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
     Calibrate {
@@ -177,9 +178,9 @@ enum Cmd {
     },
     /// Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
     Browse {
-        /// Dossier de la bibliothèque
-        #[arg(long, default_value = "library")]
-        library: PathBuf,
+        /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(long, value_name = "DOSSIER")]
+        library: Option<PathBuf>,
         /// Taille des modèles slimmable : 0 = le plus léger, 1 = complet
         #[arg(long, default_value_t = 1.0)]
         size: f64,
@@ -204,9 +205,10 @@ enum Cmd {
     },
     /// Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
     Setup {
-        /// Dossier de la bibliothèque (un modèle sert de charge réaliste au test des buffers)
-        #[arg(long, default_value = "library")]
-        library: PathBuf,
+        /// Dossier de la bibliothèque (un modèle sert de charge au test des buffers)
+        /// [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(long, value_name = "DOSSIER")]
+        library: Option<PathBuf>,
     },
     /// Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
     Latency {
@@ -233,22 +235,27 @@ enum Cmd {
         #[arg(short = 'i', long)]
         ir: Option<String>,
         /// Dossier de la bibliothèque, où -m et -i sont cherchés
-        #[arg(long, default_value = "library")]
-        library: PathBuf,
+        /// [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(long, value_name = "DOSSIER")]
+        library: Option<PathBuf>,
     },
 }
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
-    if std::env::var_os("NAMFOOP_CHECK_ARGS").is_some() {
-        return check_args(&cli);
-    }
     let conf = LoadedConfig::load(cli.config.clone(), cli.no_config)?;
+    if std::env::var_os("NAMFOOP_CHECK_ARGS").is_some() {
+        return check_args(&cli, &conf);
+    }
+    // la bibliothèque se choisit ici, une fois, pour toutes les commandes (library_dir)
+    let lib = |option: &Option<PathBuf>| library_dir::locate(option.as_deref(), &conf);
     // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
     let audio = || cli_audio::settings(&cli.audio, &conf);
     match cli.cmd {
-        Cmd::Run { amp, routing, seconds, quiet, no_trails, click, set } => {
+        Cmd::Run { mut amp, routing, seconds, quiet, no_trails, click, set } => {
+            let found = lib(&amp.library_arg);
+            amp.library = found.path.clone();
             // `run --set` : la scène verrouillée (§ 9 de docs/design/set.md). C'est l'écran de
             // `browse`, privé de tout ce qui édite — plutôt qu'un second écran à tenir à jour.
             if let Some(query) = set {
@@ -269,6 +276,7 @@ fn main() -> Result<()> {
                          `browse` (touche L) pour qu'il devienne le set par défaut."
                     );
                 }
+                found.require()?;
                 let (audio, profile) = audio()?;
                 let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
                 let start = browse::Start {
@@ -277,7 +285,6 @@ fn main() -> Result<()> {
                     midi: cli.midi.open(&conf.config),
                     ..Default::default()
                 };
-                // la bibliothèque est celle de `--library`, que `AmpArgs` porte déjà
                 return browse::run(&audio, &conf, &amp.library, &routing, 1.0, !no_trails, start);
             }
             let (audio, profile) = audio()?;
@@ -285,7 +292,8 @@ fn main() -> Result<()> {
             let session = live::Session { seconds, quiet, trails: !no_trails, click };
             live::run(&audio, &conf, &amp, &routing, cli.midi.open(&conf.config), session)
         }
-        Cmd::Render { amp, input, output, block } => {
+        Cmd::Render { mut amp, input, output, block } => {
+            amp.library = lib(&amp.library_arg).path;
             let input = input.unwrap_or_else(offline::default_input);
             let stats = offline::render(&amp, &conf, &input, output.as_deref(), block)?;
             offline::print_render(&stats);
@@ -299,10 +307,12 @@ fn main() -> Result<()> {
             if fx {
                 offline::bench_fx(rate, block, seconds)
             } else {
-                offline::bench(&paths, &library, rate, block, seconds, all_sizes)
+                offline::bench(&paths, &lib(&library).path, rate, block, seconds, all_sizes)
             }
         }
-        Cmd::Import { args } => {
+        Cmd::Import { mut args } => {
+            // `import` crée la bibliothèque si elle n'existe pas encore
+            args.library = lib(&args.library_arg).path;
             let imported = import_cmd::run(&args, &conf)?;
             if args.review && !args.dry_run {
                 if imported.is_empty() {
@@ -321,10 +331,13 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Meta { args } => meta_cmd::run(&args, &conf),
-        Cmd::Models { library } => models_cmd::list(&library, &conf),
-        Cmd::Presets { library } => presets_cmd::list(&library, &conf),
-        Cmd::Sets { library } => sets_cmd::list(&library, &conf),
+        Cmd::Meta { mut args } => {
+            args.library = lib(&args.library_arg).require()?.to_path_buf();
+            meta_cmd::run(&args, &conf)
+        }
+        Cmd::Models { library } => models_cmd::list(lib(&library).require()?, &conf),
+        Cmd::Presets { library } => presets_cmd::list(lib(&library).require()?, &conf),
+        Cmd::Sets { library } => sets_cmd::list(lib(&library).require()?, &conf),
         Cmd::Fx { name } => fx_cmd::run(name.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run } => {
             let (audio, profile) = audio()?;
@@ -339,6 +352,8 @@ fn main() -> Result<()> {
             calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
         }
         Cmd::Browse { library, size, filter, set, no_trails, routing } => {
+            let found = lib(&library);
+            let library = found.require()?;
             let (audio, profile) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             let start = browse::Start {
@@ -347,11 +362,14 @@ fn main() -> Result<()> {
                 midi: cli.midi.open(&conf.config),
                 ..Default::default()
             };
-            browse::run(&audio, &conf, &library, &routing, size, !no_trails, start)
+            browse::run(&audio, &conf, library, &routing, size, !no_trails, start)
         }
         Cmd::Midi { args } => midi_cmd::run(&args, &cli.midi, &conf),
-        Cmd::Setup { library } => setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &library),
+        Cmd::Setup { library } => {
+            setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &lib(&library))
+        }
         Cmd::Latency { out_ch, in_ch, count, chains, chain, model, ir, library } => {
+            let library = lib(&library).path;
             let args = latency::Args { out_ch, in_ch, count, chains, chain, model, ir, library };
             latency::run(&audio()?.0, &args)
         }
@@ -361,18 +379,19 @@ fn main() -> Result<()> {
 /// Mode « vérification seule » (variable NAMFOOP_CHECK_ARGS) : valide la ligne de commande
 /// sans rien exécuter. Utilisé par scripts/check-docs.sh pour tester les exemples des docs.
 /// Si la bibliothèque existe, les mots-clés -m / -i doivent désigner un fichier unique.
-fn check_args(cli: &Cli) -> Result<()> {
+fn check_args(cli: &Cli, conf: &LoadedConfig) -> Result<()> {
     let amp = match &cli.cmd {
         Cmd::Run { amp, .. } | Cmd::Render { amp, .. } => Some(amp),
         _ => None,
     };
     if let Some(a) = amp {
-        if a.library.is_dir() {
+        let dir = library_dir::locate(a.library_arg.as_deref(), conf).path;
+        if dir.is_dir() {
             if let Some(q) = &a.model {
-                library::resolve(q, &a.library, "nam")?;
+                library::resolve(q, &dir, "nam")?;
             }
             if let Some(q) = a.ir.as_deref().filter(|q| *q != "auto") {
-                library::resolve(q, &a.library, "wav")?;
+                library::resolve(q, &dir, "wav")?;
             }
         }
     }
@@ -470,7 +489,10 @@ mod tests {
                 vec!["namfoop", "render", "--preset", "chill", "--library", d.to_str().expect("chemin")];
             v.extend_from_slice(extra);
             match Cli::try_parse_from(v).expect("options valides").cmd {
-                Cmd::Render { amp, .. } => amp,
+                Cmd::Render { mut amp, .. } => {
+                    amp.library = library_dir::locate(amp.library_arg.as_deref(), &conf).path;
+                    amp
+                }
                 _ => panic!("render attendu"),
             }
         };

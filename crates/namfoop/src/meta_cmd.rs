@@ -61,8 +61,11 @@ pub struct MetaArgs {
     /// Efface toutes les corrections de ce(s) modèle(s)
     #[arg(long)]
     pub reset: bool,
-    /// Dossier de la bibliothèque
-    #[arg(long, default_value = "library")]
+    /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+    #[arg(long = "library", value_name = "DOSSIER")]
+    pub library_arg: Option<PathBuf>,
+    /// La bibliothèque retenue (`library_dir`), posée par `main`.
+    #[arg(skip)]
     pub library: PathBuf,
 }
 

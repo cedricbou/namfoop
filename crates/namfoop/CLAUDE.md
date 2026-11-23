@@ -30,6 +30,14 @@ amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (CLI > config >
                 AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run` et `render` n'ont pas de tap,
                 et c'est ce qui rend une mesure reproductible ; --pre / --post les effets
 config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
+library_dir.rs  OÙ EST LA BIBLIOTHÈQUE : --library > NAMFOOP_LIBRARY > clé `library` de la config >
+                ./library s'il existe > model::config::data_dir()/library. Choisie UNE fois dans
+                main, après la config ; les options clap portent `library_arg: Option<PathBuf>` et
+                main pose le champ `library` (#[arg(skip)]) que lisent les commandes. `resolve` est
+                pure et testée ; `Found::require` est l'erreur qui liste les dossiers essayés, pour
+                les commandes qui n'ont rien à faire sans bibliothèque (browse, run --set, models,
+                presets, sets, meta). `import` la crée ; `run`, `render`, `bench`, `latency` et
+                `setup` s'en passent
 theme.rs        LA liste des couleurs des écrans, nommées par ce qu'elles signifient : les espaces
                 (Bibliothèque, Chaîne, Set), les modes, les états, les vumètres, la chaîne en
                 blocs. **Aucune couleur en dur ailleurs dans le binaire** — check-arch.sh refuse

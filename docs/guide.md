@@ -202,18 +202,50 @@ Pour essayer l'assistant sans matériel : `namfoop --backend sim --no-config set
 
 ## 6. La bibliothèque de sons
 
-namfoop cherche les sons dans `library/` (option `--library` pour un autre dossier) :
+namfoop range tes sons, tes presets et tes sets dans un dossier, la **bibliothèque** :
 
 ```
 library/nam/<pack>/…/*.nam   modèles
 library/ir/<pack>/…/*.wav    réponses impulsionnelles de baffle
 library/docs/<pack>/…        notices des packs (README…)
 library/cabs/*.cab.toml      tes mélanges d'IR
+library/presets/, sets/      tes presets et tes sets de concert
 library/overrides.toml       tes corrections de métadonnées
 ```
 
 Ce dossier n'est jamais versionné : les droits des modèles et IR (Tone3000, packs achetés)
 appartiennent à leurs auteurs.
+
+### Où namfoop la cherche
+
+Pour qu'il retrouve tes sons d'où que tu le lances (console de scène, Pi, service de démarrage),
+namfoop prend le premier de ces dossiers qui répond :
+
+1. l'option `--library <dossier>` ;
+2. la variable d'environnement `NAMFOOP_LIBRARY` ;
+3. la clé `library` du [fichier de configuration](#16-le-fichier-de-configuration) — un chemin
+   relatif l'est au dossier de la config ;
+4. `library/` dans le dossier courant, s'il existe : lancé depuis le dossier du projet, rien ne
+   change ;
+5. sinon l'emplacement par défaut, **`~/.local/share/namfoop/library`** (`$XDG_DATA_HOME` s'il
+   est défini). C'est là que `namfoop import` la crée si elle n'existe pas encore.
+
+`namfoop setup` affiche en sortant le dossier retenu et d'où vient ce choix. Si la bibliothèque est
+introuvable, le message liste les dossiers essayés.
+
+Pour ranger une bibliothèque existante à l'emplacement par défaut, une fois :
+
+```sh
+dest=~/.local/share/namfoop
+mkdir -p "$dest" && mv library "$dest"/
+namfoop presets                          # depuis n'importe quel dossier
+```
+
+Ou, pour la garder où elle est, écris son chemin une fois pour toutes dans la config :
+
+```toml
+library = "/home/moi/musique/namfoop-library"
+```
 
 ### Importer des sons : `namfoop import`
 
@@ -2680,6 +2712,7 @@ limiter = true                       # limiteur de sortie
 calibration_wav = "calibration.wav"  # enregistrement de calibration (relatif à ce dossier)
 calibration_target_dbfs = -30.0     # crête visée lors de calibrate (repère des vumètres)
 default_ir = "dg212 sm57"            # optionnel : IR préférée (identifiant ou mots-clés), -i auto
+library = "/srv/namfoop/library"     # optionnel : la bibliothèque ([§ 6](#6-la-bibliothèque-de-sons))
 
 [audio]                              # — setup
 backend = "alsa"

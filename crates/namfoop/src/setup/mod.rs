@@ -18,6 +18,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use crate::config::LoadedConfig;
+use crate::library_dir::Found;
 use crate::tui::{self, Key};
 use audio_io::Settings;
 use model::BackendKind as Kind; // backend de la config ; audio_io::Kind à l'ouverture
@@ -30,7 +31,8 @@ fn load_for_buffer_test(library: &Path) -> Option<dsp::chain::AmpSpec> {
     models.into_iter().next().map(|m| dsp::chain::AmpSpec { model: Some(m), ..Default::default() })
 }
 
-pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, library: &Path) -> Result<()> {
+pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, found: &Found) -> Result<()> {
+    let library = found.path.as_path();
     let initial = cli_backend.or(conf.audio.backend);
     let mut st = State::new(initial);
     st.periods = base.periods;
@@ -131,7 +133,14 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, libr
     } else {
         println!("Assistant quitté sans rien enregistrer.");
     }
+    println!("{}", library_line(found));
     Ok(())
+}
+
+/// Où sont les sons, et d'où vient ce choix : la ligne que `setup` laisse en sortant.
+fn library_line(found: &Found) -> String {
+    let state = if found.path.is_dir() { "" } else { " — absente : `namfoop import <zip>` la crée" };
+    format!("Bibliothèque : {} ({}){state}", found.path.display(), found.origin)
 }
 
 #[derive(serde::Serialize)]

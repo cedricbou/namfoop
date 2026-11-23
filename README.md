@@ -44,6 +44,11 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
 ```
 
+Les sons, presets et sets vivent dans la bibliothèque : `library/` du dossier courant s'il existe,
+sinon `~/.local/share/namfoop/library`. Pour lancer namfoop d'ailleurs (`cargo install --path
+crates/namfoop`, console de scène, Pi), range-la là, ou indique-la par `library = "…"` dans la config
+(guide, § 6).
+
 Si le dépôt a été cloné sans `--recurse-submodules`, la compilation s'arrête sur `nam-sys` avec
 « NeuralAmpModelerCore absent » : lancer `git submodule update --init --recursive` à la racine du
 dépôt, puis relancer `cargo build --release`.

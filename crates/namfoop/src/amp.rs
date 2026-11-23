@@ -99,8 +99,11 @@ pub struct AmpArgs {
     /// Ne se mélange pas avec les options de chaîne (-m, -i, --pre, --post, --crossover)
     #[arg(long, value_name = "PRESET")]
     pub preset: Option<String>,
-    /// Dossier de la bibliothèque (modèles et IR)
-    #[arg(long, default_value = "library")]
+    /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+    #[arg(long = "library", value_name = "DOSSIER")]
+    pub library_arg: Option<PathBuf>,
+    /// La bibliothèque retenue (`library_dir`), posée par `main`.
+    #[arg(skip)]
     pub library: PathBuf,
 }
 

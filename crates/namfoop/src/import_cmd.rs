@@ -30,8 +30,11 @@ pub struct ImportArgs {
     /// capture, gain d'entrée, IR préférée (prend la carte son)
     #[arg(long)]
     pub review: bool,
-    /// Dossier de la bibliothèque
-    #[arg(long, default_value = "library")]
+    /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+    #[arg(long = "library", value_name = "DOSSIER")]
+    pub library_arg: Option<PathBuf>,
+    /// La bibliothèque retenue (`library_dir`), posée par `main`.
+    #[arg(skip)]
     pub library: PathBuf,
 }
 

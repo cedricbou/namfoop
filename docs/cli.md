@@ -207,10 +207,8 @@ Options:
       --preset <PRESET>
           Preset à jouer : identifiant (`namfoop presets`), nom ou mots-clés (ex: "chill verse"). Ne se mélange pas avec les options de chaîne (-m, -i, --pre, --post, --crossover)
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque (modèles et IR)
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --bass-in <BASS_IN>
           Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
@@ -358,10 +356,8 @@ Options:
       --preset <PRESET>
           Preset à jouer : identifiant (`namfoop presets`), nom ou mots-clés (ex: "chill verse"). Ne se mélange pas avec les options de chaîne (-m, -i, --pre, --post, --crossover)
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque (modèles et IR)
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --in <INPUT>
           WAV d'entrée (DI). Par défaut : signal de test de NeuralAmpModelerCore
@@ -422,10 +418,8 @@ Options:
       --fx
           Mesure les effets du catalogue (aux réglages par défaut) au lieu des modèles
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -492,10 +486,8 @@ Options:
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -587,10 +579,8 @@ Options:
       --reset
           Efface toutes les corrections de ce(s) modèle(s)
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --midi-in <PORT>
           Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
@@ -666,13 +656,11 @@ Options:
 ```text
 Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
 
-Usage: namfoop models [OPTIONS] [LIBRARY]
+Usage: namfoop models [OPTIONS] [DOSSIER]
 
 Arguments:
-  [LIBRARY]
-          Dossier de la bibliothèque
-          
-          [default: library]
+  [DOSSIER]
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
 Options:
       --backend <BACKEND>
@@ -721,13 +709,11 @@ Options:
 ```text
 Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
 
-Usage: namfoop presets [OPTIONS] [LIBRARY]
+Usage: namfoop presets [OPTIONS] [DOSSIER]
 
 Arguments:
-  [LIBRARY]
-          Dossier de la bibliothèque
-          
-          [default: library]
+  [DOSSIER]
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
 Options:
       --backend <BACKEND>
@@ -776,13 +762,11 @@ Options:
 ```text
 Liste les sets de concert (identifiant, nom, morceaux et sons, avertissements)
 
-Usage: namfoop sets [OPTIONS] [LIBRARY]
+Usage: namfoop sets [OPTIONS] [DOSSIER]
 
 Arguments:
-  [LIBRARY]
-          Dossier de la bibliothèque
-          
-          [default: library]
+  [DOSSIER]
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
 Options:
       --backend <BACKEND>
@@ -906,10 +890,8 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
@@ -1038,10 +1020,8 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque (un modèle sert de charge réaliste au test des buffers)
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque (un modèle sert de charge au test des buffers) [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
@@ -1137,10 +1117,8 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
-      --library <LIBRARY>
-          Dossier de la bibliothèque, où -m et -i sont cherchés
-          
-          [default: library]
+      --library <DOSSIER>
+          Dossier de la bibliothèque, où -m et -i sont cherchés [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --midi-in <PORT>
           Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]

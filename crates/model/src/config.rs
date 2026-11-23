@@ -91,6 +91,10 @@ pub struct Config {
     /// IR préférée (identifiant, chemin ou mots-clés) : conseillée en premier, utilisée par `-i auto`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_ir: Option<String>,
+    /// Dossier de la bibliothèque (relatif au dossier de config si non absolu). Absent : `./library`
+    /// s'il existe, sinon le dossier de données (`data_dir`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub library: Option<PathBuf>,
     /// Carte et backend (écrit par `setup`).
     pub audio: AudioConfig,
     /// Affectation des entrées / sorties (écrit par `setup`).
@@ -261,6 +265,7 @@ impl Default for Config {
             calibration_wav: PathBuf::from("calibration.wav"),
             calibration_target_dbfs: None,
             default_ir: None,
+            library: None,
             audio: AudioConfig::default(),
             routing: Routing::default(),
             metronome: None,
@@ -303,6 +308,16 @@ pub fn dir() -> PathBuf {
         .join("namfoop")
 }
 
+/// Dossier des données de l'utilisateur : `$XDG_DATA_HOME/namfoop`, sinon `~/.local/share/namfoop`.
+/// La bibliothèque y vit par défaut (`library/`).
+pub fn data_dir() -> PathBuf {
+    std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("namfoop")
+}
+
 pub fn default_path() -> PathBuf {
     dir().join("config.toml")
 }
@@ -332,6 +347,16 @@ impl Config {
 
     /// Chemin absolu de l'enregistrement de calibration (un chemin relatif l'est au dossier
     /// de la config).
+    /// La clé `library`, rendue absolue par rapport au dossier de la config.
+    pub fn library_path(&self, config_path: &Path) -> Option<PathBuf> {
+        let dir = self.library.as_ref()?;
+        Some(if dir.is_absolute() {
+            dir.clone()
+        } else {
+            config_path.parent().unwrap_or(Path::new(".")).join(dir)
+        })
+    }
+
     pub fn calibration_path(&self, config_path: &Path) -> PathBuf {
         if self.calibration_wav.is_absolute() {
             self.calibration_wav.clone()

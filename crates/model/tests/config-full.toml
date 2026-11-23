@@ -8,6 +8,7 @@ limiter = false
 calibration_wav = "calibration.wav"
 calibration_target_dbfs = -30.0
 default_ir = "dg212 sm57"
+library = "/srv/namfoop/library"
 
 [audio]
 backend = "alsa"
