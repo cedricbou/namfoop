@@ -2185,7 +2185,8 @@ Un pédalier MIDI sous le pied, Ableton sur la table : namfoop **écoute** ce qu
 rien avoir à configurer dans le cas courant. Les numéros de message suivent les conventions des
 pédaliers **Fractal**, celles que répètent les gabarits des pédaliers tiers
 ([ADR 0011](adr/0011-midi-conventions-fractal.md)) : un **Program Change** choisit le morceau ou le
-preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, et l'horloge vient d'Ableton.
+preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, le **CC 15** l'accordeur, et
+l'horloge vient d'Ableton.
 
 Ce que namfoop écoute, selon qu'un set est ouvert ou non : **sans set**, un Program Change choisit un
 preset de la banque ; **avec un set**, il choisit un morceau et le CC 34 son son, et le transport
@@ -2330,6 +2331,37 @@ Ce qui se passe quand la demande ne correspond à rien — jamais un autre son q
 
 **Sans set**, ces mêmes messages gardent leur sens de la banque : un PC appelle une place de presets,
 et le CC 34 n'a rien à désigner.
+
+### L'accordeur au pied ou depuis Ableton : le CC 15
+
+Le **CC 15** coupe ta basse et affiche l'accordeur, comme la touche `u` (§ 8) : c'est le numéro de
+l'accordeur sur l'Axe-Fx II, que reprennent les gabarits Fractal. **64 ou plus** coupe, **moins de
+64** rend le son — ce n'est pas une bascule : un second CC 15 = 127 ne rend pas le son au milieu de
+l'accordage, et l'écran le dit (`CC 15 = 127 : la basse est déjà coupée, rien ne change`).
+
+**Jamais muet au début d'un titre** : le Program Change du morceau suivant, un CC 34 (un autre son)
+et un `Start` d'Ableton rendent le son tout seuls. `Continue` et l'horloge, non. Un PC suivi d'un
+CC 34 ne fait qu'un retour, comme il ne fait qu'un changement de son.
+
+**Depuis Ableton**, pour s'accorder pendant une scénette : sur la piste MIDI qui sort vers namfoop,
+un petit clip placé sur le **dernier temps** du morceau, qui envoie CC 15 = 127 (une note d'enveloppe
+ou un message de contrôle). Rien d'autre à faire : le clip du morceau suivant envoie déjà son Program
+Change, qui rend le son. La queue de la réverbe de la dernière note finit de sonner.
+
+**Depuis un pédalier** : un interrupteur en mode **bascule** (latching) qui envoie CC 15 = 127 au
+premier appui et CC 15 = 0 au second. Sur un Morningstar avec le gabarit Fractal, vérifie que le
+bouton « Tuner » envoie bien le CC 15 : rien ne garantit qu'un gabarit l'envoie déjà.
+
+Pour le vérifier sans rien brancher, par le port simulé :
+
+```sh
+mkfifo /tmp/m && namfoop --midi-in sim:/tmp/m browse
+echo 'cc 15 127' > /tmp/m      # depuis un autre terminal : la basse est coupée, l'accordeur s'affiche
+echo 'cc 15 0' > /tmp/m        # le son revient
+```
+
+`namfoop midi` montre ce que namfoop en fait : `CC 15 127   (accordeur : basse coupée)`. Le numéro
+se règle par `[midi] cc_tuner` (§ 16).
 
 ### Choisir le port : `--midi-in`, `--no-midi`
 
@@ -2675,6 +2707,7 @@ in = "28:0"                          # port d'entrée : adresse, nom, ou "sim:CH
 off = false                          # true : aucune écoute MIDI (comme --no-midi)
 cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
 cc_tap = 14                          # le CC du tap tempo (convention Fractal)
+cc_tuner = 15                        # le CC de l'accordeur : 64 ou plus coupe la basse, moins la rend
 clock = true                         # false : ne pas écouter l'horloge MIDI (le tap reste actif)
 
 [tuner]                              # l'accordeur ([§ 8](#8-jouer))

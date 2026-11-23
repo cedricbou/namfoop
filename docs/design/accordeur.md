@@ -7,10 +7,8 @@ l'[ADR 0011](../adr/0011-midi-conventions-fractal.md), l'ordre des étages du cl
 l'[ADR 0009](../adr/0009-clavier-de-browse.md), la vue scène dans [`set.md`](set.md) § 6 et § 9, les
 couleurs dans la [charte](../identite/charte.md).
 
-**État** : la coupure, la touche `u` et l'écran sont **livrés** — le code, l'oracle du clavier
-(`keyboard.ref.txt`) et les tests d'écran font foi pour eux. Le **MIDI** (CC 15, retour par `Start`,
-§ 3 et § 8) reste la cible de la story suivante de l'épique « M'accorder en silence, en répétition
-comme entre deux morceaux ».
+**État** : livré. Le code, l'oracle du clavier (`keyboard.ref.txt`) et les tests font foi ; ce
+fichier garde le pourquoi des décisions (§ 14).
 
 La maquette [`accordeur.html`](accordeur.html) est une **illustration actionnable** validée avec
 l'utilisateur : à ouvrir dans un navigateur, elle se pilote au clavier, simule une basse, le MIDI et

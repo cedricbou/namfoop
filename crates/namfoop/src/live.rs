@@ -128,7 +128,8 @@ pub fn run(
         log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
     }
     let mut midi = midi;
-    let cc_tap = conf.config.midi.as_ref().map_or(model::Midi::default().cc_tap, |m| m.cc_tap);
+    let midi_conf = conf.config.midi.clone().unwrap_or_default();
+    let (cc_tap, cc_tuner, cc_sound) = (midi_conf.cc_tap, midi_conf.cc_tuner, midi_conf.cc_sound);
     let clock_on = conf.config.midi.as_ref().is_none_or(|m| m.clock);
     let mut ticks = 0u32;
     let mut heard_src = tempo.source();
@@ -156,7 +157,7 @@ pub fn run(
                 pitch.clear();
                 smooth.clear();
                 last_note = None;
-                eprint!("\r\x1b[2K");
+                clear_status(quiet);
                 log::info!("{} → {}", k.label(), if cut { "basse coupée, accordeur" } else { "son rendu" });
             }
             _ => {}
@@ -181,6 +182,26 @@ pub fn run(
         if let Some(m) = &mut midi {
             while let Some(msg) = m.try_pop() {
                 log::debug!("MIDI : {}", midi_io::describe(&msg.event));
+                // l'accordeur au pied ou depuis Ableton : CC 15 (réglable), 64 ou plus coupe, moins
+                // de 64 rend le son ; un changement de morceau, de son ou un `Start` le rend aussi
+                let want = match msg.event {
+                    midi_io::Event::Control { cc, value } if cc == cc_tuner => Some(value >= 64),
+                    midi_io::Event::Control { cc, .. } if cc == cc_sound => Some(false),
+                    midi_io::Event::ProgramChange(_) | midi_io::Event::ClockStart => Some(false),
+                    _ => None,
+                };
+                if let Some(cut) = want.filter(|c| *c != bass_cut.get()) {
+                    bass_cut.set(cut);
+                    pitch.clear();
+                    smooth.clear();
+                    last_note = None;
+                    clear_status(quiet);
+                    log::info!(
+                        "{} → {}",
+                        midi_io::describe(&msg.event),
+                        if cut { "basse coupée, accordeur" } else { "son rendu" }
+                    );
+                }
                 let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
                 match msg.event {
                     midi_io::Event::ClockTick if clock_on => tempo.clock_tick(at_us, msg.clock_seq),
@@ -329,6 +350,15 @@ pub fn run(
     }
     log::info!("arrêt : charge DSP max {:.1} %, {xruns} xrun(s)", max_load * 100.0);
     Ok(())
+}
+
+/// Efface la ligne d'état avant un message du journal — seulement quand elle est affichée dans un
+/// terminal : ailleurs (service, test), la séquence d'effacement salirait le journal.
+fn clear_status(quiet: bool) {
+    use std::io::IsTerminal;
+    if !quiet && std::io::stderr().is_terminal() {
+        eprint!("\r\x1b[2K");
+    }
 }
 
 /// L'accordeur sur une ligne : la note, l'écart et le geste, ou `joue une corde`. La dernière note

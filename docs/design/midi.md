@@ -109,6 +109,7 @@ en sautant les titres de section.
 │ ▶ Son du morceau      CC 20 · défaut : 34           ● valeur 1 · il y a 12 s                  │
 │   Tempo et battue     horloge · Start · Stop        ● il y a 3 s · ♩ 124 ⏵                    │
 │   Tap tempo           pas convenu                                                             │
+│   Accordeur           CC 15                         ● il y a 2 min                            │
 │                                                                                               │
 │ MON PÉDALIER · répétitions et secours                                                         │
 │   Port                MC6 MKII MIDI 1 · 28:0        ● branché                                 │
@@ -117,6 +118,7 @@ en sautant les titres de section.
 │   Preset ou morceau   Program Change                ○ jamais reçu                             │
 │   Son du morceau      CC 34                         ○ jamais reçu                             │
 │   Tap tempo           CC 14                         ● il y a 3 min                            │
+│   Accordeur           CC 15                         ○ jamais reçu                             │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -133,6 +135,7 @@ sur chaque bouton, et sa ligne s'allume.
 | Son du morceau | `CC n`, suivi de `· défaut : 34` s'il en diffère | la fenêtre « Régler » | coupe / rétablit |
 | Tempo et battue (groupe) | `horloge · Start · Stop` | rien à régler, un message le dit | coupe / rétablit |
 | Tap tempo | `CC n`, ou `pas convenu` | la fenêtre « Régler » | coupe / rétablit |
+| Accordeur | `CC n` (défaut 15 : ≥ 64 coupe la basse, < 64 rend le son) | la fenêtre « Régler » | coupe / rétablit |
 
 - **La ligne Canal parle** : `vu : canal 1` quand un seul canal a été vu ;
   `vus ici : 5 · 10 · plusieurs appareils parlent`, en jaune, tant que le canal vaut `tous` et que
@@ -233,6 +236,8 @@ Morceau : Program Change, compté de 1 à 128
   (si ton logiciel compte de 0 à 127, retire 1)
 Son du morceau : CC 20, valeur 0 = 1er son
 Tempo : horloge MIDI, Start, Stop, position
+Accordeur : CC 15 = 127 coupe ma basse, CC 15 = 0 la rend
+  (le PC du morceau suivant et Start la rendent aussi)
 Je n'envoie rien. Tout autre message est ignoré.
 
 Set « Groupe 1 · Live Mairie »

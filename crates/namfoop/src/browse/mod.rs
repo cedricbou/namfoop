@@ -332,7 +332,12 @@ pub fn run(
     }
     // les numéros de message MIDI écoutés (ADR 0011), réglables par [midi]
     if let Some(m) = conf.config.midi.as_ref() {
-        st.midi = state::midi::MidiKeys { cc_sound: m.cc_sound, cc_tap: m.cc_tap, clock: m.clock };
+        st.midi = state::midi::MidiKeys {
+            cc_sound: m.cc_sound,
+            cc_tap: m.cc_tap,
+            cc_tuner: m.cc_tuner,
+            clock: m.clock,
+        };
     }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
