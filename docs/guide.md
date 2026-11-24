@@ -2254,8 +2254,17 @@ ouvrir la config :
   quelque chose n'est pas enregistré ; **`h`** donne toutes les touches.
 
 Un numéro hors bornes, ou déjà pris par un autre geste du même canal, est refusé avec une phrase qui
-dit pourquoi. Sous l'onglet, la zone « reçu » montre les derniers messages, l'appareil, le canal et
-ce que namfoop en ferait ; ce qui arrive sur un canal non réglé y est seulement compté.
+dit pourquoi.
+
+Sous l'onglet, la **zone « reçu »** montre les trois derniers messages — l'appareil, le canal, le
+message — et **ce que namfoop en ferait**, d'après le set du moment (`[set] default`, celui que
+`browse` a ouvert en dernier) : `→ morceau « Le Phare », son 1 « fuzz »`, `→ son 2 « clean »`,
+`→ tap tempo`, `→ basse coupée, accordeur`. Un message de ton canal qui ne correspond à rien est
+en jaune, avec sa raison : `hors accord : aucun morceau du set n'a le numéro 9`,
+`hors accord : « Le Phare » n'a que 2 sons`, `relié à aucun geste`. C'est la vérification de la
+balance : le groupe envoie, tu lis. L'horloge s'y affiche par son tempo, une ligne par changement.
+Ce qui arrive sur un canal non réglé n'est pas listé : une ligne le compte et nomme ses canaux.
+`--library` indique où lire le set, comme pour les autres commandes.
 
 **L'affichage ligne à ligne** reste là pour les essais et les scripts : `namfoop midi --lines`
 (imposé quand la sortie n'est pas un terminal, et par `--seconds`) liste les ports d'entrée vus par

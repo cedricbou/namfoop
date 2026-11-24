@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#381)
+- **L'écran MIDI dit ce que namfoop fait de chaque message**, d'après le set du moment : le
+  morceau et le son qu'un Program Change ou un CC appellent, ou, en jaune, pourquoi rien ne
+  correspond (« aucun morceau du set n'a le numéro 9 », « « Le Phare » n'a que 2 sons », « aucun
+  morceau n'est joué »). L'horloge s'y lit par son tempo, une ligne par changement. `browse` et
+  l'écran appliquent les mêmes règles, et `browse` dit d'un PC sans morceau « aucun morceau du set
+  n'a le numéro n ».
+
 ### MIDI (#380)
 - **`namfoop midi` ouvre un écran de réglage** : l'onglet Appareils et canaux montre tes appareils
   par leur nom, ce qu'ils envoient et lequel donne l'horloge, puis chaque canal avec le numéro de
