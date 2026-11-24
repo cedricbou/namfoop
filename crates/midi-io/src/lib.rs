@@ -11,9 +11,9 @@
 //! règles temps réel l'interdisent. [`Input`] tient ce fil et publie dans une file `rtrb` sans
 //! verrou ; l'appelant la vide quand il veut, au rythme de sa boucle d'écran.
 //!
-//! **Tous les canaux MIDI sont acceptés** (omni) et le canal n'est pas transmis : namfoop est un
-//! seul instrument, et un pédalier branché sur son canal d'usine doit marcher sans réglage. Le
-//! jour où un canal de la table parle à sa place, le filtre se posera ici.
+//! **Tous les canaux MIDI sont acceptés** (omni), et chaque message dit le sien
+//! ([`Message::channel`]) : choisir ce qu'on écoute est l'affaire de l'appelant, qui sait ce qu'un
+//! canal veut dire. Un pédalier branché sur son canal d'usine marche donc sans réglage.
 
 mod error;
 mod seq;
@@ -77,6 +77,11 @@ pub struct Message {
     /// Sur un message qui n'est pas un top, c'est le nombre de tops reçus **à son arrivée** : ce
     /// qui permet de caler un tap au pied sur le top le plus proche.
     pub clock_seq: u64,
+    /// **Le canal** sur lequel le message est arrivé, **de 1 à 16** comme sur un pédalier (le câble
+    /// compte de 0 à 15 ; la conversion est faite ici, une fois). `None` pour ce qui n'a pas de
+    /// canal — l'horloge, `Start`, `Stop`, `Continue`, la position — et pour une ligne de port
+    /// simulé écrite sans canal.
+    pub channel: Option<u8>,
 }
 
 /// Quel port écouter. Traduit depuis la CLI et la config par le binaire : cette crate ne lit ni
@@ -135,7 +140,7 @@ impl Sink {
     /// Un top d'horloge est **compté avant** d'être poussé, et donc compté même si la file
     /// débordait : le top a bien eu lieu, et c'est son numéro qui porte la phase. Perdre le
     /// message coûte une mesure de tempo ; perdre le comptage décalerait la grille pour de bon.
-    fn push(&mut self, event: Event) {
+    fn push(&mut self, event: Event, channel: Option<u8>) {
         // Compté **avant** d'être poussé, donc compté même si la file débordait : le top a bien eu
         // lieu, et c'est son numéro qui porte la phase. `fetch_add` rend la valeur d'avant, et le
         // numéro de ce top-ci est donc celle-là plus un.
@@ -144,7 +149,7 @@ impl Sink {
         } else {
             self.clock_ticks.load(Ordering::Relaxed)
         };
-        let msg = Message { at: Instant::now(), event, clock_seq };
+        let msg = Message { at: Instant::now(), event, clock_seq, channel };
         if self.tx.push(msg).is_err() {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
@@ -249,13 +254,15 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("namfoop-midi-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("dossier");
         let path = dir.join("sequence.txt");
-        std::fs::write(&path, "pc 3\ncc 34 2\nclock\nstart\nspp 64\n").expect("écriture");
+        std::fs::write(&path, "pc 3 ch 5\ncc 34 2\nclock\nstart\nspp 64\n").expect("écriture");
         let mut input = open(&Settings { port: Some(format!("sim:{}", path.display())) }).expect("ouverture");
         let mut vus = Vec::new();
+        let mut canaux = Vec::new();
         let limite = Instant::now() + std::time::Duration::from_secs(2);
         while vus.len() < 5 && Instant::now() < limite {
             while let Some(m) = input.try_pop() {
                 vus.push(m.event);
+                canaux.push(m.channel);
             }
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
@@ -268,6 +275,11 @@ mod tests {
                 Event::ClockStart,
                 Event::SongPosition(64),
             ]
+        );
+        assert_eq!(
+            canaux,
+            vec![Some(5), None, None, None, None],
+            "le canal suit le message, quand il en a un"
         );
         assert_eq!(input.dropped(), 0, "rien ne doit se perdre");
         std::fs::remove_dir_all(&dir).ok();

@@ -126,7 +126,7 @@ impl Horloge {
             if matches!(m.event, midi_io::Event::ClockStart | midi_io::Event::ClockStop) {
                 *self = Self::default();
             }
-            return Some(midi_io::describe(&m.event));
+            return Some(midi_io::describe(&m.event, m.channel));
         }
         self.tops += 1;
         if self.tops < TOPS_PAR_NOIRE {
@@ -145,7 +145,7 @@ mod tests {
     use midi_io::{Event, Message};
 
     fn msg(event: Event, at: Instant) -> Message {
-        Message { at, event, clock_seq: 0 }
+        Message { at, event, clock_seq: 0, channel: None }
     }
 
     #[test]

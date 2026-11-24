@@ -414,7 +414,7 @@ pub fn run(
             // qu'on voulait entendre.
             if let Some(m) = &mut midi {
                 while let Some(msg) = m.try_pop() {
-                    trace(&format!("midi {}", midi_io::describe(&msg.event)));
+                    trace(&format!("midi {}", midi_io::describe(&msg.event, msg.channel)));
                     // l'instant du message, sur la ligne de temps de la boucle : c'est lui qui
                     // mesure le tempo, pas le tour de boucle (`saturating_duration_since` parce
                     // qu'un message peut précéder le départ de la boucle)

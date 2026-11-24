@@ -181,7 +181,7 @@ pub fn run(
         // sans quoi la mesure serait fausse de la période de la boucle.
         if let Some(m) = &mut midi {
             while let Some(msg) = m.try_pop() {
-                log::debug!("MIDI : {}", midi_io::describe(&msg.event));
+                log::debug!("MIDI : {}", midi_io::describe(&msg.event, msg.channel));
                 // l'accordeur au pied ou depuis Ableton : CC 15 (réglable), 64 ou plus coupe, moins
                 // de 64 rend le son ; un changement de morceau, de son ou un `Start` le rend aussi
                 let want = match msg.event {
@@ -198,7 +198,7 @@ pub fn run(
                     clear_status(quiet);
                     log::info!(
                         "{} → {}",
-                        midi_io::describe(&msg.event),
+                        midi_io::describe(&msg.event, msg.channel),
                         if cut { "basse coupée, accordeur" } else { "son rendu" }
                     );
                 }

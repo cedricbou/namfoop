@@ -106,7 +106,7 @@ impl Source for SimPort {
 /// n'est pas une raison d'arrêter d'écouter.
 fn lire(ligne: &str, path: &Path, out: &mut Sink) {
     match text::parse_line(ligne) {
-        Ok(Some(event)) => out.push(event),
+        Ok(Some((event, channel))) => out.push(event, channel),
         Ok(None) => {}
         Err(e) => log::warn!("port MIDI simulé {} : {e}", path.display()),
     }
