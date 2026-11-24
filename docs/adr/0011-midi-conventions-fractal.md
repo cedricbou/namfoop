@@ -87,3 +87,42 @@ au-delà d'un morceau.
   tout le monde, pour ne satisfaire personne.
 - **Accepter les deux** (CC 34 **et** CC 69 pour le son) : deux portes d'entrée pour un même geste,
   donc deux fois la surface à expliquer et à tester, pour un gain nul — le numéro est réglable.
+
+## Amendement : trois gestes sans convention à suivre
+
+**Adopté** (décision de l'utilisateur, 24/11/2026), avec la spécification
+[`instruments.md`](../design/instruments.md).
+
+Un pédalier à quatre boutons, sans Ableton, a besoin de trois gestes que les tableaux ci-dessus ne
+couvrent pas : dire **quel instrument** on a pris, passer au **morceau précédent**, passer au
+**morceau suivant**. La règle de cet ADR est de suivre le numéro que le matériel parle déjà. Pour
+ces trois gestes, il n'y en a pas :
+
+- **L'instrument.** Le concept existe : des réglages d'entrée nommés par instrument (Boss GX-100 et
+  GX-10, « INPUT SETTINGS » 1 à 10), des préréglages de la section d'entrée par guitare (Kemper).
+  Aucun numéro MIDI convenu pour les rappeler n'a été trouvé dans la documentation de Boss, de
+  Kemper, de Fractal et du Quad Cortex.
+- **Le morceau suivant / précédent.** Chez Fractal, un preset se rappelle par Program Change : le
+  wiki Fractal ne liste aucun CC « preset suivant ». Les CC 123 et 124 de l'Axe-Fx II incrémentent
+  la *scène*, et ce sont aussi les messages de mode « All Notes Off » et « Omni Off » de la norme
+  MIDI : les reprendre exposerait à un changement de morceau quand un séquenceur les envoie. Sur le
+  Quad Cortex, un incrément est encore réclamé par ses utilisateurs ; l'Ampero II Stage de Hotone a
+  les siens (CC 26 et 27), propres à cet appareil.
+
+| Ce qu'on reçoit | Message | Chez namfoop |
+|---|---|---|
+| l'**instrument** | **CC 102**, valeur n | l'instrument de numéro n+1, après confirmation par le même geste |
+| le **morceau précédent** | **CC 103**, ≥ 64 | le morceau d'avant dans le set, sur son premier son |
+| le **morceau suivant** | **CC 104**, ≥ 64 | le morceau d'après |
+
+- **102 à 104** sont dans la plage 102-119, que la norme MIDI laisse sans affectation, et loin des
+  numéros des trois gabarits livrés. Ils restent réglables, par canal, comme les autres.
+- **64 ou plus agit, moins de 64 est ignoré** : c'est la règle des incréments de scène de Fractal,
+  et ce qui fait qu'un bouton qui envoie 127 à l'appui et 0 au relâcher ne compte qu'une fois.
+- **La valeur de l'instrument compte de 0**, comme celle du CC 34 des sons.
+- **Les gabarits livrés ne portent pas ces numéros** : ils décrivent ce que parle un appareil, et
+  aucun ne parle ces gestes.
+
+Le refus d'« un numéro neutre choisi hors des conventions du marché », plus haut, tient toujours
+pour les gestes qui **ont** une convention. Ces trois-là n'en ont pas : le numéro de namfoop est
+alors le seul possible, et le rendre réglable est tout ce qu'on peut offrir.
