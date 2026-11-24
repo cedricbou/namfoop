@@ -37,6 +37,11 @@ pub fn run(
     let mut st = State::new(conf.config.midi.clone().unwrap_or_default(), !conf.ignored);
     st.set = load_set(conf, library, set);
     st.sets = sets(library);
+    // les gabarits livrés, puis ceux de l'utilisateur (`midi-templates/` à côté de la config)
+    match model::midi_template::all(Some(&model::midi_template::user_dir(&conf.path))) {
+        Ok(all) => st.templates = all.into_iter().map(|(_, t)| t).collect(),
+        Err(e) => st.message = Some((format!("gabarits MIDI : {e:#}"), state::Tone::Error)),
+    }
     let port = input.description().to_string();
     let start = Instant::now();
     let mut session = tui::Session::start()?;

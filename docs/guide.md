@@ -2256,6 +2256,25 @@ ouvrir la config :
 Un numéro hors bornes, ou déjà pris par un autre geste du même canal, est refusé avec une phrase qui
 dit pourquoi.
 
+**Les gabarits** règlent un canal d'un coup, sans brancher le pédalier : la ligne **Gabarit** de
+chaque canal, `Entrée`, et la liste montre les numéros de chacun avant que tu choisisses.
+
+| Gabarit | Son du morceau | Tap tempo | Accordeur |
+|---|---|---|---|
+| Fractal (le défaut) | CC 34 | CC 14 | CC 15 |
+| Quad Cortex | CC 43 | CC 44 | CC 45 |
+| Helix | CC 69 | CC 64 | CC 68 |
+
+Choisir un gabarit pose ses trois numéros ; en changer un à la main fait passer la ligne à
+« personnalisé ». Pour en ajouter un, dépose un fichier dans `midi-templates/`, à côté de la config
+(même forme que ceux livrés : `name`, `cc_sound`, `cc_tap`, `cc_tuner`) ; à nom de fichier égal, le
+tien prime. Les numéros de la Helix viennent des forums de Line 6, faute d'avoir pu lire son manuel :
+vérifie-les sur ton appareil (`namfoop midi --lines`). Sur la Helix, le CC de l'accordeur bascule ;
+namfoop, lui, coupe à 64 et plus et rend le son en dessous.
+
+Fractal, Axe-Fx, Quad Cortex, Neural DSP, Helix et Line 6 sont des marques de leurs propriétaires,
+citées seulement pour dire quels numéros ces appareils emploient ; namfoop n'a aucun lien avec eux.
+
 Sous l'onglet, la **zone « reçu »** montre les trois derniers messages — l'appareil, le canal, le
 message — et **ce que namfoop en ferait**, d'après le set du moment (`[set] default`, celui que
 `browse` a ouvert en dernier) : `→ morceau « Le Phare », son 1 « fuzz »`, `→ son 2 « clean »`,

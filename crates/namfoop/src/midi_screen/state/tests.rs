@@ -39,6 +39,7 @@ fn sans_canal_regle_un_seul_bloc_tous_les_canaux() {
         s.rows(),
         [
             Row::Channel(None),
+            Row::Template(None),
             Row::Gesture(None, Gesture::Pc),
             Row::Gesture(None, Gesture::Sound),
             Row::Gesture(None, Gesture::Tap),
@@ -585,4 +586,46 @@ fn entree_ecrit_la_fiche_et_s_enregistre_tout() {
     assert_eq!(s.on_key(Key::Char('S')), Action::SaveBoth);
     s.on_key(Key::Down);
     assert_eq!(s.fiche_scroll, 1);
+}
+
+// ------------------------------------------------------------------ les gabarits
+
+fn with_templates() -> State {
+    let mut s = new();
+    s.templates = model::midi_template::all(None).unwrap().into_iter().map(|(_, t)| t).collect();
+    s
+}
+
+/// Sans rien choisir, le gabarit est Fractal : ce sont les numéros par défaut.
+#[test]
+fn sans_rien_choisir_le_gabarit_est_fractal() {
+    let s = with_templates();
+    assert_eq!(s.template_of(None).map(|t| t.name.as_str()), Some("Fractal"));
+}
+
+/// Choisir un gabarit règle le son, le tap et l'accordeur d'un coup ; changer un numéro à la main
+/// le fait passer à « personnalisé ».
+#[test]
+fn choisir_un_gabarit_regle_les_trois_numeros() {
+    let mut s = with_templates();
+    s.on_key(Key::Char('a'));
+    typed(&mut s, "1");
+    s.on_key(Key::Enter);
+    s.cursor = Row::Template(Some(1));
+    s.on_key(Key::Enter);
+    let Some(Modal::List(w)) = &s.modal else { panic!("la liste des gabarits") };
+    assert!(w.items.iter().any(|i| i.starts_with("Quad Cortex") && i.contains("son CC 43")), "{:?}", w.items);
+    let qc = w.items.iter().position(|i| i.starts_with("Quad Cortex")).unwrap();
+    for _ in 0..qc {
+        s.on_key(Key::Down);
+    }
+    s.on_key(Key::Enter);
+    let n = s.numbers(Some(1));
+    assert_eq!((n.cc_sound, n.cc_tap, n.cc_tuner), (43, 44, 45));
+    assert_eq!(s.template_of(Some(1)).map(|t| t.name.as_str()), Some("Quad Cortex"));
+    s.cursor = Row::Gesture(Some(1), Gesture::Tap);
+    s.on_key(Key::Enter);
+    typed(&mut s, "50");
+    s.on_key(Key::Enter);
+    assert_eq!(s.template_of(Some(1)), None, "un numéro changé à la main : personnalisé");
 }

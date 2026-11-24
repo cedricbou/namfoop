@@ -1,0 +1,7 @@
+# Gabarit MIDI livré avec namfoop. « Helix » et « Line 6 » sont des marques de Yamaha Guitar
+# Group, citées pour désigner les numéros qu'emploient ces appareils ; aucun lien avec namfoop.
+name = "Helix"
+cc_sound = 69      # snapshot : valeur 0 = snapshot 1 … 7 = snapshot 8
+cc_tap = 64        # tap tempo (valeurs 64-127)
+cc_tuner = 68      # accordeur ; depuis le firmware 2.x, la Helix bascule quelle que soit la valeur
+source = "CC réservés de la Helix (Helix, LT, HX), relevés sur le forum Line 6 : à vérifier sur le matériel"

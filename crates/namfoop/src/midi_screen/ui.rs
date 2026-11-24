@@ -203,6 +203,14 @@ fn block(s: &State, ch: Option<u8>, now_ms: u64, width: usize, out: &mut Vec<Ite
         },
     };
     out.push(item(Some(Row::Channel(ch)), vec![(format!("  {}", pad(&title, col)), strong()), right]));
+    let gabarit = s.template_of(ch).map_or("personnalisé".to_string(), |t| t.name.clone());
+    out.push(item(
+        Some(Row::Template(ch)),
+        vec![
+            (format!("    {}", pad("Gabarit", LABEL - 2)), tone(Tone::Dim)),
+            (pad(&gabarit, VALUE), tone(Tone::Plain)),
+        ],
+    ));
     let n = s.numbers(ch);
     for g in super::state::GESTURES {
         let muted = n.muted.has(g);
@@ -648,6 +656,7 @@ fn pick(w: &ListWin, area: Rect, f: &mut Frame) {
     let title = match w.kind {
         super::state::ListKind::Channel(_) => "Choisir le canal · Plan du set et Fiche",
         super::state::ListKind::Set(_) => "Choisir le set",
+        super::state::ListKind::Template(_) => "Choisir un gabarit · ses numéros remplacent ceux du canal",
     };
     let mut lines: Vec<Line> = w
         .items
@@ -655,7 +664,7 @@ fn pick(w: &ListWin, area: Rect, f: &mut Frame) {
         .enumerate()
         .map(|(i, it)| {
             if i == w.idx {
-                Line::styled(pad(&format!("▶ {it}"), 46), inverse())
+                Line::styled(pad(&format!("▶ {it}"), 66), inverse())
             } else {
                 Line::styled(format!("  {it}"), tone(Tone::Plain))
             }
@@ -664,7 +673,7 @@ fn pick(w: &ListWin, area: Rect, f: &mut Frame) {
     lines.push(Line::raw(""));
     lines.push(bar_line(&table::bar(Ctx::Pick)[0]));
     let h = (w.items.len() as u16 + 4).min(area.height);
-    window(title.into(), Style::new().fg(theme::neutral()), centered(area, 52, h), lines, f);
+    window(title.into(), Style::new().fg(theme::neutral()), centered(area, 72, h), lines, f);
 }
 
 #[cfg(test)]

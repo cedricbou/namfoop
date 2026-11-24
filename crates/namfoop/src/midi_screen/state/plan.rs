@@ -145,6 +145,11 @@ impl State {
                         self.plan_channel = chans.get(w.idx).copied();
                         self.say(format!("plan et fiche : {}", w.items[w.idx]), Tone::Ok);
                     }
+                    ListKind::Template(ch) => {
+                        if let Some(tpl) = self.templates.get(w.idx).cloned() {
+                            self.apply_template(ch, &tpl);
+                        }
+                    }
                     ListKind::Set(paths) => {
                         if let Some(p) = paths.get(w.idx) {
                             return Action::OpenSet(p.clone());
@@ -219,5 +224,61 @@ impl State {
             _ => return None,
         }
         Some(Action::None)
+    }
+
+    /// Le gabarit dont un bloc a exactement les numéros, ou `None` : « personnalisé ». Rien ne
+    /// l'enregistre : il se déduit, si bien qu'un numéro changé à la main le fait changer.
+    pub fn template_of(&self, ch: Option<u8>) -> Option<&model::midi_template::MidiTemplate> {
+        let n = self.numbers(ch);
+        self.templates
+            .iter()
+            .find(|t| (t.cc_sound, t.cc_tap, t.cc_tuner) == (n.cc_sound, n.cc_tap, n.cc_tuner))
+    }
+
+    /// `Entrée` sur la ligne Gabarit : la liste, avec les numéros de chacun.
+    pub(super) fn choose_template(&mut self, ch: Option<u8>) {
+        if self.templates.is_empty() {
+            self.say("aucun gabarit : la liste est vide", Tone::Plain);
+            return;
+        }
+        let current = self.template_of(ch).map(|t| t.name.clone());
+        let idx = self.templates.iter().position(|t| Some(&t.name) == current.as_ref()).unwrap_or(0);
+        let items = self
+            .templates
+            .iter()
+            .map(|t| {
+                format!(
+                    "{:<13} son CC {} · tap CC {} · accordeur CC {}",
+                    t.name, t.cc_sound, t.cc_tap, t.cc_tuner
+                )
+            })
+            .collect();
+        self.modal = Some(Modal::List(ListWin { kind: ListKind::Template(ch), items, idx }));
+    }
+
+    /// Poser les numéros d'un gabarit sur un bloc : le son, le tap, l'accordeur.
+    pub(super) fn apply_template(&mut self, ch: Option<u8>, t: &model::midi_template::MidiTemplate) {
+        match ch {
+            None => {
+                self.draft.cc_sound = t.cc_sound;
+                self.draft.cc_tap = t.cc_tap;
+                self.draft.cc_tuner = t.cc_tuner;
+            }
+            Some(c) => {
+                if let Some(x) = self.draft.channels.iter_mut().find(|x| x.channel == c) {
+                    x.cc_sound = Some(t.cc_sound);
+                    x.cc_tap = Some(t.cc_tap);
+                    x.cc_tuner = Some(t.cc_tuner);
+                }
+            }
+        }
+        let ou = ch.map(|c| format!(", canal {c}")).unwrap_or_default();
+        self.say(
+            format!(
+                "gabarit {}{ou} : son CC {}, tap CC {}, accordeur CC {}",
+                t.name, t.cc_sound, t.cc_tap, t.cc_tuner
+            ),
+            Tone::Ok,
+        );
     }
 }

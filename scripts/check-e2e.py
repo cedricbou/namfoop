@@ -755,8 +755,9 @@ def scenario_midi_ecran(binaire, lignes, colonnes):
             ec.lire(0.6)
             verifier("reçu sur le canal 5" in ec.voir(), f"{taille} : un appui remplit la saisie")
             ec.taper("\r", 0.5)
-            ec.taper("\x1b[B", 0.2)
-            ec.taper("\x1b[B", 0.2)
+            # Canal 5 › Gabarit › Morceau › Son du morceau
+            for _ in range(3):
+                ec.taper("\x1b[B", 0.2)
             ec.taper("\r", 0.4)
             ec.taper("2", 0.1)
             ec.taper("0", 0.1)
