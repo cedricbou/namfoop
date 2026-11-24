@@ -5,6 +5,7 @@
 pub mod card;
 pub mod config;
 mod error;
+pub mod midi_template;
 pub mod routing;
 
 pub use card::{CardProfile, MixerSetting};

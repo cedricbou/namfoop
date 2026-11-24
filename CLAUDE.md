@@ -26,7 +26,8 @@ scripts/          check.sh (avant tout commit), check-docs.sh, check-arch.sh, ge
 docs/             demarrage-rapide.md (le parcours en images ; demarrage/ : ses captures),
                   guide.md, cli.md (généré), architecture.md, adr/, design/ (spécifications d'écran
                   et maquettes), identite/ (charte.md : palette, polices, logo, icône, bannière)
-profiles/         profils de carte livrés (TOML, inclus dans le binaire par model::card)
+profiles/         profils de carte livrés (TOML, inclus dans le binaire par model::card) ;
+                  profiles/midi/ : gabarits MIDI livrés (model::midi_template)
 library/, nam/    sons et zips de l'utilisateur : non versionnés, ne pas modifier (tests : copie jetable)
 ```
 

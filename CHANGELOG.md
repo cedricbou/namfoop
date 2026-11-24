@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#384)
+- **Des gabarits de numéros par canal** : dans `namfoop midi`, la ligne Gabarit de chaque canal
+  ouvre une liste — Fractal (le défaut), Quad Cortex, Helix — avec leurs numéros ; choisir règle
+  d'un coup le CC du son, du tap et de l'accordeur, et changer un numéro à la main fait passer à
+  « personnalisé ». Les gabarits sont des fichiers livrés (`profiles/midi/`) ; un gabarit déposé
+  dans `midi-templates/`, à côté de la config, s'ajoute ou prime sans attendre une version.
+
 ### MIDI (#383)
 - **La fiche à envoyer au groupe** : l'onglet Fiche de `namfoop midi` écrit le texte de ce que tu
   attends en MIDI pour un canal (`C`) — le canal, le message de chaque geste, comment compter les

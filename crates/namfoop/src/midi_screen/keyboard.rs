@@ -71,6 +71,12 @@ fn contexts() -> Vec<Contexte> {
             s.cursor = Row::Channel(None);
             s
         }),
+        ("liste · le gabarit", || {
+            let mut s = base();
+            s.templates = model::midi_template::all(None).unwrap().into_iter().map(|(_, t)| t).collect();
+            s.cursor = Row::Template(Some(5));
+            s
+        }),
         ("liste · le Program Change", || {
             let mut s = base();
             s.cursor = Row::Gesture(Some(5), Gesture::Pc);

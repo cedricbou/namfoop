@@ -5,8 +5,7 @@ et canaux, Plan du set, Fiche), la fenêtre « Régler », la zone « reçu », 
 sortie, et le clavier. Les conventions de message sont dans l'[ADR 0011](../adr/0011-midi-conventions-fractal.md),
 l'horloge et le tap dans l'[ADR 0008](../adr/0008-tempo-et-divisions.md), l'ordre des étages du
 clavier dans l'[ADR 0009](../adr/0009-clavier-de-browse.md), le format d'un set dans
-[`set.md`](set.md), le CC de l'accordeur dans [`accordeur.md`](accordeur.md) § 3. Les gabarits de
-numéros par canal ne sont pas décrits ici.
+[`set.md`](set.md), le CC de l'accordeur dans [`accordeur.md`](accordeur.md) § 3.
 
 **État** : spécification d'un écran **à construire**. Rien ici n'est vérifié par un test : c'est la
 cible que suivent les stories de l'épique « Régler le MIDI avec mon groupe, sans écrire la config ».
@@ -174,6 +173,7 @@ appareil l'a emprunté en dernier.
 | Appareil | case, nom, état | lui confier l'horloge ; sur l'appareil choisi, rendre l'horloge au premier qui bat | décocher / cocher | — |
 | Canal n | — | la fenêtre « Régler » (§ 5), pour changer de numéro | — | retire le canal |
 | Tous les canaux | — | la fenêtre « Régler » : le numéro choisi devient le premier canal réglé | — | — |
+| Gabarit | son nom, ou `personnalisé` | la liste des gabarits, avec leurs numéros ; choisir pose les trois CC | — | — |
 | Morceau | `Program Change` | rien à régler, un message le dit | coupe / rétablit | — |
 | Son du morceau | `CC n`, suivi de `· défaut : 34` s'il en diffère | la fenêtre « Régler » | coupe / rétablit | — |
 | Tap tempo | `CC n` (défaut 14) | la fenêtre « Régler » | coupe / rétablit | — |

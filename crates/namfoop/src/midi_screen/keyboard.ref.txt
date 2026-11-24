@@ -22,7 +22,7 @@
 
 ## liste · un canal
   Up       curseur: Channel(Some(5)) → Device("UM-ONE")
-  Down     curseur: Channel(Some(5)) → Gesture(Some(5), Pc)
+  Down     curseur: Channel(Some(5)) → Template(Some(5))
   Left     « ← ne va pas plus loin : Appareils et canaux est le premier onglet »
   Right    onglet: Devices → Plan
   Entrée   fenêtre: aucune → Régler
@@ -42,7 +42,7 @@
   inertes : Backspace Q 5 P n L 1 i C 0
 
 ## liste · tous les canaux
-  Down     curseur: Channel(None) → Gesture(None, Pc)
+  Down     curseur: Channel(None) → Template(None)
   Left     « ← ne va pas plus loin : Appareils et canaux est le premier onglet »
   Right    onglet: Devices → Plan
   Entrée   fenêtre: aucune → Régler
@@ -61,8 +61,29 @@
   u        « l'accordeur est dans browse et run : ici, rien ne sonne »
   inertes : Up Backspace Q 5 P n L 1 i C 0
 
+## liste · le gabarit
+  Up       curseur: Template(Some(5)) → Channel(Some(5))
+  Down     curseur: Template(Some(5)) → Gesture(Some(5), Pc)
+  Left     « ← ne va pas plus loin : Appareils et canaux est le premier onglet »
+  Right    onglet: Devices → Plan
+  Entrée   fenêtre: aucune → liste
+  Échap    « Échap ne quitte pas : q pour quitter »
+  Tab      onglet: Devices → Plan
+  BackTab  onglet: Devices → Fiche
+  a        fenêtre: aucune → Régler
+  b        « b coupe un geste ou un appareil : vise sa ligne »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        « x retire un canal : vise sa ligne « Canal n » »
+  S        « config déjà enregistrée »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  inertes : Backspace Q 5 P n L 1 i C 0
+
 ## liste · le Program Change
-  Up       curseur: Gesture(Some(5), Pc) → Channel(Some(5))
+  Up       curseur: Gesture(Some(5), Pc) → Template(Some(5))
   Down     curseur: Gesture(Some(5), Pc) → Gesture(Some(5), Sound)
   Left     « ← ne va pas plus loin : Appareils et canaux est le premier onglet »
   Right    onglet: Devices → Plan

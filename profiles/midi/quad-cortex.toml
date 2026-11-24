@@ -1,0 +1,7 @@
+# Gabarit MIDI livré avec namfoop. « Quad Cortex » est une marque de Neural DSP Technologies,
+# citée pour désigner les numéros qu'emploie cet appareil ; aucun lien avec namfoop.
+name = "Quad Cortex"
+cc_sound = 43      # scènes : valeur 0 = scène A … 7 = scène H
+cc_tap = 44        # tap tempo : chaque message vaut un appui
+cc_tuner = 45      # accordeur : 0-63 ferme, 64-127 ouvre
+source = "manuel du Quad Cortex 4.1.1 (CorOS 4.1.1), « Incoming MIDI CC List »"

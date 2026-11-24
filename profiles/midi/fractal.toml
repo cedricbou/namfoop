@@ -1,0 +1,9 @@
+# Gabarit MIDI livré avec namfoop : les numéros que namfoop écoute par défaut (ADR 0011).
+# Copier dans midi-templates/, à côté de la config, pour le modifier : le gabarit de
+# l'utilisateur prime. « Fractal » et « Axe-Fx » sont des marques de Fractal Audio Systems,
+# citées pour désigner les numéros qu'emploient ses appareils ; aucun lien avec namfoop.
+name = "Fractal"
+cc_sound = 34      # scène (les gabarits Fractal des pédaliers tiers, Morningstar MC6 / MC8)
+cc_tap = 14        # tap tempo
+cc_tuner = 15      # accordeur de l'Axe-Fx II
+source = "ADR 0011 : numéros de l'Axe-Fx II, repris par les gabarits Fractal des pédaliers tiers"

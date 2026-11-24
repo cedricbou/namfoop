@@ -6,6 +6,9 @@ défaut `~/.config/namfoop/config.toml` ou `$XDG_CONFIG_HOME` ; `data_dir()` : `
 `$XDG_DATA_HOME`, où vit la bibliothèque par défaut), routage (`routing.rs` : `Routing`,
 `OutputRoute`, `Source`), profils de carte (`card.rs` : `CardProfile`, `MixerSetting`, profils livrés
 `profiles/*.toml` du dépôt inclus par `include_str!`, `all_profiles`, `find`, `user_dir`).
+Gabarits MIDI (`midi_template.rs` : `MidiTemplate`, `all`, `user_dir`) : `profiles/midi/*.toml`
+inclus de la même façon, ceux de `midi-templates/` (à côté de la config) priment ; un gabarit dont
+deux gestes partagent un CC est refusé à la lecture.
 Les presets ne sont **pas** ici : ce sont des fichiers de la bibliothèque, lus par `library`
 (`docs/architecture.md`).
 

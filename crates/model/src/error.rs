@@ -24,6 +24,9 @@ pub enum Error {
     },
     #[error("profil de carte inconnu « {id} » (connus : {known} ; les tiens dans {})", dir.display())]
     UnknownProfile { id: String, known: String, dir: PathBuf },
+    /// Un fichier lisible mais faux (un gabarit MIDI dont deux gestes partagent un CC…).
+    #[error("{0}")]
+    Msg(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

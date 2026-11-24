@@ -32,6 +32,8 @@ pub enum Row {
     Device(String),
     /// « Tous les canaux » (aucun canal réglé), ou un canal réglé.
     Channel(Option<u8>),
+    /// Le gabarit d'un bloc : déduit de ses numéros, choisi dans une liste.
+    Template(Option<u8>),
     Gesture(Option<u8>, Gesture),
 }
 
@@ -117,6 +119,8 @@ pub struct ListWin {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ListKind {
+    /// Un gabarit pour le bloc (`None` : tous les canaux).
+    Template(Option<u8>),
     /// Le canal dont le Plan du set montre les CC (`C`).
     Channel(Vec<u8>),
     /// Un autre set (`L`) : leurs chemins, dans l'ordre des noms.
@@ -198,6 +202,8 @@ pub struct State {
     pub following: Option<String>,
     /// Le tempo mesuré sur l'horloge suivie, noire par noire.
     pub tempo: Option<f64>,
+    /// Les gabarits connus (livrés, puis ceux de l'utilisateur), pour la ligne Gabarit.
+    pub templates: Vec<model::midi_template::MidiTemplate>,
     ticks: u32,
     beat_start_ms: Option<u64>,
     /// Le dernier instant où chaque appareil a battu (top suivi ou écarté).
@@ -261,6 +267,7 @@ impl State {
             devices: Vec::new(),
             following: None,
             tempo: None,
+            templates: Vec::new(),
             ticks: 0,
             beat_start_ms: None,
             beating: HashMap::new(),
@@ -356,6 +363,7 @@ impl State {
         };
         for b in blocs {
             r.push(Row::Channel(b));
+            r.push(Row::Template(b));
             r.extend(GESTURES.iter().map(|g| Row::Gesture(b, *g)));
         }
         r
@@ -508,6 +516,7 @@ impl State {
                 }
             }
             Row::Channel(None) => self.open(Target::AddChannel),
+            Row::Template(ch) => self.choose_template(ch),
             Row::Channel(Some(c)) => self.open(Target::ChangeChannel(c)),
             Row::Gesture(_, Gesture::Pc) => self.say(
                 "un Program Change n'a pas de numéro à régler ici : b le coupe, le numéro d'un \
@@ -585,7 +594,9 @@ impl State {
                     self.say(format!("coupé : ce canal ne commande plus {}", gesture_name(g)), Tone::Plain);
                 }
             }
-            Row::Channel(_) => self.say("b coupe un geste ou un appareil : vise sa ligne", Tone::Plain),
+            Row::Channel(_) | Row::Template(_) => {
+                self.say("b coupe un geste ou un appareil : vise sa ligne", Tone::Plain)
+            }
         }
     }
 
