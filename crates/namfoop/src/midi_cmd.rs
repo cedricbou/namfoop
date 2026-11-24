@@ -99,6 +99,9 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
             d.name, d.ignored_clock
         );
     }
+    for d in input.devices().iter().filter(|d| !d.listened) {
+        println!("[{}] décoché : {} message(s) ignoré(s).", d.name, d.ignored);
+    }
     if perdus > 0 {
         println!("⚠ {perdus} message(s) perdus : la file était pleine.");
     }

@@ -108,6 +108,7 @@ impl MidiArgs {
         Some(Settings {
             port: self.midi_in.clone().or_else(|| conf.and_then(|m| m.input.clone())),
             clock_from: None,
+            ignore: Vec::new(),
         })
     }
 

@@ -101,6 +101,19 @@ pub struct Device {
     pub present: bool,
     /// Tops d'horloge reçus de lui et **non comptés**, parce qu'un autre appareil donne l'horloge.
     pub ignored_clock: u64,
+    /// Faux s'il est **décoché** ([`Settings::ignore`]) : rien de ce qu'il envoie n'arrive.
+    pub listened: bool,
+    /// Messages reçus de lui alors qu'il est décoché, tops d'horloge compris.
+    pub ignored: u64,
+}
+
+/// Une ligne de la table des appareils.
+struct Slot {
+    name: String,
+    present: bool,
+    listened: bool,
+    ignored_clock: Arc<AtomicU64>,
+    ignored: Arc<AtomicU64>,
 }
 
 /// La table des appareils, que le fil de lecture remplit et que l'appelant lit. Le verrou n'est
@@ -108,7 +121,7 @@ pub struct Device {
 /// vit dans un atomique par appareil.
 #[derive(Default)]
 struct Devices {
-    list: Mutex<Vec<(String, bool, Arc<AtomicU64>)>>,
+    list: Mutex<Vec<Slot>>,
 }
 
 /// Quoi écouter. Traduit depuis la CLI et la config par le binaire : cette crate ne lit ni
@@ -122,6 +135,9 @@ pub struct Settings {
     /// Un morceau du nom de l'appareil dont l'horloge et le transport comptent, à l'exclusion des
     /// autres. `None` : le premier qui bat, tant qu'il bat.
     pub clock_from: Option<String>,
+    /// Les appareils **décochés**, par un morceau de leur nom (insensible à la casse) : rien de ce
+    /// qu'ils envoient n'arrive, et leur horloge ne peut pas être celle qui est suivie.
+    pub ignore: Vec<String>,
 }
 
 /// Un port MIDI d'entrée visible sur la machine.
@@ -162,7 +178,11 @@ struct Sink {
     devices: Arc<Devices>,
     /// Copie locale des noms et des compteurs, pour ne jamais prendre le verrou par message.
     names: Vec<String>,
-    ignored: Vec<Arc<AtomicU64>>,
+    ignored_clock: Vec<Arc<AtomicU64>>,
+    /// Par appareil : `None` s'il est écouté, son compteur de messages écartés s'il est décoché.
+    off: Vec<Option<Arc<AtomicU64>>>,
+    /// [`Settings::ignore`], en minuscules.
+    ignore: Vec<String>,
     clock: clock::ClockChoice,
     /// L'appareil de l'horloge (`u32::MAX` : aucun) et l'instant de son dernier top compté, en
     /// millisecondes depuis `epoch` : publiés pour l'appelant, qui juge lui-même si elle bat encore.
@@ -182,11 +202,15 @@ impl Sink {
         let id = match self.names.iter().position(|n| n == name) {
             Some(i) => i,
             None => {
-                let compteur = Arc::new(AtomicU64::new(0));
+                let bas = name.to_lowercase();
+                let listened = !self.ignore.iter().any(|i| bas.contains(i.as_str()));
+                let ignored_clock = Arc::new(AtomicU64::new(0));
+                let ignored = Arc::new(AtomicU64::new(0));
                 self.names.push(name.to_string());
-                self.ignored.push(compteur.clone());
+                self.ignored_clock.push(ignored_clock.clone());
+                self.off.push((!listened).then(|| ignored.clone()));
                 if let Ok(mut l) = self.devices.list.lock() {
-                    l.push((name.to_string(), true, compteur));
+                    l.push(Slot { name: name.to_string(), present: true, listened, ignored_clock, ignored });
                 }
                 self.names.len() - 1
             }
@@ -199,7 +223,7 @@ impl Sink {
     fn set_present(&mut self, id: u16, present: bool) {
         if let Ok(mut l) = self.devices.list.lock() {
             if let Some(d) = l.get_mut(id as usize) {
-                d.1 = present;
+                d.present = present;
             }
         }
     }
@@ -213,7 +237,14 @@ impl Sink {
     /// **Une seule horloge** ([`clock::ClockChoice`]) : un top d'un autre appareil que celui de
     /// l'horloge n'est ni compté ni poussé — il va dans le compteur des tops écartés de son
     /// appareil —, et son transport n'est pas poussé non plus.
+    ///
+    /// **Un appareil décoché** est écarté avant tout le reste, horloge comprise : il ne peut donc
+    /// pas devenir l'appareil d'horloge.
     fn push(&mut self, event: Event, channel: Option<u8>, device: u16) {
+        if let Some(Some(c)) = self.off.get(device as usize) {
+            c.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
         let now = Instant::now();
         let name = self.names.get(device as usize).map(String::as_str).unwrap_or("");
         let garde = match event {
@@ -230,7 +261,7 @@ impl Sink {
         }
         if !garde {
             if event == Event::ClockTick {
-                if let Some(c) = self.ignored.get(device as usize) {
+                if let Some(c) = self.ignored_clock.get(device as usize) {
                     c.fetch_add(1, Ordering::Relaxed);
                 }
             }
@@ -310,11 +341,13 @@ impl Input {
         let Ok(l) = self.devices.list.lock() else { return Vec::new() };
         l.iter()
             .enumerate()
-            .map(|(i, (name, present, ignored))| Device {
+            .map(|(i, s)| Device {
                 id: i as u16,
-                name: name.clone(),
-                present: *present,
-                ignored_clock: ignored.load(Ordering::Relaxed),
+                name: s.name.clone(),
+                present: s.present,
+                ignored_clock: s.ignored_clock.load(Ordering::Relaxed),
+                listened: s.listened,
+                ignored: s.ignored.load(Ordering::Relaxed),
             })
             .collect()
     }
@@ -325,7 +358,7 @@ impl Input {
             .list
             .lock()
             .ok()
-            .and_then(|l| l.get(id as usize).map(|d| d.0.clone()))
+            .and_then(|l| l.get(id as usize).map(|d| d.name.clone()))
             .unwrap_or_default()
     }
 
@@ -379,7 +412,9 @@ pub fn open(cfg: &Settings) -> Result<Input> {
         clock_ticks: clock_ticks.clone(),
         devices: devices.clone(),
         names: Vec::new(),
-        ignored: Vec::new(),
+        ignored_clock: Vec::new(),
+        off: Vec::new(),
+        ignore: cfg.ignore.iter().map(|i| i.to_lowercase()).collect(),
         clock: clock::ClockChoice::new(cfg.clock_from.as_deref()),
         following: following.clone(),
         last_tick_ms: last_tick_ms.clone(),
@@ -553,8 +588,11 @@ mod tests {
         }
         lignes.push_str("pc 1\n");
         std::fs::write(&path, &lignes).expect("écriture");
-        let cfg =
-            Settings { port: Some(format!("sim:{}", path.display())), clock_from: Some("um-one".into()) };
+        let cfg = Settings {
+            port: Some(format!("sim:{}", path.display())),
+            clock_from: Some("um-one".into()),
+            ..Default::default()
+        };
         let mut input = open(&cfg).expect("ouverture");
         let limite = Instant::now() + std::time::Duration::from_secs(2);
         let mut fini = false;
@@ -567,6 +605,46 @@ mod tests {
         assert!(fini);
         assert_eq!(input.clock_ticks().load(Ordering::Relaxed), TICKS_PAR_NOIRE as u64);
         assert_eq!(input.devices()[0].ignored_clock, TICKS_PAR_NOIRE as u64, "le MC6, premier, ignoré");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// **Un appareil décoché** : rien de lui n'arrive, et son horloge ne prend jamais la main,
+    /// même s'il bat le premier.
+    #[test]
+    fn un_appareil_decoche_est_ignore_en_entier() {
+        let dir = std::env::temp_dir().join(format!("namfoop-decoche-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dossier");
+        let path = dir.join("decoche.txt");
+        let mut lignes = String::from("[Digital Piano] pc 5 ch 1\n");
+        for _ in 0..TICKS_PAR_NOIRE {
+            lignes.push_str("[Digital Piano] clock\n[UM-ONE] clock\n");
+        }
+        lignes.push_str("[Digital Piano] start\n[UM-ONE] pc 2 ch 5\n");
+        std::fs::write(&path, &lignes).expect("écriture");
+        let cfg = Settings {
+            port: Some(format!("sim:{}", path.display())),
+            ignore: vec!["digital piano".into()],
+            ..Default::default()
+        };
+        let mut input = open(&cfg).expect("ouverture");
+        let mut vus = Vec::new();
+        let limite = Instant::now() + std::time::Duration::from_secs(2);
+        while !vus.contains(&Event::ProgramChange(2)) && Instant::now() < limite {
+            while let Some(m) = input.try_pop() {
+                if m.event != Event::ClockTick {
+                    vus.push(m.event);
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert_eq!(vus, [Event::ProgramChange(2)], "ni le PC, ni le Start du piano");
+        assert_eq!(input.clock_ticks().load(Ordering::Relaxed), TICKS_PAR_NOIRE as u64, "l'horloge d'UM-ONE");
+        let piano = &input.devices()[0];
+        assert_eq!(piano.name, "Digital Piano");
+        assert!(!piano.listened);
+        assert_eq!(piano.ignored, 2 + TICKS_PAR_NOIRE as u64, "tout ce qu'il a envoyé, compté");
+        assert_eq!(piano.ignored_clock, 0, "son horloge n'a même pas concouru");
+        assert_eq!(input.clock_device(), Some(1));
         std::fs::remove_dir_all(&dir).ok();
     }
 

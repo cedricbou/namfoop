@@ -64,6 +64,11 @@ loin, côté appelant, serait trop tard pour le compteur que lit le fil audio. `
 dit qui bat, en appliquant lui-même le délai de perte (aucun message n'arrive quand une horloge se
 tait).
 
+**Un appareil décoché** (`Settings::ignore`, par morceau de nom) est écarté dans `Sink::push`
+**avant** le choix de l'horloge : il ne peut pas devenir l'appareil d'horloge, ce qu'un filtre
+côté appelant ne garantirait pas. Ce qu'il envoie est compté (`Device::ignored`) ; son statut est
+fixé à son inscription, donc il tient à travers un débranchement.
+
 **L'appareil d'un message est un numéro** (`Message::device`), pas un nom : le fil de lecture
 n'alloue rien par message. La table (`Input::devices`, `device_name`) n'est verrouillée qu'à
 l'arrivée ou au départ d'un appareil ; un appareil qui revient reprend son numéro.
