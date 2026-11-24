@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#379)
+- **Chaque canal a ses numéros** : `[[midi.channels]]` règle un canal et son CC de son, de tap et
+  d'accordeur — le canal 5 d'Ableton appelle les sons par le CC 20 pendant que le canal 1 du
+  pédalier garde le CC 34. Seuls les canaux réglés sont alors écoutés ; le dernier message est
+  suivi, d'où qu'il vienne. Dans `browse`, `run --set`, `run` et `namfoop midi`.
+- **`[midi] ignore`** décoche un appareil par son nom (ignoré en entier, horloge comprise) ;
+  **`[midi] clock_from`** choisit l'appareil qui donne l'horloge et le transport.
+- [ADR 0012](docs/adr/0012-midi-appareils-et-canaux.md) : des appareils et des canaux, sans rôles.
+  Une config écrite avant marche sans y toucher.
+
 ### Interne (#422)
 - **Un appareil MIDI décoché est ignoré dès sa lecture, horloge comprise** : son horloge ne peut
   plus être prise pour celle qui donne le tempo, même s'il bat le premier ; `namfoop midi` dit en

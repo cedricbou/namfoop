@@ -74,7 +74,30 @@ impl State {
     /// L'instant vient du message et non de la boucle : celle-ci ne repasse que toutes les 30 ms,
     /// et un top d'horloge vaut 20,8 ms à 120 BPM — l'horodater au tour de boucle rendrait toute
     /// mesure de tempo fausse (ADR 0008).
+    ///
+    /// Sans canal : les numéros de `[midi]`. La boucle passe par [`State::on_midi_from`].
+    #[cfg(test)]
     pub fn on_midi(&mut self, event: Event, at_us: u64, clock_seq: u64) -> Action {
+        self.on_midi_from(event, None, at_us, clock_seq)
+    }
+
+    /// Les numéros qui valent pour un message du canal `channel` (ADR 0012) : ceux du canal s'il
+    /// est réglé, sinon ceux de `[midi]` ([`State::midi`]). L'horloge, elle, n'a pas de canal.
+    fn keys_for(&self, channel: Option<u8>) -> MidiKeys {
+        match channel.and_then(|c| self.midi_channels.iter().find(|(x, _)| *x == c)) {
+            Some((_, n)) => {
+                MidiKeys { cc_sound: n.cc_sound, cc_tap: n.cc_tap, cc_tuner: n.cc_tuner, ..self.midi }
+            }
+            None => self.midi,
+        }
+    }
+
+    /// Un message MIDI arrivé sur `channel`, avec son instant et son numéro de top (voir `on_midi`,
+    /// ci-dessus, pour le contrat) : ses numéros sont ceux du canal.
+    /// Le filtre (ce canal est-il écouté ?) est déjà passé : `cli_midi::MidiIn` ne rend que ce qui
+    /// est pour namfoop.
+    pub fn on_midi_from(&mut self, event: Event, channel: Option<u8>, at_us: u64, clock_seq: u64) -> Action {
+        let keys = self.keys_for(channel);
         // **`Start` rend le son** (`docs/design/accordeur.md` § 3) : Ableton lance le morceau, on
         // ne reste pas muet — que l'horloge soit écoutée ou non. `Continue` et l'horloge, non.
         if event == Event::ClockStart && self.restore_sound() {
@@ -82,7 +105,7 @@ impl State {
         }
         match event {
             Event::ProgramChange(n) => self.midi_program(n, at_us),
-            Event::Control { cc, value } => self.midi_control(cc, value, at_us),
+            Event::Control { cc, value } => self.midi_control(keys, cc, value, at_us),
             // L'horloge et le transport vont à l'arbitre de tempo (ADR 0008), qui tranche entre
             // le preset, le tap et l'horloge. Coupée par la config, on ne lui dit rien du tout —
             // c'est ce qui garde le dernier tempo au lieu de le faire sauter.
@@ -182,11 +205,11 @@ impl State {
 
     /// **CC de son, valeur k : le son k+1 du morceau joué** (la scene Fractal). Si un PC attend,
     /// c'est de **son** morceau qu'il s'agit, et les deux ne font qu'un changement de son.
-    fn midi_sound(&mut self, k: u8, at_us: u64) -> Action {
+    fn midi_sound(&mut self, cc_sound: u8, k: u8, at_us: u64) -> Action {
         let pending = self.midi_pc.filter(|p| at_us < p.at_us + PC_CC_WINDOW_US);
         let Some(set) = self.set.as_ref() else { return Action::None };
         let Some(song) = pending.map(|p| p.song).or_else(|| set.at.map(|(s, _)| s)) else {
-            self.message = Some(format!("CC {} ignoré : aucun morceau joué", self.midi.cc_sound));
+            self.message = Some(format!("CC {cc_sound} ignoré : aucun morceau joué"));
             return Action::None;
         };
         let sounds = set.spec.songs.get(song).map_or(0, |s| s.sounds.len());
@@ -195,10 +218,9 @@ impl State {
             // Fractal écrête (une valeur au-delà choisit la dernière scene) ; namfoop le dit, parce
             // qu'en concert jouer silencieusement un autre son est pire qu'un message (ADR 0011).
             self.message = Some(match sounds {
-                0 => format!("CC {} = {k} : ce morceau n'a aucun son", self.midi.cc_sound),
+                0 => format!("CC {cc_sound} = {k} : ce morceau n'a aucun son"),
                 n => format!(
-                    "CC {} = {k} : « {title} » n'a que {n} son{}",
-                    self.midi.cc_sound,
+                    "CC {cc_sound} = {k} : « {title} » n'a que {n} son{}",
                     if n > 1 { "s" } else { "" }
                 ),
             });
@@ -229,20 +251,20 @@ impl State {
 
     /// Les CC que namfoop connaît. Les autres ne disent rien ici et sont ignorés sans bruit : un
     /// pédalier en envoie à chaque pression, et noyer la ligne d'état les rendrait inutiles tous.
-    fn midi_control(&mut self, cc: u8, value: u8, at_us: u64) -> Action {
-        if cc == self.midi.cc_tap {
+    fn midi_control(&mut self, keys: MidiKeys, cc: u8, value: u8, at_us: u64) -> Action {
+        if cc == keys.cc_tap {
             // le tap du pédalier EST la touche `*` : mêmes règles, même message, même recalage
             return self.tap_tempo_at(at_us / 1000);
         }
-        if cc == self.midi.cc_tuner {
+        if cc == keys.cc_tuner {
             return self.midi_tuner(cc, value);
         }
         if cc == CC_BANK_SELECT {
             self.message =
                 Some(format!("Bank Select (CC 0 = {value}) ignoré : le choix du set par MIDI viendra"));
-        } else if cc == self.midi.cc_sound {
+        } else if cc == keys.cc_sound {
             if self.set.is_some() {
-                return self.midi_sound(value, at_us);
+                return self.midi_sound(cc, value, at_us);
             }
             self.message =
                 Some(format!("CC {cc} ({value}) ignoré : il n'y a pas de son de morceau sans set"));
@@ -714,5 +736,34 @@ mod tests {
         assert!(!s.bass_cut(), "le 15 n'est plus l'accordeur");
         s.on_midi(Event::Control { cc: 20, value: 127 }, 0, 0);
         assert!(s.bass_cut());
+    }
+
+    /// **Les numéros appartiennent au canal** (ADR 0012) : Ableton, canal 5, appelle les sons par
+    /// le CC 20 pendant que le pédalier, canal 1, garde le CC 34. Le dernier message est suivi,
+    /// d'où qu'il vienne : il n'y a pas de priorité.
+    #[test]
+    fn each_channel_calls_the_sounds_with_its_own_cc() {
+        let mut s = scene();
+        let n = |cc_sound| crate::cli_midi::Numbers { cc_sound, ..Default::default() };
+        s.midi_channels = vec![(1, n(34)), (5, n(20))];
+        let cc = |cc, value| Event::Control { cc, value };
+        assert!(
+            matches!(s.on_midi_from(cc(20, 1), Some(5), 0, 0), Action::Play { .. }),
+            "le CC 20 du canal 5"
+        );
+        assert_eq!(at(&s), Some((0, 1)));
+        assert!(
+            matches!(s.on_midi_from(cc(34, 0), Some(1), 1000, 0), Action::Play { .. }),
+            "le CC 34 du canal 1"
+        );
+        assert_eq!(at(&s), Some((0, 0)), "le dernier message est suivi");
+        assert_eq!(
+            s.on_midi_from(cc(34, 1), Some(5), 2000, 0),
+            Action::None,
+            "le 34 n'est rien sur le canal 5"
+        );
+        assert_eq!(at(&s), Some((0, 0)));
+        assert!(matches!(s.on_midi_from(cc(20, 1), Some(5), 3000, 0), Action::Play { .. }));
+        assert_eq!(at(&s), Some((0, 1)));
     }
 }

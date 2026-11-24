@@ -2472,6 +2472,36 @@ n'est pas pour toi pourquoi il est ignoré :
 `--midi-channel` passe devant la configuration ; un canal hors de 1 à 16 est refusé, dans l'option
 comme dans le fichier.
 
+### Plusieurs canaux, chacun avec ses numéros
+
+Le groupe t'envoie ses sons par le **CC 20** sur le canal 5, et ton pédalier garde le **CC 34** sur
+le canal 1 ? Chaque canal se règle à part, et **les numéros appartiennent au canal** — pas à
+l'appareil ([ADR 0012](adr/0012-midi-appareils-et-canaux.md)) :
+
+```toml
+[midi]
+[[midi.channels]]
+channel = 5        # Ableton, ce qu'on a convenu avec le groupe
+cc_sound = 20
+[[midi.channels]]
+channel = 1        # mon pédalier : les numéros de [midi], CC 34 pour les sons
+```
+
+Seuls les canaux réglés sont alors écoutés ; un numéro absent reprend celui de `[midi]`. Rien ne
+dépend d'Ableton : les numéros se tapent d'après ce qui a été convenu, sans rien brancher.
+**Le dernier message est suivi**, d'où qu'il vienne : si Ableton se tait ou se trompe, un appui au
+pied reprend la main, et un tap (CC 14) reprend le tempo — il n'y a pas de mode à enclencher.
+
+Deux réglages concernent les **appareils** et non les canaux :
+
+- **`ignore = ["Digital Piano"]`** décoche un appareil : un clavier qui parle sur le canal de ton
+  pédalier, par exemple. Il est ignoré en entier, son horloge comprise ; `namfoop midi` dit en
+  sortant combien de messages il a écartés.
+- **`clock_from = "UM-ONE"`** choisit l'appareil qui donne l'**horloge et le transport** — sans lui,
+  c'est le premier qui bat. L'horloge d'un autre appareil est ignorée, et `namfoop midi` le dit.
+
+Un appareil se désigne par un morceau de son nom, tel que `namfoop midi` l'affiche entre crochets.
+
 ### Essayer sans pédalier : le port simulé
 
 Un port `sim:CHEMIN` lit des **lignes de texte** dans un fichier ou un tube nommé, une ligne par
@@ -2793,6 +2823,13 @@ cc_sound = 34                        # le CC qui choisit le son du morceau (conv
 cc_tap = 14                          # le CC du tap tempo (convention Fractal)
 cc_tuner = 15                        # le CC de l'accordeur : 64 ou plus coupe la basse, moins la rend
 clock = true                         # false : ne pas écouter l'horloge MIDI (le tap reste actif)
+channel = 5                          # le seul canal écouté (absent : tous)
+clock_from = "UM-ONE"                # l'appareil qui donne l'horloge (absent : le premier qui bat)
+ignore = ["Digital Piano"]           # les appareils décochés (absent : aucun)
+
+[[midi.channels]]                    # un canal réglé et ses numéros (absent : ceux de [midi])
+channel = 1
+cc_sound = 20
 
 [tuner]                              # l'accordeur ([§ 8](#8-jouer))
 a4 = 440.0                           # le La de référence (Hz)

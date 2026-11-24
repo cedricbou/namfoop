@@ -290,6 +290,9 @@ pub struct State {
     pub metronome_routed: bool,
     /// Les **numéros de message MIDI** écoutés (ADR 0011), réglables par `[midi]` de la config.
     pub midi: midi::MidiKeys,
+    /// Les canaux réglés et leurs numéros (ADR 0012) ; vide : les numéros de [`State::midi`]
+    /// valent pour tous les canaux.
+    pub midi_channels: Vec<(u8, crate::cli_midi::Numbers)>,
     /// Un Program Change reçu qui attend son CC de son (§ 12 du mode Set) : Ableton envoie
     /// souvent les deux en tête de clip, et deux changements de son pour un geste s'entendraient.
     midi_pc: Option<midi::PendingPc>,
@@ -360,6 +363,7 @@ impl State {
             saved_blend: (Vec::new(), true),
             now: 0,
             midi: midi::MidiKeys::default(),
+            midi_channels: Vec::new(),
             midi_pc: None,
             tempo: engine::tempo::Arbiter::new(),
             clock_seq: 0,

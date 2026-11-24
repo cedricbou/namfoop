@@ -167,23 +167,79 @@ pub struct Midi {
     /// que du preset et du tap. Une horloge bruyante en jam est un risque, pas un service
     /// (ADR 0008).
     pub clock: bool,
+    /// **Les canaux réglés**, chacun avec ses numéros (ADR 0012) : seuls ces canaux sont écoutés.
+    /// Vide : tous les canaux (ou le seul `channel`), avec les numéros ci-dessus.
+    #[serde(skip_serializing_if = "Vec::is_empty", deserialize_with = "distinct_channels")]
+    pub channels: Vec<MidiChannel>,
+    /// Un morceau du nom de l'appareil dont l'**horloge et le transport** comptent (ADR 0012).
+    /// Absent : le premier qui bat, tant qu'il bat.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clock_from: Option<String>,
+    /// Les appareils **décochés**, par un morceau de leur nom : namfoop les ignore en entier.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ignore: Vec<String>,
+}
+
+/// Un canal réglé et ses numéros. Un numéro absent reprend celui de `[midi]`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MidiChannel {
+    /// Le canal, de 1 à 16.
+    #[serde(deserialize_with = "one_channel")]
+    pub channel: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cc_sound: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cc_tap: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cc_tuner: Option<u8>,
 }
 
 impl Default for Midi {
     /// Les numéros de l'ADR 0011 : le défaut est ce qui évite de configurer.
     fn default() -> Self {
-        Self { input: None, off: false, channel: None, cc_sound: 34, cc_tap: 14, cc_tuner: 15, clock: true }
+        Self {
+            input: None,
+            off: false,
+            channel: None,
+            cc_sound: 34,
+            cc_tap: 14,
+            cc_tuner: 15,
+            clock: true,
+            channels: Vec::new(),
+            clock_from: None,
+            ignore: Vec::new(),
+        }
     }
 }
 
 /// `[midi] channel` : un canal de 1 à 16, refusé avec une phrase lisible sinon. Le canal 0 du câble
 /// n'existe pas pour l'utilisateur : un pédalier les numérote de 1 à 16.
 fn channel_1_to_16<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Option<u8>, D::Error> {
+    one_channel(d).map(Some)
+}
+
+fn one_channel<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<u8, D::Error> {
     let n = i64::deserialize(d)?;
     match u8::try_from(n) {
-        Ok(c) if (1..=16).contains(&c) => Ok(Some(c)),
+        Ok(c) if (1..=16).contains(&c) => Ok(c),
         _ => Err(serde::de::Error::custom(format!("[midi] channel = {n} : un canal MIDI va de 1 à 16"))),
     }
+}
+
+/// `[[midi.channels]]` : un canal ne se règle qu'une fois, sans quoi lequel compte serait un pari.
+fn distinct_channels<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> std::result::Result<Vec<MidiChannel>, D::Error> {
+    let v = Vec::<MidiChannel>::deserialize(d)?;
+    for (i, c) in v.iter().enumerate() {
+        if v[..i].iter().any(|o| o.channel == c.channel) {
+            return Err(serde::de::Error::custom(format!(
+                "[[midi.channels]] : le canal {} est réglé deux fois",
+                c.channel
+            )));
+        }
+    }
+    Ok(v)
 }
 
 /// Le **mode Set** : les touches de scène, réglables pour coller au pédalier qu'on a sous le pied
@@ -385,6 +441,36 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `[[midi.channels]]`, `clock_from`, `ignore` : lus, réécrits, et une config qui n'en a pas
+    /// se relit sans eux ; un canal réglé deux fois ou hors bornes est refusé.
+    #[test]
+    fn les_canaux_l_horloge_et_les_appareils_decoches_se_lisent() {
+        let texte = "[midi]\nclock_from = \"MC6\"\nignore = [\"Digital Piano\"]\n\n\
+                     [[midi.channels]]\nchannel = 5\ncc_sound = 20\n\n[[midi.channels]]\nchannel = 1\n";
+        let m = toml::from_str::<Config>(texte).unwrap().midi.unwrap();
+        assert_eq!(m.clock_from.as_deref(), Some("MC6"));
+        assert_eq!(m.ignore, ["Digital Piano"]);
+        assert_eq!(
+            m.channels,
+            [
+                MidiChannel { channel: 5, cc_sound: Some(20), cc_tap: None, cc_tuner: None },
+                MidiChannel { channel: 1, cc_sound: None, cc_tap: None, cc_tuner: None },
+            ]
+        );
+        let relu = toml::from_str::<Config>(
+            &toml::to_string(&Config { midi: Some(m.clone()), ..Default::default() }).unwrap(),
+        )
+        .unwrap()
+        .midi
+        .unwrap();
+        assert_eq!(relu, m, "l'aller-retour garde tout");
+        let deux = "[midi]\n[[midi.channels]]\nchannel = 5\n[[midi.channels]]\nchannel = 5\n";
+        assert!(toml::from_str::<Config>(deux).unwrap_err().to_string().contains("deux fois"));
+        let hors = "[midi]\n[[midi.channels]]\nchannel = 17\n";
+        assert!(toml::from_str::<Config>(hors).unwrap_err().to_string().contains("de 1 à 16"));
+        assert!(!toml::to_string(&Midi::default()).unwrap().contains("channels"), "vide : non écrit");
+    }
 
     /// `[midi] channel` : absent, tous les canaux ; 1 à 16, gardé et réécrit ; hors bornes, refusé
     /// avec une phrase qui dit pourquoi. Une config sans la clé se relit et se réécrit sans elle.

@@ -29,29 +29,92 @@ pub struct MidiArgs {
     pub midi_channel: Option<u8>,
 }
 
-/// **Quels messages sont pour namfoop.** Sans canal fixé, tous ; avec un canal, ceux de ce canal,
-/// plus ce qui n'a pas de canal — l'horloge, le transport, la position, et une ligne de port simulé
-/// écrite sans canal : rien ne permet de dire qu'ils sont pour un autre.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// Les **numéros** d'un canal (ADR 0011 pour les défauts, ADR 0012 : ils appartiennent au canal).
+/// Un Program Change n'y figure pas : il n'a pas de numéro à régler, c'est le message lui-même.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Numbers {
+    pub cc_sound: u8,
+    pub cc_tap: u8,
+    pub cc_tuner: u8,
+}
+
+impl Default for Numbers {
+    fn default() -> Self {
+        let m = model::Midi::default();
+        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner }
+    }
+}
+
+/// **Quels messages sont pour namfoop, et avec quels numéros** (ADR 0012). Sans canal réglé, tous
+/// les canaux, avec les numéros de `[midi]` ; avec des canaux réglés, ceux-là seuls, chacun avec
+/// ses numéros. Ce qui n'a pas de canal — l'horloge, le transport, la position, une ligne de port
+/// simulé écrite sans canal — passe toujours, avec les numéros de `[midi]` : rien ne permet de
+/// dire qu'il est pour un autre.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Listen {
-    /// Le canal écouté, de 1 à 16 ; `None` : tous.
-    pub channel: Option<u8>,
+    /// Les canaux réglés et leurs numéros, par canal croissant ; vide : tous les canaux.
+    pub channels: Vec<(u8, Numbers)>,
+    /// Les numéros de `[midi]` : ceux de « tous les canaux », et ceux qu'un canal réglé reprend
+    /// quand il n'en donne pas.
+    pub base: Numbers,
 }
 
 impl Listen {
+    /// Ce que règle la config, et `--midi-channel` qui la restreint à un canal (avec ses numéros
+    /// s'il en a, sinon ceux de `[midi]`).
+    pub fn from_config(m: &model::Midi, only: Option<u8>) -> Self {
+        let base = Numbers { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner };
+        let mut channels: Vec<(u8, Numbers)> = m
+            .channels
+            .iter()
+            .map(|c| {
+                (
+                    c.channel,
+                    Numbers {
+                        cc_sound: c.cc_sound.unwrap_or(base.cc_sound),
+                        cc_tap: c.cc_tap.unwrap_or(base.cc_tap),
+                        cc_tuner: c.cc_tuner.unwrap_or(base.cc_tuner),
+                    },
+                )
+            })
+            .collect();
+        if let Some(c) = m.channel.filter(|c| !channels.iter().any(|(x, _)| x == c)) {
+            channels.push((c, base));
+        }
+        if let Some(c) = only {
+            let n = channels.iter().find(|(x, _)| *x == c).map_or(base, |(_, n)| *n);
+            channels = vec![(c, n)];
+        }
+        channels.sort_by_key(|(c, _)| *c);
+        Self { channels, base }
+    }
+
     /// Vrai si un message arrivé sur `channel` est pour namfoop.
     pub fn hears(&self, channel: Option<u8>) -> bool {
-        match (self.channel, channel) {
-            (Some(mine), Some(c)) => mine == c,
+        match channel {
+            Some(c) if !self.channels.is_empty() => self.channels.iter().any(|(x, _)| *x == c),
             _ => true,
         }
+    }
+
+    /// Les numéros qui valent pour un message arrivé sur `channel`.
+    pub fn numbers(&self, channel: Option<u8>) -> Numbers {
+        channel.and_then(|c| self.channels.iter().find(|(x, _)| *x == c)).map_or(self.base, |(_, n)| *n)
+    }
+
+    /// Les canaux écoutés, tels qu'on les écrit (« 1 · 5 »), ou `None` : tous.
+    pub fn label(&self) -> Option<String> {
+        (!self.channels.is_empty())
+            .then(|| self.channels.iter().map(|(c, _)| c.to_string()).collect::<Vec<_>>().join(" · "))
     }
 
     /// Pourquoi un message n'est pas pour namfoop, s'il ne l'est pas : la phrase que montre
     /// `namfoop midi`.
     pub fn why_not(&self, channel: Option<u8>) -> Option<String> {
-        (!self.hears(channel))
-            .then(|| format!("ignoré : namfoop écoute le canal {}", self.channel.unwrap_or(0)))
+        (!self.hears(channel)).then(|| match self.channels.as_slice() {
+            [(c, _)] => format!("ignoré : namfoop écoute le canal {c}"),
+            _ => format!("ignoré : namfoop écoute les canaux {}", self.label().unwrap_or_default()),
+        })
     }
 }
 
@@ -78,10 +141,16 @@ impl MidiIn {
 
     /// Ce qu'on écoute, tel qu'on l'affiche : le port, et le canal s'il est fixé.
     pub fn description(&self) -> String {
-        match self.listen.channel {
-            Some(c) => format!("{} · canal {c}", self.input.description()),
-            None => self.input.description().to_string(),
+        match (self.listen.label(), self.listen.channels.len()) {
+            (Some(l), 1) => format!("{} · canal {l}", self.input.description()),
+            (Some(l), _) => format!("{} · canaux {l}", self.input.description()),
+            (None, _) => self.input.description().to_string(),
         }
+    }
+
+    /// Ce qui est écouté, et avec quels numéros.
+    pub fn listen(&self) -> &Listen {
+        &self.listen
     }
 
     pub fn clock_ticks(&self) -> std::sync::Arc<std::sync::atomic::AtomicU64> {
@@ -107,14 +176,14 @@ impl MidiArgs {
         }
         Some(Settings {
             port: self.midi_in.clone().or_else(|| conf.and_then(|m| m.input.clone())),
-            clock_from: None,
-            ignore: Vec::new(),
+            clock_from: conf.and_then(|m| m.clock_from.clone()),
+            ignore: conf.map(|m| m.ignore.clone()).unwrap_or_default(),
         })
     }
 
-    /// Le canal écouté : l'option, sinon la config, sinon tous.
+    /// Ce qui est écouté : la config, restreinte par `--midi-channel` s'il est donné.
     pub fn listen(&self, file: &FileConfig) -> Listen {
-        Listen { channel: self.midi_channel.or_else(|| file.midi.as_ref().and_then(|m| m.channel)) }
+        Listen::from_config(&file.midi.clone().unwrap_or_default(), self.midi_channel)
     }
 
     /// Ouvre le port d'écoute, ou dit pourquoi il n'y en a pas. **Ne fait jamais échouer le
@@ -177,6 +246,7 @@ mod tests {
     #[test]
     fn sans_canal_fixe_tout_est_pour_moi() {
         let tous = Listen::default();
+        assert_eq!(tous.label(), None);
         for c in [None, Some(1), Some(10), Some(16)] {
             assert!(tous.hears(c), "{c:?}");
             assert_eq!(tous.why_not(c), None);
@@ -185,7 +255,7 @@ mod tests {
 
     #[test]
     fn un_canal_fixe_ignore_les_autres_mais_jamais_l_horloge() {
-        let cinq = Listen { channel: Some(5) };
+        let cinq = Listen { channels: vec![(5, Numbers::default())], ..Default::default() };
         assert!(cinq.hears(Some(5)));
         assert!(!cinq.hears(Some(10)), "les lights, sur le 10");
         assert!(cinq.hears(None), "l'horloge, Start et Stop n'ont pas de canal : ils passent");
@@ -198,10 +268,10 @@ mod tests {
         if let Some(m) = c.midi.as_mut() {
             m.channel = Some(3);
         }
-        assert_eq!(MidiArgs::default().listen(&c).channel, Some(3), "la config");
+        assert_eq!(MidiArgs::default().listen(&c).label().as_deref(), Some("3"), "la config");
         let args = MidiArgs { midi_channel: Some(7), ..Default::default() };
-        assert_eq!(args.listen(&c).channel, Some(7), "l'option passe devant");
-        assert_eq!(MidiArgs::default().listen(&FileConfig::default()).channel, None, "défaut : tous");
+        assert_eq!(args.listen(&c).label().as_deref(), Some("7"), "l'option passe devant");
+        assert_eq!(MidiArgs::default().listen(&FileConfig::default()).label(), None, "défaut : tous");
     }
 
     /// Le filtre de bout en bout, sur un vrai port simulé : un PC et un CC d'un autre canal ne
@@ -239,5 +309,51 @@ mod tests {
         );
         assert_eq!(m.ignored(), 2, "le PC et le CC des lights, comptés");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// **Les numéros appartiennent au canal** (ADR 0012) : le canal 5 appelle ses sons par le CC 20
+    /// pendant que le canal 1 garde le CC 34 ; un numéro absent reprend celui de `[midi]` ; un
+    /// message sans canal prend ceux de `[midi]`.
+    #[test]
+    fn chaque_canal_a_ses_numeros() {
+        let m = model::Midi {
+            cc_tap: 13,
+            channels: vec![
+                model::MidiChannel { channel: 5, cc_sound: Some(20), cc_tap: None, cc_tuner: None },
+                model::MidiChannel { channel: 1, cc_sound: None, cc_tap: None, cc_tuner: Some(16) },
+            ],
+            ..Default::default()
+        };
+        let l = Listen::from_config(&m, None);
+        assert_eq!(l.label().as_deref(), Some("1 · 5"));
+        assert_eq!(l.numbers(Some(5)), Numbers { cc_sound: 20, cc_tap: 13, cc_tuner: 15 });
+        assert_eq!(l.numbers(Some(1)), Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 16 });
+        assert_eq!(l.numbers(None), Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 15 });
+        assert!(l.hears(Some(1)) && l.hears(Some(5)) && l.hears(None));
+        assert!(!l.hears(Some(10)));
+        assert_eq!(l.why_not(Some(10)).as_deref(), Some("ignoré : namfoop écoute les canaux 1 · 5"));
+        let seul = Listen::from_config(&m, Some(5));
+        assert_eq!(seul.label().as_deref(), Some("5"));
+        assert_eq!(seul.numbers(Some(5)).cc_sound, 20, "--midi-channel garde les numéros du canal");
+    }
+
+    /// Une config d'avant les canaux réglés (`channel = 5`, `cc_sound = 20`) marche sans y toucher.
+    #[test]
+    fn la_config_d_un_seul_canal_marche_telle_quelle() {
+        let m = model::Midi { channel: Some(5), cc_sound: 20, ..Default::default() };
+        let l = Listen::from_config(&m, None);
+        assert_eq!(l.channels, [(5, Numbers { cc_sound: 20, cc_tap: 14, cc_tuner: 15 })]);
+    }
+
+    #[test]
+    fn l_horloge_et_les_appareils_decoches_vont_au_port() {
+        let mut c = conf(None, false);
+        if let Some(m) = c.midi.as_mut() {
+            m.clock_from = Some("UM-ONE".into());
+            m.ignore = vec!["Digital Piano".into()];
+        }
+        let s = MidiArgs::default().resolve(&c).expect("MIDI");
+        assert_eq!(s.clock_from.as_deref(), Some("UM-ONE"));
+        assert_eq!(s.ignore, ["Digital Piano"]);
     }
 }
