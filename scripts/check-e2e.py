@@ -723,6 +723,60 @@ def scenario_midi_canaux(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi_ecran(binaire, lignes, colonnes):
+    """**L'écran de réglage** (`namfoop midi` devant un terminal) : ajouter le canal d'Ableton en
+    appuyant, taper le CC convenu, enregistrer, puis relire la config écrite."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-ecran-") as tmp:
+        tube = os.path.join(tmp, "cable")
+        os.mkfifo(tube)
+        config = os.path.join(tmp, "config.toml")
+        with open(config, "w", encoding="utf-8") as f:
+            f.write(f'[midi]\nin = "sim:{tube}"\n')
+        ec = Ecran(binaire, ["--config", config, "midi"], lignes, colonnes, os.path.join(tmp, "trace.log"))
+        try:
+            ec.lire(1.5)
+            verifier("Appareils et canaux" in ec.voir(), f"{taille} : l'écran de réglage s'ouvre")
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+            os.write(fd, b"[UM-ONE] pc 2 ch 5\n[UM-ONE] pc 2 ch 10\n")
+            ec.lire(0.8)
+            verifier("plusieurs" in ec.voir(), f"{taille} : deux canaux vus, l'écran prévient (plusieurs canaux parlent)")
+            ec.taper("a", 0.4)
+            os.write(fd, b"[UM-ONE] pc 2 ch 5\n")
+            ec.lire(0.6)
+            verifier("reçu sur le canal 5" in ec.voir(), f"{taille} : un appui remplit la saisie")
+            ec.taper("\r", 0.5)
+            ec.taper("\x1b[B", 0.2)
+            ec.taper("\x1b[B", 0.2)
+            ec.taper("\r", 0.4)
+            ec.taper("2", 0.1)
+            ec.taper("0", 0.1)
+            ec.taper("\r", 0.5)
+            verifier("non enregistrée" in ec.voir(), f"{taille} : le réglage n'est pas encore écrit")
+            ec.taper("S", 0.6)
+            ec.taper("q", 0.6)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : l'écran se quitte proprement ({code})")
+            os.close(fd)
+            ecrit = open(config, encoding="utf-8").read()
+            verifier(
+                "[[midi.channels]]\nchannel = 5\ncc_sound = 20" in ecrit,
+                f"{taille} : la config garde le canal 5 et son CC 20",
+            )
+            verifier(f'in = "sim:{tube}"' in ecrit, f"{taille} : le reste de [midi] est gardé")
+        finally:
+            ec.tuer()
+
+
 def scenario_midi_horloge(binaire, lignes, colonnes):
     """**L'horloge MIDI de bout en bout** : la phase du clic doit être IMMOBILE.
 
@@ -855,6 +909,7 @@ def main():
     scenario_midi_set(binaire, 25, 80)
     scenario_midi_canal(binaire, 25, 80)
     scenario_midi_canaux(binaire, 25, 80)
+    scenario_midi_ecran(binaire, 25, 80)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")

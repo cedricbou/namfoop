@@ -1008,10 +1008,13 @@ Options:
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --seconds <SECONDS>
-          Arrêt automatique après N secondes (tests) [défaut : Ctrl+C]
+          Arrêt automatique après N secondes (tests ; affiche ligne à ligne) [défaut : Ctrl+C]
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
+      --lines
+          Affiche les messages ligne à ligne au lieu de l'écran de réglage (imposé quand la sortie n'est pas un terminal)
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]

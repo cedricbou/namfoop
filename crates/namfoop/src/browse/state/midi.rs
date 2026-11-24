@@ -56,12 +56,20 @@ pub struct MidiKeys {
     /// Écouter l'horloge et le transport ? Coupée, le tempo ne vient plus que du preset et du tap
     /// — et le tap, lui, marche toujours : ce n'est pas le MIDI qu'on coupe, c'est l'horloge.
     pub clock: bool,
+    /// Les gestes **coupés** : un message qui les demande est ignoré, et le dit.
+    pub muted: crate::cli_midi::Muted,
 }
 
 impl Default for MidiKeys {
     fn default() -> Self {
         let m = model::Midi::default();
-        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner, clock: m.clock }
+        Self {
+            cc_sound: m.cc_sound,
+            cc_tap: m.cc_tap,
+            cc_tuner: m.cc_tuner,
+            clock: m.clock,
+            muted: Default::default(),
+        }
     }
 }
 
@@ -85,9 +93,13 @@ impl State {
     /// est réglé, sinon ceux de `[midi]` ([`State::midi`]). L'horloge, elle, n'a pas de canal.
     fn keys_for(&self, channel: Option<u8>) -> MidiKeys {
         match channel.and_then(|c| self.midi_channels.iter().find(|(x, _)| *x == c)) {
-            Some((_, n)) => {
-                MidiKeys { cc_sound: n.cc_sound, cc_tap: n.cc_tap, cc_tuner: n.cc_tuner, ..self.midi }
-            }
+            Some((_, n)) => MidiKeys {
+                cc_sound: n.cc_sound,
+                cc_tap: n.cc_tap,
+                cc_tuner: n.cc_tuner,
+                muted: n.muted,
+                ..self.midi
+            },
             None => self.midi,
         }
     }
@@ -104,6 +116,10 @@ impl State {
             self.message = Some("Start → son rendu".into());
         }
         match event {
+            Event::ProgramChange(n) if keys.muted.pc => {
+                self.message = Some(format!("PC {n} ignoré : le Program Change est coupé sur ce canal"));
+                Action::None
+            }
             Event::ProgramChange(n) => self.midi_program(n, at_us),
             Event::Control { cc, value } => self.midi_control(keys, cc, value, at_us),
             // L'horloge et le transport vont à l'arbitre de tempo (ADR 0008), qui tranche entre
@@ -252,6 +268,15 @@ impl State {
     /// Les CC que namfoop connaît. Les autres ne disent rien ici et sont ignorés sans bruit : un
     /// pédalier en envoie à chaque pression, et noyer la ligne d'état les rendrait inutiles tous.
     fn midi_control(&mut self, keys: MidiKeys, cc: u8, value: u8, at_us: u64) -> Action {
+        let coupe = [
+            (keys.cc_tap, keys.muted.tap, "le tap tempo"),
+            (keys.cc_tuner, keys.muted.tuner, "l'accordeur"),
+            (keys.cc_sound, keys.muted.sound, "le son du morceau"),
+        ];
+        if let Some((_, _, quoi)) = coupe.iter().find(|(n, off, _)| *off && *n == cc) {
+            self.message = Some(format!("CC {cc} ignoré : {quoi} est coupé sur ce canal"));
+            return Action::None;
+        }
         if cc == keys.cc_tap {
             // le tap du pédalier EST la touche `*` : mêmes règles, même message, même recalage
             return self.tap_tempo_at(at_us / 1000);
@@ -765,5 +790,24 @@ mod tests {
         assert_eq!(at(&s), Some((0, 0)));
         assert!(matches!(s.on_midi_from(cc(20, 1), Some(5), 3000, 0), Action::Play { .. }));
         assert_eq!(at(&s), Some((0, 1)));
+    }
+
+    /// **Un geste coupé** (`b` dans `namfoop midi`) ne fait rien, et le dit ; les autres gestes du
+    /// canal, et le même geste sur un autre canal, marchent toujours.
+    #[test]
+    fn a_muted_gesture_does_nothing_and_says_so() {
+        let mut s = scene();
+        let muted = crate::cli_midi::Muted { sound: true, ..Default::default() };
+        s.midi_channels = vec![
+            (1, crate::cli_midi::Numbers { muted, ..Default::default() }),
+            (5, crate::cli_midi::Numbers::default()),
+        ];
+        let cc = Event::Control { cc: 34, value: 1 };
+        assert_eq!(s.on_midi_from(cc, Some(1), 0, 0), Action::None);
+        assert!(s.message.clone().unwrap_or_default().contains("coupé"), "{:?}", s.message);
+        assert!(
+            matches!(s.on_midi_from(cc, Some(5), 1000, 0), Action::Play { .. }),
+            "le canal 5 n'est pas coupé"
+        );
     }
 }

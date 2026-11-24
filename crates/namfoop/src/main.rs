@@ -12,6 +12,7 @@ mod library_dir;
 mod live;
 mod meta_cmd;
 mod midi_cmd;
+mod midi_screen;
 mod models_cmd;
 mod offline;
 mod presets_cmd;

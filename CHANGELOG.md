@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#380)
+- **`namfoop midi` ouvre un écran de réglage** : l'onglet Appareils et canaux montre tes appareils
+  par leur nom, ce qu'ils envoient et lequel donne l'horloge, puis chaque canal avec le numéro de
+  chaque geste (morceau, son, tap, accordeur) et ce qui a été reçu en dernier. `Entrée` règle une
+  ligne en tapant le numéro **ou en appuyant sur l'appareil** (le message est capturé, rien ne
+  sonne) ; `a` ajoute un canal, `x` le retire, `b` coupe un geste ou décoche un appareil, `Entrée`
+  sur un appareil lui confie l'horloge, `S` enregistre `[midi]`, `q` demande avant de perdre un
+  réglage. Les refus disent pourquoi (CC 0, numéro déjà pris, canal hors bornes).
+- **Un geste coupé l'est partout** : `[midi] muted` et `muted` d'un canal (`["tap"]`, par exemple)
+  font ignorer ce geste dans `browse`, `run --set` et `run`, avec un message.
+- L'affichage ligne à ligne d'avant reste là : `namfoop midi --lines` (et imposé hors terminal).
+
 ### MIDI (#379)
 - **Chaque canal a ses numéros** : `[[midi.channels]]` règle un canal et son CC de son, de tap et
   d'accordeur — le canal 5 d'Ableton appelle les sons par le CC 20 pendant que le canal 1 du

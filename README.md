@@ -37,7 +37,7 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant (S enregistre un preset, n repart de zéro)
 ./target/release/namfoop presets              # les presets enregistrés
 ./target/release/namfoop sets                 # les sets de concert (morceaux et leurs sons)
-./target/release/namfoop midi                 # les ports MIDI, et ce qu'y envoie le pédalier
+./target/release/namfoop midi                 # régler le MIDI : appareils, canaux, numéros (--lines : ligne à ligne)
 ./target/release/namfoop run --set concert    # JOUER UN CONCERT : écran de scène verrouillé (u : accordeur, basse coupée)
 ./target/release/namfoop run --preset chill   # rejouer un preset
 ./target/release/namfoop run -m b7k           # jouer

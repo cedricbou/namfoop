@@ -9,7 +9,7 @@ pub mod routing;
 
 pub use card::{CardProfile, MixerSetting};
 pub use config::{
-    default_path, dir, AudioConfig, BackendKind, Config, LevelMode, LoadedConfig, Midi, MidiChannel,
+    default_path, dir, AudioConfig, BackendKind, Config, Gesture, LevelMode, LoadedConfig, Midi, MidiChannel,
 };
 pub use error::{Error, Result};
 pub use routing::{OutputRoute, Routing, Source};

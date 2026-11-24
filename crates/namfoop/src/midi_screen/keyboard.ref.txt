@@ -1,0 +1,151 @@
+# Oracle du clavier de l'écran MIDI (engendré : ne pas éditer à la main)
+
+## liste · un appareil
+  Down     curseur: Device("UM-ONE") → Channel(Some(5))
+  Entrée   brouillon changé   « horloge confiée à UM-ONE : celles des autres sont ignorées »
+  Échap    « Échap ne quitte pas : q pour quitter »
+  a        fenêtre: aucune → Régler
+  b        brouillon changé   « UM-ONE décoché : namfoop l'ignore »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        « x retire un canal : vise sa ligne « Canal n » »
+  S        « config déjà enregistrée »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  inertes : Up Left Right Backspace Tab Q 5 P n L 1 i 0
+
+## liste · un canal
+  Up       curseur: Channel(Some(5)) → Device("UM-ONE")
+  Down     curseur: Channel(Some(5)) → Gesture(Some(5), Pc)
+  Entrée   fenêtre: aucune → Régler
+  Échap    « Échap ne quitte pas : q pour quitter »
+  a        fenêtre: aucune → Régler
+  b        « b coupe un geste ou un appareil : vise sa ligne »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        curseur: Channel(Some(5)) → Channel(None)   brouillon changé   « canal 5 retiré : tous les canaux sont écoutés · S pour garder »
+  S        « config déjà enregistrée »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  inertes : Left Right Backspace Tab Q 5 P n L 1 i 0
+
+## liste · tous les canaux
+  Down     curseur: Channel(None) → Gesture(None, Pc)
+  Entrée   fenêtre: aucune → Régler
+  Échap    « Échap ne quitte pas : q pour quitter »
+  a        fenêtre: aucune → Régler
+  b        « b coupe un geste ou un appareil : vise sa ligne »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        « x retire un canal : vise sa ligne « Canal n » »
+  S        « config déjà enregistrée »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  inertes : Up Left Right Backspace Tab Q 5 P n L 1 i 0
+
+## liste · le Program Change
+  Up       curseur: Gesture(Some(5), Pc) → Channel(Some(5))
+  Down     curseur: Gesture(Some(5), Pc) → Gesture(Some(5), Sound)
+  Entrée   « un Program Change n'a pas de numéro à régler ici : b le coupe, le numéro d'un morceau est dans le set »
+  Échap    « Échap ne quitte pas : q pour quitter »
+  a        fenêtre: aucune → Régler
+  b        brouillon changé   « coupé : ce canal ne commande plus le morceau (Program Change) »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        « x retire un canal : vise sa ligne « Canal n » »
+  S        « config déjà enregistrée »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  inertes : Left Right Backspace Tab Q 5 P n L 1 i 0
+
+## liste · le son du morceau
+  Up       curseur: Gesture(Some(5), Sound) → Gesture(Some(5), Pc)
+  Down     curseur: Gesture(Some(5), Sound) → Gesture(Some(5), Tap)
+  Entrée   fenêtre: aucune → Régler
+  Échap    « Échap ne quitte pas : q pour quitter »
+  a        fenêtre: aucune → Régler
+  b        brouillon changé   « coupé : ce canal ne commande plus le son du morceau »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        « x retire un canal : vise sa ligne « Canal n » »
+  S        « config déjà enregistrée »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  inertes : Left Right Backspace Tab Q 5 P n L 1 i 0
+
+## fenêtre « Régler »
+  Entrée   fenêtre: Régler → aucune   « le son du morceau, canal 5 : CC 20 »
+  Échap    fenêtre: Régler → aucune   « rien de changé »
+  Backspace saisie: « 2 »
+  5        saisie: « 5 »
+  1        saisie: « 1 »
+  0        saisie: « 0 »
+  inertes : Up Down Left Right Tab a b h q x S Q ? * k u P n L i
+
+## fenêtre « Modifications non enregistrées »
+  Up       fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Down     fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Left     fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Right    fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Entrée   fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Échap    fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Backspace fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  Tab      fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  a        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  b        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  h        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  q        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  x        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  S        action: SaveAndQuit   fenêtre: sortie → aucune
+  Q        action: Quit   fenêtre: sortie → aucune
+  ?        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  5        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  *        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  k        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  u        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  P        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  n        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  L        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  1        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  i        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  0        fenêtre: sortie → aucune   « tu restes : rien de perdu »
+  inertes : 
+
+## aide (h)
+  Up       fenêtre: aide → aucune
+  Down     fenêtre: aide → aucune
+  Left     fenêtre: aide → aucune
+  Right    fenêtre: aide → aucune
+  Entrée   fenêtre: aide → aucune
+  Échap    fenêtre: aide → aucune
+  Backspace fenêtre: aide → aucune
+  Tab      fenêtre: aide → aucune
+  a        fenêtre: aide → aucune
+  b        fenêtre: aide → aucune
+  h        fenêtre: aide → aucune
+  q        fenêtre: aide → aucune
+  x        fenêtre: aide → aucune
+  S        fenêtre: aide → aucune
+  Q        fenêtre: aide → aucune
+  ?        fenêtre: aide → aucune
+  5        fenêtre: aide → aucune
+  *        fenêtre: aide → aucune
+  k        fenêtre: aide → aucune
+  u        fenêtre: aide → aucune
+  P        fenêtre: aide → aucune
+  n        fenêtre: aide → aucune
+  L        fenêtre: aide → aucune
+  1        fenêtre: aide → aucune
+  i        fenêtre: aide → aucune
+  0        fenêtre: aide → aucune
+  inertes : 

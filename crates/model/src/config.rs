@@ -178,6 +178,24 @@ pub struct Midi {
     /// Les appareils **décochés**, par un morceau de leur nom : namfoop les ignore en entier.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
+    /// Les gestes **coupés** pour tous les canaux (ceux d'un canal réglé sont dans le sien) : un
+    /// message qui les demande est ignoré, et le dit.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub muted: Vec<Gesture>,
+}
+
+/// Un **geste** MIDI : ce qu'un message demande à namfoop.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Gesture {
+    /// Le morceau (avec un set) ou le preset : un Program Change.
+    Pc,
+    /// Le son du morceau joué.
+    Sound,
+    /// Le tap tempo.
+    Tap,
+    /// L'accordeur.
+    Tuner,
 }
 
 /// Un canal réglé et ses numéros. Un numéro absent reprend celui de `[midi]`.
@@ -192,6 +210,9 @@ pub struct MidiChannel {
     pub cc_tap: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cc_tuner: Option<u8>,
+    /// Les gestes coupés sur ce canal.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub muted: Vec<Gesture>,
 }
 
 impl Default for Midi {
@@ -208,6 +229,7 @@ impl Default for Midi {
             channels: Vec::new(),
             clock_from: None,
             ignore: Vec::new(),
+            muted: Vec::new(),
         }
     }
 }
@@ -447,15 +469,27 @@ mod tests {
     #[test]
     fn les_canaux_l_horloge_et_les_appareils_decoches_se_lisent() {
         let texte = "[midi]\nclock_from = \"MC6\"\nignore = [\"Digital Piano\"]\n\n\
-                     [[midi.channels]]\nchannel = 5\ncc_sound = 20\n\n[[midi.channels]]\nchannel = 1\n";
+                     [[midi.channels]]\nchannel = 5\ncc_sound = 20\n\n[[midi.channels]]\nchannel = 1\nmuted = [\"tap\"]\n";
         let m = toml::from_str::<Config>(texte).unwrap().midi.unwrap();
         assert_eq!(m.clock_from.as_deref(), Some("MC6"));
         assert_eq!(m.ignore, ["Digital Piano"]);
         assert_eq!(
             m.channels,
             [
-                MidiChannel { channel: 5, cc_sound: Some(20), cc_tap: None, cc_tuner: None },
-                MidiChannel { channel: 1, cc_sound: None, cc_tap: None, cc_tuner: None },
+                MidiChannel {
+                    channel: 5,
+                    cc_sound: Some(20),
+                    cc_tap: None,
+                    cc_tuner: None,
+                    muted: Vec::new()
+                },
+                MidiChannel {
+                    channel: 1,
+                    cc_sound: None,
+                    cc_tap: None,
+                    cc_tuner: None,
+                    muted: vec![Gesture::Tap]
+                },
             ]
         );
         let relu = toml::from_str::<Config>(

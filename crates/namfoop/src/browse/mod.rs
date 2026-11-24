@@ -337,6 +337,7 @@ pub fn run(
             cc_tap: m.cc_tap,
             cc_tuner: m.cc_tuner,
             clock: m.clock,
+            muted: crate::cli_midi::Muted::from_list(&m.muted),
         };
     }
     // les numéros de chaque canal réglé (ADR 0012), tels que le port ouvert les a résolus
