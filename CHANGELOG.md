@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#414)
+- **namfoop écoute tous tes appareils MIDI à la fois** : sans port nommé, l'entrée DIN, chaque
+  appareil USB et ceux qu'on branche en cours de route, sans relancer namfoop ; un appareil
+  débranché ne bloque rien. `namfoop midi` dit de quel appareil vient chaque message
+  (`[MC6 MKII MIDI 1] PC 3 ch 1`). Une config qui nomme un port (`[midi] in`) n'écoute toujours que
+  lui. « Midi Through » ne s'écoute que nommé.
+- **Une seule horloge compte** : celle du premier appareil qui bat, tant qu'il bat ; l'horloge et le
+  transport d'un autre appareil sont ignorés, jamais additionnés, et `namfoop midi` le dit.
+- Le port simulé joue plusieurs appareils : `[MC6 Pro] pc 3 ch 1`.
+
 ### MIDI (#378)
 - **namfoop n'écoute que ton canal, si tu le lui dis** : `[midi] channel = 5` (ou
   `--midi-channel 5`) fait ignorer tout Program Change ou CC arrivé sur un autre canal — un message

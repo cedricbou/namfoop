@@ -1,5 +1,5 @@
-//! Entrée MIDI : une porte, deux sources — un port du séquenceur ALSA (pédalier, Ableton) ou un
-//! **port simulé** qui lit des lignes de texte. Même événement typé des deux côtés, pour que tout
+//! Entrée MIDI : **tous les appareils** du séquenceur ALSA (l'entrée DIN, chaque appareil USB), ou
+//! un seul s'il est nommé, ou un **port simulé** qui lit des lignes de texte. Même événement typé des deux côtés, pour que tout
 //! se teste sans brancher de câble.
 //!
 //! Les conventions (quel message veut dire quoi) sont dans
@@ -15,6 +15,7 @@
 //! ([`Message::channel`]) : choisir ce qu'on écoute est l'affaire de l'appelant, qui sait ce qu'un
 //! canal veut dire. Un pédalier branché sur son canal d'usine marche donc sans réglage.
 
+mod clock;
 mod error;
 mod seq;
 mod sim;
@@ -22,10 +23,10 @@ mod text;
 
 pub use error::{Error, Result};
 pub use seq::ports;
-pub use text::{describe, parse_line};
+pub use text::{describe, describe_from, parse_line, Line};
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// Taille de la file entre le fil de lecture et l'appelant. Une horloge à 300 BPM envoie 120 tops
@@ -82,15 +83,45 @@ pub struct Message {
     /// canal — l'horloge, `Start`, `Stop`, `Continue`, la position — et pour une ligne de port
     /// simulé écrite sans canal.
     pub channel: Option<u8>,
+    /// **L'appareil** qui l'a envoyé : un numéro, dont le nom se lit par [`Input::device_name`].
+    /// Un numéro et non un nom, pour que le fil de lecture n'alloue rien par message ; il reste le
+    /// même pour un appareil débranché puis rebranché.
+    pub device: u16,
 }
 
-/// Quel port écouter. Traduit depuis la CLI et la config par le binaire : cette crate ne lit ni
+/// Un appareil vu depuis l'ouverture : branché ou non, et ce qu'on a écarté de son horloge.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Device {
+    /// Le numéro que portent ses messages ([`Message::device`]).
+    pub id: u16,
+    /// Son nom, tel que le séquenceur le donne (« MC6 MKII MIDI 1 ») : il ne dépend pas de l'ordre
+    /// de branchement.
+    pub name: String,
+    /// Faux une fois débranché ; il redevient vrai quand on le rebranche.
+    pub present: bool,
+    /// Tops d'horloge reçus de lui et **non comptés**, parce qu'un autre appareil donne l'horloge.
+    pub ignored_clock: u64,
+}
+
+/// La table des appareils, que le fil de lecture remplit et que l'appelant lit. Le verrou n'est
+/// pris qu'à l'arrivée ou au départ d'un appareil, jamais par message : le compte des tops écartés
+/// vit dans un atomique par appareil.
+#[derive(Default)]
+struct Devices {
+    list: Mutex<Vec<(String, bool, Arc<AtomicU64>)>>,
+}
+
+/// Quoi écouter. Traduit depuis la CLI et la config par le binaire : cette crate ne lit ni
 /// l'une ni l'autre.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Settings {
-    /// Port à ouvrir : une adresse du séquenceur (« 28:0 »), un morceau de nom de port
-    /// (« MC6 »), ou `sim:<chemin>` pour le port simulé. `None` : le premier port d'entrée trouvé.
+    /// Le seul port à écouter : une adresse du séquenceur (« 28:0 »), un morceau de nom de port
+    /// (« MC6 »), ou `sim:<chemin>` pour le port simulé. `None` : **tous** les appareils d'entrée,
+    /// y compris ceux qu'on branchera ensuite (« Midi Through », le bouclage du noyau, excepté).
     pub port: Option<String>,
+    /// Un morceau du nom de l'appareil dont l'horloge et le transport comptent, à l'exclusion des
+    /// autres. `None` : le premier qui bat, tant qu'il bat.
+    pub clock_from: Option<String>,
 }
 
 /// Un port MIDI d'entrée visible sur la machine.
@@ -128,6 +159,16 @@ struct Sink {
     dropped: Arc<AtomicU64>,
     stop: Arc<std::sync::atomic::AtomicBool>,
     clock_ticks: Arc<AtomicU64>,
+    devices: Arc<Devices>,
+    /// Copie locale des noms et des compteurs, pour ne jamais prendre le verrou par message.
+    names: Vec<String>,
+    ignored: Vec<Arc<AtomicU64>>,
+    clock: clock::ClockChoice,
+    /// L'appareil de l'horloge (`u32::MAX` : aucun) et l'instant de son dernier top compté, en
+    /// millisecondes depuis `epoch` : publiés pour l'appelant, qui juge lui-même si elle bat encore.
+    following: Arc<AtomicU32>,
+    last_tick_ms: Arc<AtomicU64>,
+    epoch: Instant,
 }
 
 impl Sink {
@@ -135,12 +176,66 @@ impl Sink {
         !self.stop.load(Ordering::Relaxed)
     }
 
+    /// Le numéro de l'appareil `name`, inscrit s'il est nouveau, et marqué branché. Appelé à
+    /// l'arrivée d'un appareil, pas par message.
+    fn device(&mut self, name: &str) -> u16 {
+        let id = match self.names.iter().position(|n| n == name) {
+            Some(i) => i,
+            None => {
+                let compteur = Arc::new(AtomicU64::new(0));
+                self.names.push(name.to_string());
+                self.ignored.push(compteur.clone());
+                if let Ok(mut l) = self.devices.list.lock() {
+                    l.push((name.to_string(), true, compteur));
+                }
+                self.names.len() - 1
+            }
+        };
+        self.set_present(id as u16, true);
+        id as u16
+    }
+
+    /// Un appareil branché ou débranché.
+    fn set_present(&mut self, id: u16, present: bool) {
+        if let Ok(mut l) = self.devices.list.lock() {
+            if let Some(d) = l.get_mut(id as usize) {
+                d.1 = present;
+            }
+        }
+    }
+
     /// Pousse un message ; une file pleine compte une perte et ne bloque jamais le fil.
     ///
     /// Un top d'horloge est **compté avant** d'être poussé, et donc compté même si la file
     /// débordait : le top a bien eu lieu, et c'est son numéro qui porte la phase. Perdre le
     /// message coûte une mesure de tempo ; perdre le comptage décalerait la grille pour de bon.
-    fn push(&mut self, event: Event, channel: Option<u8>) {
+    ///
+    /// **Une seule horloge** ([`clock::ClockChoice`]) : un top d'un autre appareil que celui de
+    /// l'horloge n'est ni compté ni poussé — il va dans le compteur des tops écartés de son
+    /// appareil —, et son transport n'est pas poussé non plus.
+    fn push(&mut self, event: Event, channel: Option<u8>, device: u16) {
+        let now = Instant::now();
+        let name = self.names.get(device as usize).map(String::as_str).unwrap_or("");
+        let garde = match event {
+            Event::ClockTick => self.clock.tick(device, name, now),
+            Event::ClockStart | Event::ClockStop | Event::ClockContinue | Event::SongPosition(_) => {
+                self.clock.transport(device, name, now)
+            }
+            _ => true,
+        };
+        if garde && event == Event::ClockTick {
+            self.following.store(u32::from(device), Ordering::Relaxed);
+            self.last_tick_ms
+                .store(now.saturating_duration_since(self.epoch).as_millis() as u64, Ordering::Relaxed);
+        }
+        if !garde {
+            if event == Event::ClockTick {
+                if let Some(c) = self.ignored.get(device as usize) {
+                    c.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+            return;
+        }
         // Compté **avant** d'être poussé, donc compté même si la file débordait : le top a bien eu
         // lieu, et c'est son numéro qui porte la phase. `fetch_add` rend la valeur d'avant, et le
         // numéro de ce top-ci est donc celle-là plus un.
@@ -149,7 +244,7 @@ impl Sink {
         } else {
             self.clock_ticks.load(Ordering::Relaxed)
         };
-        let msg = Message { at: Instant::now(), event, clock_seq, channel };
+        let msg = Message { at: now, event, clock_seq, channel, device };
         if self.tx.push(msg).is_err() {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
@@ -165,6 +260,10 @@ pub struct Input {
     thread: Option<std::thread::JoinHandle<()>>,
     description: String,
     clock_ticks: Arc<AtomicU64>,
+    devices: Arc<Devices>,
+    following: Arc<AtomicU32>,
+    last_tick_ms: Arc<AtomicU64>,
+    epoch: Instant,
 }
 
 impl Input {
@@ -205,6 +304,38 @@ impl Input {
     pub fn clock_ticks(&self) -> Arc<AtomicU64> {
         self.clock_ticks.clone()
     }
+
+    /// Les appareils vus depuis l'ouverture, dans l'ordre où ils sont apparus.
+    pub fn devices(&self) -> Vec<Device> {
+        let Ok(l) = self.devices.list.lock() else { return Vec::new() };
+        l.iter()
+            .enumerate()
+            .map(|(i, (name, present, ignored))| Device {
+                id: i as u16,
+                name: name.clone(),
+                present: *present,
+                ignored_clock: ignored.load(Ordering::Relaxed),
+            })
+            .collect()
+    }
+
+    /// Le nom de l'appareil `id` ([`Message::device`]).
+    pub fn device_name(&self, id: u16) -> String {
+        self.devices
+            .list
+            .lock()
+            .ok()
+            .and_then(|l| l.get(id as usize).map(|d| d.0.clone()))
+            .unwrap_or_default()
+    }
+
+    /// L'appareil dont l'horloge est suivie, s'il bat encore.
+    pub fn clock_device(&self) -> Option<u16> {
+        let d = u16::try_from(self.following.load(Ordering::Relaxed)).ok()?;
+        let depuis = (self.epoch.elapsed().as_millis() as u64)
+            .saturating_sub(self.last_tick_ms.load(Ordering::Relaxed));
+        (depuis < clock::LOST.as_millis() as u64).then_some(d)
+    }
 }
 
 impl Drop for Input {
@@ -237,12 +368,39 @@ pub fn open(cfg: &Settings) -> Result<Input> {
     let dropped = Arc::new(AtomicU64::new(0));
     let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let clock_ticks = Arc::new(AtomicU64::new(0));
-    let sink = Sink { tx, dropped: dropped.clone(), stop: stop.clone(), clock_ticks: clock_ticks.clone() };
+    let devices = Arc::new(Devices::default());
+    let following = Arc::new(AtomicU32::new(u32::MAX));
+    let last_tick_ms = Arc::new(AtomicU64::new(0));
+    let epoch = Instant::now();
+    let sink = Sink {
+        tx,
+        dropped: dropped.clone(),
+        stop: stop.clone(),
+        clock_ticks: clock_ticks.clone(),
+        devices: devices.clone(),
+        names: Vec::new(),
+        ignored: Vec::new(),
+        clock: clock::ClockChoice::new(cfg.clock_from.as_deref()),
+        following: following.clone(),
+        last_tick_ms: last_tick_ms.clone(),
+        epoch,
+    };
     let thread = std::thread::Builder::new()
         .name("namfoop-midi".into())
         .spawn(move || source.run(sink))
         .map_err(|e| Error::Msg(format!("fil de lecture MIDI : {e}")))?;
-    Ok(Input { rx, dropped, stop, thread: Some(thread), description, clock_ticks })
+    Ok(Input {
+        rx,
+        dropped,
+        stop,
+        thread: Some(thread),
+        description,
+        clock_ticks,
+        devices,
+        following,
+        last_tick_ms,
+        epoch,
+    })
 }
 
 #[cfg(test)]
@@ -255,7 +413,9 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("dossier");
         let path = dir.join("sequence.txt");
         std::fs::write(&path, "pc 3 ch 5\ncc 34 2\nclock\nstart\nspp 64\n").expect("écriture");
-        let mut input = open(&Settings { port: Some(format!("sim:{}", path.display())) }).expect("ouverture");
+        let mut input =
+            open(&Settings { port: Some(format!("sim:{}", path.display())), ..Default::default() })
+                .expect("ouverture");
         let mut vus = Vec::new();
         let mut canaux = Vec::new();
         let limite = Instant::now() + std::time::Duration::from_secs(2);
@@ -304,7 +464,9 @@ mod tests {
         lignes.push_str("stop\n");
         std::fs::write(&path, &lignes).expect("écriture");
 
-        let mut input = open(&Settings { port: Some(format!("sim:{}", path.display())) }).expect("ouverture");
+        let mut input =
+            open(&Settings { port: Some(format!("sim:{}", path.display())), ..Default::default() })
+                .expect("ouverture");
         let tops = input.clock_ticks();
         // on attend le dernier message, pas le compteur : c'est ainsi qu'on vérifie qu'il est
         // à jour **quand tout est arrivé**, et non qu'on s'arrête dès qu'il nous plaît
@@ -326,15 +488,97 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// **Deux appareils** sur un port simulé : chaque message dit le sien, et deux horloges ne
+    /// s'additionnent jamais — seule celle du premier qui bat est comptée, l'autre l'est à part.
+    #[test]
+    fn deux_appareils_une_seule_horloge() {
+        let dir = std::env::temp_dir().join(format!("namfoop-appareils-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dossier");
+        let path = dir.join("deux.txt");
+        let mut lignes = String::from("[UM-ONE] pc 2 ch 5\n[MC6 Pro] cc 34 1 ch 1\n");
+        for _ in 0..TICKS_PAR_NOIRE {
+            lignes.push_str("[UM-ONE] clock\n[MC6 Pro] clock\n");
+        }
+        lignes.push_str("[MC6 Pro] stop\n[UM-ONE] start\npc 1\n");
+        std::fs::write(&path, &lignes).expect("écriture");
+        let mut input =
+            open(&Settings { port: Some(format!("sim:{}", path.display())), ..Default::default() })
+                .expect("ouverture");
+        let mut vus = Vec::new();
+        let limite = Instant::now() + std::time::Duration::from_secs(2);
+        while vus.last().map(|(e, _): &(Event, String)| *e) != Some(Event::ProgramChange(1))
+            && Instant::now() < limite
+        {
+            while let Some(m) = input.try_pop() {
+                if m.event != Event::ClockTick {
+                    vus.push((m.event, input.device_name(m.device)));
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert_eq!(
+            vus,
+            vec![
+                (Event::ProgramChange(2), "UM-ONE".to_string()),
+                (Event::Control { cc: 34, value: 1 }, "MC6 Pro".to_string()),
+                // le Stop du MC6 n'est pas poussé : le transport appartient à l'horloge suivie
+                (Event::ClockStart, "UM-ONE".to_string()),
+                (Event::ProgramChange(1), "sim".to_string()),
+            ]
+        );
+        assert_eq!(
+            input.clock_ticks().load(Ordering::Relaxed),
+            TICKS_PAR_NOIRE as u64,
+            "une seule horloge comptée"
+        );
+        let appareils = input.devices();
+        let noms: Vec<&str> = appareils.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(noms, ["UM-ONE", "MC6 Pro", "sim"]);
+        assert_eq!(appareils[1].ignored_clock, TICKS_PAR_NOIRE as u64, "les tops du MC6, comptés à part");
+        assert_eq!(appareils[0].ignored_clock, 0);
+        assert!(appareils.iter().all(|d| d.present));
+        assert_eq!(input.clock_device(), Some(0), "UM-ONE donne l'horloge");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Un appareil **imposé** pour l'horloge : celle du premier qui bat est ignorée.
+    #[test]
+    fn l_horloge_imposee_l_emporte_sur_le_premier() {
+        let dir = std::env::temp_dir().join(format!("namfoop-impose-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dossier");
+        let path = dir.join("impose.txt");
+        let mut lignes = String::new();
+        for _ in 0..TICKS_PAR_NOIRE {
+            lignes.push_str("[MC6 Pro] clock\n[UM-ONE] clock\n");
+        }
+        lignes.push_str("pc 1\n");
+        std::fs::write(&path, &lignes).expect("écriture");
+        let cfg =
+            Settings { port: Some(format!("sim:{}", path.display())), clock_from: Some("um-one".into()) };
+        let mut input = open(&cfg).expect("ouverture");
+        let limite = Instant::now() + std::time::Duration::from_secs(2);
+        let mut fini = false;
+        while !fini && Instant::now() < limite {
+            while let Some(m) = input.try_pop() {
+                fini |= m.event == Event::ProgramChange(1);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(fini);
+        assert_eq!(input.clock_ticks().load(Ordering::Relaxed), TICKS_PAR_NOIRE as u64);
+        assert_eq!(input.devices()[0].ignored_clock, TICKS_PAR_NOIRE as u64, "le MC6, premier, ignoré");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     /// Tops d'horloge par noire (protocole MIDI) : la crate ne s'en sert pas — elle ne sait pas ce
     /// qu'une noire est —, mais le test, lui, compte en noires.
     const TICKS_PAR_NOIRE: u32 = 24;
 
     #[test]
     fn un_port_introuvable_est_une_erreur_pas_une_panique() {
-        let e = open(&Settings { port: Some("sim:/n/existe/pas".into()) });
+        let e = open(&Settings { port: Some("sim:/n/existe/pas".into()), ..Default::default() });
         assert!(e.is_err(), "un chemin absent doit être une erreur rendue");
-        let e = open(&Settings { port: Some("ce-port-n-existe-pas-du-tout".into()) });
+        let e = open(&Settings { port: Some("ce-port-n-existe-pas-du-tout".into()), ..Default::default() });
         assert!(e.is_err(), "un nom de port absent doit être une erreur rendue");
     }
 

@@ -58,7 +58,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -156,7 +156,7 @@ Options:
           Cible du mode normalize (dB)
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-limiter
           Désactive le limiteur de sortie
@@ -308,7 +308,7 @@ Options:
           Cible du mode normalize (dB)
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-limiter
           Désactive le limiteur de sortie
@@ -440,7 +440,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -511,7 +511,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -598,7 +598,7 @@ Options:
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -654,7 +654,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -710,7 +710,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -766,7 +766,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -822,7 +822,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -890,7 +890,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -965,7 +965,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --route <N=SOURCE>
           Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
@@ -1026,7 +1026,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -1081,7 +1081,7 @@ Options:
           Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -1163,7 +1163,7 @@ Options:
           Dossier de la bibliothèque, où -m et -i sont cherchés [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon le premier port d'entrée trouvé]
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config

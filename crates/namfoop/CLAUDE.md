@@ -108,7 +108,8 @@ calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start)
 meta_cmd.rs     `meta` : affichage d'un modèle
-midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair (`Horloge` résume les
+midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair, préfixés de leur
+                appareil, et les horloges écartées en sortant (`Horloge` résume les
                 tops à une ligne par noire ; `en_clair` dit ce que fait le CC de l'accordeur, APRÈS
                 la ligne brute, qui reste recopiable dans un port simulé). N'ouvre pas la carte son : c'est la commande des
                 essais matériels MIDI

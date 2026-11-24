@@ -12,12 +12,12 @@ use crate::config::Config as FileConfig;
 use midi_io::Settings;
 
 /// Options MIDI globales de la ligne de commande. Sans option : valeur de la config (`[midi]`),
-/// sinon le premier port d'entrée trouvé.
+/// sinon **tous** les appareils d'entrée.
 #[derive(Clone, Debug, Default, clap::Args)]
 pub struct MidiArgs {
     /// Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port
     /// (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`)
-    /// [défaut : config, sinon le premier port d'entrée trouvé]
+    /// [défaut : config, sinon tous les appareils MIDI d'entrée]
     #[arg(long, value_name = "PORT", global = true)]
     pub midi_in: Option<String>,
     /// Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -105,7 +105,10 @@ impl MidiArgs {
         if self.no_midi || conf.is_some_and(|m| m.off) {
             return None;
         }
-        Some(Settings { port: self.midi_in.clone().or_else(|| conf.and_then(|m| m.input.clone())) })
+        Some(Settings {
+            port: self.midi_in.clone().or_else(|| conf.and_then(|m| m.input.clone())),
+            clock_from: None,
+        })
     }
 
     /// Le canal écouté : l'option, sinon la config, sinon tous.
@@ -160,7 +163,7 @@ mod tests {
     fn sans_option_c_est_la_config_puis_le_premier_port() {
         let args = MidiArgs::default();
         assert_eq!(args.resolve(&conf(Some("MC6"), false)).and_then(|s| s.port).as_deref(), Some("MC6"));
-        assert_eq!(args.resolve(&FileConfig::default()).and_then(|s| s.port), None, "le premier port venu");
+        assert_eq!(args.resolve(&FileConfig::default()).and_then(|s| s.port), None, "tous les appareils");
     }
 
     #[test]

@@ -1,9 +1,11 @@
 # midi-io — entrée MIDI
 
-**Responsabilité.** Ouvrir **une** porte d'entrée MIDI et livrer des messages typés, dans un fil à
-part. Deux sources derrière le même type, comme `audio-io` a deux backends : un **port du
-séquenceur ALSA** (pédalier USB, Ableton) et un **port simulé** qui lit des lignes de texte. Rien
-d'autre : ce que les messages veulent dire est l'affaire de l'appelant.
+**Responsabilité.** Écouter les **appareils** MIDI et livrer des messages typés, dans un fil à
+part : chaque message dit son appareil, son canal et son numéro de top. Deux sources derrière le
+même type, comme `audio-io` a deux backends : le **séquenceur ALSA** (tous les ports d'entrée, ou le
+seul nommé, et ceux branchés en cours de route) et un **port simulé** qui lit des lignes de texte et
+peut jouer plusieurs appareils. Elle choisit aussi **l'appareil de l'horloge** : deux horloges ne
+s'additionnent jamais. Ce que les messages veulent dire est l'affaire de l'appelant.
 
 **Interdit** (vérifié par `scripts/check-arch.sh`) : toute dépendance hors `alsa`, `libc`, `log`,
 `rtrb`, `thiserror` — donc ni `clap`, ni `serde`/`toml` (la traduction des options et de la config
@@ -16,14 +18,17 @@ de chaînes. Un second contrôle textuel limite `midi_io::open` à deux fichiers
 **Fichiers.**
 
 ```
-src/lib.rs    Event, Message (horodaté, numéroté en tops d'horloge, et son canal), Settings, Port,
-              Input (la file, le fil, le compteur de tops), open()
-src/seq.rs    port du séquenceur ALSA : liste des ports, choix par adresse ou par nom, abonnement,
-              conversion des événements du séquenceur -> Event
+src/lib.rs    Event, Message (horodaté, numéroté en tops d'horloge, son canal, son appareil), Device,
+              Settings, Port, Input (la file, le fil, le compteur de tops, la table des appareils),
+              open() ; Sink : le choix de l'horloge appliqué au moment de pousser
+src/clock.rs  la règle de l'horloge unique (imposée, sinon le premier qui bat, perdue à 500 ms),
+              machine pure testée sans câble
+src/seq.rs    séquenceur ALSA : liste des ports, abonnement à tous (hors « Midi Through ») ou au seul
+              nommé, port d'annonces du système (branchement à chaud), conversion -> Event
 src/sim.rs    port simulé « sim:<chemin> » : fichier ou tube nommé, lu sans bloquer
-src/text.rs   le format texte d'un message (pc / cc / clock / start / stop / continue / spp, et
-              « ch N » après pc et cc), lu par le port simulé ET affiché par `namfoop midi` — ce
-              qu'on voit se recopie, canal compris
+src/text.rs   le format texte d'un message (pc / cc / clock / start / stop / continue / spp,
+              « ch N » après pc et cc, « [appareil] » devant), lu par le port simulé ET affiché par
+              `namfoop midi` — ce qu'on voit se recopie, appareil et canal compris
 src/error.rs  erreurs thiserror ; les messages sont ceux que lit l'utilisateur
 ```
 
@@ -51,6 +56,17 @@ choses, et il faut les deux :
   vaut 20,8 ms à 120 BPM, la boucle repasse toutes les 20 à 30 ms). Le type est standard, donc
   `engine` n'a pas à dépendre d'ici — c'est le binaire qui relie les deux, comme pour les cases
   `dsp::param::Control`.
+
+**Une seule horloge.** Le choix de l'appareil d'horloge se fait **dans le fil de lecture**, avant
+le compteur : un top d'un autre appareil n'est ni compté ni poussé, et va dans le compteur
+`Device::ignored_clock` de son appareil ; son transport n'est pas poussé non plus. Le faire plus
+loin, côté appelant, serait trop tard pour le compteur que lit le fil audio. `Input::clock_device`
+dit qui bat, en appliquant lui-même le délai de perte (aucun message n'arrive quand une horloge se
+tait).
+
+**L'appareil d'un message est un numéro** (`Message::device`), pas un nom : le fil de lecture
+n'alloue rien par message. La table (`Input::devices`, `device_name`) n'est verrouillée qu'à
+l'arrivée ou au départ d'un appareil ; un appareil qui revient reprend son numéro.
 
 Un top est compté **avant** d'être poussé, donc compté même si la file débordait : perdre le
 message ne coûte qu'une mesure de tempo, perdre le comptage décalerait la grille pour de bon. Et le
@@ -95,8 +111,10 @@ porte le temps 1 demande de savoir ce qu'un message *veut dire* — l'affaire d'
 `cargo test -p midi-io` : le format texte, le port simulé de bout en bout (fichier), un port absent
 qui rend une erreur au lieu de paniquer, et `tests/seq.rs` — **le vrai chemin ALSA sans matériel**,
 par le port de bouclage du noyau (« Midi Through ») : on y écrit, namfoop s'y est abonné, donc
-l'abonnement et la conversion sont exercés pour de bon. Ce test **ne conclut pas** sans séquenceur
-ni port de bouclage (conteneur, CI) : il le dit et passe.
+l'abonnement et la conversion sont exercés pour de bon ; un second test crée deux faux appareils,
+l'un avant l'ouverture et l'autre après, pour exercer l'écoute de tous et le branchement à chaud.
+Ces tests **ne concluent pas** sans séquenceur ni port de bouclage (conteneur, CI) : ils le disent
+et passent.
 
 Sans matériel, à la main :
 

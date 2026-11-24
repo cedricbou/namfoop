@@ -102,11 +102,17 @@ impl Source for SimPort {
     }
 }
 
+/// L'appareil d'une ligne écrite sans `[nom]`.
+const APPAREIL: &str = "sim";
+
 /// Une ligne fausse est **signalée et sautée** : un tube qu'on remplit à la main se trompe, et ce
 /// n'est pas une raison d'arrêter d'écouter.
 fn lire(ligne: &str, path: &Path, out: &mut Sink) {
     match text::parse_line(ligne) {
-        Ok(Some((event, channel))) => out.push(event, channel),
+        Ok(Some(l)) => {
+            let device = out.device(l.device.as_deref().unwrap_or(APPAREIL));
+            out.push(l.event, l.channel, device)
+        }
         Ok(None) => {}
         Err(e) => log::warn!("port MIDI simulé {} : {e}", path.display()),
     }
