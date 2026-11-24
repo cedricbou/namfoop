@@ -4,7 +4,11 @@
 //!
 //! Trois largeurs (§ 6) : au-delà de 100 colonnes la set list fait 44 colonnes ; en dessous elle
 //! se réduit à 30 ; sous 70 elle disparaît au profit d'une seule ligne au-dessus du cadre, qui
-//! prend alors toute la largeur. Sur scène, un écran étroit ne doit pas cacher ce qu'on joue.
+//! prend alors toute la largeur. Sur scène, un écran étroit ne doit pas cacher ce qu'on joue — et
+//! **la grille passe avant la set list** : quand la plus large ligne de mesures du morceau ne
+//! tient pas dans la colonne, la set list se replie de même (§ 4 de `docs/design/prompteur.md`).
+//!
+//! Le prompteur lui-même est dessiné par `ui/prompt.rs`.
 //!
 //! **L'édition** (`e`, § 8) remplace les deux colonnes par **une** table pleine largeur :
 //! on y voit les PC, les tempos, les sons et leurs volumes de **tous** les morceaux à la fois,
@@ -22,6 +26,7 @@ use super::super::state::set::edit::Edit;
 use super::super::state::set::ActiveSet;
 use super::super::state::State;
 use super::beat::band_lines;
+use super::prompt::{grid_width, prompt_lines};
 
 /// En dessous, la set list se réduit (§ 6).
 const WIDE: u16 = 100;
@@ -50,17 +55,33 @@ pub fn render(s: &State, f: &mut Frame, area: Rect) {
         render_edit(set, edit, f, area);
         return;
     }
+    match list_width(s, set, area) {
+        None => {
+            // trop étroit pour deux colonnes : une ligne dit l'essentiel, le cadre prend le reste
+            let [line, rest] = Layout::vertical([Constraint::Length(1), Constraint::Min(3)]).areas(area);
+            f.render_widget(Paragraph::new(compact_line(set)), line);
+            render_song(s, set, f, rest);
+        }
+        Some(list_w) => {
+            let [left, right] =
+                Layout::horizontal([Constraint::Length(list_w), Constraint::Min(20)]).areas(area);
+            render_list(s, set, f, left);
+            render_song(s, set, f, right);
+        }
+    }
+}
+
+/// La largeur de la set list, ou `None` quand elle se replie en une ligne : sous 70 colonnes, ou
+/// quand la grille du morceau joué ne tiendrait pas à côté d'elle (§ 4 de `prompteur.md`).
+fn list_width(s: &State, set: &ActiveSet, area: Rect) -> Option<u16> {
     if area.width < NARROW {
-        // trop étroit pour deux colonnes : une ligne dit l'essentiel, le cadre prend le reste
-        let [line, rest] = Layout::vertical([Constraint::Length(1), Constraint::Min(3)]).areas(area);
-        f.render_widget(Paragraph::new(compact_line(set)), line);
-        render_song(s, set, f, rest);
-        return;
+        return None;
     }
     let list_w = if area.width >= WIDE { LIST_WIDE } else { LIST_NARROW };
-    let [left, right] = Layout::horizontal([Constraint::Length(list_w), Constraint::Min(20)]).areas(area);
-    render_list(s, set, f, left);
-    render_song(s, set, f, right);
+    let grid = set.at.and_then(|at| s.prompt_of(at.0)).and_then(|l| l.prompt()).map(grid_width).unwrap_or(0);
+    // la colonne du prompteur perd ses deux bordures et un espace de chaque côté
+    let fits = grid + 4 <= area.width.saturating_sub(list_w) as usize;
+    fits.then_some(list_w)
 }
 
 /// `2/6 Le Phare ● Fuzz Face → 3 Néon` : ce que montre un terminal trop étroit pour la set list.
@@ -231,10 +252,17 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     // un set sans titres (le show à sons) n'a pas de morceau à nommer : on ne met pas de titre
     // fantôme à la place (§ 2, § 6)
     let untitled = songs == 1 && set.spec.songs[0].title.is_none();
+    // la tonalité suit le nom du morceau, quand son prompteur la donne (§ 4 de `prompteur.md`)
+    let key = s
+        .prompt_of(at.0)
+        .and_then(|l| l.prompt())
+        .and_then(|p| p.key.as_deref())
+        .map(|k| format!("{k} · "))
+        .unwrap_or_default();
     let who = if untitled {
         String::new()
     } else {
-        format!("{} · {} · ", at.0 + 1, set.spec.songs.get(at.0).map(|x| x.label()).unwrap_or("?"))
+        format!("{} · {} · {key}", at.0 + 1, set.spec.songs.get(at.0).map(|x| x.label()).unwrap_or("?"))
     };
     let title = format!(" {who}son {}/{sounds} {} · PgDn : ensuite {next} ", at.1 + 1, sound_name(set, at),);
     let mut lines: Vec<Line> = Vec::new();
@@ -306,17 +334,16 @@ pub(super) fn tuner_column(s: &State, area: Rect) -> Option<(Rect, Vec<Line<'sta
         return None;
     }
     let below = set.at.map(|at| next_song_lines(s, set, at, true)).unwrap_or_default();
-    if area.width < NARROW {
+    let Some(list_w) = list_width(s, set, area) else {
         let [_, rest] = Layout::vertical([Constraint::Length(1), Constraint::Min(3)]).areas(area);
         return Some((rest, below));
-    }
-    let list_w = if area.width >= WIDE { LIST_WIDE } else { LIST_NARROW };
+    };
     let [_, right] = Layout::horizontal([Constraint::Length(list_w), Constraint::Min(20)]).areas(area);
     Some((right, below))
 }
 
 /// Tronque à `w` caractères, en comptant des caractères et non des octets.
-fn clip(s: &str, w: usize) -> String {
+pub(super) fn clip(s: &str, w: usize) -> String {
     if s.chars().count() <= w {
         return s.to_string();
     }
@@ -546,179 +573,4 @@ fn window(f: &mut Frame, area: Rect, title: &str, lines: Vec<Line<'static>>, min
         ),
         win,
     );
-}
-
-// -------------------------------------------------- le prompteur (§ 10)
-
-/// Le **texte du morceau joué** : sections étiquetées, accords, cues, et la position.
-///
-/// Trois états de section, et c'est ce qui permet de se repérer d'un coup d'œil sur scène : la
-/// **courante** en vert avec `▸`, les **passées** en gris, les **suivantes** en gras. La ligne
-/// courante porte `›`. Le texte part **deux lignes avant** la position : on ne lit pas la première
-/// ligne de l'écran, on a besoin de voir d'où l'on vient.
-fn prompt_lines(s: &State, set: &ActiveSet, at: (usize, usize), w: usize, room: usize) -> Vec<Line<'static>> {
-    use crate::browse::state::set::prompt::Loaded;
-    let song = &set.spec.songs[at.0];
-    let Some(loaded) = s.prompt_of(at.0) else {
-        // pas de `prompt =` dans le set : on dit **comment** en avoir un, pas « rien »
-        let mut v = vec![Line::styled("  pas de prompteur pour ce morceau", Style::new().fg(theme::dim()))];
-        if !s.locked {
-            let file = crate::browse::state::set::prompt::prompt_file_name(song.label());
-            v.push(Line::styled(
-                format!("  t l'écrit dans ton éditeur (ChordPro : prompts/{file})"),
-                Style::new().fg(theme::dim()),
-            ));
-        }
-        return v;
-    };
-    let prompt = match loaded {
-        Loaded::Ok(p) => p,
-        // fichier absent ou illisible : **jamais** d'erreur bloquante, un message dans le cadre
-        Loaded::Failed(why) => {
-            return vec![Line::styled(format!("  ⚠ {why}"), Style::new().fg(theme::warn()))];
-        }
-    };
-    if prompt.sections.is_empty() {
-        return vec![Line::styled(
-            format!("  prompteur vide{}", if s.locked { "" } else { " : t pour l'écrire" }),
-            Style::new().fg(theme::dim()),
-        )];
-    }
-    // on met tout à plat une fois : c'est la seule façon de faire défiler le texte **et** ses
-    // en-têtes de section ensemble
-    let mut flat: Vec<Line<'static>> = Vec::new();
-    let mut here = 0usize;
-    for (i, sec) in prompt.sections.iter().enumerate() {
-        let state = match i.cmp(&set.prompt_section) {
-            std::cmp::Ordering::Less => Was::Past,
-            std::cmp::Ordering::Equal => Was::Now,
-            std::cmp::Ordering::Greater => Was::Next,
-        };
-        if !sec.label.is_empty() {
-            flat.push(section_head(sec, state, prompt));
-        }
-        for (k, line) in sec.lines.iter().enumerate() {
-            let cur = state == Was::Now && k == set.prompt_line;
-            if cur {
-                here = flat.len();
-            }
-            flat.extend(lyric_lines(line, w, cur, state == Was::Past));
-        }
-        if i + 1 < prompt.sections.len() {
-            flat.push(Line::raw(""));
-        }
-    }
-    // la fenêtre : deux lignes avant la position (§ 10)
-    let from = here.saturating_sub(2).min(flat.len().saturating_sub(room.max(1)));
-    flat.into_iter().skip(from).take(room.max(1)).collect()
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum Was {
-    Past,
-    Now,
-    Next,
-}
-
-/// L'en-tête d'une section : son étiquette, sa durée en mesures, ce qu'elle change (mesure,
-/// tempo), et **le son auquel elle est liée** — c'est ce qui fait le lien avec la set list.
-fn section_head(
-    sec: &library::prompt::Section,
-    state: Was,
-    prompt: &library::prompt::Prompt,
-) -> Line<'static> {
-    let mark = if state == Was::Now { "▸" } else { " " };
-    let bars = match sec.bars {
-        Some(b) => format!("{b} mes."),
-        None => String::new(),
-    };
-    let mut extra = String::new();
-    // une mesure ou un tempo ne se dit que s'il **change** : l'écrire partout serait du bruit
-    if sec.time != prompt.time {
-        if let Some(t) = sec.time.as_deref() {
-            extra.push_str(&format!(" {t}"));
-        }
-    }
-    if sec.tempo_bpm != prompt.tempo_bpm {
-        if let Some(t) = sec.tempo_bpm {
-            extra.push_str(&format!(" ♩{t:.0}"));
-        }
-    }
-    let mut spans = vec![Span::styled(
-        format!(" {mark} {:<14}{:<8}{extra}", sec.label.to_uppercase(), bars),
-        match state {
-            Was::Now => Style::new().fg(theme::set()).add_modifier(Modifier::BOLD),
-            Was::Past => Style::new().fg(theme::dim()),
-            Was::Next => Style::new().add_modifier(Modifier::BOLD),
-        },
-    )];
-    if let Some(sound) = sec.sound.as_deref() {
-        spans.push(Span::styled(
-            format!("  → {sound}"),
-            Style::new().fg(if state == Was::Now { theme::set() } else { theme::dim() }),
-        ));
-    }
-    Line::from(spans)
-}
-
-/// Une ligne de paroles : les accords **au-dessus** quand la largeur le permet (§ 10), sinon
-/// entre crochets dans le texte, comme dans le fichier.
-fn lyric_lines(line: &library::prompt::Line, w: usize, cur: bool, past: bool) -> Vec<Line<'static>> {
-    let text_style = match (cur, past, line.cue) {
-        // une cue n'est pas du texte à chanter : elle est en jaune (§ 10)
-        (_, _, true) => Style::new().fg(theme::cue()),
-        (true, _, _) => Style::new().fg(theme::on_accent()).bg(theme::set()).add_modifier(Modifier::BOLD),
-        (_, true, _) => Style::new().fg(theme::dim()),
-        _ => Style::new(),
-    };
-    let mark = if cur { "›" } else { " " };
-    if line.chords.is_empty() {
-        return vec![Line::from(Span::styled(format!("   {mark} {}", clip(&line.text, w)), text_style))];
-    }
-    let chord_line = chord_row(line);
-    // les accords ne tiennent pas au-dessus : on les remet dans le texte, lisible à coup sûr
-    if chord_line.chars().count() + 5 > w {
-        return vec![Line::from(Span::styled(format!("   {mark} {}", clip(&inline(line), w)), text_style))];
-    }
-    vec![
-        Line::from(Span::styled(
-            format!("     {chord_line}"),
-            Style::new().fg(theme::chord()).add_modifier(Modifier::BOLD),
-        )),
-        Line::from(Span::styled(format!("   {mark} {}", clip(&line.text, w)), text_style)),
-    ]
-}
-
-/// Les accords placés **au-dessus** de leur syllabe.
-fn chord_row(line: &library::prompt::Line) -> String {
-    let mut out = String::new();
-    for c in &line.chords {
-        // deux accords trop proches : on garde un espace, plutôt que de les coller
-        while out.chars().count() < c.at {
-            out.push(' ');
-        }
-        if !out.is_empty() && !out.ends_with(' ') {
-            out.push(' ');
-        }
-        out.push_str(&c.name);
-    }
-    out
-}
-
-/// La ligne telle qu'elle est écrite dans le fichier : `[Am]paroles`.
-fn inline(line: &library::prompt::Line) -> String {
-    let mut out = String::new();
-    let chars: Vec<char> = line.text.chars().collect();
-    let mut k = 0usize;
-    for c in &line.chords {
-        while k < c.at.min(chars.len()) {
-            out.push(chars[k]);
-            k += 1;
-        }
-        out.push('[');
-        out.push_str(&c.name);
-        out.push(']');
-    }
-    out.extend(chars[k.min(chars.len())..].iter());
-    out
 }

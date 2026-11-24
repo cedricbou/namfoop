@@ -10,7 +10,8 @@ dessin.
 Spécifications : [`browse-espaces.md`](../../../../docs/design/browse-espaces.md),
 [`browse-chaine.md`](../../../../docs/design/browse-chaine.md),
 [`set.md`](../../../../docs/design/set.md),
-[`prompteur.md`](../../../../docs/design/prompteur.md) (le prompteur en grille, cible à construire),
+[`prompteur.md`](../../../../docs/design/prompteur.md) (le prompteur en grille ; le son par section
+et l'ajout depuis un prompteur y restent à construire),
 [`accordeur.md`](../../../../docs/design/accordeur.md) (l'accordeur et la basse coupée),
 [`instruments.md`](../../../../docs/design/instruments.md) (instruments, cartes et gestes au pied,
 cible à construire). Le reste
@@ -305,7 +306,10 @@ vit dans `library::bars`. Quatre choses à ne pas casser :
    quoi les deux jointures de `keyboard.rs` échouent. `all_keys()` la trouve d'elle-même.
 
 `prompt.rs` — le prompteur (§ 10) : la lecture du ChordPro est dans `library::prompt`, ici il n'y a
-que la **position** (`ActiveSet::prompt_section` / `prompt_line`) et ce qui la déplace — le son
+que la **position** (`ActiveSet::prompt_section` / `prompt_line`, et `prompt_bar`, la mesure dans
+une ligne de grille) et ce qui la déplace — tout saut repasse par `place_prompt`, qui demande la
+ligne à la carte des mesures : une section en grille commence à sa première **mesure**, pas à sa
+cue. Ce qui la déplace : le son
 (`follow_prompt`, appelé par `play_set_sound` **avant** de bouger `at`, parce que la règle dépend de
 si l'on change de morceau ou seulement de son) et `Fin` / `Début` (`step_prompt`, réglables par
 `[set] prompt_next` / `prompt_prev`, **permises** sur scène : elles ne changent rien). Les
@@ -342,15 +346,17 @@ Chacun porte son contrat dans son en-tête `//!` ; voici la carte, et ce qui ne 
 ## Le dessin — `ui/`
 
 Ratatui, testé sur `TestBackend` : un fichier par zone (`mod.rs` listes et barre d'état,
-`synoptic.rs`, `spectrum.rs`, `bands.rs`, `rows.rs`, `picker.rs`, `set.rs`, `editor.rs`, `fx.rs`,
-`footer.rs`, `windows.rs`). Ce qui ne se devine pas en les lisant :
+`synoptic.rs`, `spectrum.rs`, `bands.rs`, `rows.rs`, `picker.rs`, `set.rs`, `prompt.rs` (le
+prompteur et ses grilles), `editor.rs`, `fx.rs`, `footer.rs`, `windows.rs`). Ce qui ne se devine
+pas en les lisant :
 
 - `help_bar` (`mod.rs`) coupe la barre aux séparateurs de touches en gardant **toujours** les trois
   dernières (`h` aide / l'autre espace / `q` quitter) ;
 - les **largeurs** commandent les panneaux : le Spectre à partir de 128 colonnes (police 10×20 du
   Pi), les Bandes sous lui au-delà de 128 et sous la liste en dessous (±12 dB sur 5 lignes, 3 dB par
   demi-bloc, ▲/▼ hors échelle), la set list sur 44 colonnes au-delà de 100, 30 en dessous et une
-  ligne compacte sous 70 ;
+  ligne compacte sous 70 — ou dès que la grille du morceau joué ne tiendrait pas à côté
+  (`list_width`, partagé par la vue scène et la colonne de l'accordeur) ;
 - la **bande de battue** (`band_lines`, § 11) ne tronque jamais : **quelque chose cède**. Ce qui
   cède, dans l'ordre : le rappel de la touche après `⏸` (la barre du bas la donne), l'étiquette de
   la section (le texte en dessous la marque), puis la mesure courante ; ce qui ne cède jamais, ce

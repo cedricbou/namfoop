@@ -52,6 +52,9 @@ pub struct ActiveSet {
     /// section.
     pub prompt_section: usize,
     pub prompt_line: usize,
+    /// Dans une ligne de grille, **la mesure** où l'on est (0 = la première de la ligne) : celle
+    /// que le prompteur allume. `None` : une ligne de texte.
+    pub prompt_bar: Option<u32>,
     /// **La battue** (§ 11) : la mesure et le temps dans la section courante, et si elle avance.
     /// La section, elle, est `prompt_section` : le texte et la battue avancent ensemble.
     pub beat: beat::Beat,
@@ -78,6 +81,7 @@ impl ActiveSet {
             expanded: Vec::new(),
             prompt_section: 0,
             prompt_line: 0,
+            prompt_bar: None,
             beat: beat::Beat::default(),
         }
     }

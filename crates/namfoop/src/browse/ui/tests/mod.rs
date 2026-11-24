@@ -301,6 +301,7 @@ fn the_spectrum_panel_appears_from_128_columns() {
 /// La bande de battue (§ 11) : les mesures, le compte à rebours, les deux tailles d'écran.
 mod beat;
 mod chain;
+mod prompt;
 mod set;
 
 /// **L'en-tête dit si la source d'horloge lit ou s'est arrêtée** : `⏵` et `⏸`,

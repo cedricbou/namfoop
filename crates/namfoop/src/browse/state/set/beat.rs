@@ -127,9 +127,12 @@ impl Band {
 impl State {
     /// La **carte des mesures** du morceau joué (§ 11). `None` : aucun set, ou rien de joué.
     pub fn bar_map(&self) -> Option<BarMap> {
-        let set = self.set.as_ref()?;
-        let song = set.at.map(|(i, _)| i)?;
-        let spec = set.spec.songs.get(song)?;
+        self.bar_map_of(self.set.as_ref()?.at?.0)
+    }
+
+    /// La carte des mesures d'un morceau du set, joué ou non.
+    fn bar_map_of(&self, song: usize) -> Option<BarMap> {
+        let spec = self.set.as_ref()?.spec.songs.get(song)?;
         Some(BarMap::of(spec, self.prompt_of(song).and_then(|l| l.prompt())))
     }
 
@@ -174,9 +177,11 @@ impl State {
         let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = 0;
-            set.prompt_line = 0;
             set.beat.restart(now_ms, ticks);
             set.beat.running = true;
+        }
+        if let Some(song) = self.set.as_ref().and_then(|s| s.at).map(|at| at.0) {
+            self.place_prompt(song);
         }
         self.section_tempo_on_jump(was, 0);
     }
@@ -200,15 +205,30 @@ impl State {
         let Some(map) = self.bar_map() else { return false };
         let Some(pos) = map.at_sixteenths(sixteenths as u32) else { return false };
         let was = self.set.as_ref().map(|s| s.prompt_section).unwrap_or(0);
-        let line = map.line_of(pos.section, pos.bar);
+        let (line, in_line) = map.place(pos.section, pos.bar);
         let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = pos.section;
             set.prompt_line = line;
+            set.prompt_bar = in_line;
             set.beat.seek(pos.bar, pos.tick, now_ms, ticks);
         }
         self.section_tempo_on_jump(was, pos.section);
         true
+    }
+
+    /// **La ligne et la mesure** du prompteur d'après la section et la mesure de la battue : un
+    /// saut (`Fin`, `Début`, le son, `Start`) se pose sur la première mesure de la section, qui
+    /// n'est pas forcément sa première ligne — une cue la précède souvent.
+    /// `song` est le morceau dont on suit le texte : celui qu'on va jouer, quand le son change.
+    pub(in crate::browse::state) fn place_prompt(&mut self, song: usize) {
+        let Some(set) = self.set.as_ref() else { return };
+        let (section, bar) = (set.prompt_section, set.beat.bar);
+        let (line, in_line) = self.bar_map_of(song).map(|m| m.place(section, bar)).unwrap_or((0, None));
+        if let Some(set) = self.set.as_mut() {
+            set.prompt_line = line;
+            set.prompt_bar = in_line;
+        }
     }
 
     /// Le tempo d'une section **nouvelle** entre dans l'arbitre, comme en avançant (§ 11) : même
@@ -304,7 +324,7 @@ impl State {
                 break;
             }
         }
-        let line = map.line_of(section, bar);
+        let (line, in_line) = map.place(section, bar);
         if let Some(set) = self.set.as_mut() {
             set.beat.bar = bar;
             set.beat.tick = tick;
@@ -315,6 +335,7 @@ impl State {
                 set.prompt_section = section;
             }
             set.prompt_line = line;
+            set.prompt_bar = in_line;
         }
         // **le tempo de la section entre dans l'arbitre comme celui d'un preset** (§ 11) : il n'y
         // entre qu'au passage d'une section à l'autre, et seulement s'il change — sinon chaque
@@ -689,6 +710,51 @@ mod tests {
         assert_eq!(s.tempo_source(), engine::tempo::TempoSource::Preset, "au rang d'un preset");
         // et il ne touche pas au preset : rien n'est « non enregistré »
         assert!(s.unsaved().is_empty(), "{:?}", s.unsaved());
+    }
+
+    /// **Une section en grille** (§ 3 de `docs/design/prompteur.md`) : sa durée se compte dans sa
+    /// grille, chaque ligne dure ses mesures, et la mesure dans la ligne avance avec la battue.
+    /// `Fin` se pose sur la première **mesure** de la section suivante, pas sur sa cue.
+    #[test]
+    fn a_grid_section_moves_line_by_line_and_bar_by_bar() {
+        // ♩120 en 4/4 : 2 s par mesure. Une ligne de 3 mesures, puis une d'une seule, puis 2/4.
+        let cho = "{tempo: 120}\n{time: 4/4}\n\
+            {start_of_grid label=\"Pont\"}\n| Am . . . | F . . . | C . . . |\n| G . . . |\n{end_of_grid}\n\
+            {comment: regarde le batteur}\n\
+            {start_of_grid label=\"Fin\"}\n| Em . . . | Em . . . |\n{end_of_grid}\n";
+        let mut s = staged(cho);
+        let place = |s: &State| {
+            let set = s.set.as_ref().unwrap();
+            (set.prompt_section, set.prompt_line, set.prompt_bar)
+        };
+        assert_eq!(place(&s), (0, 0, Some(0)), "à l'arrêt : la première mesure");
+        s.on_key(Key::Char(' '));
+        let mut seen = Vec::new();
+        for bar in 0..6u64 {
+            run_to(&mut s, bar * 2000 + 10);
+            seen.push(place(&s));
+        }
+        assert_eq!(
+            seen,
+            vec![
+                (0, 0, Some(0)),
+                (0, 0, Some(1)),
+                (0, 0, Some(2)),
+                (0, 1, Some(0)),
+                // la section suivante : sa cue (ligne 0) ne dure rien
+                (1, 1, Some(0)),
+                (1, 1, Some(1)),
+            ],
+            "ligne et mesure à chaque mesure, sans x_namfoop_bars"
+        );
+        let band = s.band().expect("une bande");
+        assert_eq!((band.label.as_str(), band.bars), ("Fin", Some(2)));
+        // `Fin` / `Début` : sur la première mesure, après la cue
+        s.on_key(Key::Char(' '));
+        s.on_key(Key::Home);
+        assert_eq!(place(&s), (0, 0, Some(0)));
+        s.on_key(Key::End);
+        assert_eq!(place(&s), (1, 1, Some(0)), "la cue n'est pas une mesure");
     }
 
     /// **Sans set, ou sans son joué, `Espace` le dit** au lieu de ne rien faire (ADR 0009).

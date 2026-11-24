@@ -1,0 +1,47 @@
+{title: Le Phare}
+{artist: Les Balises}
+{key: Em}
+{tempo: 124}
+{time: 4/4}
+{duration: 1:36}
+
+{comment: basse seule les 4 premières}
+{start_of_grid label="Intro" shape="4x4"}
+| Em . . . | Em . . . | G . . . | D . . . |
+| Em . . . | Em . . . | G . . . | D . . . |
+{end_of_grid}
+
+{start_of_grid label="Couplet 1" shape="4x4"}
+| Em . . . | Em . . . | G . . . | D . . . | La lampe tourne et rien ne bouge / Sur le quai les filets sèchent
+| Em . . . | Em . . . | G . . . | D . . . | On compte les bateaux qui rentrent / Il en manque un depuis hier
+| C . . . | C . . . | G . . . | D . . . | Ta veste est restée sur la chaise / Le café refroidit tout seul
+| C . . . | D . . . | Em . . . | Em . . . | Je garde un œil sur la passe / Et l'autre sur le téléphone
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| C . . . | G . . . | D . . . | Em . . . | Allume, allume encore / Que la nuit sache où tu es
+| C . . . | G . . . | D . C . | B7 . . . | Allume, allume encore / Je reste en haut, je veille
+{end_of_grid}
+
+{comment: regarde le batteur}
+{start_of_grid label="Pont" shape="3x4"}
+| Am . . . | F . . . | C . . . |
+{end_of_grid}
+{time: 2/4}
+{start_of_grid label="Pont" shape="1x2"}
+| G . |
+{end_of_grid}
+{time: 4/4}
+{start_of_grid label="Pont" shape="4x4"}
+| Am . . . | F . . . | C . . . | G . . . |
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| C . . . | G . . . | D . . . | Em . . . | Allume, allume encore / Que la nuit sache où tu es
+| C . . . | G . . . | D . C . | B7 . . . | Allume, allume encore / Je reste en haut, je veille
+{end_of_grid}
+
+{comment: fin sèche sur le 1}
+{start_of_grid label="Fin" shape="2x4"}
+| Em . . . | Em . . . |
+{end_of_grid}
