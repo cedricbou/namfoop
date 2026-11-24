@@ -611,6 +611,60 @@ def scenario_midi_set(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi_canal(binaire, lignes, colonnes):
+    """**Le canal écouté** (`--midi-channel 5`), sur l'écran de scène : un CC venu d'un autre canal
+    (les lights, sur le 10) ne change pas le son et se compte ; le même CC sur le canal 5 le change.
+    """
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-canal-") as tmp:
+        bib = set_de_concert(bibliotheque_jetable(os.path.join(tmp, "library")))
+        trace = os.path.join(tmp, "trace.log")
+        tube = os.path.join(tmp, "cable")
+        os.mkfifo(tube)
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "--midi-in", f"sim:{tube}",
+             "--midi-channel", "5", "run", "--set", "concert", "--library", bib, "--master-db", "-120"],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(3.0)
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            avant = len(chaines)
+            os.write(fd, b"cc 34 1 ch 10\n")
+            ec.lire(1.5)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            verifier(len(chaines) == avant, f"{taille} : un CC du canal 10 ne change pas le son")
+            verifier(
+                any("midi ignorés=1" in l for l in ec.lignes_de_trace()),
+                f"{taille} : le message du canal 10 est compté comme ignoré",
+            )
+            os.write(fd, b"cc 34 1 ch 5\n")
+            ec.lire(1.5)
+            chaines = [l for l in ec.lignes_de_trace() if "chaîne=" in l]
+            verifier(
+                len(chaines) > avant and "reverb" in chaines[-1],
+                f"{taille} : le même CC sur le canal 5 joue le son 2 ({chaines[-1:]})",
+            )
+            os.close(fd)
+            ec.taper("q", 0.8)
+            ec.taper("Q", 0.6)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : la scène se quitte proprement ({code})")
+        finally:
+            ec.tuer()
+
+
 def scenario_midi_horloge(binaire, lignes, colonnes):
     """**L'horloge MIDI de bout en bout** : la phase du clic doit être IMMOBILE.
 
@@ -741,6 +795,7 @@ def main():
     scenario_midi(binaire, 25, 80)
     scenario_midi_horloge(binaire, 25, 80)
     scenario_midi_set(binaire, 25, 80)
+    scenario_midi_canal(binaire, 25, 80)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")

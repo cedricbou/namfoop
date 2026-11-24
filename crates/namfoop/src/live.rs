@@ -46,7 +46,7 @@ pub fn run(
     conf: &LoadedConfig,
     amp: &AmpArgs,
     routing: &Routing,
-    midi: Option<midi_io::Input>,
+    midi: Option<crate::cli_midi::MidiIn>,
     s: Session,
 ) -> Result<()> {
     let Session { seconds, quiet, trails, click } = s;
@@ -72,7 +72,7 @@ pub fn run(
     // la phase, à part du tempo : le clic compte les tops reçus plutôt que des échantillons dès
     // qu'une horloge tourne, sans quoi un changement de tempo décalerait sa grille pour de bon
     let clock_phase = dsp::param::Control::new(f32::NAN);
-    let clock_ticks = midi.as_ref().map(midi_io::Input::clock_ticks);
+    let clock_ticks = midi.as_ref().map(crate::cli_midi::MidiIn::clock_ticks);
     let mut tempo = engine::tempo::Arbiter::new();
     tempo.preset(spec.tempo.bpm());
 
@@ -345,8 +345,11 @@ pub fn run(
         h.over100,
         h.callbacks
     );
-    if let Some(perdus) = midi.as_ref().map(midi_io::Input::dropped).filter(|n| *n > 0) {
+    if let Some(perdus) = midi.as_ref().map(crate::cli_midi::MidiIn::dropped).filter(|n| *n > 0) {
         log::warn!("{perdus} message(s) MIDI perdus : la file était pleine");
+    }
+    if let Some(n) = midi.as_ref().map(crate::cli_midi::MidiIn::ignored).filter(|n| *n > 0) {
+        log::info!("{n} message(s) MIDI d'un autre canal ignorés");
     }
     log::info!("arrêt : charge DSP max {:.1} %, {xruns} xrun(s)", max_load * 100.0);
     Ok(())
