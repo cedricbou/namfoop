@@ -186,3 +186,20 @@ fn le_plan_du_set_montre_les_numeros_et_ce_qui_est_arrive() {
     assert!(t.contains("1 sans numéro") && t.contains("sons du canal 1"), "{t}");
     assert!(t.contains("CC 34 = 1"), "le CC du canal du plan :\n{t}");
 }
+
+#[test]
+fn la_fiche_se_lit_telle_qu_elle_partira() {
+    let mut s = scene();
+    s.on_key(Key::Tab);
+    s.on_key(Key::Tab);
+    let t = text(&s, 160, 50);
+    for attendu in [
+        "MIDI · FICHE — canal 1",
+        "Basse (namfoop) · ce que j'attends en MIDI",
+        "Canal 1. Les autres sont ignorés.",
+        "Entrée écrire la fiche dans un fichier",
+    ] {
+        assert!(t.contains(attendu), "« {attendu} » absent :\n{t}");
+    }
+    assert!(text(&s, 80, 25).contains("Canal 1. Les autres sont ignorés."), "elle tient en 80×25");
+}

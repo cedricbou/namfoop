@@ -22,6 +22,7 @@ impl State {
     /// Changer d'onglet ne demande rien, mais prévient de ce qui n'est pas enregistré (§ 9).
     pub(super) fn go_tab(&mut self, i: usize) -> Action {
         match self.tab {
+            Tab::Fiche => {}
             Tab::Devices if self.dirty() => {
                 self.say("config non enregistrée : S sur Appareils et canaux pour la garder", Tone::Warn)
             }
@@ -183,5 +184,40 @@ impl State {
             Tone::Ok,
         ));
         Ok(())
+    }
+
+    /// La fiche du canal du plan, d'après le brouillon et le set — même non enregistrés (§ 7).
+    pub fn fiche(&self) -> Vec<String> {
+        let set = self.set.as_ref().map(|f| (&f.spec, f.stem.as_str()));
+        crate::midi_screen::fiche::lines(&self.draft, self.plan_channel(), set)
+    }
+
+    /// Les touches de l'onglet Fiche ; `None` : la touche descend aux communes.
+    pub(super) fn fiche_key(&mut self, key: Key) -> Option<Action> {
+        match key {
+            Key::Up => self.fiche_scroll = self.fiche_scroll.saturating_sub(1),
+            Key::Down => {
+                self.fiche_scroll = (self.fiche_scroll + 1).min(self.fiche().len().saturating_sub(1))
+            }
+            Key::Enter => return Some(Action::WriteFiche),
+            Key::Char('C') => self.choose_channel(),
+            // `S` sur la Fiche enregistre les deux : elle se calcule depuis la config et le set (§ 9)
+            Key::Char('S') => {
+                return Some(match (self.dirty() && self.can_save, self.set_dirty()) {
+                    (false, false) => {
+                        self.say("rien à enregistrer : la fiche se calcule toute seule", Tone::Plain);
+                        Action::None
+                    }
+                    (true, false) => Action::Save,
+                    (false, true) => Action::SaveSet,
+                    (true, true) => Action::SaveBoth,
+                })
+            }
+            Key::Char('a') | Key::Char('x') | Key::Char('b') | Key::Char('i') | Key::Char('L') => {
+                self.say("la fiche se lit : ← pour régler ce qu'elle dit", Tone::Plain)
+            }
+            _ => return None,
+        }
+        Some(Action::None)
     }
 }

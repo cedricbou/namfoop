@@ -545,8 +545,44 @@ fn s_enregistre_le_set_sur_le_plan_et_quitter_l_onglet_previent() {
 fn les_fleches_aux_bouts_le_disent() {
     let mut s = plan();
     s.on_key(Key::Right);
+    assert_eq!(s.tab, Tab::Fiche);
+    s.on_key(Key::Right);
     assert!(s.message.as_ref().is_some_and(|m| m.0.starts_with("→ ne va pas plus loin")));
-    s.on_key(Key::Left);
-    s.on_key(Key::Left);
+    keys(&mut s, &[Key::Left, Key::Left, Key::Left]);
     assert!(s.message.as_ref().is_some_and(|m| m.0.starts_with("← ne va pas plus loin")));
+}
+
+// ------------------------------------------------------------------ la Fiche (§ 7)
+
+#[test]
+fn la_fiche_suit_les_reglages_meme_non_enregistres() {
+    let mut s = plan();
+    s.on_key(Key::Tab);
+    assert_eq!(s.tab, Tab::Fiche);
+    assert!(s.fiche().contains(&"Canal : à choisir. Lequel tu me réserves ?".to_string()));
+    s.on_key(Key::BackTab);
+    s.on_key(Key::BackTab);
+    s.on_key(Key::Char('a'));
+    typed(&mut s, "5");
+    s.on_key(Key::Enter);
+    assert!(s.fiche().contains(&"Canal 5. Les autres sont ignorés.".to_string()), "le brouillon compte");
+    assert!(s.fiche().iter().any(|l| l.starts_with("PC ?") && l.contains("Rappel")), "le set aussi");
+}
+
+#[test]
+fn entree_ecrit_la_fiche_et_s_enregistre_tout() {
+    let mut s = plan();
+    s.on_key(Key::Tab);
+    assert_eq!(s.on_key(Key::Enter), Action::WriteFiche);
+    assert_eq!(s.on_key(Key::Char('S')), Action::None, "rien à enregistrer");
+    assert!(s.message.as_ref().is_some_and(|m| m.0.contains("se calcule toute seule")));
+    s.cursor = Row::Gesture(None, Gesture::Tap);
+    s.tab = Tab::Devices;
+    s.on_key(Key::Char('b'));
+    s.tab = Tab::Plan;
+    keys(&mut s, &[Key::Enter, Key::Backspace, Key::Enter]);
+    s.tab = Tab::Fiche;
+    assert_eq!(s.on_key(Key::Char('S')), Action::SaveBoth);
+    s.on_key(Key::Down);
+    assert_eq!(s.fiche_scroll, 1);
 }

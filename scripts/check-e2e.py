@@ -853,6 +853,11 @@ def scenario_midi_plan(binaire, lignes, colonnes):
             os.close(fd)
             ecrit = open(os.path.join(bib, "sets/concert.set.toml"), encoding="utf-8").read()
             verifier("pc = 7" in ecrit, f"{taille} : le set enregistré porte le PC 7")
+            # la fiche (`--fiche`) se calcule du set enregistré : le morceau y porte son PC 7
+            fiche = subprocess.run([binaire, "--config", config, "midi", "--fiche", "--library", bib],
+                                   capture_output=True, text=True, timeout=20).stdout
+            verifier("PC 7" in fiche and "Le Phare" in fiche, f"{taille} : la fiche porte « PC 7 Le Phare »")
+            verifier(all(len(l) <= 46 for l in fiche.splitlines()), f"{taille} : la fiche tient sur un téléphone")
         finally:
             ec.tuer()
 

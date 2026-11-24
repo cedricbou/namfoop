@@ -23,6 +23,8 @@ pub enum Ctx {
     List,
     /// L'onglet Plan du set.
     Plan,
+    /// L'onglet Fiche.
+    Fiche,
     /// Une fenêtre de liste (le canal, le set) : pas une saisie.
     Pick,
     /// La fenêtre « Régler » : une saisie, donc un mode.
@@ -35,6 +37,7 @@ pub enum Ctx {
 pub fn context(s: &State) -> Ctx {
     match s.modal {
         None if s.tab == Tab::Plan => Ctx::Plan,
+        None if s.tab == Tab::Fiche => Ctx::Fiche,
         None => Ctx::List,
         Some(Modal::List(_)) => Ctx::Pick,
         Some(Modal::Input(_)) => Ctx::Input,
@@ -69,7 +72,20 @@ const PLAN: &[Binding] = &[
     b("i", "déplier ou replier ses sons, avec le CC qui appelle chacun", "i détail"),
     b("C", "choisir le canal dont on voit les CC (le même que la Fiche)", "C canal"),
     b("L", "choisir un autre set", "L sets"),
+    b("Tab · →", "onglet suivant (Fiche)", "Tab/→ Fiche"),
     b("Maj+Tab · ←", "onglet précédent (Appareils et canaux)", "Maj+Tab/← Appareils"),
+];
+
+/// Les touches de la Fiche (§ 7).
+const FICHE: &[Binding] = &[
+    b("↑↓", "faire défiler la fiche", "↑↓ défiler"),
+    b(
+        "Entrée",
+        "écrire la fiche dans « fiche-midi.txt », dans le dossier courant",
+        "Entrée écrire la fiche dans un fichier",
+    ),
+    b("C", "choisir le canal de la fiche (le même que le Plan du set)", "C canal"),
+    b("Maj+Tab · ←", "onglet précédent (Plan du set)", "Maj+Tab/← Plan du set"),
 ];
 
 const PICK: &[Binding] = &[
@@ -106,6 +122,7 @@ pub fn bar(ctx: Ctx) -> [String; 2] {
     match ctx {
         Ctx::List | Ctx::Help => [join(LIST), join(EXITS)],
         Ctx::Plan => [join(PLAN), join(EXITS).replace("S enregistrer", "S enregistrer le set")],
+        Ctx::Fiche => [join(FICHE), join(EXITS).replace("S enregistrer", "S enregistrer config et set")],
         Ctx::Pick => [join(PICK), String::new()],
         Ctx::Input => [join(INPUT), "ou appuie sur un bouton de l'appareil".into()],
         Ctx::Quit => [join(QUIT), "toute autre touche : rester".into()],
@@ -117,6 +134,7 @@ pub fn help(tab: Tab) -> impl Iterator<Item = &'static Binding> {
     match tab {
         Tab::Devices => LIST,
         Tab::Plan => PLAN,
+        Tab::Fiche => FICHE,
     }
     .iter()
     .chain(EXITS)

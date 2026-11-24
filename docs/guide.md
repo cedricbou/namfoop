@@ -2282,6 +2282,19 @@ celle d'un son (`i` déplie les sons d'un morceau, avec le CC qui appelle chacun
 Seul le numéro d'un morceau se règle ici ; ses sons et leur ordre se changent dans l'édition du set
 de `browse`.
 
+**L'onglet Fiche** écrit pour toi le texte à envoyer au groupe : le canal qu'on t'a réservé, le
+message de chaque geste, comment compter les Program Change (namfoop compte de 1 à 128, bien des
+logiciels de 0 à 127), puis le set avec le numéro de chaque morceau et la valeur de chaque son. Il
+suit tes réglages et ton set **à l'instant**, même non enregistrés. Lignes courtes, ni tableau ni
+cadre : collé dans un message, il se lit sur un téléphone. `C` choisit le canal, `Entrée` écrit la
+fiche dans « fiche-midi.txt » (dossier courant), et `S` enregistre config et set à la fois.
+
+Sans ouvrir l'écran, `--fiche` l'imprime, pour le premier canal réglé ou celui qu'on donne :
+
+```sh
+namfoop midi --fiche 5 --set concert
+```
+
 **L'affichage ligne à ligne** reste là pour les essais et les scripts : `namfoop midi --lines`
 (imposé quand la sortie n'est pas un terminal, et par `--seconds`) liste les ports d'entrée vus par
 la machine, puis affiche chaque message qui arrive — appuie sur une pédale, et la ligne s'écrit :

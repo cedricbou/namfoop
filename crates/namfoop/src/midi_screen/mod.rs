@@ -8,6 +8,7 @@
 //! imposée : c'est l'écran qui applique son brouillon, pour qu'on puisse recocher un appareil et le
 //! voir parler aussitôt.
 
+pub mod fiche;
 mod state;
 mod table;
 mod ui;
@@ -21,14 +22,20 @@ use anyhow::Result;
 
 use crate::config::LoadedConfig;
 use crate::tui;
-use state::{Action, DeviceLive, SetFile, State};
+pub use state::SetFile;
+use state::{Action, DeviceLive, State};
 
 /// Le tour de boucle : de quoi voir un appui tout de suite sans occuper la machine.
 const POLL_MS: u64 = 30;
 
-pub fn run(mut input: midi_io::Input, conf: &LoadedConfig, library: &std::path::Path) -> Result<()> {
+pub fn run(
+    mut input: midi_io::Input,
+    conf: &LoadedConfig,
+    library: &std::path::Path,
+    set: Option<&str>,
+) -> Result<()> {
     let mut st = State::new(conf.config.midi.clone().unwrap_or_default(), !conf.ignored);
-    st.set = current_set(conf, library);
+    st.set = load_set(conf, library, set);
     st.sets = sets(library);
     let port = input.description().to_string();
     let start = Instant::now();
@@ -59,6 +66,26 @@ pub fn run(mut input: midi_io::Input, conf: &LoadedConfig, library: &std::path::
                     Ok(()) => st.mark_set_saved(),
                     Err(e) => st.message = Some((format!("{e:#}"), state::Tone::Error)),
                 },
+                Action::SaveBoth => {
+                    save(&st, conf)?;
+                    st.mark_saved();
+                    match save_set(&st) {
+                        Ok(()) => st.mark_set_saved(),
+                        Err(e) => st.message = Some((format!("{e:#}"), state::Tone::Error)),
+                    }
+                }
+                Action::WriteFiche => {
+                    let path = std::env::current_dir().unwrap_or_default().join(fiche::FILE);
+                    st.message = Some(match std::fs::write(&path, st.fiche().join("\n") + "\n") {
+                        Ok(()) => (
+                            format!("fiche écrite : {} · colle-la dans un message", path.display()),
+                            state::Tone::Ok,
+                        ),
+                        Err(e) => {
+                            (format!("fiche non écrite ({}) : {e}", path.display()), state::Tone::Error)
+                        }
+                    });
+                }
                 Action::OpenSet(path) => match library::Library::scan(library).set(&path) {
                     Ok(spec) => st.open_set(spec, path),
                     Err(e) => st.message = Some((format!("{e:#}"), state::Tone::Error)),
@@ -92,10 +119,14 @@ fn save(st: &State, conf: &LoadedConfig) -> Result<()> {
     Ok(())
 }
 
-/// Le set du moment (`[set] default`), s'il se lit : c'est lui que le groupe appellera. Absent ou
+/// Le set demandé (`--set`), sinon celui du moment (`[set] default`), s'il se lit : c'est lui
+/// que le groupe appellera. Absent ou
 /// illisible, l'écran marche sans, et dit d'un Program Change qu'il appelle une place de banque.
-fn current_set(conf: &LoadedConfig, library: &std::path::Path) -> Option<SetFile> {
-    let query = conf.config.set.as_ref()?.default.clone()?;
+pub fn load_set(conf: &LoadedConfig, library: &std::path::Path, set: Option<&str>) -> Option<SetFile> {
+    let query = match set {
+        Some(q) => q.to_string(),
+        None => conf.config.set.as_ref()?.default.clone()?,
+    };
     let lib = library::Library::scan(library);
     let found = lib.resolve_set(&query).and_then(|p| lib.set(&p).map(|s| (s, p)));
     match found {

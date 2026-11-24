@@ -33,6 +33,15 @@ pub struct MidiCmdArgs {
     /// [défaut : ./library, sinon ~/.local/share/namfoop/library]
     #[arg(long, value_name = "DOSSIER")]
     pub library: Option<std::path::PathBuf>,
+    /// Le set dont parlent l'écran et la fiche (identifiant ou morceau de nom, comme `browse
+    /// --set`) [défaut : le set du moment, `[set] default`]
+    #[arg(long, value_name = "SET")]
+    pub set: Option<String>,
+    /// Imprime la fiche à envoyer au groupe pour ce canal (sans valeur : le premier canal réglé),
+    /// puis s'arrête, sans ouvrir de port ni l'écran
+    #[arg(long, value_name = "CANAL", num_args = 0..=1, default_missing_value = "0",
+          value_parser = clap::value_parser!(u8).range(0..=16))]
+    pub fiche: Option<u8>,
 }
 
 pub fn run(
@@ -42,6 +51,9 @@ pub fn run(
     library: &std::path::Path,
 ) -> Result<()> {
     use std::io::IsTerminal;
+    if let Some(c) = args.fiche {
+        return fiche(c, args.set.as_deref(), conf, library);
+    }
     let demande = midi.resolve(&conf.config);
     // **L'écran de réglage** (`docs/design/midi.md`), quand on est devant un terminal. Le port
     // s'ouvre sans appareil décoché ni horloge imposée : l'écran applique son brouillon lui-même.
@@ -57,7 +69,7 @@ pub fn run(
         };
         cfg.ignore.clear();
         cfg.clock_from = None;
-        return crate::midi_screen::run(midi_io::open(&cfg)?, conf, library);
+        return crate::midi_screen::run(midi_io::open(&cfg)?, conf, library, args.set.as_deref());
     }
     let ports = midi_io::ports().unwrap_or_default();
     if ports.is_empty() {
@@ -150,6 +162,26 @@ pub fn run(
             "Rien n'est arrivé. Vérifie que le pédalier envoie sur ce port (`aconnect -l`), et \
              qu'il est bien branché."
         );
+    }
+    Ok(())
+}
+
+/// `--fiche` : la fiche du canal `c` (0 : le premier canal réglé), imprimée telle qu'elle part.
+fn fiche(c: u8, set: Option<&str>, conf: &LoadedConfig, library: &std::path::Path) -> Result<()> {
+    let midi = conf.config.midi.clone().unwrap_or_default();
+    let tuned: Vec<u8> = midi.channels.iter().map(|x| x.channel).chain(midi.channel).collect();
+    let canal = match c {
+        0 => tuned.first().copied(),
+        c if tuned.is_empty() || tuned.contains(&c) => Some(c),
+        c => anyhow::bail!(
+            "canal {c} : il n'est pas réglé (canaux réglés : {}) — `namfoop midi` pour l'ajouter",
+            tuned.iter().map(u8::to_string).collect::<Vec<_>>().join(", ")
+        ),
+    };
+    let set = crate::midi_screen::load_set(conf, library, set);
+    let set = set.as_ref().map(|f| (&f.spec, f.stem.as_str()));
+    for l in crate::midi_screen::fiche::lines(&midi, canal, set) {
+        println!("{l}");
     }
     Ok(())
 }

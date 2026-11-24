@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#383)
+- **La fiche à envoyer au groupe** : l'onglet Fiche de `namfoop midi` écrit le texte de ce que tu
+  attends en MIDI pour un canal (`C`) — le canal, le message de chaque geste, comment compter les
+  Program Change dans un logiciel qui part de 0, puis le set avec le numéro de chaque morceau et la
+  valeur de chaque son, « numéro à convenir » s'il en manque un. Il suit les réglages et le set à
+  l'instant, même non enregistrés ; lignes de 46 colonnes au plus, sans tableau, lisibles sur un
+  téléphone. `Entrée` l'écrit dans `fiche-midi.txt` ; `namfoop midi --fiche [CANAL] [--set ID]`
+  l'imprime sans ouvrir l'écran.
+
 ### MIDI (#382)
 - **L'onglet Plan du set de `namfoop midi`** : les morceaux du set du moment avec leur tempo et
   leur numéro de Program Change ; `Entrée` règle ce numéro au clavier **ou en recevant le Program
