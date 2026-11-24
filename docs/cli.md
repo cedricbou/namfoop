@@ -1019,6 +1019,9 @@ Options:
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
 
+      --library <DOSSIER>
+          Dossier de la bibliothèque, pour lire le set du moment (ce qu'un Program Change appelle) [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 

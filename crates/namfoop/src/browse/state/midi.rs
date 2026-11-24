@@ -198,14 +198,14 @@ impl State {
     /// n'est pas joué tout de suite : il attend [`PC_CC_WINDOW_US`] qu'un CC de son le précise.
     fn midi_song(&mut self, n: u8, at_us: u64) -> Action {
         let Some(set) = self.set.as_ref() else { return Action::None };
-        match set.spec.songs.iter().position(|s| s.pc == Some(n)) {
-            Some(song) => {
+        match crate::midi_rules::song_for_pc(&set.spec, n) {
+            Ok(song) => {
                 // la dernière demande gagne : deux PC coup sur coup, c'est le second qu'on veut
                 self.midi_pc = Some(PendingPc { song, at_us });
                 Action::None
             }
-            None => {
-                self.message = Some(format!("PC {n} : aucun morceau de ce set ne porte ce numéro"));
+            Err(r) => {
+                self.message = Some(format!("PC {n} : {}", r.reason()));
                 Action::None
             }
         }
@@ -224,24 +224,20 @@ impl State {
     fn midi_sound(&mut self, cc_sound: u8, k: u8, at_us: u64) -> Action {
         let pending = self.midi_pc.filter(|p| at_us < p.at_us + PC_CC_WINDOW_US);
         let Some(set) = self.set.as_ref() else { return Action::None };
-        let Some(song) = pending.map(|p| p.song).or_else(|| set.at.map(|(s, _)| s)) else {
-            self.message = Some(format!("CC {cc_sound} ignoré : aucun morceau joué"));
-            return Action::None;
+        let playing = pending.map(|p| p.song).or_else(|| set.at.map(|(s, _)| s));
+        // Fractal écrête (une valeur au-delà choisit la dernière scene) ; namfoop le dit, parce
+        // qu'en concert jouer silencieusement un autre son est pire qu'un message (ADR 0011).
+        let (song, _) = match crate::midi_rules::sound_of(&set.spec, playing, k) {
+            Ok(at) => at,
+            Err(crate::midi_rules::Refusal::NoSongPlayed) => {
+                self.message = Some(format!("CC {cc_sound} ignoré : aucun morceau joué"));
+                return Action::None;
+            }
+            Err(r) => {
+                self.message = Some(format!("CC {cc_sound} = {k} : {}", r.reason()));
+                return Action::None;
+            }
         };
-        let sounds = set.spec.songs.get(song).map_or(0, |s| s.sounds.len());
-        let title = set.spec.songs.get(song).and_then(|s| s.title.clone()).unwrap_or_default();
-        if (k as usize) >= sounds {
-            // Fractal écrête (une valeur au-delà choisit la dernière scene) ; namfoop le dit, parce
-            // qu'en concert jouer silencieusement un autre son est pire qu'un message (ADR 0011).
-            self.message = Some(match sounds {
-                0 => format!("CC {cc_sound} = {k} : ce morceau n'a aucun son"),
-                n => format!(
-                    "CC {cc_sound} = {k} : « {title} » n'a que {n} son{}",
-                    if n > 1 { "s" } else { "" }
-                ),
-            });
-            return Action::None;
-        }
         self.midi_pc = None;
         self.play_set_sound((song, k as usize))
     }

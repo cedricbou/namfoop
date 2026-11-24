@@ -111,6 +111,9 @@ calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start)
 meta_cmd.rs     `meta` : affichage d'un modèle
+midi_rules.rs   ce qu'un message demande à un set (le morceau d'un PC, le son d'un CC, la raison d'un
+                refus) : règles pures, partagées par browse/state/midi.rs, qui joue, et l'écran MIDI,
+                qui dit ce qui serait joué — une seule source pour « n'a que 2 sons »
 midi_screen/    l'écran plein écran de `midi` (docs/design/midi.md), rangé comme setup/ : state.rs
                 (pure, testée : brouillon de [midi], fenêtre « Régler » et sa capture, refus),
                 ui.rs (neutre : theme::neutral, jamais d'accent d'espace), table.rs (les touches,

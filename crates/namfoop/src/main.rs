@@ -12,6 +12,7 @@ mod library_dir;
 mod live;
 mod meta_cmd;
 mod midi_cmd;
+mod midi_rules;
 mod midi_screen;
 mod models_cmd;
 mod offline;
@@ -365,7 +366,7 @@ fn main() -> Result<()> {
             };
             browse::run(&audio, &conf, library, &routing, size, !no_trails, start)
         }
-        Cmd::Midi { args } => midi_cmd::run(&args, &cli.midi, &conf),
+        Cmd::Midi { args } => midi_cmd::run(&args, &cli.midi, &conf, &lib(&args.library).path),
         Cmd::Setup { library } => {
             setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &lib(&library))
         }

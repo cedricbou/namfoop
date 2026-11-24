@@ -29,9 +29,18 @@ pub struct MidiCmdArgs {
     /// n'est pas un terminal)
     #[arg(long)]
     pub lines: bool,
+    /// Dossier de la bibliothèque, pour lire le set du moment (ce qu'un Program Change appelle)
+    /// [défaut : ./library, sinon ~/.local/share/namfoop/library]
+    #[arg(long, value_name = "DOSSIER")]
+    pub library: Option<std::path::PathBuf>,
 }
 
-pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<()> {
+pub fn run(
+    args: &MidiCmdArgs,
+    midi: &MidiArgs,
+    conf: &LoadedConfig,
+    library: &std::path::Path,
+) -> Result<()> {
     use std::io::IsTerminal;
     let demande = midi.resolve(&conf.config);
     // **L'écran de réglage** (`docs/design/midi.md`), quand on est devant un terminal. Le port
@@ -48,7 +57,7 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
         };
         cfg.ignore.clear();
         cfg.clock_from = None;
-        return crate::midi_screen::run(midi_io::open(&cfg)?, conf);
+        return crate::midi_screen::run(midi_io::open(&cfg)?, conf, library);
     }
     let ports = midi_io::ports().unwrap_or_default();
     if ports.is_empty() {

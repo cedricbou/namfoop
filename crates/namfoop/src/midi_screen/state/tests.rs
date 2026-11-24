@@ -293,14 +293,16 @@ fn ce_qui_arrive_se_lit_et_les_autres_canaux_se_comptent() {
     s.on_key(Key::Char('a'));
     typed(&mut s, "5");
     s.on_key(Key::Enter);
+    s.set = Some(set());
+    s.on_midi("UM-ONE", &pc(2, 5), 990);
     s.on_midi("UM-ONE", &cc(34, 1, 5), 1000);
-    assert_eq!(s.log.back().map(|l| l.effect.as_str()), Some("→ son 2"));
+    assert_eq!(s.log.back().map(|l| l.effect.as_str()), Some("→ son 2 « clean »"));
     assert_eq!(s.last.get(&Row::Gesture(Some(5), Gesture::Sound)).map(|l| l.text.as_str()), Some("valeur 1"));
     assert_eq!(s.last.get(&Row::Channel(Some(5))).map(|l| l.device.as_str()), Some("UM-ONE"));
     s.on_midi("UM-ONE", &pc(2, 10), 1100);
     s.on_midi("UM-ONE", &cc(20, 90, 10), 1200);
     assert_eq!(s.other.0, 2);
-    assert_eq!(s.log.len(), 1, "les lights ne sont pas listées");
+    assert_eq!(s.log.len(), 2, "les lights ne sont pas listées");
     s.on_midi("UM-ONE", &cc(50, 1, 5), 1300);
     assert_eq!(s.log.back().map(|l| (l.effect.as_str(), l.tone)), Some(("relié à aucun geste", Tone::Warn)));
     s.on_midi("UM-ONE", &cc(15, 127, 5), 1400);
@@ -370,4 +372,54 @@ fn le_premier_chiffre_remplace_la_valeur_d_avant() {
     assert_eq!(input(&s).buf, "20");
     s.on_key(Key::Enter);
     assert_eq!(s.draft.cc_sound, 20);
+}
+
+fn set() -> library::set::SetSpec {
+    use library::set::{SetSpec, Song, Sound};
+    let sound = |p: &str| Sound { preset: p.into(), volume_db: 0.0 };
+    SetSpec {
+        name: "Live".into(),
+        songs: vec![Song {
+            title: Some("Le Phare".into()),
+            pc: Some(2),
+            sounds: vec![sound("fuzz"), sound("clean")],
+            ..Default::default()
+        }],
+        base: Default::default(),
+    }
+}
+
+/// § 8 : avec le set du moment, la zone dit le morceau et le son, ou pourquoi rien ne correspond.
+#[test]
+fn avec_le_set_la_zone_dit_le_morceau_et_le_son() {
+    let mut s = new();
+    s.set = Some(set());
+    s.on_midi("UM-ONE", &cc(34, 1, 5), 0);
+    assert_eq!(
+        s.log.back().map(|l| (l.effect.as_str(), l.tone)),
+        Some(("hors accord : aucun morceau n'est joué", Tone::Warn))
+    );
+    s.on_midi("UM-ONE", &pc(9, 5), 10);
+    assert_eq!(
+        s.log.back().map(|l| l.effect.as_str()),
+        Some("hors accord : aucun morceau du set n'a le numéro 9")
+    );
+    s.on_midi("UM-ONE", &pc(2, 5), 20);
+    assert_eq!(s.log.back().map(|l| l.effect.as_str()), Some("→ morceau « Le Phare », son 1 « fuzz »"));
+    assert_eq!(s.playing, Some((0, 0)));
+    s.on_midi("UM-ONE", &cc(34, 5, 5), 30);
+    assert_eq!(s.log.back().map(|l| l.effect.as_str()), Some("hors accord : « Le Phare » n'a que 2 sons"));
+    assert_eq!(s.playing, Some((0, 0)), "un refus ne change pas le son joué");
+}
+
+/// § 8 : l'horloge s'affiche par son tempo, une ligne par changement, jamais par top.
+#[test]
+fn l_horloge_s_affiche_par_son_tempo() {
+    let mut s = new();
+    for i in 0..(24 * 6u64) {
+        s.on_midi("UM-ONE", &msg(Event::ClockTick, None), i * 500 / 24);
+    }
+    let lignes: Vec<&str> = s.log.iter().map(|l| l.effect.as_str()).collect();
+    assert_eq!(lignes.len(), 1, "un seul tempo, une seule ligne : {lignes:?}");
+    assert!(lignes[0].starts_with("→ ♩ 12"), "{lignes:?}");
 }

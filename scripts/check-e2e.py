@@ -777,6 +777,44 @@ def scenario_midi_ecran(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi_ecran_set(binaire, lignes, colonnes):
+    """**Ce que namfoop fait d'un message** (zone « reçu » de l'écran MIDI), avec le set du moment :
+    le morceau qu'un Program Change appelle, et la raison quand rien ne correspond."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-ecran-set-") as tmp:
+        bib = set_de_concert(bibliotheque_jetable(os.path.join(tmp, "library")))
+        tube = os.path.join(tmp, "cable")
+        os.mkfifo(tube)
+        config = os.path.join(tmp, "config.toml")
+        with open(config, "w", encoding="utf-8") as f:
+            f.write(f'[midi]\nin = "sim:{tube}"\n\n[set]\ndefault = "concert"\n')
+        ec = Ecran(binaire, ["--config", config, "midi", "--library", bib], lignes, colonnes,
+                   os.path.join(tmp, "trace.log"))
+        try:
+            ec.lire(1.5)
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+            os.write(fd, b"pc 1\n")
+            ec.lire(0.8)
+            verifier("Phare" in ec.voir(), f"{taille} : PC 1 appelle « Le Phare »")
+            os.write(fd, b"pc 9\n")
+            ec.lire(0.8)
+            verifier("hors accord" in ec.voir(), f"{taille} : PC 9 est hors accord, et l'écran le dit")
+            os.close(fd)
+            ec.taper("q", 0.6)
+            verifier(ec.attendre_fin(4.0) == 0, f"{taille} : l'écran se quitte proprement")
+        finally:
+            ec.tuer()
+
+
 def scenario_midi_horloge(binaire, lignes, colonnes):
     """**L'horloge MIDI de bout en bout** : la phase du clic doit être IMMOBILE.
 
@@ -910,6 +948,7 @@ def main():
     scenario_midi_canal(binaire, 25, 80)
     scenario_midi_canaux(binaire, 25, 80)
     scenario_midi_ecran(binaire, 25, 80)
+    scenario_midi_ecran_set(binaire, 25, 80)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")

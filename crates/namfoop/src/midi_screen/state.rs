@@ -144,6 +144,14 @@ pub struct State {
     pub log: VecDeque<LogLine>,
     pub modal: Option<Modal>,
     pub message: Option<(String, Tone)>,
+    /// Le set du moment (`[set] default`), lu pour dire ce qu'un message appellerait.
+    pub set: Option<library::set::SetSpec>,
+    /// **Le morceau et le son joués**, tenus par l'écran lui-même (il n'a pas de session) : le
+    /// dernier Program Change reconnu, puis le dernier son. C'est ce qui permet de dire « Le Phare
+    /// n'a que 2 sons ».
+    pub playing: Option<(usize, usize)>,
+    /// Le dernier tempo écrit dans la zone « reçu » : une ligne par changement, jamais par top.
+    logged_tempo: Option<f64>,
 }
 
 impl State {
@@ -180,6 +188,9 @@ impl State {
             log: VecDeque::new(),
             modal: None,
             message: None,
+            set: None,
+            playing: None,
+            logged_tempo: None,
         }
     }
 
@@ -689,7 +700,7 @@ impl State {
             self.seen.entry(device.to_string()).or_default().insert(c);
         }
         match m.event {
-            Event::ClockTick => self.tick(now_ms),
+            Event::ClockTick => self.tick(device, now_ms),
             Event::ClockStart => self.push(device, m, "→ la battue repart du temps 1 ⏵".into(), Tone::Plain),
             Event::ClockStop => self.push(device, m, "→ la battue s'arrête".into(), Tone::Plain),
             Event::ClockContinue | Event::SongPosition(_) => {}
@@ -698,16 +709,69 @@ impl State {
     }
 
     /// Le tempo de l'horloge suivie, mesuré noire par noire.
-    fn tick(&mut self, now_ms: u64) {
+    fn tick(&mut self, device: &str, now_ms: u64) {
         self.ticks += 1;
         if self.ticks < 24 {
             return;
         }
         self.ticks = 0;
-        if let Some(t0) = self.beat_start_ms.replace(now_ms) {
-            if now_ms > t0 {
-                self.tempo = Some(60_000.0 / (now_ms - t0) as f64);
+        let Some(t0) = self.beat_start_ms.replace(now_ms).filter(|t0| now_ms > *t0) else { return };
+        let bpm = 60_000.0 / (now_ms - t0) as f64;
+        self.tempo = Some(bpm);
+        // la zone « reçu » montre l'horloge par son tempo, une ligne par changement (§ 8) : la
+        // gigue d'un câble (quelques dixièmes de BPM) n'en est pas un
+        if self.logged_tempo.is_none_or(|l| (l - bpm).abs() >= 1.0) {
+            self.logged_tempo = Some(bpm);
+            let ligne = LogLine {
+                device: device.to_string(),
+                channel: None,
+                message: "horloge".into(),
+                effect: format!("→ ♩ {bpm:.1} BPM").replace('.', ","),
+                tone: Tone::Plain,
+            };
+            self.log.push_back(ligne);
+            while self.log.len() > LOG_LINES {
+                self.log.pop_front();
             }
+        }
+    }
+
+    /// Ce que namfoop ferait du morceau ou du son demandé, d'après le set du moment
+    /// (`crate::midi_rules`, les règles de `browse`).
+    fn meaning(&mut self, g: Gesture, event: Event) -> (String, Tone) {
+        use crate::midi_rules::{song_for_pc, sound_of, title};
+        let preset = |spec: &library::set::SetSpec, song: usize, k: usize| {
+            spec.songs.get(song).and_then(|s| s.sounds.get(k)).map(|s| s.preset.clone()).unwrap_or_default()
+        };
+        match (g, event, &self.set) {
+            (Gesture::Pc, Event::ProgramChange(p), Some(spec)) => match song_for_pc(spec, p) {
+                Ok(song) => {
+                    self.playing = Some((song, 0));
+                    (
+                        format!("→ morceau « {} », son 1 « {} »", title(spec, song), preset(spec, song, 0)),
+                        Tone::Plain,
+                    )
+                }
+                Err(r) => (format!("hors accord : {}", r.reason()), Tone::Warn),
+            },
+            (Gesture::Pc, Event::ProgramChange(p), None) => {
+                (format!("→ preset n° {p} de la banque"), Tone::Plain)
+            }
+            (Gesture::Sound, Event::Control { value, .. }, Some(spec)) => {
+                match sound_of(spec, self.playing.map(|(s, _)| s), value) {
+                    Ok((song, k)) => {
+                        self.playing = Some((song, k));
+                        (format!("→ son {} « {} »", k + 1, preset(spec, song, k)), Tone::Plain)
+                    }
+                    Err(r) => (format!("hors accord : {}", r.reason()), Tone::Warn),
+                }
+            }
+            (Gesture::Sound, _, None) => ("sans set, le son du morceau ne désigne rien".into(), Tone::Dim),
+            (Gesture::Tap, ..) => ("→ tap tempo".into(), Tone::Plain),
+            (Gesture::Tuner, Event::Control { value, .. }, _) if value >= 64 => {
+                ("→ basse coupée, accordeur".into(), Tone::Cut)
+            }
+            _ => ("→ son rendu".into(), Tone::Plain),
         }
     }
 
@@ -747,17 +811,7 @@ impl State {
             return;
         }
         self.last.insert(Row::Gesture(bloc, g), last(if g == Gesture::Tap { String::new() } else { text }));
-        let (effect, tone) = match (g, m.event) {
-            (Gesture::Pc, Event::ProgramChange(p)) => (format!("→ morceau ou preset n° {p}"), Tone::Plain),
-            (Gesture::Sound, Event::Control { value, .. }) => {
-                (format!("→ son {}", value as u16 + 1), Tone::Plain)
-            }
-            (Gesture::Tap, _) => ("→ tap tempo".into(), Tone::Plain),
-            (Gesture::Tuner, Event::Control { value, .. }) if value >= 64 => {
-                ("→ basse coupée, accordeur".into(), Tone::Cut)
-            }
-            _ => ("→ son rendu".into(), Tone::Plain),
-        };
+        let (effect, tone) = self.meaning(g, m.event);
         self.push(device, m, effect, tone);
     }
 
