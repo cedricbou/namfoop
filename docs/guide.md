@@ -2509,14 +2509,19 @@ namfoop --midi-in "MC6" browse
 - `--no-midi` : aucune écoute, quoi qu'en dise la configuration — de quoi faire taire un pédalier
   qui fait des siennes au milieu d'un concert.
 
-Le port retenu s'enregistre dans la configuration : `namfoop setup` le propose à son étape
-« pédalier MIDI », ou à la main ([§ 16](#16-le-fichier-de-configuration)) :
+Pour imposer ce seul port à chaque session, écris-le dans la configuration : `namfoop setup` le
+propose à son étape « pédalier MIDI », ou à la main ([§ 16](#16-le-fichier-de-configuration)) :
 
 ```toml
 [midi]
-in = "28:0"
+in = "MC6"
 off = false
 ```
+
+Préfère un morceau du nom à une adresse comme `28:0` : l'adresse change d'un branchement à l'autre.
+**Sans `in`, tous tes appareils sont écoutés.** Avec, l'écran de `namfoop midi` le rappelle en tête
+de la liste des appareils (« un seul écouté »). Si un appareil branché n'apparaît pas, retire
+cette ligne (ou choisis « tous les appareils branchés » dans `namfoop setup`).
 
 **Un pédalier débranché n'empêche jamais de démarrer.** Port absent, nom introuvable, séquenceur
 indisponible : namfoop le dit dans un message, et tout le reste marche. Un concert ne s'arrête pas
@@ -2899,7 +2904,7 @@ channel = 2
 source = "di"
 
 [midi]                               # — setup, étape « pédalier MIDI » ([§ 12](#12-piloter-namfoop-au-pied--le-midi))
-in = "28:0"                          # port d'entrée : adresse, nom, ou "sim:CHEMIN"
+in = "MC6"                           # seul port écouté (absent : tous) : nom, adresse, "sim:CHEMIN"
 off = false                          # true : aucune écoute MIDI (comme --no-midi)
 cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
 cc_tap = 14                          # le CC du tap tempo (convention Fractal)

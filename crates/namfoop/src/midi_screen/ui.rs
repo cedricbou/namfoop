@@ -87,7 +87,24 @@ fn head(text: String) -> Item {
 }
 
 fn list(s: &State, now_ms: u64, width: usize) -> Vec<Item> {
-    let mut out = vec![head("APPAREILS · tous écoutés, sauf ceux décochés".into())];
+    let mut out = match &s.pinned {
+        None => vec![head("APPAREILS · tous écoutés, sauf ceux décochés".into())],
+        Some(p) => {
+            let (by, fix) = if p.by_option {
+                (format!("--midi-in « {} », pour cette fois", p.asked), "sans l'option, tous sont écoutés")
+            } else {
+                (
+                    format!("in = « {} » dans [midi] de la config", p.asked),
+                    "retire cette ligne pour les écouter tous",
+                )
+            };
+            vec![
+                head("APPAREILS · un seul écouté".into()),
+                item(None, vec![(format!("  imposé par {by}"), tone(Tone::Warn))]),
+                item(None, vec![(format!("  {fix}"), tone(Tone::Warn))]),
+            ]
+        }
+    };
     for d in s.device_rows() {
         out.push(device(s, &d, now_ms));
     }

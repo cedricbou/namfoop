@@ -16,6 +16,14 @@ section prend le numéro de version.
   l'épique « Changer d'instrument ou de carte son et jouer calibré » : rien ne change encore dans
   namfoop.
 
+### MIDI (#437)
+
+- **L'écran de `namfoop midi` dit quand un seul appareil est écouté**, et par qui :
+  « un seul écouté », imposé par `in` dans `[midi]` (« retire cette ligne pour les écouter tous »)
+  ou par `--midi-in` pour cette fois. Un appareil branché qui manquait à la liste a son explication.
+- Le guide et l'aide de la configuration disent qu'une config sans `in` écoute tous les appareils,
+  et conseillent un morceau du nom plutôt qu'une adresse, qui change d'un branchement à l'autre.
+
 ### MIDI (#384)
 - **Des gabarits de numéros par canal** : dans `namfoop midi`, la ligne Gabarit de chaque canal
   ouvre une liste — Fractal (le défaut), Quad Cortex, Helix — avec leurs numéros ; choisir règle
