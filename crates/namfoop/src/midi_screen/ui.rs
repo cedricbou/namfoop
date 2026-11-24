@@ -262,7 +262,9 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
     .areas(f.area());
 
     // l'en-tête : ce qu'on écoute, et l'état d'enregistrement de ce que l'onglet règle
-    let state = if s.tab == Tab::Plan {
+    let state = if s.tab == Tab::Fiche && s.set_dirty() && !s.dirty() {
+        ("set ● non enregistré (S)".to_string(), tone(Tone::Warn))
+    } else if s.tab == Tab::Plan {
         match &s.set {
             None => ("aucun set (L)".to_string(), tone(Tone::Dim)),
             Some(f) if f.dirty() => (format!("set : {} ● non enregistré (S)", f.stem), tone(Tone::Warn)),
@@ -290,6 +292,7 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
     let names = [
         ("Appareils et canaux".to_string(), Tab::Devices, s.dirty()),
         (format!("Plan du set ({songs})"), Tab::Plan, s.set_dirty()),
+        ("Fiche".to_string(), Tab::Fiche, false),
     ];
     let mut t = vec![Span::raw("  ")];
     for (name, tab, dirty) in names {
@@ -311,15 +314,24 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
     };
     let title = if s.tab == Tab::Plan {
         plan_title(s)
+    } else if s.tab == Tab::Fiche {
+        let ch = s.plan_channel().map_or("tous les canaux".to_string(), |c| format!("canal {c}"));
+        format!(" MIDI · FICHE — {ch} · tirée des réglages et du set ")
     } else {
         format!(" MIDI · APPAREILS ET CANAUX — {devices} appareil(s) · horloge : {clock_by} · {chans} ")
     };
     let frame = Block::bordered().border_style(tone(Tone::Dim)).title(Span::styled(title, strong()));
     let inner = frame.inner(body);
     f.render_widget(frame, body);
-    let items = if s.tab == Tab::Plan { plan(s, now_ms) } else { list(s, now_ms, inner.width as usize) };
+    let items = match s.tab {
+        Tab::Plan => plan(s, now_ms),
+        Tab::Fiche => fiche(s, inner.height as usize),
+        Tab::Devices => list(s, now_ms, inner.width as usize),
+    };
     let h = inner.height as usize;
-    let cur = if s.tab == Tab::Plan {
+    let cur = if s.tab == Tab::Fiche {
+        usize::MAX
+    } else if s.tab == Tab::Plan {
         items
             .iter()
             .position(|i| i.song == Some(s.plan_cursor) && i.row.is_none() && !i.spans.is_empty())
@@ -517,8 +529,7 @@ fn help(tab: Tab, area: Rect, f: &mut Frame) {
         .collect();
     lines.push(Line::raw(""));
     lines.push(Line::styled("N'importe quelle touche referme l'aide.", tone(Tone::Dim)));
-    let name = if tab == Tab::Plan { "Plan du set" } else { "Appareils et canaux" };
-    window(format!("Aide · {name}"), Style::new().fg(theme::neutral()), area, lines, f);
+    window(format!("Aide · {}", tab.name()), Style::new().fg(theme::neutral()), area, lines, f);
 }
 
 /// Le bandeau du Plan du set (§ 6).
@@ -600,6 +611,35 @@ fn plan(s: &State, now_ms: u64) -> Vec<Item> {
             tone(Tone::Dim),
         )],
     ));
+    out
+}
+
+/// La Fiche (§ 7), à partir de la ligne `fiche_scroll` : le texte tel qu'il partira.
+fn fiche(s: &State, h: usize) -> Vec<Item> {
+    let all = s.fiche();
+    let room = h.saturating_sub(1);
+    let start = s.fiche_scroll.min(all.len().saturating_sub(1));
+    let mut out: Vec<Item> = all
+        .iter()
+        .skip(start)
+        .take(room)
+        .map(|l| {
+            let st = if l.starts_with("Basse (") || l.starts_with("Set «") {
+                strong()
+            } else if l.starts_with("Canal :") {
+                tone(Tone::Warn)
+            } else if l.starts_with("  ") {
+                tone(Tone::Dim)
+            } else {
+                tone(Tone::Plain)
+            };
+            item(None, vec![(l.clone(), st)])
+        })
+        .collect();
+    let below = all.len().saturating_sub(start + room);
+    if below > 0 {
+        out.push(item(None, vec![(format!("… {below} ligne(s) plus bas (↓)"), tone(Tone::Dim))]));
+    }
     out
 }
 

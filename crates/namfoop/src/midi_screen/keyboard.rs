@@ -111,6 +111,11 @@ fn contexts() -> Vec<Contexte> {
             s.on_key(Key::Char('C'));
             s
         }),
+        ("fiche", || {
+            let mut s = base();
+            s.tab = super::state::Tab::Fiche;
+            s
+        }),
         ("aide (h)", || {
             let mut s = base();
             s.on_key(Key::Char('h'));

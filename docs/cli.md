@@ -1025,8 +1025,14 @@ Options:
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
+      --set <SET>
+          Le set dont parlent l'écran et la fiche (identifiant ou morceau de nom, comme `browse --set`) [défaut : le set du moment, `[set] default`]
+
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --fiche [<CANAL>]
+          Imprime la fiche à envoyer au groupe pour ce canal (sans valeur : le premier canal réglé), puis s'arrête, sans ouvrir de port ni l'écran
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]

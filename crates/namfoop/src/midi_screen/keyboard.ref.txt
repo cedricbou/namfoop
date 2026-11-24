@@ -7,7 +7,7 @@
   Entrée   brouillon changé   « horloge confiée à UM-ONE : celles des autres sont ignorées »
   Échap    « Échap ne quitte pas : q pour quitter »
   Tab      onglet: Devices → Plan
-  BackTab  onglet: Devices → Plan
+  BackTab  onglet: Devices → Fiche
   a        fenêtre: aucune → Régler
   b        brouillon changé   « UM-ONE décoché : namfoop l'ignore »
   h        fenêtre: aucune → aide
@@ -28,7 +28,7 @@
   Entrée   fenêtre: aucune → Régler
   Échap    « Échap ne quitte pas : q pour quitter »
   Tab      onglet: Devices → Plan
-  BackTab  onglet: Devices → Plan
+  BackTab  onglet: Devices → Fiche
   a        fenêtre: aucune → Régler
   b        « b coupe un geste ou un appareil : vise sa ligne »
   h        fenêtre: aucune → aide
@@ -48,7 +48,7 @@
   Entrée   fenêtre: aucune → Régler
   Échap    « Échap ne quitte pas : q pour quitter »
   Tab      onglet: Devices → Plan
-  BackTab  onglet: Devices → Plan
+  BackTab  onglet: Devices → Fiche
   a        fenêtre: aucune → Régler
   b        « b coupe un geste ou un appareil : vise sa ligne »
   h        fenêtre: aucune → aide
@@ -69,7 +69,7 @@
   Entrée   « un Program Change n'a pas de numéro à régler ici : b le coupe, le numéro d'un morceau est dans le set »
   Échap    « Échap ne quitte pas : q pour quitter »
   Tab      onglet: Devices → Plan
-  BackTab  onglet: Devices → Plan
+  BackTab  onglet: Devices → Fiche
   a        fenêtre: aucune → Régler
   b        brouillon changé   « coupé : ce canal ne commande plus le morceau (Program Change) »
   h        fenêtre: aucune → aide
@@ -90,7 +90,7 @@
   Entrée   fenêtre: aucune → Régler
   Échap    « Échap ne quitte pas : q pour quitter »
   Tab      onglet: Devices → Plan
-  BackTab  onglet: Devices → Plan
+  BackTab  onglet: Devices → Fiche
   a        fenêtre: aucune → Régler
   b        brouillon changé   « coupé : ce canal ne commande plus le son du morceau »
   h        fenêtre: aucune → aide
@@ -145,10 +145,10 @@
 
 ## plan du set · un morceau
   Left     onglet: Plan → Devices
-  Right    « → ne va pas plus loin : Plan du set est le dernier onglet »
+  Right    onglet: Plan → Fiche
   Entrée   fenêtre: aucune → Régler
   Échap    « Échap ne quitte pas : q pour quitter »
-  Tab      onglet: Plan → Devices
+  Tab      onglet: Plan → Fiche
   BackTab  onglet: Plan → Devices
   a        « cette touche règle les appareils et les canaux : ← pour y aller »
   b        « cette touche règle les appareils et les canaux : ← pour y aller »
@@ -167,10 +167,10 @@
 
 ## plan du set · sans set
   Left     onglet: Plan → Devices
-  Right    « → ne va pas plus loin : Plan du set est le dernier onglet »
+  Right    onglet: Plan → Fiche
   Entrée   « aucun set : L pour en choisir un »
   Échap    « Échap ne quitte pas : q pour quitter »
-  Tab      onglet: Plan → Devices
+  Tab      onglet: Plan → Fiche
   BackTab  onglet: Plan → Devices
   a        « cette touche règle les appareils et les canaux : ← pour y aller »
   b        « cette touche règle les appareils et les canaux : ← pour y aller »
@@ -191,6 +191,28 @@
   Entrée   fenêtre: liste → aucune   « plan et fiche : canal 5 »
   Échap    fenêtre: liste → aucune   « rien de changé »
   inertes : Up Down Left Right Backspace Tab BackTab a b h q x S Q ? 5 * k u P n L 1 i C 0
+
+## fiche
+  Left     onglet: Fiche → Plan
+  Right    « → ne va pas plus loin : Fiche est le dernier onglet »
+  Entrée   action: WriteFiche
+  Échap    « Échap ne quitte pas : q pour quitter »
+  Tab      onglet: Fiche → Devices
+  BackTab  onglet: Fiche → Plan
+  a        « la fiche se lit : ← pour régler ce qu'elle dit »
+  b        « la fiche se lit : ← pour régler ce qu'elle dit »
+  h        fenêtre: aucune → aide
+  q        action: Quit
+  x        « la fiche se lit : ← pour régler ce qu'elle dit »
+  S        « rien à enregistrer : la fiche se calcule toute seule »
+  ?        fenêtre: aucune → aide
+  *        « le tap tempo est dans browse et run : ici, rien ne sonne »
+  k        « le clic est dans browse et run --click : ici, rien ne sonne »
+  u        « l'accordeur est dans browse et run : ici, rien ne sonne »
+  L        « la fiche se lit : ← pour régler ce qu'elle dit »
+  i        « la fiche se lit : ← pour régler ce qu'elle dit »
+  C        fenêtre: aucune → liste
+  inertes : Up Down Backspace Q 5 P n 1 0
 
 ## aide (h)
   Up       fenêtre: aide → aucune
