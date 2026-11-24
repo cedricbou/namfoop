@@ -11,7 +11,7 @@ Spécifications : [`browse-espaces.md`](../../../../docs/design/browse-espaces.m
 [`browse-chaine.md`](../../../../docs/design/browse-chaine.md),
 [`set.md`](../../../../docs/design/set.md),
 [`prompteur.md`](../../../../docs/design/prompteur.md) (le prompteur en grille, cible à construire),
-[`accordeur.md`](../../../../docs/design/accordeur.md) (l'accordeur et la basse coupée, cible à construire). Le reste
+[`accordeur.md`](../../../../docs/design/accordeur.md) (l'accordeur et la basse coupée). Le reste
 du binaire (CLI, commandes, `setup`) : [`crates/namfoop/CLAUDE.md`](../../CLAUDE.md).
 
 ## Les trois espaces — `state/space/`
@@ -58,7 +58,7 @@ retombe jamais ; un contexte d'**espace** descend les quatre étages de `tiers` 
 **l'espace** (`set_key` / `fx_key` / `library_key`) > **les communes** (`S P n`, éclipsables par un
 espace **qui le déclare**) > **le dernier recours** (`Échap`, et la touche sans propriétaire posée
 dans `State::unhandled`, que la boucle trace). L'espace passe avant les communes : seule issue
-tenable avec 20 lettres sur 26 déjà prises. Deux règles seulement précèdent le contexte : un mur ne
+tenable quand la plupart des lettres sont déjà prises. Deux règles seulement précèdent le contexte : un mur ne
 se traverse pas, et `h` ouvre l'aide hors saisie.
 
 Quatre règles à ne pas casser :
@@ -82,7 +82,7 @@ Quatre règles à ne pas casser :
 Un test qui mesure, pour **chaque** contexte et **chaque** touche (`all_keys()`), ce qui se passe
 vraiment — couche qui consomme, action, message, champs d'état changés — et le fige dans
 `keyboard.ref.txt`. **C'est lui qu'on lit pour savoir ce que fait une touche** : `on_key` est une
-cascade de fonctions réparties sur neuf fichiers, la lire ne suffit pas.
+cascade de fonctions réparties sur plusieurs fichiers, la lire ne suffit pas.
 
 Régénérer **après avoir voulu le diff** :
 `NAMFOOP_UPDATE_KEYBOARD=1 cargo test -p namfoop --bin namfoop keyboard`.
@@ -215,7 +215,7 @@ fichier du set, ses prompteurs, `$EDITOR`, le set du moment) — et un `match` *
 `actions::run` : une action nouvelle ne compile pas sans dire qui la prend.
 
 Chaque action rend un `Flow` : finir le tour, passer au suivant (rien n'a changé à l'écran), ou
-quitter. C'est ce qui a remplacé les `continue` et les `return` au milieu de la boucle.
+quitter. La boucle n'a donc ni `continue` ni `return` en son milieu.
 
 ## Les presets — `state/preset/`
 
@@ -235,8 +235,8 @@ horloge MIDI tourne. `*` = tap (`State::tap_tempo`), et `tick()` appelle `Arbite
 une horloge qui se tait. `*` fait **deux** choses, qui ne se refusent pas ensemble : écrire le tempo
 (seulement hors du banc d'essai — la Bibliothèque n'est pas un preset) et recaler le **temps 1**, qui
 ne touche à aucun preset et agit donc **partout** (`Arbiter::realign_downbeat`). Les refuser tous
-deux laissait un clic qu'on ne pouvait plus recaler, le clic s'allumant lui depuis n'importe quel
-écran.
+deux laisserait un clic qu'on ne pourrait plus recaler, le clic s'allumant lui depuis n'importe
+quel écran.
 
 ## Le set — `state/set/`
 
@@ -283,8 +283,8 @@ vit dans `library::bars`. Quatre choses à ne pas casser :
 1. **l'horloge est fournie** (`advance_beat(now_ms)`, appelée par `tick`) et **rien ne descend dans
    le fil audio** ; mais dès qu'une horloge MIDI est verrouillée, ce n'est plus le temps qui la fait
    avancer, ce sont les **tops** (`State::clock_elapsed_ticks`, un comptage depuis l'ancre de
-   l'arbitre) : une position absolue ne dérive pas, là où intégrer un tempo mesuré transformait la
-   moindre erreur de période en décalage définitif — le défaut que le clic a eu. Les trois
+   l'arbitre) : une position absolue ne dérive pas, là où intégrer un tempo mesuré transformerait la
+   moindre erreur de période en décalage définitif. Les trois
    recalages (`restart`, `realign`, `seek`) prennent donc **les deux** repères, et le compilateur
    l'impose plutôt que de laisser l'un s'oublier : le tempo d'une section entre dans l'arbitre par `set_section_tempo`, comme
    celui d'un preset, et **seulement au passage d'une section à l'autre et seulement s'il change** —
@@ -366,12 +366,11 @@ pilote l'écran dans un pseudo-terminal (`--no-config --backend sim`, bibliothè
 `--library <tmp>` : `browse` écrit les mélanges dans `<library>/cabs/`, ne jamais polluer la
 bibliothèque de l'utilisateur) ; les pièges du pilotage y sont **implémentés**.
 
-**La boucle elle-même se teste de bout en bout**, et c'est neuf : deux défauts de phase lui ont
-échappé parce que les tests unitaires pilotaient le clic avec une phase déjà propre, alors que le
-défaut était dans le calcul qui la produit et dans l'ordre de la boucle. `scenario_midi_horloge`
-nourrit un port simulé depuis un **fil à part** (25 ms, soit 100 BPM : au rythme de la boucle de
-lecture d'écran, la cadence allait de 40 à 120 ms selon la charge et l'horloge ne se verrouillait
-pas) et exige une phase immobile. Faute de verrou, il **ne conclut pas** au lieu d'échouer.
+**La boucle elle-même se teste de bout en bout** : un test unitaire qui pilote le clic avec une
+phase déjà propre ne voit ni le calcul qui la produit ni l'ordre de la boucle.
+`scenario_midi_horloge` nourrit un port simulé depuis un **fil à part** (25 ms, soit 100 BPM : au
+rythme de la boucle d'écran, la cadence irait de 40 à 120 ms selon la charge et l'horloge ne se
+verrouillerait pas) et exige une phase immobile. Faute de verrou, il **ne conclut pas** au lieu d'échouer.
 
 La **bande de battue** est testée aux deux tailles d'écran du projet (80×25 et 160×50) dans
 `ui/tests/beat.rs` : un écran à deux colonnes mêle les deux dans chaque ligne, et la set list

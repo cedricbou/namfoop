@@ -4,7 +4,7 @@
 vérifie le routage contre les canaux de la carte (la fréquence réelle est vérifiée par l'appelant :
 une chaîne vide de calibration s'accommode de celle de la carte), route la basse dans une chaîne
 `dsp` échangeable à chaud (`dsp::swap`, fondu), et publie les vumètres. La **banque de chaînes
-préchargées** vit ici ; c'est elle que le MIDI pilotera, comme la reprise sur carte perdue.
+préchargées** vit ici ; c'est elle qui sert un changement de son, au clavier, au pied ou en MIDI.
 
 **Interdit** (`scripts/check-arch.sh`) : `clap`, `ratatui`, `namfoop`, `toml`, et l'accès direct à
 `alsa` (tout passe par `audio-io`). Les options CLI de routage restent dans le binaire
@@ -53,20 +53,19 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   pour qui veut recaler sans rien dire du tempo. `clock_phase` **est** le numéro du top d'ancrage,
   modulo une noire : une constante entre deux ancrages, que le fil audio compare au compteur
   partagé. Rien à arrondir, rien à lire au bon moment, rien à verrouiller — le top porte son
-  numéro (`midi_io::Message::clock_seq`). Les deux formes essayées avant échouaient : déduire la
-  position d'une durée (`(maintenant − frontière) / période`) plaçait une limite de décision là où
-  la gigue du câble passe et repasse — **656 basculements en 20 s** à 142 BPM, mesurés —, et la
-  déduire de deux comptages tenus séparément exigeait de les lire au même instant, ce qui n'est
-  jamais tout à fait vrai. Pas de phase sans verrou : le tempo ne serait pas encore celui de la
+  numéro (`midi_io::Message::clock_seq`). Déduire la position d'une durée
+  (`(maintenant − frontière) / période`) placerait une limite de décision là où la gigue du câble
+  passe et repasse, et la déduire de deux comptages tenus séparément exigerait de les lire au même
+  instant, ce qui n'est jamais tout à fait vrai. Pas de phase sans verrou : le tempo ne serait pas encore celui de la
   source. Un **tap** pose l'ancre sur le top le plus proche du geste, seul endroit où une durée
   sert encore à compter des tops — une fois, sur un geste qui vaut déjà ±30 ms.
   `transport()` rend ce que la source a **annoncé** (`Start` / `Continue` / `Stop`), pour que
   l'écran le montre : il n'a de sens qu'au côté d'une horloge, sinon un `Start` égaré l'y
   laisserait pour la session, et un trou dans le flux ne l'efface **pas** — avec « horloge perdue »,
   un `⏵` distingue « la source s'est arrêtée » de « j'ai perdu son horloge alors qu'elle lisait ».
-  L'effacer sur perte d'horloge coûtait l'indication pour de bon dès le premier intervalle aberrant,
-  et il en arrive pendant la demi-seconde de verrouillage, où `lose_clock` ne change même pas la
-  source.
+  L'effacer sur perte d'horloge coûterait l'indication pour de bon dès le premier intervalle
+  aberrant, et il en arrive pendant la demi-seconde de verrouillage, où `lose_clock` ne change même
+  pas la source.
   `clock_phase_confirmed` distingue une ancre **observée** (silence puis reprise, transport, tap)
   d'une ancre **devinée** (on s'est raccroché au milieu d'un flux, et le premier top n'y est un
   début de temps qu'une fois sur vingt-quatre) : l'écran doit le dire, c'est indiscernable d'un
@@ -80,9 +79,9 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
   le temps) suffisent à placer le clic au top près, position **absolue** donc insensible à la dérive
   comme aux changements de tempo. Seul un franchissement **vers l'avant** sonne (un temps qui
   recule est une réancre, pas un temps), et l'accent de mesure avance de l'écart réel, qui peut
-  valoir plus d'un temps. Compter des échantillons depuis le temps précédent accumulait au contraire la moindre erreur de
-  période — 0,3 BPM à 142 BPM font une demi-seconde en quatre
-  minutes — et décalait la grille pour de bon à chaque changement de tempo. Sans compteur ou sans
+  valoir plus d'un temps. Compter des échantillons depuis le temps précédent accumulerait au contraire la moindre erreur
+  de période — 0,3 BPM à 142 BPM font une demi-seconde en quatre minutes — et décalerait la grille
+  pour de bon à chaque changement de tempo. Sans compteur ou sans
   phase connue, la grille au tempo reprend la main, à l'identique.
 - `router.rs` : `Routing`, `OutputRoute`, `Source`, `Router`. `with_metronome` **ajoute** le clic
   aux seules sorties qui portent `click = true`, jamais substitué à leur source, et sans générateur
@@ -101,7 +100,7 @@ valeurs par défaut, cas `None`, garanties temps réel) : c'est là qu'on lit l'
 - `meters.rs` (`Meters`, `fetch_max`, `take`), `error.rs` (erreurs `thiserror` dont les messages
   sont vus par l'utilisateur : ne pas les changer à la légère).
 
-**Règles temps réel** (`CLAUDE.md` racine) : `Callback::process` et `Router::process` n'allouent
+**Règles temps réel** (`crates/dsp/CLAUDE.md`) : `Callback::process` et `Router::process` n'allouent
 pas, ne verrouillent pas, ne loguent pas et ne paniquent pas ; un canal hors limites est ignoré
 dans le callback ET refusé dans `start`. Tests : `callback_does_not_allocate` (tap et basse coupée
 compris), `process_does_not_allocate`.

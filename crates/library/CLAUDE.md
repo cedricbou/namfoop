@@ -36,7 +36,7 @@ vrai .nam est nécessaire.
 ## `set.rs` — les sets de concert
 
 Le format du § 3 de `docs/design/set.md` : `SetSpec` › `Song` › `Sound`, serde, aller-retour sans
-perte (l'édition de l'US 4 en dépend : un défaut ne s'écrit pas, donc le fichier reste lisible à la
+perte (l'édition du set en dépend : un défaut ne s'écrit pas, donc le fichier reste lisible à la
 main). Un set **référence** des presets par leur identifiant, il ne les copie pas.
 
 Deux sortes de contrôles, et **la différence est une décision de scène** :
@@ -80,10 +80,10 @@ section de durée inconnue est en travers, parce qu'on ne peut alors pas compter
 
 ## Faits mesurés
 
-- Bibliothèque : 55 modèles, tous au format NAM 0.7.0 `SlimmableContainer` (WaveNet 3ch + 8ch,
-  `--size 0` = 3ch), loudness entre -14 et -40 dB (d'où la normalisation à -18 dB). 144 IR, surtout
-  48 kHz mono, quelques-unes en 44,1 / 96 kHz (rééchantillonnées au chargement), jusqu'à 6 s (tronquées
-  à 200 ms).
+- Bibliothèque de l'utilisateur (relevé non refait depuis qu'elle a grandi) : modèles NAM 0.7.0
+  `SlimmableContainer` (WaveNet 3ch + 8ch, `--size 0` = 3ch), loudness entre -14 et -40 dB (d'où la
+  normalisation à -18 dB) ; IR surtout 48 kHz mono, quelques-unes en 44,1 / 96 kHz (rééchantillonnées
+  au chargement), jusqu'à 6 s (tronquées à 200 ms).
 - Métadonnées des packs achetés (komposition101, 84 modèles) : `gear_type = amp` partout, FullRig
   compris ; marque / modèle `T3K-Null`, `tz-make` ; pas d'`input_level_dbu` ; loudness -9 à -13 dB.
   Seul le nom (`_DI`, `_FullRig`) ou le dossier (`Full-Rig Profiles/`) est fiable. Les mêmes IR sont

@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+## 0.7.0 — 2026-11-24
+
+### Documentation (#417)
+- **Les `CLAUDE.md` de crate relus pour la publication** : les règles temps réel y renvoient à
+  `crates/dsp/CLAUDE.md`, où elles vivent ; les promesses au futur (un filtre de canal « ici », une
+  reprise sur carte perdue) et les récits d'alternatives essayées sont retirés ou dits au
+  conditionnel ; les comptes de la bibliothèque, devenus faux, deviennent des conditions de mesure.
+
+### Documentation (#415)
+- **L'écran MIDI se décrit en appareils et en canaux** (`docs/design/midi.md`,
+  `docs/design/midi.html`) : tous les appareils écoutés par leur nom et décochables, un seul qui
+  donne l'horloge, les numéros réglés par canal, une ligne Accordeur par canal. La maquette suit la
+  charte : écran neutre, saisie en jaune, refus en rouge.
+
 ### Ajouté (#412)
 - **namfoop retrouve tes sons d'où que tu le lances** : hors du dossier du projet (console de scène,
   Pi, binaire installé par `cargo install`), il cherche la bibliothèque dans

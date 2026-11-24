@@ -71,8 +71,8 @@ live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre
                 reproductibles. La PHASE du clic a ses propres cases (compteur de tops du port MIDI
                 + Arbiter::clock_phase), comme dans browse. Le tempo ENTENDU va sur la ligne
                 d'état, pas dans le journal, qui ne garde que les changements de SOURCE : une ligne
-                par valeur publiée en donnait des dizaines par seconde sur une horloge qui gigue
-                (l'hystérésis republie à chaque croisement de sa bande) et elles se mêlaient à la
+                par valeur publiée en donnerait des dizaines par seconde sur une horloge qui gigue
+                (l'hystérésis republie à chaque croisement de sa bande) et elles se mêleraient à la
                 ligne d'état, qui se réécrit sans retour chariot ;
                 L'ACCORDEUR : la touche de [tuner] (lue par termios, sans écho ni mode ligne,
                 SEULEMENT dans un terminal : Ctrl+C reste un signal et les journaux gardent leurs
@@ -108,8 +108,8 @@ midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair 
                 tops à une ligne par noire ; `en_clair` dit ce que fait le CC de l'accordeur, APRÈS
                 la ligne brute, qui reste recopiable dans un port simulé). N'ouvre pas la carte son : c'est la commande des
                 essais matériels MIDI
-                L'écran plein écran qui la remplacera est spécifié dans
-                docs/design/midi.md (maquette : docs/design/midi.html)
+                Sa cible plein écran est spécifiée dans docs/design/midi.md
+                (maquette : docs/design/midi.html)
 models_cmd.rs   `models` : inventaire affiché
 presets_cmd.rs  `presets` : la banque enregistrée (identifiant, nom, chaîne via BlockSpec::describe)
 sets_cmd.rs     `sets` : les sets de concert (identifiant, nom, morceaux et sons), et SURTOUT ce qui
