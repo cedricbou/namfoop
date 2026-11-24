@@ -135,8 +135,8 @@ impl Default for Tuner {
     }
 }
 
-/// L'entrée **MIDI** : le port qu'on écoute, écrit par `namfoop setup`. Les numéros de message,
-/// eux, sont ceux de l'[ADR 0011] et ne se règlent pas encore ici.
+/// L'entrée **MIDI** : le port qu'on écoute (écrit par `namfoop setup`), le canal, et les numéros
+/// de message, dont les défauts sont ceux de l'[ADR 0011].
 ///
 /// [ADR 0011]: ../../docs/adr/0011-midi-conventions-fractal.md
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -149,6 +149,12 @@ pub struct Midi {
     /// Vrai : aucune écoute MIDI, comme `--no-midi`. Un pédalier qui fait des siennes se coupe
     /// ainsi sans débrancher de câble.
     pub off: bool,
+    /// Le **canal** écouté, de 1 à 16 comme sur un pédalier. Absent : **tous** les canaux, ce
+    /// qui fait marcher un pédalier sur son canal d'usine sans réglage. Fixé, un Program Change ou
+    /// un CC arrivé sur un autre canal est ignoré ; l'horloge, `Start` et `Stop`, qui n'ont pas de
+    /// canal, passent toujours. Un canal hors bornes est refusé à la lecture de la config.
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "channel_1_to_16")]
+    pub channel: Option<u8>,
     /// Le CC qui choisit le **son du morceau joué** (scene chez Fractal). Défaut 34 : le numéro
     /// que le monde Fractal utilise de fait, et que les gabarits des pédaliers tiers répètent.
     pub cc_sound: u8,
@@ -166,7 +172,17 @@ pub struct Midi {
 impl Default for Midi {
     /// Les numéros de l'ADR 0011 : le défaut est ce qui évite de configurer.
     fn default() -> Self {
-        Self { input: None, off: false, cc_sound: 34, cc_tap: 14, cc_tuner: 15, clock: true }
+        Self { input: None, off: false, channel: None, cc_sound: 34, cc_tap: 14, cc_tuner: 15, clock: true }
+    }
+}
+
+/// `[midi] channel` : un canal de 1 à 16, refusé avec une phrase lisible sinon. Le canal 0 du câble
+/// n'existe pas pour l'utilisateur : un pédalier les numérote de 1 à 16.
+fn channel_1_to_16<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Option<u8>, D::Error> {
+    let n = i64::deserialize(d)?;
+    match u8::try_from(n) {
+        Ok(c) if (1..=16).contains(&c) => Ok(Some(c)),
+        _ => Err(serde::de::Error::custom(format!("[midi] channel = {n} : un canal MIDI va de 1 à 16"))),
     }
 }
 
@@ -369,6 +385,23 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `[midi] channel` : absent, tous les canaux ; 1 à 16, gardé et réécrit ; hors bornes, refusé
+    /// avec une phrase qui dit pourquoi. Une config sans la clé se relit et se réécrit sans elle.
+    #[test]
+    fn le_canal_midi_se_lit_et_se_refuse_hors_bornes() {
+        let lire = |s: &str| toml::from_str::<Config>(s);
+        assert_eq!(lire("[midi]\ncc_sound = 20\n").unwrap().midi.unwrap().channel, None, "absent : tous");
+        assert_eq!(lire("[midi]\nchannel = 5\n").unwrap().midi.unwrap().channel, Some(5));
+        assert_eq!(lire("[midi]\nchannel = 16\n").unwrap().midi.unwrap().channel, Some(16));
+        for faux in ["0", "17", "-1", "300"] {
+            let e = lire(&format!("[midi]\nchannel = {faux}\n")).expect_err(faux).to_string();
+            assert!(e.contains("de 1 à 16"), "{faux} -> {e}");
+        }
+        let texte = toml::to_string(&Midi { channel: Some(5), ..Default::default() }).unwrap();
+        assert!(texte.contains("channel = 5"), "{texte}");
+        assert!(!toml::to_string(&Midi::default()).unwrap().contains("channel"), "absent : non écrit");
+    }
 
     #[test]
     fn roundtrip_and_partial_file() {

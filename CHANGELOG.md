@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#378)
+- **namfoop n'écoute que ton canal, si tu le lui dis** : `[midi] channel = 5` (ou
+  `--midi-channel 5`) fait ignorer tout Program Change ou CC arrivé sur un autre canal — un message
+  destiné aux lights ne change plus ni le morceau, ni le son, ni le tempo. L'horloge, `Start` et
+  `Stop`, qui n'ont pas de canal, sont toujours suivis. Sans réglage, tous les canaux restent
+  écoutés. `namfoop midi` dit d'un message hors canal qu'il est ignoré, et pourquoi ; un canal hors
+  de 1 à 16 est refusé à la lecture de la config.
+
 ### MIDI (#377)
 - **`namfoop midi` dit sur quel canal arrive chaque message** : `PC 3 ch 5`, `CC 34 2 ch 1`, de 1 à
   16 comme sur un pédalier ; l'horloge, `Start` et `Stop` n'en ont pas. La ligne se recopie telle

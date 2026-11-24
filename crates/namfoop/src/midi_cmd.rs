@@ -56,9 +56,13 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
     // vérifier un pédalier, et son message dit déjà quoi faire. Pendant une session de jeu, la
     // même erreur n'est qu'un avertissement (`cli_midi::MidiArgs::open`).
     let mut input = midi_io::open(&cfg)?;
+    // le filtre du canal n'est **pas** appliqué ici : cette commande montre tout ce qui arrive, et
+    // dit de ce qu'un écran ignorerait pourquoi il l'ignore
+    let listen = midi.listen(&conf.config);
     println!(
-        "\nÉcoute {} — {} :",
+        "\nÉcoute {}{} — {} :",
         input.description(),
+        listen.channel.map(|c| format!(" · canal {c}")).unwrap_or_default(),
         match args.seconds {
             Some(s) => format!("{s:.0} s"),
             None => "Ctrl+C pour sortir".into(),
@@ -77,11 +81,11 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
         while let Some(m) = input.try_pop() {
             vus += 1;
             if let Some(ligne) = horloge.ligne(&m) {
-                println!(
-                    "  {:>7.2} s  {ligne}{}",
-                    (m.at - debut).as_secs_f64(),
-                    en_clair(&m.event, cc_tuner)
-                );
+                let effet = match listen.why_not(m.channel) {
+                    Some(raison) => format!("   ({raison})"),
+                    None => en_clair(&m.event, cc_tuner),
+                };
+                println!("  {:>7.2} s  {ligne}{effet}", (m.at - debut).as_secs_f64());
             }
         }
         std::thread::sleep(Duration::from_millis(20));

@@ -16,10 +16,14 @@ cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings
                 défaut), to_audio (model::BackendKind -> audio_io::Kind) ; profil de carte
                 (card_profile, detect, settings, base_routing : CLI > config > profil > défaut,
                 ALSA seulement)
-cli_midi.rs     options MIDI clap (MidiArgs : --midi-in, --no-midi) -> midi_io::Settings (CLI >
-                config > défaut) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**, et
-                ne fait jamais échouer le démarrage — c'est le seul endroit où cette règle vit
-                (check-arch.sh refuse `midi_io::open` ailleurs qu'ici et dans midi_cmd.rs)
+cli_midi.rs     options MIDI clap (MidiArgs : --midi-in, --no-midi, --midi-channel) -> midi_io::Settings
+                (CLI > config > défaut) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**,
+                et ne fait jamais échouer le démarrage — c'est le seul endroit où cette règle vit
+                (check-arch.sh refuse `midi_io::open` ailleurs qu'ici et dans midi_cmd.rs).
+                LE CANAL ÉCOUTÉ : `Listen::hears`, la seule règle « ce message est-il pour moi » ;
+                `MidiIn` (ce que rend `open()`) l'applique en vidant la file, si bien que browse et
+                run ne voient jamais un message d'un autre canal ; midi_cmd.rs, lui, montre tout et
+                dit pourquoi il ignore (`Listen::why_not`). Sans canal, tout passe
 cli_routing.rs  options de routage clap (RoutingArgs, --route N=SOURCE) -> engine::Routing
 amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (CLI > config > défaut) ;
                 chain_spec() : la chaîne à jouer, celle des options OU celle d'un preset

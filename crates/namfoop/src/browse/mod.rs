@@ -184,7 +184,7 @@ pub struct Start<'a> {
     pub locked: bool,
     /// Le port MIDI déjà ouvert par le binaire (`--midi-in`, `[midi] in`), s'il y en a un. La
     /// boucle le vide à chaque tour : jamais le fil audio (ADR 0011).
-    pub midi: Option<midi_io::Input>,
+    pub midi: Option<crate::cli_midi::MidiIn>,
 }
 
 pub fn run(
@@ -229,7 +229,7 @@ pub fn run(
     // au lieu de compter des échantillons — compteur tenu par le fil de lecture MIDI, lu ici dans
     // le fil audio.
     let clock_phase = dsp::param::Control::new(f32::NAN);
-    let clock_ticks = start_with.midi.as_ref().map(midi_io::Input::clock_ticks);
+    let clock_ticks = start_with.midi.as_ref().map(crate::cli_midi::MidiIn::clock_ticks);
     let metronome = engine::metronome::MetronomeConfig {
         gain: click_gain.clone(),
         tempo: tempo.clone(),
@@ -402,6 +402,7 @@ pub fn run(
     };
     let mut saved: Option<(String, Vec<BlendPart>, bool)> = None; // (id, mélange sauvé, align)
     let mut midi_pending = Action::None; // ce qu'un message MIDI demande, en attente d'un tour libre
+    let mut midi_ignored = 0u64; // messages d'un autre canal, déjà tracés
     let start = Instant::now();
     let mut session = tui::Session::start()?;
     let result = (|| -> Result<()> {
@@ -423,6 +424,12 @@ pub fn run(
                     if a != Action::None {
                         midi_pending = a;
                     }
+                }
+                // ce que le canal a écarté : tracé pour qu'un essai de bout en bout voie qu'un
+                // message des lights est arrivé et n'a rien changé
+                if m.ignored() != midi_ignored {
+                    midi_ignored = m.ignored();
+                    trace(&format!("midi ignorés={midi_ignored} (canal)"));
                 }
                 // **La phase du clic** : le numéro du top qui porte le temps. Elle ne dépend
                 // d'aucune lecture de compteur ni d'aucun instant — le top l'a apportée — donc

@@ -2270,7 +2270,7 @@ preset quitté finit de sonner.
 
 Pour régler un pédalier de gabarit Fractal, il n'y a donc rien à faire côté namfoop : un bouton par
 preset, chacun envoyant son Program Change sur le canal du pédalier (namfoop écoute **tous** les
-canaux). `namfoop presets` donne l'ordre de la banque, qui est l'ordre des places :
+canaux tant qu'on ne lui en a pas choisi un : voir plus bas). `namfoop presets` donne l'ordre de la banque, qui est l'ordre des places :
 
 ```sh
 namfoop presets
@@ -2426,6 +2426,38 @@ off = false
 **Un pédalier débranché n'empêche jamais de démarrer.** Port absent, nom introuvable, séquenceur
 indisponible : namfoop le dit dans un message, et tout le reste marche. Un concert ne s'arrête pas
 pour un câble MIDI.
+
+### N'écouter que mon canal : `--midi-channel`, `[midi] channel`
+
+Seul avec ton pédalier, laisse namfoop écouter **tous les canaux** : il marche alors sur le canal
+d'usine de n'importe quel pédalier. Sur le **câble du groupe**, en revanche, d'autres reçoivent des
+messages — les lights, un clavier — et un Program Change destiné aux lights changerait ton morceau.
+Choisis alors le canal qu'on t'a réservé :
+
+```sh
+namfoop --midi-channel 5 run --set concert
+```
+
+ou, pour toutes les sessions, dans la configuration :
+
+```toml
+[midi]
+channel = 5       # de 1 à 16, comme sur un pédalier ; absent : tous les canaux
+```
+
+Un Program Change ou un CC arrivé sur un autre canal ne change alors **ni le morceau, ni le son, ni
+le tempo**. L'horloge, `Start` et `Stop` n'ont pas de canal sur le câble : ils sont toujours suivis
+(`[midi] clock = false` les coupe). `namfoop midi` montre tout ce qui arrive, et dit de ce qui
+n'est pas pour toi pourquoi il est ignoré :
+
+```text
+Écoute 24:0  UM-ONE MIDI 1 · canal 5 — Ctrl+C pour sortir :
+     1.12 s  PC 2 ch 10   (ignoré : namfoop écoute le canal 5)
+     1.40 s  PC 2 ch 5
+```
+
+`--midi-channel` passe devant la configuration ; un canal hors de 1 à 16 est refusé, dans l'option
+comme dans le fichier.
 
 ### Essayer sans pédalier : le port simulé
 

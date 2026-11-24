@@ -63,6 +63,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -166,13 +169,16 @@ Options:
           
           [default: 1]
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --ir-ms <IR_MS>
           Longueur max de l'IR (ms)
           
           [default: 200]
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --master-db <MASTER_DB>
           Volume final (dB)
@@ -315,13 +321,16 @@ Options:
           
           [default: 1]
 
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
-
       --ir-ms <IR_MS>
           Longueur max de l'IR (ms)
           
           [default: 200]
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --master-db <MASTER_DB>
           Volume final (dB)
@@ -436,6 +445,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -503,6 +515,9 @@ Options:
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -588,6 +603,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -640,6 +658,9 @@ Options:
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -694,6 +715,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -747,6 +771,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -799,6 +826,9 @@ Options:
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -864,6 +894,9 @@ Options:
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -940,6 +973,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -995,6 +1031,9 @@ Options:
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
@@ -1046,6 +1085,9 @@ Options:
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
@@ -1125,6 +1167,9 @@ Options:
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
 
       --config <CONFIG>
           Fichier de config [défaut : ~/.config/namfoop/config.toml]
