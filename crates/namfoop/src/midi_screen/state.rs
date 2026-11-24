@@ -190,12 +190,24 @@ pub enum Action {
     SaveAndQuit,
 }
 
+/// Un port imposé : ce qui a été demandé, et par qui.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Pinned {
+    /// La valeur demandée, telle qu'écrite (« 32:0 », « MC6 »).
+    pub asked: String,
+    /// Vrai : par `--midi-in`, pour cette fois ; faux : par `in` dans `[midi]` de la config.
+    pub by_option: bool,
+}
+
 pub struct State {
     /// La section `[midi]` en cours de réglage.
     pub draft: Midi,
     saved: Midi,
     /// Faux avec `--no-config` : `S` le dit au lieu d'écrire.
     pub can_save: bool,
+    /// Le seul port écouté, quand `[midi] in` ou `--midi-in` en impose un : l'écran le dit, sans
+    /// quoi les appareils absents de la liste n'ont pas d'explication.
+    pub pinned: Option<Pinned>,
     pub cursor: Row,
     pub devices: Vec<DeviceLive>,
     /// L'appareil que le port suit pour l'horloge, s'il bat.
@@ -278,6 +290,7 @@ impl State {
             log: VecDeque::new(),
             modal: None,
             message: None,
+            pinned: None,
             set: None,
             sets: Vec::new(),
             tab: Tab::Devices,

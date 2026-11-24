@@ -22,8 +22,8 @@ use anyhow::Result;
 
 use crate::config::LoadedConfig;
 use crate::tui;
-pub use state::SetFile;
 use state::{Action, DeviceLive, State};
+pub use state::{Pinned, SetFile};
 
 /// Le tour de boucle : de quoi voir un appui tout de suite sans occuper la machine.
 const POLL_MS: u64 = 30;
@@ -33,8 +33,10 @@ pub fn run(
     conf: &LoadedConfig,
     library: &std::path::Path,
     set: Option<&str>,
+    pinned: Option<Pinned>,
 ) -> Result<()> {
     let mut st = State::new(conf.config.midi.clone().unwrap_or_default(), !conf.ignored);
+    st.pinned = pinned;
     st.set = load_set(conf, library, set);
     st.sets = sets(library);
     // les gabarits livrés, puis ceux de l'utilisateur (`midi-templates/` à côté de la config)

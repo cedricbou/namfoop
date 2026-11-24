@@ -1,7 +1,7 @@
 //! Le rendu, en 80×25 et en 160×50 (les deux tailles du projet), sur `TestBackend`.
 
 use super::*;
-use crate::midi_screen::state::{DeviceLive, State};
+use crate::midi_screen::state::{DeviceLive, Pinned, State};
 use crate::tui::{screen_text, Key};
 use midi_io::{Event, Message};
 use std::time::Instant;
@@ -202,4 +202,19 @@ fn la_fiche_se_lit_telle_qu_elle_partira() {
         assert!(t.contains(attendu), "« {attendu} » absent :\n{t}");
     }
     assert!(text(&s, 80, 25).contains("Canal 1. Les autres sont ignorés."), "elle tient en 80×25");
+}
+
+/// Un port imposé explique pourquoi les autres appareils manquent, et comment les écouter tous.
+#[test]
+fn un_port_impose_par_la_config_est_dit_en_tete_des_appareils() {
+    let mut s = scene();
+    s.pinned = Some(Pinned { asked: "32:0".into(), by_option: false });
+    let t = text(&s, 100, 50);
+    for attendu in ["APPAREILS · un seul écouté", "imposé par in = « 32:0 »", "retire cette ligne"] {
+        assert!(t.contains(attendu), "« {attendu} » absent :\n{t}");
+    }
+    assert!(!t.contains("tous écoutés, sauf"), "{t}");
+    s.pinned = Some(Pinned { asked: "MC6".into(), by_option: true });
+    let t = text(&s, 100, 50);
+    assert!(t.contains("--midi-in « MC6 », pour cette fois"), "{t}");
 }

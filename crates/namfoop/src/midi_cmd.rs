@@ -69,7 +69,13 @@ pub fn run(
         };
         cfg.ignore.clear();
         cfg.clock_from = None;
-        return crate::midi_screen::run(midi_io::open(&cfg)?, conf, library, args.set.as_deref());
+        // un port imposé (sauf le port simulé, qui n'a qu'une source) : l'écran dit par qui
+        let pinned = cfg
+            .port
+            .clone()
+            .filter(|p| !p.starts_with("sim:"))
+            .map(|asked| crate::midi_screen::Pinned { asked, by_option: midi.midi_in.is_some() });
+        return crate::midi_screen::run(midi_io::open(&cfg)?, conf, library, args.set.as_deref(), pinned);
     }
     let ports = midi_io::ports().unwrap_or_default();
     if ports.is_empty() {
