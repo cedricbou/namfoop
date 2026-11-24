@@ -5,9 +5,11 @@ index de `library/` (identifiants courts `m…` modèles, `i…` IR, `c…` mél
 (`presets/*.preset.toml`), `s…` **sets** (`sets/*.set.toml`), recherche, métadonnées
 .nam), les **sets de concert** (`set.rs`), la **carte des mesures** (`bars.rs`), le
 **prompteur ChordPro**
-(`prompt.rs` : lecture pure du sous-ensemble du § 10 de `docs/design/set.md` — sections,
-accords en ligne, cues, les quatre directives `x_namfoop_…` ; **tout le reste est ignoré sans
-erreur**, parce qu'un fichier écrit pour un autre logiciel doit s'afficher ici, et seule
+(`prompt.rs` : lecture pure du sous-ensemble du § 10 de `docs/design/set.md` — sections, leurs
+attributs `label="…"` (ChordPro 6), accords en ligne, cues (une cue hors section est celle de la
+section qui suit), tonalité, les quatre directives `x_namfoop_…`, et les **grilles** — une ligne de
+mesures est lue par `grid.rs`, § 2 de `docs/design/prompteur.md`, signes gardés tels qu'écrits ;
+**tout le reste est ignoré sans erreur**, parce qu'un fichier écrit pour un autre logiciel doit s'afficher ici, et seule
 l'ouverture du fichier peut échouer. Ni écran ni tempo : le placement dans le temps est la
 battue, l'affichage `namfoop`. namfoop n'écrit JAMAIS un `.cho`, sauf le squelette de `t`
 — `Prompt::skeleton` —, parce que ces fichiers viennent d'ailleurs), import des packs
@@ -54,11 +56,13 @@ pas au fichier ; `Song::time_sig()` le lit (`TimeSig`, déjà vérifié au charg
 ## `bars.rs` — la carte des mesures
 
 Le § 11 de `docs/design/set.md`, **pur** : `Meter` (une mesure et le regroupement de ses temps),
-`Span` (une section : métrique, tempo, durée en mesures, son lié) et `BarMap`, bâtie d'un `Song` et
-de son `Prompt`. Ni écran, ni horloge — la position dans le temps est la battue
+`Span` (une section : métrique, tempo, durée en mesures, son lié, et pour une grille les mesures de
+chaque ligne) et `BarMap`, bâtie d'un `Song` et de son `Prompt`. `place(section, mesure)` donne la
+ligne et, dans une grille, la mesure dans la ligne : c'est celle que le prompteur allume. Ni
+écran, ni horloge — la position dans le temps est la battue
 (`crates/namfoop/src/browse/state/set/beat.rs`).
 
-Quatre contrats que le reste du code suppose :
+Cinq contrats que le reste du code suppose :
 
 - le **BPM se compte à la noire**, toujours (Ableton, et les 24 tops par noire de l'horloge MIDI).
   Le **tick** d'une mesure est son unité : la croche en x/8, la noire en x/4, d'où
@@ -70,6 +74,8 @@ Quatre contrats que le reste du code suppose :
 - le morceau remplace la valeur **initiale** du prompteur, pas ses changements : le premier
   `{tempo}` / `{time}` du `.cho` ne sert que si le `.set.toml` se taît, et une directive plus loin
   dans le morceau gagne — y compris si elle revient à la valeur de départ ;
+- la durée d'une section est `{x_namfoop_bars}`, sinon **la somme de sa grille** (`%` compte une
+  mesure, les reprises ne se déplient pas), sinon la part de `{duration}` ;
 - une section **sans durée** (`bars: None`) ne finit jamais d'elle-même : la battue y compte les
   mesures. C'est aussi le cas d'un morceau sans prompteur, qui a une section implicite — c'est ce
   qui garantit qu'une bande se dessine toujours.

@@ -96,11 +96,11 @@ impl State {
         let ticks = self.clock_elapsed_ticks().unwrap_or(0);
         if let Some(set) = self.set.as_mut() {
             set.prompt_section = to;
-            set.prompt_line = 0;
             // **`Fin` / `Début` recalent sur le 1 de la section** (§ 11), en marche comme à
             // l'arrêt : c'est le geste du pied quand le groupe n'est pas là où le texte le dit.
             set.beat.restart(now, ticks);
         }
+        self.place_prompt(song);
         self.message = Some(if label.is_empty() {
             format!("section {}/{n}", to + 1)
         } else {
@@ -138,16 +138,15 @@ impl State {
             // on a changé de morceau : le texte repart du début, c'est un autre texte
             if !same_song {
                 set.prompt_section = 0;
-                set.prompt_line = 0;
                 set.beat.running = false;
                 set.beat.restart(now, ticks);
             }
             if let Some(i) = found {
                 set.prompt_section = i;
-                set.prompt_line = 0;
                 set.beat.restart(now, ticks);
             }
         }
+        self.place_prompt(at.0);
     }
 
     /// **`t`** : écrire le prompteur du morceau visé dans `$EDITOR`. L'état ne touche à aucun

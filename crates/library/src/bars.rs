@@ -118,10 +118,14 @@ pub struct Span {
     /// Le tempo en vigueur dans la section. `None` : ni le morceau ni le prompteur n'en donnent,
     /// c'est celui du preset qui s'entend.
     pub tempo_bpm: Option<f32>,
-    /// Sa durée en mesures. `None` : inconnue — la battue compte les mesures sans fin de section.
+    /// Sa durée en mesures : `{x_namfoop_bars}`, sinon la somme de sa grille. `None` : inconnue —
+    /// la battue compte les mesures sans fin de section.
     pub bars: Option<u32>,
     /// Le nombre de lignes de texte : le défilement les répartit sur les mesures de la section.
     pub lines: usize,
+    /// Une section **en grille** : les mesures de chacune de ses lignes (0 pour une cue ou du
+    /// texte). Vide pour une section sans grille, dont les lignes se partagent les mesures.
+    pub line_bars: Vec<u32>,
 }
 
 /// Une **position** dans le morceau : la section, la mesure dans cette section, le tick dans cette
@@ -181,8 +185,12 @@ impl BarMap {
                 sound: sec.sound.clone(),
                 meter: Meter::new(time.unwrap_or(TimeSig::COMMON), sec.beats.as_deref()),
                 tempo_bpm: tempo,
-                bars: sec.bars,
+                bars: sec.bars(),
                 lines: sec.lines.len(),
+                line_bars: match sec.grid_bars() {
+                    Some(_) => sec.lines.iter().map(|l| l.bar_count()).collect(),
+                    None => Vec::new(),
+                },
             });
         }
         spread_duration(&mut spans, prompt.duration_s);
@@ -217,14 +225,37 @@ impl BarMap {
     }
 
     /// La **ligne de texte** qu'on chante à cette mesure : les lignes d'une section se partagent
-    /// ses mesures (§ 10).
+    /// ses mesures (§ 10), et dans une grille chaque ligne dure ses mesures.
     pub fn line_of(&self, section: usize, bar: u32) -> usize {
-        let Some(s) = self.spans.get(section) else { return 0 };
-        match (s.lines, s.bars) {
+        self.place(section, bar).0
+    }
+
+    /// La ligne de cette mesure, et pour une ligne de grille **la mesure dans la ligne** : c'est
+    /// celle que le prompteur allume (§ 3 de `docs/design/prompteur.md`). Une ligne de trois
+    /// mesures suivie d'une ligne d'une seule se suivent donc exactement. Au-delà de la grille
+    /// (un `{x_namfoop_bars}` plus long qu'elle), la dernière ligne reste, sans mesure allumée.
+    pub fn place(&self, section: usize, bar: u32) -> (usize, Option<u32>) {
+        let Some(s) = self.spans.get(section) else { return (0, None) };
+        if !s.line_bars.is_empty() {
+            let mut start = 0u32;
+            let mut last = None;
+            for (i, n) in s.line_bars.iter().enumerate().filter(|(_, n)| **n > 0) {
+                if bar < start + n {
+                    return (i, Some(bar - start));
+                }
+                start += n;
+                last = Some(i);
+            }
+            if let Some(i) = last {
+                return (i, None);
+            }
+        }
+        let line = match (s.lines, s.bars) {
             (0, _) => 0,
             (n, Some(bars)) if bars > 0 => ((bar as u64 * n as u64) / bars as u64) as usize,
             (n, _) => (bar as usize).min(n - 1),
-        }
+        };
+        (line, None)
     }
 
     /// La position d'un nombre de **doubles croches** depuis le début du morceau : c'est la
@@ -500,5 +531,35 @@ mod tests {
         assert_eq!((m.line_of(0, 0), m.line_of(0, 1), m.line_of(0, 9)), (0, 1, 1));
         // une section vide ne demande rien
         assert_eq!(m.line_of(9, 3), 0, "une section qui n'existe pas ne panique pas");
+    }
+
+    /// **Le fichier de référence en grille** (§ 3 de `docs/design/prompteur.md`) : la durée de
+    /// chaque section est la somme de sa grille, le pont court est en 2/4, et chaque ligne dure
+    /// ses mesures — la mesure dans la ligne est celle que l'écran allume.
+    #[test]
+    fn a_grid_counts_its_bars_line_by_line() {
+        let m = map(crate::prompt::tests::GRID_PHARE, None, None);
+        let bars: Vec<Option<u32>> = m.spans().iter().map(|s| s.bars).collect();
+        assert_eq!(bars, [8, 16, 8, 3, 1, 4, 8, 2].map(Some).to_vec());
+        assert_eq!(m.total_bars(), Some(50));
+        assert_eq!(m.meter(4).time, "2/4".parse().unwrap(), "le pont court");
+        assert_eq!(m.meter(5).time, TimeSig::COMMON);
+        assert_eq!(m.span(0).unwrap().tempo_bpm, Some(124.0));
+        // l'intro : la cue (ligne 0) ne dure rien, puis deux lignes de quatre mesures
+        let places: Vec<(usize, Option<u32>)> = (0..8).map(|b| m.place(0, b)).collect();
+        assert_eq!(places[0], (1, Some(0)));
+        assert_eq!(places[3], (1, Some(3)));
+        assert_eq!(places[4], (2, Some(0)));
+        assert_eq!(places[7], (2, Some(3)));
+        assert_eq!(m.place(0, 8), (2, None), "au-delà : la dernière ligne, rien d'allumé");
+        // le couplet : quatre lignes de quatre
+        assert_eq!(m.place(1, 6), (1, Some(2)));
+        // des lignes inégales se suivent exactement : 3 mesures puis 1
+        let m = map("{start_of_grid}\n| A . | B . | C . |\n| D . |\n{end_of_grid}\n", None, None);
+        let places: Vec<(usize, Option<u32>)> = (0..4).map(|b| m.place(0, b)).collect();
+        assert_eq!(places, vec![(0, Some(0)), (0, Some(1)), (0, Some(2)), (1, Some(0))]);
+        // une section sans grille garde le partage
+        let m = map("{sov}\n{x_namfoop_bars: 4}\na\nb\n{eov}\n", None, None);
+        assert_eq!((m.place(0, 2), m.span(0).unwrap().line_bars.len()), ((1, None), 0));
     }
 }

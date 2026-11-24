@@ -20,6 +20,7 @@ mod editor;
 mod footer;
 mod fx;
 mod picker;
+mod prompt;
 mod rows;
 mod set;
 mod spectrum;

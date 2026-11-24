@@ -6,6 +6,20 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Set (#364)
+- **Le prompteur lit les grilles d'accords de ChordPro** (`{start_of_grid label="Couplet 1"
+  shape="4x4"}`), celles qu'écrivent d'autres logiciels : chaque grille est une section qui porte
+  son nom — au lieu de `GRID LABEL="…" SHAPE="…"` en titre —, ses accords en couleur, ses barres et
+  ses points en gris, les cases alignées d'une ligne à l'autre.
+- Battue en marche, **la mesure jouée est allumée** et celles déjà jouées de la ligne sont grisées.
+  La durée d'une section se compte dans sa grille : la bande de battue et le compte à rebours
+  marchent sans `{x_namfoop_bars}`, et chaque ligne dure ses mesures.
+- Les paroles écrites après la dernière barre s'affichent à droite de la ligne, ou dessous quand
+  l'écran est étroit ; la set list se replie quand la grille ne tiendrait pas à côté d'elle.
+- Une cue écrite juste avant une section est la sienne (elle ouvrait une section sans nom) ; des
+  grilles voisines de même nom n'ont qu'un titre, et celle dont la mesure change la dit (`2/4`) ;
+  `{key}` met la tonalité dans le titre du prompteur ; `label="…"` vaut sur toute section.
+
 ### Documentation (#431)
 - **Mes instruments et mes cartes ont leur spécification et leur maquette**
   (`docs/design/instruments.md`, `docs/design/instruments.html`) : une calibration par instrument

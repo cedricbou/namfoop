@@ -12,6 +12,7 @@
 
 use std::path::Path;
 
+use crate::grid::{self, Row};
 use crate::{Error, Result};
 
 /// Un accord posé **dans** une ligne de paroles, à une position en **caractères** (et non en
@@ -30,11 +31,19 @@ pub struct Line {
     pub chords: Vec<Chord>,
     /// `{comment}` / `{c}` : une **cue**, à afficher en jaune — ce n'est pas du texte à chanter.
     pub cue: bool,
+    /// Une **ligne de mesures** d'une grille (`{start_of_grid}`) : ses mesures et son repère.
+    /// `text` garde alors la ligne telle qu'écrite.
+    pub grid: Option<Row>,
 }
 
 impl Line {
     fn is_blank(&self) -> bool {
         self.text.trim().is_empty() && self.chords.is_empty() && !self.cue
+    }
+
+    /// Le nombre de mesures de la ligne : celles de sa grille, zéro pour du texte.
+    pub fn bar_count(&self) -> u32 {
+        self.grid.as_ref().map_or(0, Row::bar_count)
     }
 }
 
@@ -60,10 +69,25 @@ pub struct Section {
     pub beats: Option<Vec<u8>>,
 }
 
+impl Section {
+    /// La durée **écrite dans la grille** : la somme des mesures de ses lignes. `None` : la
+    /// section n'a aucune ligne de mesures.
+    pub fn grid_bars(&self) -> Option<u32> {
+        self.lines.iter().any(|l| l.grid.is_some()).then(|| self.lines.iter().map(Line::bar_count).sum())
+    }
+
+    /// La durée de la section : `{x_namfoop_bars}` s'il est écrit, sinon celle de sa grille.
+    pub fn bars(&self) -> Option<u32> {
+        self.bars.or_else(|| self.grid_bars())
+    }
+}
+
 /// Le prompteur d'un morceau.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Prompt {
     pub title: Option<String>,
+    /// `{key}` : la tonalité, telle qu'écrite.
+    pub key: Option<String>,
     /// `{duration}` en secondes (`3:45` ou `225`). Sans `x_namfoop_bars`, c'est elle qui se
     /// répartit sur les lignes (§ 10).
     pub duration_s: Option<f32>,
@@ -92,6 +116,7 @@ impl Prompt {
              # ChordPro — namfoop lit un sous-ensemble (docs/guide.md, « Le mode Set »).\n\
              # {{start_of_verse: Couplet 1}} … {{end_of_verse}} : une section\n\
              # {{comment: ...}} : une cue en jaune   ·   [Am]paroles : un accord\n\
+             # ou une grille : {{start_of_grid label=\"Intro\"}} puis | Em . . . | G . . . | paroles\n\
              # {{x_namfoop_sound: <preset>}} : lie la section à un son du morceau\n\
              # {{x_namfoop_bars: 8}} : sa durée en mesures\n\
              \n\
@@ -111,6 +136,8 @@ impl Prompt {
         let mut open: Option<Section> = None;
         // `{x_namfoop_sound}` rencontrée **avant** le `{start_of_…}` : on la garde pour lui
         let mut pending_sound: Option<String> = None;
+        // de même pour une cue écrite hors de toute section : c'est celle de la section qui suit
+        let mut pending_cues: Vec<Line> = Vec::new();
         let push = |open: &mut Option<Section>, out: &mut Prompt| {
             if let Some(mut s) = open.take() {
                 while s.lines.first().is_some_and(|l| l.is_blank()) {
@@ -129,9 +156,10 @@ impl Prompt {
                 continue;
             }
             if let Some(d) = directive(line) {
-                let (name, value) = d;
+                let Directive { name, value } = d;
                 match name.as_str() {
                     "title" | "t" => out.title = value.clone(),
+                    "key" => out.key = value.clone().filter(|v| !v.trim().is_empty()),
                     "duration" => out.duration_s = value.as_deref().and_then(duration_s),
                     "tempo" | "bpm" => {
                         tempo = value.as_deref().and_then(|v| v.trim().parse::<f32>().ok());
@@ -168,23 +196,25 @@ impl Prompt {
                     }
                     // les cues : toutes les formes de commentaire de ChordPro
                     "comment" | "c" | "comment_italic" | "ci" | "comment_box" | "cb" => {
-                        let text = value.clone().unwrap_or_default();
-                        open.get_or_insert_with(Section::default).lines.push(Line {
-                            text,
-                            cue: true,
-                            ..Default::default()
-                        });
+                        let cue =
+                            Line { text: value.clone().unwrap_or_default(), cue: true, ..Default::default() };
+                        match open.as_mut() {
+                            Some(s) => s.lines.push(cue),
+                            None => pending_cues.push(cue),
+                        }
                     }
                     _ => {
                         if let Some(kind) = starts_section(&name) {
                             push(&mut open, &mut out);
                             let label = value
                                 .clone()
+                                .map(|v| if kind == "grid" { strip_shape(&v) } else { v })
                                 .filter(|v| !v.trim().is_empty())
                                 .unwrap_or_else(|| default_label(&kind));
                             open = Some(Section {
                                 kind,
                                 label,
+                                lines: std::mem::take(&mut pending_cues),
                                 sound: pending_sound.take(),
                                 tempo_bpm: tempo,
                                 time: time.clone(),
@@ -201,13 +231,27 @@ impl Prompt {
             }
             // une ligne de texte : elle ouvre au besoin une section sans nom — un `.cho` n'est
             // pas obligé d'avoir des sections, et son texte doit s'afficher quand même
-            let parsed = lyrics(line);
+            let in_grid = open.as_ref().is_some_and(|s| s.kind == "grid");
+            let parsed = match grid::row(line).filter(|_| in_grid) {
+                Some(row) => Line { text: line.to_string(), grid: Some(row), ..Default::default() },
+                None => lyrics(line),
+            };
+            if open.is_none() {
+                if parsed.is_blank() {
+                    continue;
+                }
+                open = Some(Section { lines: std::mem::take(&mut pending_cues), ..Default::default() });
+            }
             let s = open.get_or_insert_with(Section::default);
             if !parsed.is_blank() || !s.lines.is_empty() {
                 s.lines.push(parsed);
             }
         }
         push(&mut open, &mut out);
+        // des cues après la dernière section : elles s'affichent quand même, à part
+        if !pending_cues.is_empty() {
+            out.sections.push(Section { lines: pending_cues, ..Default::default() });
+        }
         out.sections.retain(|s| !s.lines.is_empty() || !s.label.is_empty());
         out
     }
@@ -228,14 +272,80 @@ impl Prompt {
     }
 }
 
-/// `{nom}` ou `{nom: valeur}`. Le nom est **replié en minuscules**, la valeur gardée telle quelle.
-fn directive(line: &str) -> Option<(String, Option<String>)> {
+/// Une directive lue : son nom **replié en minuscules**, et sa valeur telle qu'écrite — ou, pour
+/// la forme à attributs de ChordPro 6, son attribut `label`.
+struct Directive {
+    name: String,
+    value: Option<String>,
+}
+
+/// `{nom}`, `{nom: valeur}`, et la forme à attributs de ChordPro 6 : `{nom label="…" shape="…"}`
+/// ou `{nom: label="…"}`. Des attributs, seul `label` compte (l'étiquette d'une section) ; `shape`
+/// et les autres sont ignorés — les mesures se comptent entre les barres.
+fn directive(line: &str) -> Option<Directive> {
     let inner = line.strip_prefix('{')?.strip_suffix('}')?;
+    // `{start_of_grid label="Intro"}` : pas de `:`, le nom s'arrête au premier blanc
+    if let Some(at) = inner.find(char::is_whitespace) {
+        let (name, rest) = inner.split_at(at);
+        if !name.contains(':') {
+            if let Some(attrs) = attributes(rest) {
+                return Some(Directive { name: name.trim().to_lowercase(), value: label_of(&attrs) });
+            }
+        }
+    }
     let (name, value) = match inner.split_once(':') {
-        Some((n, v)) => (n, Some(v.trim().to_string())),
+        Some((n, v)) => {
+            let v = v.trim();
+            match attributes(v) {
+                Some(attrs) => (n, label_of(&attrs)),
+                None => (n, Some(v.to_string())),
+            }
+        }
         None => (inner, None),
     };
-    Some((name.trim().to_lowercase(), value))
+    Some(Directive { name: name.trim().to_lowercase(), value })
+}
+
+fn label_of(attrs: &[(String, String)]) -> Option<String> {
+    attrs.iter().find(|(k, _)| k == "label").map(|(_, v)| v.trim().to_string())
+}
+
+/// `label="Couplet 1" shape="4x4"` → les paires. `None` si le texte ne **commence** pas par un
+/// attribut entre guillemets : c'est alors une valeur simple (`{start_of_verse: Couplet 1}`). Ce
+/// qui suit un attribut mal écrit est ignoré.
+fn attributes(text: &str) -> Option<Vec<(String, String)>> {
+    let mut out = Vec::new();
+    let mut rest = text.trim_start();
+    while !rest.is_empty() {
+        let key_len = rest.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-')).unwrap_or(0);
+        let Some(after) = rest[key_len..].strip_prefix('=').filter(|_| key_len > 0) else { break };
+        let key = rest[..key_len].to_lowercase();
+        let (value, tail) = match after.chars().next() {
+            Some(q @ ('"' | '\'')) => match after[1..].find(q) {
+                Some(end) => (&after[1..1 + end], &after[2 + end..]),
+                None => (&after[1..], ""),
+            },
+            // une valeur sans guillemets n'est pas un attribut : `{comment: x=1}` reste une cue
+            _ => break,
+        };
+        out.push((key, value.to_string()));
+        rest = tail.trim_start();
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+/// La forme ancienne d'une grille, `{start_of_grid: 4x4 Intro}` : la forme d'abord (`4x4`,
+/// `1+4x4+1`, `8`), le nom ensuite. On ne garde que le nom.
+fn strip_shape(value: &str) -> String {
+    let v = value.trim();
+    let (first, rest) = v.split_once(char::is_whitespace).unwrap_or((v, ""));
+    let is_shape = first.chars().any(|c| c.is_ascii_digit())
+        && first.chars().all(|c| c.is_ascii_digit() || matches!(c, 'x' | 'X' | '+'));
+    if is_shape {
+        rest.trim().to_string()
+    } else {
+        v.to_string()
+    }
 }
 
 /// `start_of_verse`, `sov`, `soc`, `sob`… → le genre de la section. `None` : pas une ouverture.
@@ -265,6 +375,7 @@ fn default_label(kind: &str) -> String {
         "verse" => "Couplet".into(),
         "chorus" => "Refrain".into(),
         "bridge" => "Pont".into(),
+        "grid" => "Grille".into(),
         other => {
             let mut c = other.chars();
             match c.next() {
@@ -322,159 +433,4 @@ fn lyrics(line: &str) -> Line {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const PHARE: &str = r#"
-{title: Le Phare}
-{duration: 3:45}
-{tempo: 92}
-{time: 4/4}
-# un commentaire du fichier : ni cue, ni texte
-
-{start_of_verse: Couplet 1}
-{x_namfoop_sound: clean-svt}
-{x_namfoop_bars: 8}
-[Am]Le phare tourne [F]encore
-Et la [C]mer se tait
-{end_of_verse}
-
-{soc}
-{x_namfoop_sound: fuzz-face}
-{comment: monte le son}
-[G]Tout casse
-{eoc}
-"#;
-
-    /// Chaque directive du § 10, et ce qu'elle produit.
-    #[test]
-    fn the_subset_of_chordpro_of_the_spec_is_read() {
-        let p = Prompt::parse(PHARE);
-        assert_eq!(p.title.as_deref(), Some("Le Phare"));
-        assert_eq!(p.duration_s, Some(225.0), "3:45 en secondes");
-        assert_eq!(p.tempo_bpm, Some(92.0));
-        assert_eq!(p.time.as_deref(), Some("4/4"));
-        assert_eq!(p.sections.len(), 2, "{:#?}", p.sections);
-
-        let v = &p.sections[0];
-        assert_eq!((v.kind.as_str(), v.label.as_str()), ("verse", "Couplet 1"));
-        assert_eq!(v.sound.as_deref(), Some("clean-svt"));
-        assert_eq!(v.bars, Some(8));
-        // le tempo et la mesure **en cours** sont portés par la section (carte des mesures, US 6b)
-        assert_eq!((v.tempo_bpm, v.time.as_deref()), (Some(92.0), Some("4/4")));
-        assert_eq!(v.lines.len(), 2, "{:#?}", v.lines);
-        assert_eq!(v.lines[0].text, "Le phare tourne encore");
-        assert_eq!(
-            v.lines[0].chords,
-            vec![Chord { at: 0, name: "Am".into() }, Chord { at: 16, name: "F".into() },],
-            "les accords sont retirés du texte, à leur place en caractères"
-        );
-        assert_eq!(&v.lines[0].text[16..16 + 6], "encore", "la place pointe bien le mot");
-
-        // la forme courte `{soc}` sans étiquette : le genre est traduit
-        let c = &p.sections[1];
-        assert_eq!((c.kind.as_str(), c.label.as_str()), ("chorus", "Refrain"));
-        assert_eq!(c.sound.as_deref(), Some("fuzz-face"), "la directive avant le texte compte");
-        assert!(c.lines[0].cue, "{{comment}} est une cue, pas des paroles");
-        assert_eq!(c.lines[0].text, "monte le son");
-        assert!(!c.lines[1].cue);
-    }
-
-    /// Les formes courtes et les sections **libres** : `{start_of_pont-final: …}` doit marcher,
-    /// ChordPro le permet et un musicien nomme ses parties comme il veut.
-    #[test]
-    fn short_forms_and_free_sections() {
-        let p = Prompt::parse(
-            "{sov}\na\n{eov}\n{sob}\nb\n{eob}\n{start_of_intro}\nc\n{end_of_intro}\n\
-             {start_of_pont final: Pont final}\nd\n{end_of_pont final}\n",
-        );
-        let labels: Vec<&str> = p.sections.iter().map(|s| s.label.as_str()).collect();
-        assert_eq!(labels, vec!["Couplet", "Pont", "Intro", "Pont final"]);
-        let kinds: Vec<&str> = p.sections.iter().map(|s| s.kind.as_str()).collect();
-        assert_eq!(kinds, vec!["verse", "bridge", "intro", "pont final"]);
-    }
-
-    /// **Ce qu'on ne comprend pas est ignoré, sans erreur** : c'est la règle qui permet d'ouvrir
-    /// ici un fichier écrit pour un autre logiciel.
-    #[test]
-    fn unknown_directives_are_ignored_without_error() {
-        let p = Prompt::parse(
-            "{subtitle: Trio}\n{define: Am base-fret 1 frets 0 0 2 2 1 0}\n{x_autre: 3}\n\
-             {chordfont: Mono}\n{start_of_verse}\nparoles\n{end_of_verse}\n",
-        );
-        assert_eq!(p.sections.len(), 1);
-        assert_eq!(p.sections[0].lines[0].text, "paroles");
-        assert_eq!(p.title, None, "aucune directive connue n'a été inventée");
-    }
-
-    /// Un fichier **sans sections** s'affiche quand même : son texte va dans une section sans nom.
-    #[test]
-    fn text_without_any_section_is_kept() {
-        let p = Prompt::parse("[Am]juste des paroles\net une autre ligne\n");
-        assert_eq!(p.sections.len(), 1);
-        assert_eq!(p.sections[0].label, "");
-        assert_eq!(p.sections[0].lines.len(), 2);
-        assert_eq!(p.line_count(), 2);
-    }
-
-    /// Un fichier vide, ou qui n'a que des directives, ne casse rien et ne promet rien.
-    #[test]
-    fn an_empty_file_is_an_empty_prompt() {
-        for text in ["", "\n\n\n", "# rien\n", "{title: Vide}\n"] {
-            let p = Prompt::parse(text);
-            assert_eq!(p.line_count(), 0, "{text:?}");
-            assert!(p.sections.is_empty(), "{text:?} → {:#?}", p.sections);
-        }
-    }
-
-    /// Les cas tordus des accords : un crochet jamais fermé reste du texte, un accord vide n'en
-    /// est pas un, et deux accords collés gardent leur place.
-    #[test]
-    fn broken_chords_stay_text() {
-        let l = lyrics("[Am][C]collés et un [crochet ouvert");
-        assert_eq!(l.text, "collés et un [crochet ouvert");
-        assert_eq!(l.chords.len(), 2);
-        assert_eq!(l.chords[1], Chord { at: 0, name: "C".into() });
-        assert_eq!(lyrics("[]rien").chords, vec![], "un accord vide n'est pas un accord");
-    }
-
-    /// `{duration}` et `{x_namfoop_beats}` acceptent les deux écritures du § 10.
-    #[test]
-    fn duration_and_beat_groups() {
-        assert_eq!(duration_s("3:45"), Some(225.0));
-        assert_eq!(duration_s("210"), Some(210.0));
-        assert_eq!(duration_s("n'importe quoi"), None);
-        let p = Prompt::parse("{time: 7/8}\n{x_namfoop_beats: 2+2+3}\n{sov}\na\n{eov}\n");
-        assert_eq!(p.sections[0].beats, Some(vec![2, 2, 3]));
-        assert_eq!(p.sections[0].time.as_deref(), Some("7/8"));
-        // une nouvelle mesure annule le regroupement de l'ancienne
-        let p = Prompt::parse("{time: 7/8}\n{x_namfoop_beats: 2+2+3}\n{time: 4/4}\n{sov}\na\n{eov}\n");
-        assert_eq!(p.sections[0].beats, None);
-    }
-
-    /// **Le suivi du son** (§ 10) : changer de son amène à la **prochaine** section liée à ce son,
-    /// et à la première si on est déjà passé après.
-    #[test]
-    fn a_sound_leads_to_its_next_section() {
-        let p = Prompt::parse(
-            "{sov}\n{x_namfoop_sound: clean}\na\n{eov}\n\
-             {soc}\n{x_namfoop_sound: fuzz}\nb\n{eoc}\n\
-             {start_of_verse: Couplet 2}\n{x_namfoop_sound: clean}\nc\n{end_of_verse}\n",
-        );
-        assert_eq!(p.section_of_sound("clean", 0), Some(0));
-        assert_eq!(p.section_of_sound("clean", 1), Some(2), "la PROCHAINE");
-        assert_eq!(p.section_of_sound("fuzz", 2), Some(1), "rien après : on revient au début");
-        assert_eq!(p.section_of_sound("inconnu", 0), None);
-    }
-
-    /// Le squelette créé par `t` s'analyse : ce qu'on écrit pour l'utilisateur doit être lisible
-    /// par notre propre lecteur.
-    #[test]
-    fn the_skeleton_of_a_new_prompt_parses() {
-        let p = Prompt::parse(&Prompt::skeleton("Le Phare"));
-        assert_eq!(p.title.as_deref(), Some("Le Phare"));
-        assert_eq!(p.sections.len(), 1);
-        assert_eq!(p.sections[0].label, "Couplet 1");
-        assert_eq!(p.line_count(), 0, "une section vide, prête à écrire");
-    }
-}
+pub(crate) mod tests;

@@ -7,10 +7,11 @@ lui-même (le set, sa banque, la vue scène, la battue) est dans [`set.md`](set.
 restent la référence de ce que le prompteur lit et de la carte des mesures, et ce fichier s'y
 ajoute sans rien en retirer.
 
-**État** : spécification d'un comportement **à construire**. Rien ici n'est vérifié par un test :
-c'est la cible des stories de l'épique « Jouer un concert avec ma set list » qui portent sur le
-prompteur. À mesure qu'elles sont livrées, le code et l'oracle du clavier font foi, [`set.md`](set.md)
-reprend ce qui le concerne, et ce paragraphe se retire. Deux choix écrits ici se confirment avec
+**État** : la lecture de la grille, sa durée et son suivi, et son écran (§ 2 à § 4) sont
+construits et testés ; le code fait foi, et [`set.md`](set.md) en reprend l'essentiel. Le son de
+chaque section choisi dans le set (§ 5) et l'ajout d'un morceau à partir de son prompteur (§ 6)
+restent **à construire** : c'est la cible des stories de l'épique « Jouer un concert avec ma set
+list » qui portent sur le prompteur, et ce paragraphe se retire quand elles sont livrées. Deux choix écrits ici se confirment avec
 leur story : la touche `l` (§ 5), et le tempo d'un morceau ajouté, lu dans son prompteur (§ 6).
 
 La maquette [`prompteur.html`](prompteur.html) est une **illustration actionnable** validée avec

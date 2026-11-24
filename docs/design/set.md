@@ -192,7 +192,7 @@ pédaliers de l'utilisateur, et les numéros restent réglables.
   ce qui vient ; `… N lignes plus bas` quand elle déborde. Le curseur ↑↓ est surligné.
 - **`i` (détail)** déplie ou replie le morceau visé (le morceau joué dans `run --set`) : son n° de PC,
   ses sons avec leur valeur de CC 34 et leur volume propre, et la présence d'un prompteur. Plusieurs morceaux peuvent rester dépliés.
-- **Colonne prompteur** (le reste de la largeur) : en tête, la **bande de battue** (§ 11) ; titre `n · morceau · son k/N <preset> · PgDn :
+- **Colonne prompteur** (le reste de la largeur) : en tête, la **bande de battue** (§ 11) ; titre `n · morceau · [tonalité ·] son k/N <preset> · PgDn :
   ensuite <…>` — ce que fera le prochain appui —, puis le texte à partir de deux lignes avant la
   position (§ 10). Les sections passées sont grisées, la courante `▸` en vert, les suivantes en gras.
   Au bout du texte, **le morceau suivant** : titre, tempo, sons et ses premières sections, en gris.
@@ -200,7 +200,9 @@ pédaliers de l'utilisateur, et les numéros restent réglables.
 - **Set sans titres** (le show à trois sons) : la colonne de gauche liste directement les sons.
 - **Terminal étroit** : sous 100 colonnes, la set list se réduit à 30 colonnes (titres tronqués) ;
   sous 70, elle disparaît au profit d'une ligne `2/6 Le Phare ● Fuzz Face → 3 Néon` au-dessus du
-  prompteur, qui prend toute la largeur.
+  prompteur, qui prend toute la largeur. Elle se replie de même quand la plus large ligne de mesures
+  du morceau joué ne tiendrait pas à côté d'elle : la grille passe avant la set list
+  ([`prompteur.md`](prompteur.md) § 4).
 - **En édition** (§ 8), la set list prend toute la largeur (PC, sons et volumes de tous les morceaux)
   et le prompteur est masqué : on n'édite pas sur scène.
 
@@ -292,10 +294,13 @@ sans erreur :
 | ChordPro | Rendu |
 |---|---|
 | `{title}`, `{duration}` | métadonnées |
+| `{key: Em}` | la tonalité, dans le titre du prompteur |
 | `{tempo: 92}`, `{time: 7/8}` | ChordPro les permet plusieurs fois, chacune valant à partir de là : la **carte des mesures** (§ 11) ; le premier sert si le `.set.toml` ne donne rien |
 | `{start_of_verse: Couplet 1}` … `{end_of_verse}` (et `chorus`, `bridge`, sections libres, formes courtes `sov` / `soc`) | une **section** étiquetée |
+| `label="…"` sur tout `{start_of_…}` (ChordPro 6) | l'étiquette, comme le texte après `:` |
+| `{start_of_grid label="Couplet 1" shape="4x4"}` … `{end_of_grid}` (et `{start_of_grid: 4x4 Couplet 1}`) | une **section en grille** : des lignes de mesures, le texte après la dernière barre en repère ([`prompteur.md`](prompteur.md) § 2) |
 | `[Am]paroles` | accords en ligne, en couleur, au-dessus des paroles quand la largeur le permet |
-| `{comment: …}` / `{c: …}` | une cue, en jaune |
+| `{comment: …}` / `{c: …}` | une cue, en jaune ; écrite juste avant un `{start_of_…}`, c'est celle de cette section |
 | `{x_namfoop_sound: clean-svt}` (dans une section) | **lie la section à un son** : passer sur ce son y amène le prompteur |
 | `{x_namfoop_bars: 8}` (dans une section) | durée de la section en mesures (de la mesure en cours) |
 | `{x_namfoop_beats: 2+2+3}` (après un `{time}`) | regroupement des temps d'une mesure composée ou impaire |
@@ -303,11 +308,13 @@ sans erreur :
 Les directives propres à namfoop suivent la convention `x_` de ChordPro (les autres logiciels les
 ignorent).
 
-Les grilles d'accords de ChordPro (`{start_of_grid}`), le son d'une section choisi dans le set et
-l'ajout d'un morceau à partir de son prompteur sont spécifiés dans [`prompteur.md`](prompteur.md).
+La grille d'accords (sa lecture, son écran, le suivi à la mesure) est décrite dans
+[`prompteur.md`](prompteur.md) ; le son d'une section choisi dans le set et l'ajout d'un morceau à
+partir de son prompteur y sont spécifiés aussi.
 
 Défilement : il suit la **position** de la battue (§ 11). En marche, chaque section dure ses
-mesures, et ses lignes se partagent ces mesures. **À l'arrêt, la position suit le son** : changer de
+mesures, et ses lignes se partagent ces mesures — sauf dans une **grille**, où la durée d'une
+section est la somme de ses mesures, chaque ligne dure les siennes et la mesure jouée est allumée. **À l'arrêt, la position suit le son** : changer de
 son amène à la prochaine section liée à ce son. **En marche, elle suit le temps** : changer de son
 ne déplace rien (sinon un changement de son un temps trop tôt décalerait tout). Sans
 `x_namfoop_bars`, `{duration}` est réparti sur les lignes ; sans l'un ni l'autre, pas de défilement

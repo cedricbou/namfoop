@@ -2023,14 +2023,57 @@ Et la [C]mer se tait
 
 | directive | |
 |---|---|
-| `{title}`, `{duration}` | le titre, la durée (`3:45` ou des secondes) |
+| `{title}`, `{duration}`, `{key}` | le titre, la durée (`3:45` ou des secondes), la tonalité |
 | `{tempo: 124}`, `{time: 7/8}` | valent **à partir de là** ; le premier sert si le `.set.toml` ne donne rien |
 | `{start_of_verse: Couplet 1}` … `{end_of_verse}` | une **section** étiquetée (`chorus`, `bridge`, un nom libre, et les formes courtes `sov` / `soc` / `sob`) |
 | `[Am]paroles` | un accord, affiché **au-dessus** du texte quand la largeur le permet |
-| `{comment: …}` / `{c: …}` | une **cue**, en jaune |
+| `{start_of_grid label="Intro"}` … `{end_of_grid}` | une section en **grille** (ci-dessous) ; `label="…"` vaut aussi sur toute section |
+| `{comment: …}` / `{c: …}` | une **cue**, en jaune ; juste avant une section, c'est la sienne |
 | `{x_namfoop_sound: <preset>}` | **lie la section à un son du morceau** : jouer ce son amène le prompteur ici |
 | `{x_namfoop_bars: 8}` | la durée de la section, en mesures |
 | `{x_namfoop_beats: 2+2+3}` | le regroupement des temps d'une mesure impaire ou composée (la battue le bat ainsi) |
+
+#### Une grille d'accords par section
+
+Un logiciel qui connaît les accords **à la mesure** écrit plutôt des **grilles**, la forme standard
+de ChordPro : une ligne de mesures par ligne du fichier, une case par temps, et les paroles en
+repère après la dernière barre. namfoop les lit telles quelles, sans directive à lui :
+
+```
+{key: Em}
+{tempo: 124}
+{time: 4/4}
+
+{comment: basse seule les 4 premières}      # avant la grille : la cue de cette section
+{start_of_grid label="Intro" shape="4x4"}
+| Em . . . | Em . . . | G . . . | D . . . |
+{end_of_grid}
+
+{start_of_grid label="Couplet 1" shape="4x4"}
+| Em . . . | Em . . . | G . . . | D . . . | La lampe tourne et rien ne bouge
+| C . . . | D . . . | Em . . . | Em . . . | Je garde un œil sur la passe
+{end_of_grid}
+
+{time: 2/4}                                  # une mesure courte : sa propre grille
+{start_of_grid label="Couplet 1" shape="1x2"}
+| G . |
+{end_of_grid}
+{time: 4/4}
+```
+
+- chaque grille est une **section** qui porte son nom (`label="…"`, ou `{start_of_grid: 4x4 Intro}`
+  dans la forme ancienne) ; sa **durée est la somme de ses mesures**, donc la bande de battue et le
+  compte à rebours marchent sans `{x_namfoop_bars}` (s'il est écrit, il gagne) ;
+- `.` tient l'accord, `/` le rejoue, `%` répète la mesure précédente (une mesure), `Am~C` met deux
+  accords dans une case ; les reprises `|:` `:|` s'affichent **telles quelles**, sans être dépliées ;
+- battue en marche, **la mesure jouée est allumée** et celles déjà jouées de la ligne sont grisées :
+  chaque ligne dure ses mesures, une ligne de trois mesures suivie d'une ligne d'une seule se
+  suivent exactement ;
+- le **repère** s'affiche à droite de sa ligne, ou dessous quand l'écran est étroit ; si la grille
+  ne tient pas à côté de la set list, celle-ci se replie en une ligne au-dessus du prompteur ;
+- des grilles voisines **de même nom** n'ont qu'un titre, et celle dont la mesure change la dit
+  devant elle (`2/4`) ; `Fin` / `Début` vont toujours de l'une à l'autre ;
+- `{key}` met la tonalité dans le titre du prompteur.
 
 **Tout le reste est ignoré sans erreur** : un fichier écrit pour un autre logiciel s'affiche ici,
 même s'il contient des directives qu'on ne connaît pas. Et un prompteur **absent ou illisible** est

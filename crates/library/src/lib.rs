@@ -7,6 +7,8 @@
 /// La carte des mesures d'un morceau : section, mesure, temps, et le Song Position Pointer.
 pub mod bars;
 pub mod error;
+/// Une ligne de grille d'accords (`{start_of_grid}`) : ses mesures, ses marges.
+pub mod grid;
 pub mod import;
 pub mod model_profile;
 pub mod overrides;
