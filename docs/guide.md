@@ -2245,20 +2245,22 @@ Ports d'entrée MIDI (2) :
   14:0  Midi Through Port-0
   28:0  MC6 MKII MIDI 1
 
-Écoute 28:0  MC6 MKII MIDI 1 — Ctrl+C pour sortir :
-     1.84 s  PC 3 ch 1
-     2.31 s  CC 34 2 ch 1
-     4.02 s  horloge  120.0 BPM
+Écoute tous les appareils MIDI (UM-ONE MIDI 1, MC6 MKII MIDI 1) — Ctrl+C pour sortir :
+     1.84 s  [MC6 MKII MIDI 1] PC 3 ch 1
+     2.31 s  [MC6 MKII MIDI 1] CC 34 2 ch 1
+     4.02 s  [UM-ONE MIDI 1] horloge  120.0 BPM
 ```
 
-Chaque Program Change et chaque CC dit **sur quel canal** il est arrivé (`ch 1` à `ch 16`, comme
+Chaque ligne commence par **l'appareil** qui a parlé, entre crochets. Chaque Program Change et
+chaque CC dit **sur quel canal** il est arrivé (`ch 1` à `ch 16`, comme
 sur le pédalier) : c'est ce qui distingue ton pédalier des lights ou d'un clavier branché sur le
 même câble. L'horloge, `Start` et `Stop` n'ont pas de canal. Les tops d'horloge ne défilent pas un
 par un (il en passe 24 par noire) : une ligne par noire, avec le tempo mesuré. `namfoop midi
 --list` s'arrête après la liste des ports, sans écouter.
 
-Une ligne affichée **se recopie telle quelle** dans un port simulé, canal compris : `pc 3 ch 5`
-rejoue le Program Change 3 du canal 5 ; une ligne écrite sans `ch` n'a pas de canal.
+Une ligne affichée **se recopie telle quelle** dans un port simulé, appareil et canal compris :
+`[MC6 Pro] pc 3 ch 5` rejoue le Program Change 3 du canal 5 venu du MC6 ; une ligne sans `[nom]`
+vient de l'appareil « sim », une ligne sans `ch` n'a pas de canal.
 
 ### Changer de preset au pied : le Program Change
 
@@ -2403,14 +2405,25 @@ se règle par `[midi] cc_tuner` (§ 16).
 
 ### Choisir le port : `--midi-in`, `--no-midi`
 
-Sans rien préciser, namfoop prend **le premier port d'entrée** et dit lequel. Pour en désigner un,
-l'adresse du séquenceur (`28:0`) ou un morceau de son nom suffit :
+Sans rien préciser, namfoop écoute **tous tes appareils MIDI à la fois** : l'entrée DIN de ton
+interface, chaque appareil branché en USB, et ceux que tu branches en cours de route — un appareil
+branché après le démarrage est écouté dès son arrivée, sans relancer namfoop, et un appareil
+débranché ne bloque rien. Seul « Midi Through », le port de bouclage de Linux, est laissé de côté.
+
+**Une seule horloge compte** : si deux appareils envoient une horloge (Ableton relayé par
+l'entrée DIN, et un pédalier qui envoie la sienne), namfoop suit **le premier qui bat**, tant qu'il
+bat ; l'autre est ignorée, jamais additionnée, et `namfoop midi` le dit en sortant
+(`⚠ horloge de [MC6 Pro] ignorée`). Le transport (`Start`, `Stop`) suit le même appareil. Mieux
+vaut couper l'envoi d'horloge du pédalier, dans son éditeur.
+
+Pour n'écouter **qu'un** appareil, l'adresse du séquenceur (`28:0`) ou un morceau de son nom
+suffit :
 
 ```sh
 namfoop --midi-in "MC6" browse
 ```
 
-- `--midi-in PORT` : le port à écouter pour cette session.
+- `--midi-in PORT` : le seul port à écouter pour cette session.
 - `--no-midi` : aucune écoute, quoi qu'en dise la configuration — de quoi faire taire un pédalier
   qui fait des siennes au milieu d'un concert.
 

@@ -9,8 +9,12 @@
 //! clock       un top d'horloge (24 par noire)
 //! start       Start          stop   Stop          continue   Continue
 //! spp 64      Song Position Pointer, 64 doubles-croches
+//! [MC6 Pro] pc 3 ch 1   le même message, venu de l'appareil « MC6 Pro »
 //! # ...       commentaire, ligne vide ignorée
 //! ```
+//!
+//! Le préfixe `[nom]` dit **quel appareil** a envoyé le message : c'est ainsi qu'un port simulé
+//! joue plusieurs appareils à la fois. Sans préfixe, le message vient de l'appareil « sim ».
 //!
 //! Seuls `pc` et `cc` ont un canal : l'horloge, le transport et la position n'en ont pas sur le
 //! câble, et une ligne qui leur en donne un est refusée plutôt que de laisser croire qu'il compte.
@@ -18,12 +22,29 @@
 use crate::error::{bail, Result};
 use crate::Event;
 
-/// Lit une ligne du format texte : le message et son canal (`None` : écrit sans canal).
-/// `Ok(None)` : ligne vide ou commentaire, à sauter.
-pub fn parse_line(line: &str) -> Result<Option<(Event, Option<u8>)>> {
+/// Une ligne lue : l'appareil s'il est nommé, le message, son canal s'il en a un.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Line {
+    pub device: Option<String>,
+    pub event: Event,
+    pub channel: Option<u8>,
+}
+
+/// Lit une ligne du format texte. `Ok(None)` : ligne vide ou commentaire, à sauter.
+pub fn parse_line(line: &str) -> Result<Option<Line>> {
     let line = line.split('#').next().unwrap_or("").trim();
     if line.is_empty() {
         return Ok(None);
+    }
+    let (device, line) = match line.strip_prefix('[') {
+        Some(r) => match r.split_once(']') {
+            Some((nom, reste)) if !nom.trim().is_empty() => (Some(nom.trim().to_string()), reste.trim()),
+            _ => bail!("« {line} » : [nom de l'appareil] attendu avant le message (ex. « [MC6 Pro] pc 3 »)"),
+        },
+        None => (None, line),
+    };
+    if line.is_empty() {
+        bail!("« [{}] » : un message attendu après le nom de l'appareil", device.unwrap_or_default());
     }
     let mut mots = line.split_whitespace();
     let verbe = mots.next().unwrap_or("").to_ascii_lowercase();
@@ -62,7 +83,7 @@ pub fn parse_line(line: &str) -> Result<Option<(Event, Option<u8>)>> {
         }
         _ => bail!("« {line} » : message inconnu (pc, cc, clock, start, stop, continue, spp)"),
     };
-    Ok(Some((event, channel)))
+    Ok(Some(Line { device, event, channel }))
 }
 
 fn sept_bits(quoi: &str, mot: &str) -> Result<u8> {
@@ -80,6 +101,12 @@ pub fn describe(event: &Event, channel: Option<u8>) -> String {
         Some(c) => format!("{texte} ch {c}"),
         None => texte,
     }
+}
+
+/// Le même, précédé de l'appareil qui l'a envoyé (`[MC6 Pro] PC 3 ch 1`) : la ligne qu'affiche
+/// `namfoop midi`, et qu'un port simulé relit pour rejouer cet appareil-là.
+pub fn describe_from(device: &str, event: &Event, channel: Option<u8>) -> String {
+    format!("[{device}] {}", describe(event, channel))
 }
 
 fn describe_event(event: &Event) -> String {
@@ -113,7 +140,11 @@ mod tests {
             ("pc 3 # le morceau 4", Event::ProgramChange(3)),
         ];
         for (ligne, attendu) in cas {
-            assert_eq!(parse_line(ligne).expect(ligne), Some((attendu, None)), "{ligne}");
+            assert_eq!(
+                parse_line(ligne).expect(ligne),
+                Some(Line { device: None, event: attendu, channel: None }),
+                "{ligne}"
+            );
         }
     }
 
@@ -125,7 +156,11 @@ mod tests {
             ("CC 20 1 CH 16 # Ableton", Event::Control { cc: 20, value: 1 }, 16),
         ];
         for (ligne, attendu, canal) in cas {
-            assert_eq!(parse_line(ligne).expect(ligne), Some((attendu, Some(canal))), "{ligne}");
+            assert_eq!(
+                parse_line(ligne).expect(ligne),
+                Some(Line { device: None, event: attendu, channel: Some(canal) }),
+                "{ligne}"
+            );
         }
     }
 
@@ -168,13 +203,41 @@ mod tests {
         ];
         for e in tous {
             let texte = describe(&e, None);
-            assert_eq!(parse_line(&texte).expect(&texte), Some((e, None)), "{texte}");
+            assert_eq!(
+                parse_line(&texte).expect(&texte),
+                Some(Line { device: None, event: e, channel: None }),
+                "{texte}"
+            );
         }
         for e in [Event::ProgramChange(3), Event::Control { cc: 34, value: 2 }] {
             for canal in [1, 5, 16] {
                 let texte = describe(&e, Some(canal));
-                assert_eq!(parse_line(&texte).expect(&texte), Some((e, Some(canal))), "{texte}");
+                assert_eq!(
+                    parse_line(&texte).expect(&texte),
+                    Some(Line { device: None, event: e, channel: Some(canal) }),
+                    "{texte}"
+                );
+                let avec = describe_from("MC6 Pro", &e, Some(canal));
+                assert_eq!(
+                    parse_line(&avec).expect(&avec),
+                    Some(Line { device: Some("MC6 Pro".into()), event: e, channel: Some(canal) }),
+                    "{avec}"
+                );
             }
+        }
+    }
+
+    #[test]
+    fn un_appareil_se_nomme_entre_crochets() {
+        let l = parse_line("[UM-ONE MIDI 1] cc 20 1 ch 5").expect("ligne").expect("message");
+        assert_eq!(l.device.as_deref(), Some("UM-ONE MIDI 1"));
+        assert_eq!((l.event, l.channel), (Event::Control { cc: 20, value: 1 }, Some(5)));
+        assert_eq!(
+            parse_line("[MC6] clock").expect("ligne").expect("message").device.as_deref(),
+            Some("MC6")
+        );
+        for faux in ["[] pc 3", "[MC6 pc 3", "[MC6]", "[MC6]   # rien"] {
+            assert!(parse_line(faux).is_err(), "{faux}");
         }
     }
 }

@@ -49,7 +49,7 @@ fn un_message_envoye_au_port_arrive_dans_la_file() {
         println!("⚠ test du séquenceur sauté : aucun port « Midi Through »");
         return;
     };
-    let Ok(mut input) = midi_io::open(&Settings { port: Some(addr.clone()) }) else {
+    let Ok(mut input) = midi_io::open(&Settings { port: Some(addr.clone()), ..Default::default() }) else {
         println!("⚠ test du séquenceur sauté : port « {addr} » non ouvrable");
         return;
     };
@@ -93,4 +93,82 @@ fn un_message_envoye_au_port_arrive_dans_la_file() {
     );
     assert_eq!(input.dropped(), 0);
     assert!(input.description().contains(&addr), "l'écoute se dit : {}", input.description());
+}
+
+/// Un pédalier qui **publie** (comme un vrai appareil) au lieu d'écrire à une adresse : namfoop le
+/// trouve en écoutant tous les appareils.
+struct Appareil {
+    seq: Seq,
+    port: i32,
+}
+
+impl Appareil {
+    fn new(nom: &str) -> Self {
+        let seq = Seq::open(None, None, false).expect("séquenceur");
+        let n = CString::new(nom).expect("nom");
+        seq.set_client_name(&n).expect("nom du client");
+        let port = seq
+            .create_simple_port(&n, PortCap::READ | PortCap::SUBS_READ, PortType::MIDI_GENERIC)
+            .expect("port de sortie");
+        Self { seq, port }
+    }
+
+    fn pc(&self, n: i32) {
+        let mut ev = SeqEvent::new(EventType::Pgmchange, &EvCtrl { channel: 0, param: 0, value: n });
+        ev.set_source(self.port);
+        ev.set_subs();
+        ev.set_direct();
+        self.seq.event_output_direct(&mut ev).expect("envoi");
+    }
+}
+
+/// **Tous les appareils** à la fois, et **le branchement à chaud** : sans port nommé, namfoop
+/// écoute un appareil présent à l'ouverture et un autre branché après, chacun sous son nom, et
+/// voit partir celui qu'on débranche.
+#[test]
+fn tous_les_appareils_et_celui_qu_on_branche_apres() {
+    if bouclage().is_none() {
+        println!("⚠ test du séquenceur sauté : séquenceur ou port de bouclage absent");
+        return;
+    }
+    let a = Appareil::new("namfoop-test-A");
+    let Ok(mut input) = midi_io::open(&Settings::default()) else {
+        println!("⚠ test du séquenceur sauté : écoute de tous les appareils impossible");
+        return;
+    };
+    assert!(input.description().contains("namfoop-test-A"), "{}", input.description());
+    let b = Appareil::new("namfoop-test-B"); // branché après l'ouverture
+    std::thread::sleep(Duration::from_millis(300)); // l'annonce passe par le fil de lecture
+    a.pc(0);
+    b.pc(1);
+    let mut vus = Vec::new();
+    let limite = Instant::now() + Duration::from_secs(3);
+    while vus.len() < 2 && Instant::now() < limite {
+        while let Some(m) = input.try_pop() {
+            let nom = input.device_name(m.device);
+            if nom.starts_with("namfoop-test") {
+                vus.push((m.event, nom));
+            }
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        vus,
+        [
+            (Event::ProgramChange(1), "namfoop-test-A".to_string()),
+            (Event::ProgramChange(2), "namfoop-test-B".to_string()),
+        ],
+        "chaque message dit son appareil, y compris celui branché après"
+    );
+    drop(b); // débranché
+    let limite = Instant::now() + Duration::from_secs(3);
+    let parti = || input.devices().iter().any(|d| d.name == "namfoop-test-B" && !d.present);
+    while !parti() && Instant::now() < limite {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(parti(), "l'appareil débranché est vu partir : {:?}", input.devices());
+    assert!(
+        !input.devices().iter().any(|d| d.name.contains("Midi Through")),
+        "le bouclage ne s'écoute que nommé"
+    );
 }

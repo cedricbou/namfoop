@@ -280,7 +280,7 @@ mod tests {
         assert!(screen(&s).contains("MIDI coupé"), "{}", screen(&s));
     }
 
-    /// Sans port, l'écran dit ce qui se passera (le premier port branché) plutôt que rien.
+    /// Sans port, l'écran dit ce qui se passera (tous les appareils branchés) plutôt que rien.
     #[test]
     fn the_midi_step_without_any_port_says_so() {
         let mut s = State::new(None);
@@ -311,6 +311,6 @@ mod tests {
             txt.contains("PreSonus AudioBox iTwo (hw:iTwo)") && txt.contains("basse     entrée 1"),
             "{txt}"
         );
-        assert!(txt.contains("MIDI      le premier port branché"), "{txt}");
+        assert!(txt.contains("MIDI      tous les appareils branchés"), "{txt}");
     }
 }

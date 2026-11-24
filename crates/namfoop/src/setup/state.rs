@@ -251,8 +251,8 @@ impl State {
             }
             MidiChoice::Unchanged => match base.midi.as_ref() {
                 Some(m) if m.off => "aucun (MIDI coupé)".into(),
-                Some(m) => m.input.clone().unwrap_or_else(|| "le premier port branché".into()),
-                None => "le premier port branché".into(),
+                Some(m) => m.input.clone().unwrap_or_else(|| "tous les appareils branchés".into()),
+                None => "tous les appareils branchés".into(),
             },
         }
     }
@@ -471,8 +471,8 @@ impl State {
                 }
                 Key::Enter | Key::Right | Key::Tab => {
                     // Aucun port en vue : on n'écrit rien plutôt que de figer « pas de MIDI ».
-                    // Le pédalier sera peut-être branché le soir du concert, et le défaut (le
-                    // premier port venu) le trouvera.
+                    // Le pédalier sera peut-être branché le soir du concert, et le défaut (tous les
+                    // appareils, y compris ceux branchés en cours de route) le trouvera.
                     if let Some(p) = self.midi_port() {
                         self.midi = MidiChoice::Port(p.id.clone());
                     }
@@ -642,7 +642,7 @@ mod tests {
         );
     }
 
-    /// Sans port MIDI en vue, l'assistant **n'écrit rien** : le défaut (le premier port branché)
+    /// Sans port MIDI en vue, l'assistant **n'écrit rien** : le défaut (tous les appareils branchés)
     /// vaut mieux qu'un « pas de MIDI » figé le jour où l'on oublie le pédalier sur la table.
     #[test]
     fn no_midi_port_writes_nothing_but_x_does() {
@@ -654,7 +654,7 @@ mod tests {
         assert_eq!(s.step, Step::Summary);
         let base = Config::default();
         assert_eq!(s.to_config(&base, 48000).midi, None, "rien n'est écrit");
-        assert_eq!(s.midi_label(&base), "le premier port branché");
+        assert_eq!(s.midi_label(&base), "tous les appareils branchés");
 
         s.step = Step::Midi;
         s.on_key(Key::Char('x'));

@@ -80,7 +80,7 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
     while !stop.load(Ordering::Relaxed) && fin.is_none_or(|f| Instant::now() < f) {
         while let Some(m) = input.try_pop() {
             vus += 1;
-            if let Some(ligne) = horloge.ligne(&m) {
+            if let Some(ligne) = horloge.ligne(&m, &input.device_name(m.device)) {
                 let effet = match listen.why_not(m.channel) {
                     Some(raison) => format!("   ({raison})"),
                     None => en_clair(&m.event, cc_tuner),
@@ -92,6 +92,13 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
     }
     let perdus = input.dropped();
     println!("\n{vus} message(s) reçu(s) en {:.1} s.", debut.elapsed().as_secs_f64());
+    // une seule horloge est comptée : celle des autres appareils est dite, jamais additionnée
+    for d in input.devices().iter().filter(|d| d.ignored_clock > 0) {
+        println!(
+            "⚠ horloge de [{}] ignorée ({} tops) : un autre appareil donne l'horloge.",
+            d.name, d.ignored_clock
+        );
+    }
     if perdus > 0 {
         println!("⚠ {perdus} message(s) perdus : la file était pleine.");
     }
@@ -124,13 +131,13 @@ struct Horloge {
 }
 
 impl Horloge {
-    /// La ligne à afficher pour ce message, s'il y en a une.
-    fn ligne(&mut self, m: &midi_io::Message) -> Option<String> {
+    /// La ligne à afficher pour ce message de l'appareil `device`, s'il y en a une.
+    fn ligne(&mut self, m: &midi_io::Message, device: &str) -> Option<String> {
         if m.event != midi_io::Event::ClockTick {
             if matches!(m.event, midi_io::Event::ClockStart | midi_io::Event::ClockStop) {
                 *self = Self::default();
             }
-            return Some(midi_io::describe(&m.event, m.channel));
+            return Some(midi_io::describe_from(device, &m.event, m.channel));
         }
         self.tops += 1;
         if self.tops < TOPS_PAR_NOIRE {
@@ -139,7 +146,7 @@ impl Horloge {
         self.tops = 0;
         let precedent = self.debut_noire.replace(m.at)?;
         let noire = (m.at - precedent).as_secs_f64();
-        (noire > 0.0).then(|| format!("horloge  {:.1} BPM", 60.0 / noire))
+        (noire > 0.0).then(|| format!("[{device}] horloge  {:.1} BPM", 60.0 / noire))
     }
 }
 
@@ -149,7 +156,7 @@ mod tests {
     use midi_io::{Event, Message};
 
     fn msg(event: Event, at: Instant) -> Message {
-        Message { at, event, clock_seq: 0, channel: None }
+        Message { at, event, clock_seq: 0, channel: None, device: 0 }
     }
 
     #[test]
@@ -165,8 +172,11 @@ mod tests {
     fn un_message_ordinaire_s_affiche_tel_quel() {
         let mut h = Horloge::default();
         let t = Instant::now();
-        assert_eq!(h.ligne(&msg(Event::ProgramChange(3), t)).as_deref(), Some("PC 3"));
-        assert_eq!(h.ligne(&msg(Event::Control { cc: 34, value: 2 }, t)).as_deref(), Some("CC 34 2"));
+        assert_eq!(h.ligne(&msg(Event::ProgramChange(3), t), "MC6 Pro").as_deref(), Some("[MC6 Pro] PC 3"));
+        assert_eq!(
+            h.ligne(&msg(Event::Control { cc: 34, value: 2 }, t), "sim").as_deref(),
+            Some("[sim] CC 34 2")
+        );
     }
 
     /// Une noire = 24 tops : rien ne s'affiche avant, et le tempo tombe juste ensuite.
@@ -178,14 +188,14 @@ mod tests {
         let top = noire / TOPS_PAR_NOIRE;
         let mut lignes = Vec::new();
         for i in 0..(TOPS_PAR_NOIRE * 3) {
-            if let Some(l) = h.ligne(&msg(Event::ClockTick, t0 + top * i)) {
+            if let Some(l) = h.ligne(&msg(Event::ClockTick, t0 + top * i), "UM-ONE") {
                 lignes.push(l);
             }
         }
         // 3 noires de tops : la 1re pose le repère, les deux suivantes donnent le tempo.
         assert_eq!(lignes.len(), 2, "une ligne par noire, la première servant de repère : {lignes:?}");
         for l in &lignes {
-            assert!(l.starts_with("horloge  120.0 BPM"), "{l}");
+            assert!(l.starts_with("[UM-ONE] horloge  120.0 BPM"), "{l}");
         }
     }
 }
