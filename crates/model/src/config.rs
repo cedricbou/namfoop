@@ -108,8 +108,8 @@ pub struct Config {
     /// rien n'est écrit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub set: Option<Set>,
-    /// Entrée **MIDI** (ADR 0011) : quel port écouter. Absent : le premier port d'entrée trouvé, et
-    /// rien n'est écrit.
+    /// Entrée **MIDI** (ADR 0011, ADR 0012) : appareils, canaux, numéros. Absent : tous les
+    /// appareils sont écoutés avec les numéros par défaut, et rien n'est écrit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub midi: Option<Midi>,
     /// Réglages de l'**accordeur** (`docs/design/accordeur.md` § 10). Absent : les valeurs par
@@ -135,15 +135,16 @@ impl Default for Tuner {
     }
 }
 
-/// L'entrée **MIDI** : le port qu'on écoute (écrit par `namfoop setup`), le canal, et les numéros
-/// de message, dont les défauts sont ceux de l'[ADR 0011].
+/// L'entrée **MIDI** : le port imposé s'il y en a un (écrit par `namfoop setup`), le canal, et
+/// les numéros de message, dont les défauts sont ceux de l'[ADR 0011].
 ///
 /// [ADR 0011]: ../../docs/adr/0011-midi-conventions-fractal.md
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Midi {
-    /// Port d'entrée : adresse du séquenceur (« 28:0 »), morceau de nom de port (« MC6 ») ou
-    /// `sim:<chemin>` pour le port simulé. Absent : le premier port d'entrée trouvé.
+    /// Le **seul** port à écouter : morceau de nom de port (« MC6 »), adresse du séquenceur
+    /// (« 28:0 », qui change d'un branchement à l'autre) ou `sim:<chemin>` pour le port simulé.
+    /// Absent : tous les appareils, y compris ceux branchés en cours de route.
     #[serde(rename = "in", skip_serializing_if = "Option::is_none")]
     pub input: Option<String>,
     /// Vrai : aucune écoute MIDI, comme `--no-midi`. Un pédalier qui fait des siennes se coupe
