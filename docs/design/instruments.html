@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>namfoop — maquette : mes instruments et mes cartes</title>
+<style>
+  /* VOIX : outil de scène, sobre, comme les maquettes de docs/design/.
+     IDÉE : l'écran de scène de namfoop, le pédalier sous lui comme sur le plateau, et le parcours en frise.
+     COULEUR et POLICES : la charte (noir d'encre, vert de l'espace Set, ambre pour « attention »), un seul thème, nocturne.
+     Les polices de la charte sont nommées en tête de pile et ne sont pas chargées : la page s'ouvre sans connexion.
+     MISE EN PAGE : frise en haut ; écran puis pédalier à gauche, banc (parcours, matériel, salle, questions) à droite ; empilés sous 1000 px. */
+  :root{
+    color-scheme:dark;
+    --ink:#0F0F14; --graphite:#1E1E28; --edge:#2E2E3C; --steel:#8A8A9C; --text:#D7DAE0; --white:#FFFFFF;
+    --green:#00E676; --green-dim:#07854A; --amber:#FFD600; --red:#FF3B30; --cyan:#00F0FF; --mag:#FF007F; --uv:#BF40FF;
+    --display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+    --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"JetBrains Mono","DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;min-width:0}
+  html,body{margin:0}
+  body{background:var(--ink);color:var(--text);font:14px/1.5 var(--body);overflow-x:clip}
+  .page{max-width:1440px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
+  h1{font:700 22px/1.2 var(--display);margin:0;color:var(--white);text-wrap:balance}
+  .sub{color:var(--steel);margin:6px 0 0;font-size:13px;max-width:78ch}
+  code{font:12px var(--mono);background:var(--graphite);border-radius:3px;padding:1px 5px;color:var(--text)}
+
+  /* frise */
+  .frise{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+  .frise button{flex:1 0 auto;display:flex;gap:8px;align-items:center;text-align:left;padding:8px 12px;border-radius:6px}
+  .frise .n{font:700 13px var(--mono);color:var(--steel)}
+  .frise .l{font:600 13px var(--display);letter-spacing:.02em}
+  .frise button[aria-current="step"]{border-color:var(--green);background:#0d2a1c}
+  .frise button[aria-current="step"] .n,.frise button[aria-current="step"] .l{color:var(--green)}
+
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+  @media (max-width:1000px){.wrap{grid-template-columns:minmax(0,1fr)}}
+  .main{display:flex;flex-direction:column;gap:14px}
+  .side{display:flex;flex-direction:column;gap:14px}
+
+  /* écran de scène */
+  .term{background:#08080c;border:1px solid var(--edge);border-radius:8px;overflow-x:auto;font:13px/1.4 var(--mono)}
+  .term .cap{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;border-bottom:1px solid var(--edge);color:var(--steel);font:500 11.5px var(--body)}
+  .inner{min-width:880px;min-height:27em;display:flex;flex-direction:column}
+  .top{padding:8px 12px 0;white-space:pre;display:flex;gap:16px}.top .grow{flex:1}
+  .cols{display:flex;align-items:stretch;flex:1}
+  .box{border:1px solid var(--green-dim);margin:14px 4px 8px 10px;border-radius:2px;position:relative}
+  .box>.t{position:absolute;top:-10px;left:10px;background:#08080c;padding:0 6px;font-weight:700;white-space:pre;color:var(--green)}
+  #left{flex:0 0 38ch}#right{flex:1;margin-right:10px}
+  pre{margin:0;padding:12px 10px 10px;white-space:pre;overflow:hidden;font:inherit}
+  .plain{padding:22px 22px 18px;white-space:pre-wrap;flex:1}
+  .listen,.msg,.help{padding:2px 14px;white-space:pre-wrap}
+  .msg{min-height:26px;color:var(--amber);padding-top:4px;font-weight:700}
+  .help{color:var(--steel);padding-bottom:12px}
+  .dim{color:var(--steel)}.b{font-weight:700;color:var(--white)}.ok{color:var(--green)}.warn{color:var(--amber)}.err{color:var(--red)}
+  .play{background:var(--green);color:var(--ink);font-weight:700}
+  .lock{background:var(--green-dim);color:var(--ink);font-weight:700}
+  .uv{color:var(--uv)}.mute{background:var(--uv);color:var(--ink);font-weight:700}
+  .box.cut{border-color:#6f2a94}.box.cut>.t{color:var(--uv)}
+  .tag{font-weight:700}.tag.ok{background:var(--green);color:var(--ink)}.tag.warn{background:var(--amber);color:var(--ink)}
+  .big{font:700 20px/1.3 var(--display);color:var(--white)}
+  .big.warn{color:var(--amber)}.big.ok{color:var(--green)}
+  .offscreen{flex:1;display:flex;align-items:center;justify-content:center;color:#3a3a4a;font:600 14px var(--display);letter-spacing:.08em;text-transform:uppercase}
+
+  /* cartes du banc */
+  .card{background:var(--graphite);border:1px solid var(--edge);border-radius:8px;padding:14px 16px}
+  .card h2{font:600 13px var(--display);letter-spacing:.04em;text-transform:uppercase;margin:0 0 10px;color:var(--green)}
+  .card p{margin:0 0 8px;font-size:13px;color:var(--text)}
+  .card p.note{color:var(--steel);font-size:12.5px}
+  .who{font:600 11px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--steel);margin:10px 0 2px}
+  .try{border-left:2px solid var(--amber);padding-left:10px;color:var(--text);font-size:13px;margin-top:10px}
+  button{font:inherit;background:var(--ink);color:var(--text);border:1px solid var(--edge);border-radius:6px;padding:8px 10px;cursor:pointer;min-height:40px}
+  button:hover{border-color:var(--steel)}
+  button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  button.on{border-color:var(--green);color:var(--green)}
+  .rowb{display:flex;gap:8px;flex-wrap:wrap}.rowb button{flex:1 1 auto}
+
+  /* pédalier */
+  .pedal{background:linear-gradient(#26262f,#1a1a22);border:1px solid #3a3a48;border-radius:12px;padding:14px 16px 16px}
+  .pedal .head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .pedal .name{font:700 13px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--white)}
+  .pedal .hint{color:var(--steel);font-size:12.5px}
+  .sw{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  @media (max-width:520px){.sw{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .slot{display:flex;flex-direction:column;align-items:center;gap:8px;background:#14141b;border:1px solid var(--edge);border-radius:8px;padding:10px 8px}
+  .slot .short{font:500 12px var(--mono);color:var(--steel);text-align:center}
+  .slot .foot{width:64px;height:64px;min-height:64px;border-radius:50%;border:3px solid #55556a;background:radial-gradient(circle at 35% 30%,#4a4a5c,#1c1c24);
+              font:700 20px var(--display);color:var(--white);touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  .slot .foot:active{transform:translateY(1px);border-color:var(--green)}
+  .slot .long{width:100%;font-size:12.5px;padding:6px 6px;min-height:40px;text-align:center}
+  .slot.cur .long{border-color:var(--green);color:var(--green)}
+  .slot.pend .long{border-color:var(--amber);color:var(--amber)}
+  .around{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.around button{flex:1 1 auto}
+  button.danger{border-color:#6b2420;color:#ff8a82}
+
+  /* grille */
+  table{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}
+  table th:first-child{width:44%}
+  th,td{padding:4px 4px;text-align:left}
+  thead th{font:600 11px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--steel);text-align:center}
+  thead th.act{color:var(--green)}
+  tbody th{font-weight:500;color:var(--text);white-space:nowrap}
+  tbody tr.act th{color:var(--green);font-weight:700}
+  td{text-align:center}
+  td button{width:100%;min-height:36px;padding:4px;font:700 13px var(--mono)}
+  td button.c-ok{color:var(--green);border-color:var(--green-dim)}
+  td button.c-none{color:var(--steel)}
+  td button.c-skip{color:var(--amber);border-color:#6b5a00}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--steel);font-size:12px;margin-top:8px}
+  .legend b{font-family:var(--mono)}
+
+  .out{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:8px;align-items:center;font-size:13px;margin:6px 0}
+  .pill{font:500 12px var(--mono);padding:4px 8px;border-radius:4px;border:1px solid var(--edge);color:var(--steel)}
+  .pill.uv{color:var(--uv);border-color:#6f2a94}
+  .pill.ok{color:var(--green);border-color:var(--green-dim)}.pill.warn{color:var(--amber);border-color:#6b5a00}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>namfoop · mon instrument, de l'arrivée sur le lieu au changement en plein set</h1>
+    <p class="sub">Maquette de <code>docs/design/instruments.md</code>. Suis la frise, puis joue avec le pédalier sous l'écran : appui court pour un son ou l'accordeur, appui long pour un instrument ou un morceau. Le set, les sons, les niveaux et les textes sont fictifs, et les durées sont raccourcies.</p>
+  </header>
+
+  <nav class="frise" id="frise" aria-label="Étapes du parcours"></nav>
+
+  <div class="wrap">
+    <div class="main">
+      <div class="term" aria-live="polite">
+        <div class="cap"><span id="capl"></span><span id="capr"></span></div>
+        <div class="inner" id="screen"></div>
+      </div>
+
+      <section class="pedal" aria-label="Pédalier">
+        <div class="head">
+          <span class="name">Pédalier · 4 boutons MIDI</span>
+          <span class="hint">Clique pour un appui court, garde appuyé (ou le bouton du dessous) pour un appui long.</span>
+        </div>
+        <div class="sw" id="sw"></div>
+        <div class="around">
+          <button id="loud" type="button">Je joue fort sur mon instrument</button>
+        </div>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section class="card" id="story">
+        <h2 id="st-title"></h2>
+        <div class="who">Moi</div><p id="st-me"></p>
+        <div class="who">namfoop</div><p id="st-nf"></p>
+        <p class="try" id="st-try"></p>
+        <div class="rowb" style="margin-top:12px">
+          <button id="st-prev" type="button">Étape précédente</button>
+          <button id="st-next" type="button" class="on">Étape suivante</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Comment je lance</h2>
+        <div class="rowb" id="modes"></div>
+        <p class="note" style="margin:10px 0 0">Les deux passent par la même préparation : carte, instrument, question de calibration. Le set choisi avec <code>L</code> dans <code>browse</code> est celui que le Pi rouvre à l'allumage.</p>
+      </section>
+
+      <section class="card">
+        <h2>Mes instruments, mes cartes</h2>
+        <p class="note">La grille que montrerait <code>namfoop instruments</code>. Clique une case pour changer le scénario, puis rallume ou change d'instrument.</p>
+        <div class="rowb" id="cards" style="margin-bottom:10px"></div>
+        <table>
+          <thead><tr><th></th><th id="h-itwo">iTwo</th><th id="h-spare">UMC404HD</th></tr></thead>
+          <tbody id="grid"></tbody>
+        </table>
+        <div class="legend"><span><b class="ok">✓</b> calibrée</span><span><b>—</b> jamais calibrée</span><span><b class="warn">sans</b> jouée sans, choix retenu</span></div>
+      </section>
+
+      <section class="card">
+        <h2>Ce que la salle entend</h2>
+        <div class="out"><span>Façade (sondier)</span><span class="pill" id="o-foh"></span></div>
+        <div class="out"><span>Mes in-ears</span><span class="pill" id="o-ear"></span></div>
+        <div class="rowb" style="margin-top:12px"><button id="cut" type="button" class="danger">Incident : coupure de courant</button></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ données fictives */
+const SPEED = (typeof globalThis.NAMFOOP_MOCK_SPEED === "number") ? globalThis.NAMFOOP_MOCK_SPEED : 1;
+const INSTR = ["BB 735A", "Fretless", "Active", "Guitare"];
+const CARDS = { itwo: { name: "iTwo", long: "PreSonus AudioBox iTwo" }, spare: { name: "UMC404HD", long: "Behringer UMC404HD" } };
+const TRIM = { itwo: [-17.5, -16.0, -23.5, -12.0], spare: [-14.0, -12.5, -20.0, -8.5] };
+const cal = { itwo: ["ok", "ok", "ok", "none"], spare: ["ok", "none", "none", "none"] };
+const SONGS = [
+  { t: "Ouverture",   bpm: 96,  sig: "4/4", sounds: ["Clair", "Drive"],
+    sec: [["INTRO", "4 mes.", "| Am . . . | Am . . . | F . . . | G . . . |"], ["THÈME", "8 mes.", "| Am . F . | C . G . |  ×4"], ["FIN", "2 mes.", "| Am . . . | Am . . . |"]] },
+  { t: "Le Phare",    bpm: 124, sig: "4/4", sounds: ["Fuzz", "Clair", "Octave"],
+    sec: [["INTRO", "4 mes.", "| E5 . . . | E5 . . . | G5 . E5 . | D5 C5 B4 . |"], ["COUPLET", "8 mes.", "| E5 . . E5 | G5 . E5 . | D5 . C5 . | B4 . . . |  ×2"], ["REFRAIN", "8 mes.", "| C . G . | D . Em . |  ×4"]] },
+  { t: "Néon",        bpm: 100, sig: "4/4", sounds: ["Octave", "Clair"],
+    sec: [["INTRO", "4 mes.", "| Am . . . | Am . . . | F . . . | G . . . |"], ["COUPLET", "8 mes.", "| Am . . . | F . . . | C . . . | G . . . |  ×2"]] },
+  { t: "Marée basse", bpm: 82,  sig: "6/8", sounds: ["Clair", "Drive"],
+    sec: [["INTRO", "2 mes.", "| Dm . . Dm . . | Bb . . C . . |"], ["COUPLET", "8 mes.", "| Dm . . . . . | Bb . . . . . | F . . . . . | C . . . . . |  ×2"]] },
+  { t: "Sur le fil",  bpm: 117, sig: "4/4", sounds: ["Drive", "Fuzz"],
+    sec: [["RIFF", "4 mes.", "| A5 . . . | C5 . D5 . |  ×2"], ["COUPLET", "8 mes.", "| A5 . . . | A5 . . . | F5 . . . | G5 . . . |  ×2"]] },
+  { t: "Rappel",      bpm: 110, sig: "4/4", sounds: ["Fuzz", "Clair"],
+    sec: [["INTRO", "4 mes.", "| G . . . | G . . . | C . . . | D . . . |"], ["THÈME", "8 mes.", "| G . C . | D . G . |  ×4"]] },
+];
+
+/* ------------------------------------------------------------------ état */
+const S = {
+  step: 0, power: "off", card: "itwo", instr: 0, song: 1, sound: 0,
+  boot: 0, afterCut: false, tuner: false, mode: "run", pending: null, pendingLeft: 0, loading: "", calT: 0, level: 0, msg: "",
+};
+let timers = [];
+const later = (fn, ms) => { const id = setTimeout(fn, ms * SPEED); timers.push(id); return id; };
+const every = (fn, ms) => { const id = setInterval(fn, ms * SPEED); timers.push(id); return id; };
+function clearAll() { timers.forEach(id => { clearTimeout(id); clearInterval(id); }); timers = []; }
+const state = () => cal[S.card][S.instr];
+const who = (i = S.instr) => `${i + 1} ${INSTR[i]}`;
+const cardName = () => CARDS[S.card].name;
+
+/* ------------------------------------------------------------------ parcours */
+function powerOff() { clearAll(); Object.assign(S, { power: "off", pending: null, tuner: false, msg: "", level: 0 }); render(); }
+
+function powerOn(afterCut) {
+  clearAll();
+  Object.assign(S, { power: "boot", boot: 0, afterCut: !!afterCut, pending: null, tuner: false, msg: "", level: 0, song: afterCut ? S.song : 1, sound: afterCut ? S.sound : 0 });
+  S.instr = 0; /* l'instrument par défaut à chaque lancement, y compris après une coupure */
+  render();
+  const tick = () => { S.boot++; render(); if (S.boot < 6) later(tick, 380); else later(check, 500); };
+  later(tick, 380);
+}
+
+/* L'instrument est-il calibré sur la carte branchée ? Sinon : la question. */
+function check() {
+  if (state() === "none") { Object.assign(S, { power: "question", msg: "" }); render(); }
+  else enterStage();
+}
+
+function enterStage() {
+  Object.assign(S, { power: "stage", pending: null, tuner: false, level: 0 });
+  S.msg = state() !== "skip" ? "" : S.instr < 2
+    ? `${who()} joue sans calibration sur ${cardName()} : appui long ${S.instr + 1}, deux fois, pour la calibrer.`
+    : `${who()} joue sans calibration sur ${cardName()}.`;
+  render();
+}
+
+function load(label, then) { clearAll(); Object.assign(S, { power: "loading", loading: label, pending: null, msg: "" }); render(); later(then, 1500); }
+
+function setPending(n) {
+  clearAll();
+  S.pending = n; S.pendingLeft = 5;
+  pendingMsg(); render();
+  every(() => {
+    S.pendingLeft--;
+    if (S.pendingLeft <= 0) { clearAll(); S.pending = null; S.msg = "Geste oublié : rien n'a changé."; later(() => { if (S.power === "stage" && S.pending === null) { S.msg = ""; render(); } }, 2500); }
+    else pendingMsg();
+    render();
+  }, 1000);
+}
+function pendingMsg() {
+  const n = S.pending;
+  S.msg = n === S.instr
+    ? `Recalibrer ${who(n)} sur ${cardName()} ? Refais l'appui long ${n + 1} (${S.pendingLeft} s). Le son ne change pas.`
+    : `Passer à ${who(n)} ? Refais l'appui long ${n + 1} (${S.pendingLeft} s). Le son ne change pas.`;
+}
+
+function longPress(n) {
+  if (S.power === "stage") {
+    if (S.pending === n) {
+      if (n === S.instr) return startCalib();
+      S.instr = n;
+      return load(`${who(n)} · chargement…`, check);
+    }
+    return setPending(n);
+  }
+  if (S.power === "question") {
+    if (n === S.instr) return startCalib();
+    S.msg = `Réponds d'abord pour ${who()} : appui long ${S.instr + 1} pour calibrer, un bouton de son pour jouer sans.`;
+    return render();
+  }
+}
+
+function shortPress(n) {
+  if (S.power === "stage") {
+    const had = S.pending !== null;
+    clearAll(); S.pending = null;
+    const sounds = SONGS[S.song].sounds;
+    if (n < sounds.length) { S.sound = n; S.msg = had ? "Changement d'instrument abandonné." : S.tuner ? "Son rendu." : ""; S.tuner = false; }
+    else S.msg = `Ce morceau n'a pas de son ${n + 1} : le son ne change pas.`;
+    return render();
+  }
+  if (S.power === "question") {
+    cal[S.card][S.instr] = "skip";
+    return load(`${who()} · sans calibration · chargement…`, enterStage);
+  }
+}
+
+/* Appui court 4 : la basse est coupée partout et l'accordeur s'affiche. Un bouton de son la rend. */
+function tunerPress() {
+  if (S.power === "question") { S.msg = `Réponds d'abord pour ${who()} : appui long ${S.instr + 1} pour calibrer, un bouton de son pour jouer sans.`; return render(); }
+  if (S.power !== "stage") return;
+  clearAll(); S.pending = null; S.level = 0;
+  S.msg = S.tuner ? "Déjà à l'accordeur : un bouton de son rend le son." : "";
+  S.tuner = true; render();
+}
+const footShort = i => (i < 3 ? shortPress(i) : tunerPress());
+const footLong = i => (i < 2 ? longPress(i) : song(i === 2 ? -1 : 1));
+function setMode(m) { const wasOn = S.power !== "off"; S.mode = m; if (wasOn) powerOn(false); else render(); }
+
+function startCalib() {
+  clearAll();
+  Object.assign(S, { power: "calib", calT: 0, pending: null, msg: "", level: 0.5 });
+  render();
+  every(() => {
+    S.calT += 0.25;
+    S.level = 0.55 + 0.4 * Math.abs(Math.sin(S.calT * 2.3)) * (0.7 + 0.3 * Math.random());
+    if (S.calT >= 15) {
+      clearAll(); cal[S.card][S.instr] = "ok"; S.power = "calibdone"; render();
+      later(() => load(`${who()} · chargement…`, enterStage), 2600);
+      return;
+    }
+    render();
+  }, 100);
+}
+
+function song(d) {
+  if (S.power !== "stage") return;
+  clearAll(); S.pending = null;
+  S.song = (S.song + d + SONGS.length) % SONGS.length; S.sound = 0; S.tuner = false; S.msg = ""; render();
+}
+
+function playLoud() {
+  if (S.power === "question") { S.msg = "Jouer ne lance rien : c'est l'appui long qui calibre, un bouton de son qui joue sans."; return render(); }
+  if (S.power !== "stage" || S.pending !== null) return;
+  if (S.tuner) { S.msg = "Basse coupée : rien ne sort, l'accordeur lit ma note."; return render(); }
+  clearAll();
+  let t = 0;
+  S.msg = state() === "ok" ? "Ma crête touche le repère : le gain de la carte n'a pas bougé, la calibration tient." : "Pas de repère : cet instrument n'est pas calibré sur cette carte.";
+  every(() => {
+    t += 0.1;
+    S.level = t < 1.6 ? 0.8 * (0.75 + 0.25 * Math.abs(Math.sin(t * 9))) : Math.max(0, S.level - 0.12);
+    if (t > 2.6) { clearAll(); S.level = 0; }
+    render();
+  }, 100);
+}
+
+function powerCut() { if (S.power === "off") return; powerOff(); later(() => powerOn(true), 1300); }
+
+function setCard(c) { const wasOn = S.power !== "off"; S.card = c; if (wasOn) powerOn(false); else render(); }
+
+function toggleCal(c, i) { cal[c][i] = cal[c][i] === "ok" ? "none" : "ok"; render(); }
+
+/* ------------------------------------------------------------------ étapes de la frise */
+const STEPS = [
+  { t: "Arrivée", go: powerOff,
+    me: "Je pose le Pi, l'iTwo, l'écran et le pédalier. Les gains de la carte sont sur leur repère, je n'y touche pas. Je branche ma BB 735A.",
+    nf: "Éteint. Avant de partir, la grille m'a montré ce qui était calibré sur l'iTwo et sur l'UMC404HD de secours.",
+    go2: "Passe à l'étape suivante pour allumer le Pi." },
+  { t: "Allumage", go: () => powerOn(false),
+    me: "J'allume. Je n'ai ni clavier ni souris.",
+    nf: "Il reconnaît la carte, prend mon instrument par défaut, vérifie sa calibration sur cette carte et charge le set. Tout est prêt : aucune question.",
+    go2: "Pour voir la question au démarrage : choisis « iTwo en panne » dans la grille et décoche la BB 735A sur l'UMC404HD. Essaie aussi « Je lance browse au clavier »." },
+  { t: "Balance", go: ensureStage,
+    me: "Je joue fort quelques notes et je regarde le vumètre d'entrée.",
+    nf: "Il montre ma crête et le repère laissé par la calibration. Si elles se touchent, rien à refaire.",
+    go2: "Clique « Je joue fort ». Si le sondier a tourné le gain : appui long 1, deux fois, pour recalibrer en 15 s." },
+  { t: "Concert", go: ensureStage,
+    me: "Je change de son d'un appui court sur 1, 2 ou 3, et de morceau d'un appui long sur 3 ou 4. L'appui court sur 4 coupe ma basse pour m'accorder.",
+    nf: "Un appui long par erreur sur un bouton d'instrument n'affiche qu'une question, qui s'efface seule. Le son ne bouge pas.",
+    go2: "Essaie un appui long isolé sur le bouton 2, puis un appui court : le changement est abandonné. Essaie l'accordeur, puis un bouton de son." },
+  { t: "Autre instrument", go: ensureStage,
+    me: "Entre deux morceaux, je pose la BB et je prends la fretless. Appui long 2, puis encore appui long 2.",
+    nf: "Il coupe le son, l'annonce, recharge les sons avec la calibration de la fretless, puis rejoue. L'en-tête dit quel instrument est actif.",
+    go2: "Pour voir la question : décoche d'abord la Fretless sur l'iTwo dans la grille. Un appui long 2 de plus lance alors les 15 s, un bouton de son joue sans." },
+  { t: "Incident", go: ensureStage,
+    me: "Le courant saute en plein morceau. Je ne touche à rien.",
+    nf: "Il redémarre seul sur mon instrument par défaut et rejoue sans poser de question. Si j'étais sur la fretless, je refais son geste.",
+    go2: "Clique « Incident : coupure de courant »." },
+];
+function ensureStage() { if (S.power === "stage" || S.power === "question" || S.power === "calib") return render(); clearAll(); check(); }
+function goStep(i) { S.step = Math.max(0, Math.min(STEPS.length - 1, i)); STEPS[S.step].go(); render(); }
+
+/* ------------------------------------------------------------------ dessin */
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const pad = (s, n) => (s + " ".repeat(n)).slice(0, n);
+const fr = x => x.toFixed(1).replace(".", ",").replace("-", "−");
+function meter(level, cells, mark) {
+  let s = "";
+  const on = Math.round(level * cells);
+  for (let i = 0; i < cells; i++) {
+    if (mark !== null && i === mark) s += '<span class="b">┃</span>';
+    s += i < on ? "█" : '<span class="dim">░</span>';
+  }
+  return s;
+}
+function instrTag() {
+  const st = state();
+  if (st === "ok") return `<span class="tag ok"> ${esc(who())} · ${cardName()} · calibrée </span>`;
+  return `<span class="tag warn"> ${esc(who())} · ${cardName()} · non calibrée </span>`;
+}
+
+function screenHtml() {
+  const c = CARDS[S.card];
+  if (S.power === "off") return '<div class="offscreen">Écran éteint</div>';
+
+  if (S.power === "boot") {
+    const st = state();
+    const instrLine = st === "ok"
+      ? `<span class="ok">${esc(who())} · calibrée sur ${c.name} (trim ${fr(TRIM[S.card][S.instr])} dB)</span>`
+      : st === "skip" ? `<span class="warn">${esc(who())} · jouée sans calibration sur ${c.name} (choix retenu)</span>`
+      : `<span class="warn">${esc(who())} · pas calibrée sur ${c.name}</span>`;
+    const lines = [
+      S.mode === "run"
+        ? `<span class="dim">$</span> namfoop run --set          <span class="dim">${S.afterCut ? "redémarrage après la coupure" : "lancé par le Pi à l'allumage"}</span>`
+        : `<span class="dim">$</span> namfoop browse             <span class="dim">${S.afterCut ? "relancé après la coupure" : "lancé par moi, au clavier"}</span>`,
+      `carte       ${S.card === "itwo" ? `<span class="ok">${c.long} · reconnue</span>` : `<span class="warn">${c.long} · reconnue, l'iTwo n'est pas branchée</span>`}`,
+      `instrument  ${instrLine} <span class="dim">· par défaut</span>`,
+      `set         Groupe 1 · Live Mairie · 6 morceaux${S.mode === "browse" ? ' <span class="dim">· le dernier choisi avec L</span>' : ""}`,
+      `pédalier    4 boutons MIDI · branché`,
+      `sons        chargement… 6/6`,
+    ];
+    return `<div class="plain">${lines.slice(0, S.boot).join("\n")}</div>`;
+  }
+
+  if (S.power === "question") {
+    const n = S.instr + 1;
+    return `<div class="plain"><span class="dim">namfoop · avant de jouer</span>
+
+<span class="big warn">${esc(who())} n'est pas calibrée sur ${c.name}.</span>
+
+  <span class="b">appui long ${n}</span> <span class="dim">(ou Entrée)</span>            calibrer maintenant : je joue fort 15 s
+  <span class="b">un bouton de son</span> <span class="dim">(ou Échap)</span>        jouer sans calibrer, namfoop s'en souvient et l'écran le rappelle
+
+<span class="dim">Rien ne sort tant que je n'ai pas répondu.</span></div><div class="msg">${esc(S.msg)}</div>`;
+  }
+
+  if (S.power === "calib") {
+    const left = Math.max(0, Math.ceil(15 - S.calT));
+    return `<div class="plain"><span class="dim">namfoop · calibration · ${esc(who())} sur ${c.name}</span>
+
+<span class="big">Joue FORT, comme sur tes passages les plus appuyés.</span>
+
+  reste <span class="b">${pad(left + " s", 5)}</span> ${meter(S.level, 30, null)}   crête ${fr(-30 + S.level * 20)} dB
+
+<span class="dim">Tu t'entends en direct. Les 15 s sont raccourcies dans la maquette.</span></div>`;
+  }
+
+  if (S.power === "calibdone") {
+    return `<div class="plain"><span class="dim">namfoop · calibration · ${esc(who())} sur ${c.name}</span>
+
+<span class="big ok">Calibrée.</span>
+
+  crête robuste ${fr(-30 - TRIM[S.card][S.instr])} dBFS    trim ${fr(TRIM[S.card][S.instr])} dB
+  enregistrée avec mes instruments, dans la bibliothèque</div>`;
+  }
+
+  if (S.power === "loading") {
+    return `<div class="plain"><span class="dim">namfoop ${S.mode === "run" ? "run  SET" : "browse"}  Groupe 1 · Live Mairie</span>
+
+<span class="big">${esc(S.loading)}</span>
+
+<span class="dim">Le son est coupé le temps de recharger les sons avec la calibration de cet instrument.</span></div>`;
+  }
+
+  /* la scène */
+  const sg = SONGS[S.song];
+  let list = "";
+  const from = Math.max(0, S.song - 1);
+  for (let i = from; i < SONGS.length; i++) {
+    const s = SONGS[i], cur = i === S.song;
+    const row = `${cur ? "▶" : " "} ${i + 1} ${pad(s.t, 20)} ♩${pad(String(s.bpm), 4)}${s.sig !== "4/4" ? s.sig : ""}`;
+    list += cur ? `<span class="b">${esc(row)}</span>\n` : `${esc(row)}\n`;
+    if (cur) s.sounds.forEach((snd, k) => {
+      list += k === S.sound ? `     <span class="play">● ${esc(pad(snd, 10))}</span> <span class="dim">bouton ${k + 1}</span>\n` : `     ○ ${esc(pad(snd, 10))} <span class="dim">bouton ${k + 1}</span>\n`;
+    });
+  }
+  let prompt = "";
+  sg.sec.forEach((x, k) => {
+    prompt += k === 0 ? `<span class="ok">▸ ${esc(pad(x[0], 10))}</span> ${esc(x[1])}\n` : `  <span class="b">${esc(pad(x[0], 10))}</span> ${esc(x[1])}\n`;
+    prompt += `     <span class="${k === 0 ? "" : "dim"}">${esc(x[2])}</span>\n`;
+  });
+  const nx = SONGS[(S.song + 1) % SONGS.length];
+  prompt += `\n<span class="dim">── ensuite : ${esc(nx.t)}  ♩${nx.bpm}  ${esc(nx.sounds[0])}</span>`;
+  const mark = state() === "ok" ? 16 : null;
+  const markTxt = state() === "ok" ? `repère : ma crête quand je joue fort (${esc(INSTR[S.instr])})` : "pas de repère : instrument non calibré sur cette carte";
+  const head = S.mode === "run"
+    ? `<span class="lock"> namfoop run  SET </span>  Groupe 1 · Live Mairie`
+    : `<span class="lock"> namfoop browse </span>  <span class="dim">1 Bibliothèque  2 Chaîne</span>  <span class="play">[3 Set]</span> Groupe 1 · Live Mairie`;
+  const right = S.tuner
+    ? `<div class="box cut" id="right"><span class="t"> ACCORDEUR · basse coupée </span><pre>
+
+            <span class="dim">♭   ·   ·   ·   ·</span>   <span class="b">▼</span>   <span class="dim">·</span>   <span class="uv">▲</span>   <span class="dim">·   ·   ♯</span>
+
+                          <span class="big">Mi 1</span>
+                        <span class="uv">+6 cents</span>
+
+
+   <span class="dim">Ma basse ne sort nulle part, ni traitée ni en direct.</span>
+   <span class="dim">Un bouton de son, ou un changement de morceau, la rend.</span></pre></div>`
+    : `<div class="box" id="right"><span class="t"> ${S.song + 1} · ${esc(sg.t)} · son ${S.sound + 1}/${sg.sounds.length} ${esc(sg.sounds[S.sound])} </span><pre>${prompt}</pre></div>`;
+  return `<div class="top"><span>${head}</span><span class="grow"></span>${S.tuner ? '<span class="mute"> BASSE COUPÉE </span>' : ""}<span class="dim">♩${sg.bpm} ${sg.sig}</span><span>${instrTag()}</span></div>
+<div class="cols">
+  <div class="box" id="left"><span class="t"> Groupe 1 · ${S.song + 1}/${SONGS.length} </span><pre>${list}</pre></div>
+  ${right}
+</div>
+<div class="listen">entrée  ${meter(S.level, 20, mark)}  <span class="dim">${markTxt}</span></div>
+<div class="msg">${esc(S.msg)}</div>
+<div class="help">au pied   court 1-3 son  ·  court 4 accordeur  ·  long 1-2, deux fois : instrument  ·  long 3-4 morceau</div>`;
+}
+
+function outputs() {
+  const m = { off: ["éteint", ""], boot: ["silence", ""], question: ["silence, en attente de ma réponse", "warn"], calib: ["ma basse en direct, sans effet", "warn"],
+              calibdone: ["silence", ""], loading: ["silence annoncé : chargement", "warn"], stage: ["son traité", "ok"] };
+  if (S.power === "stage" && S.tuner) return ["basse coupée : je m'accorde", "uv"];
+  return m[S.power];
+}
+
+const $ = id => document.getElementById(id);
+function render() {
+  $("screen").innerHTML = screenHtml();
+  $("capr").textContent = S.power === "off" ? "" : `${CARDS[S.card].long} branchée`;
+  $("capl").textContent = S.mode === "run" ? "Écran de scène, 13 pouces, sans clavier" : "Mon écran, avec un clavier";
+  $("modes").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
+
+  $("frise").querySelectorAll("button").forEach((b, i) => { if (i === S.step) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); });
+  const st = STEPS[S.step];
+  $("st-title").textContent = `${S.step + 1} · ${st.t}`;
+  $("st-me").textContent = st.me; $("st-nf").textContent = st.nf; $("st-try").textContent = st.go2;
+  $("st-prev").disabled = S.step === 0; $("st-next").disabled = S.step === STEPS.length - 1;
+
+  $("sw").querySelectorAll(".slot").forEach((el, i) => {
+    el.classList.toggle("cur", S.power !== "off" && i < 2 && i === S.instr);
+    el.classList.toggle("pend", i < 2 && S.pending === i);
+  });
+
+  $("cards").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.card === S.card));
+  $("h-itwo").classList.toggle("act", S.card === "itwo"); $("h-spare").classList.toggle("act", S.card === "spare");
+  $("grid").querySelectorAll("tr").forEach((tr, i) => {
+    tr.classList.toggle("act", S.power !== "off" && i === S.instr);
+    tr.querySelectorAll("button").forEach(b => {
+      const v = cal[b.dataset.card][i];
+      b.className = "c-" + v;
+      b.textContent = v === "ok" ? "✓" : v === "skip" ? "sans" : "—";
+      b.setAttribute("aria-label", `${INSTR[i]} sur ${CARDS[b.dataset.card].long} : ${v === "ok" ? "calibrée" : v === "skip" ? "jouée sans calibration" : "jamais calibrée"}`);
+    });
+  });
+
+  const [txt, cls] = outputs();
+  for (const id of ["o-foh", "o-ear"]) { $(id).textContent = txt; $(id).className = "pill " + cls; }
+}
+
+/* ------------------------------------------------------------------ montage */
+function build() {
+  $("frise").innerHTML = STEPS.map((s, i) => `<button type="button" data-step="${i}"><span class="n">${i + 1}</span><span class="l">${esc(s.t)}</span></button>`).join("");
+  $("frise").querySelectorAll("button").forEach(b => b.addEventListener("click", () => goStep(+b.dataset.step)));
+  $("st-prev").addEventListener("click", () => goStep(S.step - 1));
+  $("st-next").addEventListener("click", () => goStep(S.step + 1));
+
+  const SHORT = ["son 1", "son 2", "son 3", "accordeur"];
+  const LONG = [`instrument 1 · ${INSTR[0]}`, `instrument 2 · ${INSTR[1]}`, "morceau précédent", "morceau suivant"];
+  $("sw").innerHTML = SHORT.map((sh, i) => `<div class="slot">
+      <span class="short">court · ${sh}</span>
+      <button type="button" class="foot" data-foot="${i}" aria-label="Bouton ${i + 1}, appui court : ${sh}">${i + 1}</button>
+      <button type="button" class="long" data-long="${i}">long · ${esc(LONG[i])}</button>
+    </div>`).join("");
+  $("modes").innerHTML = `<button type="button" data-mode="run">Le Pi s'allume seul (run --set)</button><button type="button" data-mode="browse">Je lance browse au clavier</button>`;
+  $("modes").querySelectorAll("button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  $("sw").querySelectorAll("[data-foot]").forEach(b => {
+    const i = +b.dataset.foot; let t = null, held = false;
+    b.addEventListener("pointerdown", () => { held = false; t = setTimeout(() => { held = true; footLong(i); }, 600); });
+    for (const e of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(e, () => clearTimeout(t));
+    b.addEventListener("contextmenu", e => e.preventDefault());
+    b.addEventListener("click", () => { if (held) { held = false; return; } footShort(i); });
+  });
+  $("sw").querySelectorAll("[data-long]").forEach(b => b.addEventListener("click", () => footLong(+b.dataset.long)));
+  $("loud").addEventListener("click", playLoud);
+  $("cut").addEventListener("click", powerCut);
+
+  $("cards").innerHTML = `<button type="button" data-card="itwo">iTwo branchée</button><button type="button" data-card="spare">iTwo en panne : UMC404HD</button>`;
+  $("cards").querySelectorAll("button").forEach(b => b.addEventListener("click", () => setCard(b.dataset.card)));
+  $("grid").innerHTML = INSTR.map((name, i) => `<tr><th scope="row">${i + 1} ${esc(name)}${i === 0 ? ' <span class="dim">(défaut)</span>' : ""}</th>
+      <td><button type="button" data-card="itwo"></button></td><td><button type="button" data-card="spare"></button></td></tr>`).join("");
+  $("grid").querySelectorAll("tr").forEach((tr, i) => tr.querySelectorAll("button").forEach(b => b.addEventListener("click", () => toggleCal(b.dataset.card, i))));
+
+  /* au repos, la page montre la scène en plein concert : c'est l'image qu'on partage */
+  S.step = 3; S.power = "stage";
+  render();
+}
+if (typeof document !== "undefined") build();
+if (typeof module !== "undefined") module.exports = { S, cal, footShort, footLong, setMode, tunerPress, longPress, shortPress, powerOn, powerCut, setCard, song, playLoud, goStep, screenHtml, check, STEPS };
+</script>
+</body>
+</html>

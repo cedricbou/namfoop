@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#431)
+- **Mes instruments et mes cartes ont leur spécification et leur maquette**
+  (`docs/design/instruments.md`, `docs/design/instruments.html`) : une calibration par instrument
+  et par carte, rangée dans la bibliothèque ; la question posée au lancement quand elle manque ;
+  la carte préférée et le repli sur une autre carte réglée ; au pied, un bouton par instrument et
+  le morceau précédent / suivant. L'ADR 0011 gagne trois numéros que le marché ne fixe pas : CC 102
+  (instrument), CC 103 et CC 104 (morceau précédent, suivant). C'est la cible des stories de
+  l'épique « Changer d'instrument ou de carte son et jouer calibré » : rien ne change encore dans
+  namfoop.
+
 ### MIDI (#437)
 
 - **L'écran de `namfoop midi` dit quand un seul appareil est écouté**, et par qui :

@@ -59,7 +59,7 @@ L'accordeur lit la basse **avant** la chaîne : une fuzz ne trompe pas la lectur
 | la touche `u` (réglable) | oui | oui |
 | CC 15 de valeur 64 ou plus (réglable) | oui | — |
 | CC 15 de valeur inférieure à 64 | — | oui |
-| un changement de morceau : Program Change, `→` / `←`, `Entrée` sur un morceau | — | oui |
+| un changement de morceau : Program Change, `→` / `←`, `Entrée` sur un morceau, les CC de morceau précédent / suivant ([`instruments.md`](instruments.md) § 9) | — | oui |
 | un changement de son : CC 34, `PgDn` / `PgUp` | — | oui |
 | `Start` du transport | — | oui |
 | `Continue`, l'horloge, le tap | — | non |

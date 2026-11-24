@@ -377,9 +377,11 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
   rend le son ; un PC, un CC 34 ou un Start rendent aussi le son ([`accordeur.md`](accordeur.md) § 3).
 - **Song Position Pointer** (Ableton l'envoie en mode « Song ») : position en doubles croches,
   convertie en section / mesure / temps par la carte des mesures (§ 11).
-- Plus tard, hors épique : **Bank Select CC#0** pour choisir le set (la banque Fractal), CC « son / morceau
-  suivant / précédent » pour les pédaliers MIDI simples, OSC (AbleSet publie le morceau et la section
-  en cours), CC de slot à la Kemper.
+- **Morceau précédent / suivant au pied** (CC 103 / CC 104) et **changement d'instrument** (CC 102),
+  pour un pédalier à quelques boutons : [`instruments.md`](instruments.md) § 8, § 9 et § 13.
+- Plus tard, hors épique : **Bank Select CC#0** pour choisir le set (la banque Fractal), CC « son
+  suivant / précédent », OSC (AbleSet publie le morceau et la section en cours), CC de slot à la
+  Kemper.
 
 ## 13. Ce qui change ailleurs, ce qui ne change pas
 

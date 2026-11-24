@@ -11,7 +11,9 @@ Spécifications : [`browse-espaces.md`](../../../../docs/design/browse-espaces.m
 [`browse-chaine.md`](../../../../docs/design/browse-chaine.md),
 [`set.md`](../../../../docs/design/set.md),
 [`prompteur.md`](../../../../docs/design/prompteur.md) (le prompteur en grille, cible à construire),
-[`accordeur.md`](../../../../docs/design/accordeur.md) (l'accordeur et la basse coupée). Le reste
+[`accordeur.md`](../../../../docs/design/accordeur.md) (l'accordeur et la basse coupée),
+[`instruments.md`](../../../../docs/design/instruments.md) (instruments, cartes et gestes au pied,
+cible à construire). Le reste
 du binaire (CLI, commandes, `setup`) : [`crates/namfoop/CLAUDE.md`](../../CLAUDE.md).
 
 ## Les trois espaces — `state/space/`

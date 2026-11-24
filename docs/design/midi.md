@@ -74,7 +74,8 @@ l'ordre de branchement.
   guide dit de couper celle du pédalier.
 
 **Un canal** porte les numéros de ses gestes : le morceau (Program Change), le son du morceau, le
-tap tempo, l'accordeur.
+tap tempo, l'accordeur. Le parcours des instruments en spécifie trois de plus — l'instrument, le
+morceau précédent, le morceau suivant ([`instruments.md`](instruments.md) § 13).
 
 - **Les numéros appartiennent au canal**, quel que soit l'appareil qui l'emprunte : le canal 5
   appelle les sons par le CC 20 pendant que le canal 1 garde le CC 34.
