@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Interne (#422)
+- **Un appareil MIDI décoché est ignoré dès sa lecture, horloge comprise** : son horloge ne peut
+  plus être prise pour celle qui donne le tempo, même s'il bat le premier ; `namfoop midi` dit en
+  sortant combien de messages il a écartés. Le réglage pour décocher un appareil arrive avec les
+  appareils et les canaux.
+
 ### MIDI (#414)
 - **namfoop écoute tous tes appareils MIDI à la fois** : sans port nommé, l'entrée DIN, chaque
   appareil USB et ceux qu'on branche en cours de route, sans relancer namfoop ; un appareil
