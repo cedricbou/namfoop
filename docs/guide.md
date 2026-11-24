@@ -1963,8 +1963,9 @@ joué porte `▶` et **déplie ses sons** : `●` celui qu'on entend, `○` les 
 **un morceau avant** celui qu'on joue, pour que le reste de la hauteur montre ce qui vient.
 
 Le cadre de droite dit **ce que fera le prochain appui** :
-`2 · Le Phare · son 1/2 fuzz · PgDn : ensuite clean`, puis le morceau suivant avec son tempo et ses
-sons.
+`2 · Le Phare · son 1/2 fuzz · PgDn : clean`, puis le morceau suivant avec son tempo et ses
+sons. Quand le prochain son est dans un autre morceau, le titre le nomme d'abord :
+`PgDn : 3 · Néon ● fuzz`.
 
 | touche | |
 |---|---|
@@ -2069,10 +2070,14 @@ repère après la dernière barre. namfoop les lit telles quelles, sans directiv
 - battue en marche, **la mesure jouée est allumée** et celles déjà jouées de la ligne sont grisées :
   chaque ligne dure ses mesures, une ligne de trois mesures suivie d'une ligne d'une seule se
   suivent exactement ;
-- le **repère** s'affiche à droite de sa ligne, ou dessous quand l'écran est étroit ; si la grille
-  ne tient pas à côté de la set list, celle-ci se replie en une ligne au-dessus du prompteur ;
+- le **repère** s'affiche à droite de sa ligne, et ceux d'une même section commencent tous à la
+  même colonne ; quand l'écran est étroit, ils passent dessous. Si la grille ne tient pas à côté de
+  la set list, celle-ci se réduit à 30 colonnes, puis seulement se replie en une ligne au-dessus du
+  prompteur ;
 - des grilles voisines **de même nom** n'ont qu'un titre, et celle dont la mesure change la dit
-  devant elle (`2/4`) ; `Fin` / `Début` vont toujours de l'une à l'autre ;
+  devant elle (`2/4`) ; la bande de battue les compte ensemble (`mes. 11/22 REFRAIN`, puis
+  `COUPLET 3 dans 12 mes.`) et annonce à part le changement de mesure qui vient
+  (`passe en 4/4 dans 2 mes.`) ; `Fin` / `Début` vont toujours de l'une à l'autre ;
 - `{key}` met la tonalité dans le titre du prompteur.
 
 **Tout le reste est ignoré sans erreur** : un fichier écrit pour un autre logiciel s'affiche ici,

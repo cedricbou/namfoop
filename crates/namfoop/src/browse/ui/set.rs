@@ -6,7 +6,8 @@
 //! se réduit à 30 ; sous 70 elle disparaît au profit d'une seule ligne au-dessus du cadre, qui
 //! prend alors toute la largeur. Sur scène, un écran étroit ne doit pas cacher ce qu'on joue — et
 //! **la grille passe avant la set list** : quand la plus large ligne de mesures du morceau ne
-//! tient pas dans la colonne, la set list se replie de même (§ 4 de `docs/design/prompteur.md`).
+//! tient pas à côté d'elle, la set list passe à 30 colonnes, puis seulement se replie (§ 4 de
+//! `docs/design/prompteur.md`). Réduite, elle garde le précédent, le suivant et le morceau visé.
 //!
 //! Le prompteur lui-même est dessiné par `ui/prompt.rs`.
 //!
@@ -72,16 +73,18 @@ pub fn render(s: &State, f: &mut Frame, area: Rect) {
 }
 
 /// La largeur de la set list, ou `None` quand elle se replie en une ligne : sous 70 colonnes, ou
-/// quand la grille du morceau joué ne tiendrait pas à côté d'elle (§ 4 de `prompteur.md`).
+/// quand la grille du morceau joué ne tiendrait pas même à côté d'une liste réduite (§ 4 de
+/// `prompteur.md`). Entre les deux, elle se **réduit** à 30 colonnes plutôt que de se replier :
+/// repliée, elle ne montre plus ni le morceau précédent ni celui qu'on vise avec ↑↓.
 fn list_width(s: &State, set: &ActiveSet, area: Rect) -> Option<u16> {
     if area.width < NARROW {
         return None;
     }
-    let list_w = if area.width >= WIDE { LIST_WIDE } else { LIST_NARROW };
     let grid = set.at.and_then(|at| s.prompt_of(at.0)).and_then(|l| l.prompt()).map(grid_width).unwrap_or(0);
     // la colonne du prompteur perd ses deux bordures et un espace de chaque côté
-    let fits = grid + 4 <= area.width.saturating_sub(list_w) as usize;
-    fits.then_some(list_w)
+    let fits = |list_w: u16| grid + 4 <= area.width.saturating_sub(list_w) as usize;
+    let widest = if area.width >= WIDE { LIST_WIDE } else { LIST_NARROW };
+    [widest, LIST_NARROW].into_iter().find(|w| fits(*w))
 }
 
 /// `2/6 Le Phare ● Fuzz Face → 3 Néon` : ce que montre un terminal trop étroit pour la set list.
@@ -248,7 +251,9 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     };
     let songs = set.spec.songs.len();
     let sounds = set.spec.songs.get(at.0).map(|x| x.sounds.len()).unwrap_or(0);
-    let next = set.step(true).map(|n| sound_name(set, n)).unwrap_or_else(|| "fin du set".into());
+    // **ce que fera `PgDn`** : le son suivant, et son morceau quand il en change — le nom d'un preset
+    // seul ne dit pas quel morceau va partir. Si la place manque, c'est le preset qui se coupe.
+    let next = set.step(true).map(|n| (n.0 != at.0, n));
     // un set sans titres (le show à sons) n'a pas de morceau à nommer : on ne met pas de titre
     // fantôme à la place (§ 2, § 6)
     let untitled = songs == 1 && set.spec.songs[0].title.is_none();
@@ -264,7 +269,17 @@ fn render_song(s: &State, set: &ActiveSet, f: &mut Frame, area: Rect) {
     } else {
         format!("{} · {} · {key}", at.0 + 1, set.spec.songs.get(at.0).map(|x| x.label()).unwrap_or("?"))
     };
-    let title = format!(" {who}son {}/{sounds} {} · PgDn : ensuite {next} ", at.1 + 1, sound_name(set, at),);
+    let head = format!(" {who}son {}/{sounds} {} · PgDn : ", at.1 + 1, sound_name(set, at));
+    let (song, preset) = match next {
+        Some((true, n)) => {
+            let title = set.spec.songs.get(n.0).map(|x| x.label()).unwrap_or("?");
+            (format!("{} · {title} ● ", n.0 + 1), sound_name(set, n))
+        }
+        Some((false, n)) => (String::new(), sound_name(set, n)),
+        None => (String::new(), "fin du set".into()),
+    };
+    let room = (area.width as usize).saturating_sub(4 + head.chars().count() + song.chars().count() + 1);
+    let title = format!("{head}{song}{} ", clip(&preset, room.max(4)));
     let mut lines: Vec<Line> = Vec::new();
     // **la bande de battue** (§ 11), en tête de la colonne : c'est elle qu'on regarde en jouant
     let w = area.width.saturating_sub(4) as usize;
