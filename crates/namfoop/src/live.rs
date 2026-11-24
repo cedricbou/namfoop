@@ -180,14 +180,17 @@ pub fn run(
         if let Some(m) = &mut midi {
             while let Some(msg) = m.try_pop() {
                 log::debug!("MIDI : {}", midi_io::describe(&msg.event, msg.channel));
-                // les numéros du canal du message (ADR 0012)
-                let crate::cli_midi::Numbers { cc_sound, cc_tap, cc_tuner } = m.listen().numbers(msg.channel);
+                // les numéros du canal du message (ADR 0012), et ses gestes coupés (`b` dans `namfoop midi`)
+                let n = m.listen().numbers(msg.channel);
                 // l'accordeur au pied ou depuis Ableton : CC 15 (réglable), 64 ou plus coupe, moins
                 // de 64 rend le son ; un changement de morceau, de son ou un `Start` le rend aussi
                 let want = match msg.event {
-                    midi_io::Event::Control { cc, value } if cc == cc_tuner => Some(value >= 64),
-                    midi_io::Event::Control { cc, .. } if cc == cc_sound => Some(false),
-                    midi_io::Event::ProgramChange(_) | midi_io::Event::ClockStart => Some(false),
+                    midi_io::Event::Control { cc, value } if cc == n.cc_tuner && !n.muted.tuner => {
+                        Some(value >= 64)
+                    }
+                    midi_io::Event::Control { cc, .. } if cc == n.cc_sound && !n.muted.sound => Some(false),
+                    midi_io::Event::ProgramChange(_) if !n.muted.pc => Some(false),
+                    midi_io::Event::ClockStart => Some(false),
                     _ => None,
                 };
                 if let Some(cut) = want.filter(|c| *c != bass_cut.get()) {
@@ -209,7 +212,7 @@ pub fn run(
                     midi_io::Event::ClockContinue if clock_on => tempo.clock_continue(),
                     midi_io::Event::ClockStop if clock_on => tempo.clock_stop(),
                     midi_io::Event::SongPosition(n) if clock_on => tempo.clock_song_position(n),
-                    midi_io::Event::Control { cc, .. } if cc == cc_tap => {
+                    midi_io::Event::Control { cc, .. } if cc == n.cc_tap && !n.muted.tap => {
                         // `run` n'a ni preset ni set : le seul événement net qui rende la main à
                         // l'horloge (ADR 0008) est un `Start` / `Stop`. Une source qui n'en envoie
                         // pas garde donc le tap jusqu'à la fin de la session — à dire, puisque

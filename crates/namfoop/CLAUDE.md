@@ -111,7 +111,14 @@ calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start)
 meta_cmd.rs     `meta` : affichage d'un modèle
-midi_cmd.rs     `midi` : les ports d'entrée, puis les messages reçus en clair, préfixés de leur
+midi_screen/    l'écran plein écran de `midi` (docs/design/midi.md), rangé comme setup/ : state.rs
+                (pure, testée : brouillon de [midi], fenêtre « Régler » et sa capture, refus),
+                ui.rs (neutre : theme::neutral, jamais d'accent d'espace), table.rs (les touches,
+                déclarées une fois : barre et aide en dérivent), keyboard.rs + keyboard.ref.txt
+                (l'oracle du clavier). Reçoit le port DÉJÀ ouvert par midi_cmd.rs, sans appareil
+                décoché ni horloge imposée : il applique son brouillon lui-même
+midi_cmd.rs     `midi` : devant un terminal, l'écran (midi_screen) ; sinon, ou --lines / --seconds,
+                les ports d'entrée, puis les messages reçus en clair, préfixés de leur
                 appareil, et les horloges écartées en sortant (`Horloge` résume les
                 tops à une ligne par noire ; `en_clair` dit ce que fait le CC de l'accordeur, APRÈS
                 la ligne brute, qui reste recopiable dans un port simulé). N'ouvre pas la carte son : c'est la commande des

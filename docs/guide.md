@@ -2229,7 +2229,7 @@ d'éditeurs de pédalier (Morningstar, Fractal) comptent de 0 à 127, c'est-à-d
 bouton réglé sur « PC 3 » dans l'éditeur appelle la place **4** de la banque, et `namfoop midi`
 affiche « PC 4 ». Le numéro que namfoop montre est toujours celui qu'on écrit dans un set.
 
-### Vérifier que le pédalier parle : `namfoop midi`
+### Régler et vérifier le MIDI : `namfoop midi`
 
 C'est la commande à lancer avant un concert, et elle n'ouvre pas la carte son :
 
@@ -2237,8 +2237,33 @@ C'est la commande à lancer avant un concert, et elle n'ouvre pas la carte son :
 namfoop midi
 ```
 
-Elle liste les ports d'entrée vus par la machine, puis affiche chaque message qui arrive — appuie
-sur une pédale, et la ligne s'écrit :
+Devant un terminal, elle ouvre **l'écran de réglage**, onglet **Appareils et canaux** : tes
+appareils par leur nom, ce qu'ils envoient en direct et lequel donne l'horloge, puis chaque canal
+réglé avec le numéro de chaque geste et ce qui a été reçu en dernier pour lui. On y règle tout sans
+ouvrir la config :
+
+- **`Entrée`** sur une ligne ouvre la fenêtre « Régler » : **tape** le numéro, ou **appuie** sur le
+  bouton de l'appareil — le message est capturé et ne change pas le son. `Entrée` garde, `Échap`
+  ne change rien ; une saisie vide rend le défaut. Sur un appareil, `Entrée` lui confie l'horloge.
+- **`a`** ajoute un canal (tape son numéro, ou appuie sur un bouton de l'appareil), **`x`** retire
+  celui que tu vises. Sur une ligne de geste, un appui venu d'un canal pas encore réglé propose de
+  l'ajouter.
+- **`b`** coupe ou rétablit le geste visé (le tap, par exemple, pour un pédalier qui l'envoie par
+  mégarde), ou décoche un appareil.
+- **`S`** enregistre la section `[midi]` de la config ; **`q`** quitte, en demandant d'abord si
+  quelque chose n'est pas enregistré ; **`h`** donne toutes les touches.
+
+Un numéro hors bornes, ou déjà pris par un autre geste du même canal, est refusé avec une phrase qui
+dit pourquoi. Sous l'onglet, la zone « reçu » montre les derniers messages, l'appareil, le canal et
+ce que namfoop en ferait ; ce qui arrive sur un canal non réglé y est seulement compté.
+
+**L'affichage ligne à ligne** reste là pour les essais et les scripts : `namfoop midi --lines`
+(imposé quand la sortie n'est pas un terminal, et par `--seconds`) liste les ports d'entrée vus par
+la machine, puis affiche chaque message qui arrive — appuie sur une pédale, et la ligne s'écrit :
+
+```sh
+namfoop midi --lines
+```
 
 ```text
 Ports d'entrée MIDI (2) :
@@ -2826,6 +2851,7 @@ clock = true                         # false : ne pas écouter l'horloge MIDI (l
 channel = 5                          # le seul canal écouté (absent : tous)
 clock_from = "UM-ONE"                # l'appareil qui donne l'horloge (absent : le premier qui bat)
 ignore = ["Digital Piano"]           # les appareils décochés (absent : aucun)
+muted = ["tap"]                      # les gestes coupés : pc, sound, tap, tuner (absent : aucun)
 
 [[midi.channels]]                    # un canal réglé et ses numéros (absent : ceux de [midi])
 channel = 1

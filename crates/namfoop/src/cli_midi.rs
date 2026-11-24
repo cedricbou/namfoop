@@ -36,12 +36,55 @@ pub struct Numbers {
     pub cc_sound: u8,
     pub cc_tap: u8,
     pub cc_tuner: u8,
+    /// Les gestes **coupés** (`b` dans `namfoop midi`) : un message qui les demande est ignoré.
+    pub muted: Muted,
 }
 
 impl Default for Numbers {
     fn default() -> Self {
         let m = model::Midi::default();
-        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner }
+        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner, muted: Muted::default() }
+    }
+}
+
+/// Les gestes coupés d'un canal, en clair.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Muted {
+    pub pc: bool,
+    pub sound: bool,
+    pub tap: bool,
+    pub tuner: bool,
+}
+
+impl Muted {
+    pub fn from_list(list: &[model::Gesture]) -> Self {
+        use model::Gesture as G;
+        Self {
+            pc: list.contains(&G::Pc),
+            sound: list.contains(&G::Sound),
+            tap: list.contains(&G::Tap),
+            tuner: list.contains(&G::Tuner),
+        }
+    }
+
+    pub fn has(&self, g: model::Gesture) -> bool {
+        use model::Gesture as G;
+        match g {
+            G::Pc => self.pc,
+            G::Sound => self.sound,
+            G::Tap => self.tap,
+            G::Tuner => self.tuner,
+        }
+    }
+}
+
+/// Le nom d'un geste tel que l'écran et les messages le disent.
+pub fn gesture_name(g: model::Gesture) -> &'static str {
+    match g {
+        model::Gesture::Pc => "le morceau (Program Change)",
+        model::Gesture::Sound => "le son du morceau",
+        model::Gesture::Tap => "le tap tempo",
+        model::Gesture::Tuner => "l'accordeur",
     }
 }
 
@@ -63,7 +106,12 @@ impl Listen {
     /// Ce que règle la config, et `--midi-channel` qui la restreint à un canal (avec ses numéros
     /// s'il en a, sinon ceux de `[midi]`).
     pub fn from_config(m: &model::Midi, only: Option<u8>) -> Self {
-        let base = Numbers { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner };
+        let base = Numbers {
+            cc_sound: m.cc_sound,
+            cc_tap: m.cc_tap,
+            cc_tuner: m.cc_tuner,
+            muted: Muted::from_list(&m.muted),
+        };
         let mut channels: Vec<(u8, Numbers)> = m
             .channels
             .iter()
@@ -74,6 +122,7 @@ impl Listen {
                         cc_sound: c.cc_sound.unwrap_or(base.cc_sound),
                         cc_tap: c.cc_tap.unwrap_or(base.cc_tap),
                         cc_tuner: c.cc_tuner.unwrap_or(base.cc_tuner),
+                        muted: Muted::from_list(&c.muted),
                     },
                 )
             })
@@ -319,16 +368,25 @@ mod tests {
         let m = model::Midi {
             cc_tap: 13,
             channels: vec![
-                model::MidiChannel { channel: 5, cc_sound: Some(20), cc_tap: None, cc_tuner: None },
-                model::MidiChannel { channel: 1, cc_sound: None, cc_tap: None, cc_tuner: Some(16) },
+                model::MidiChannel { channel: 5, cc_sound: Some(20), ..channel(5) },
+                model::MidiChannel { cc_tuner: Some(16), ..channel(1) },
             ],
             ..Default::default()
         };
         let l = Listen::from_config(&m, None);
         assert_eq!(l.label().as_deref(), Some("1 · 5"));
-        assert_eq!(l.numbers(Some(5)), Numbers { cc_sound: 20, cc_tap: 13, cc_tuner: 15 });
-        assert_eq!(l.numbers(Some(1)), Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 16 });
-        assert_eq!(l.numbers(None), Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 15 });
+        assert_eq!(
+            l.numbers(Some(5)),
+            Numbers { cc_sound: 20, cc_tap: 13, cc_tuner: 15, muted: Muted::default() }
+        );
+        assert_eq!(
+            l.numbers(Some(1)),
+            Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 16, muted: Muted::default() }
+        );
+        assert_eq!(
+            l.numbers(None),
+            Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 15, muted: Muted::default() }
+        );
         assert!(l.hears(Some(1)) && l.hears(Some(5)) && l.hears(None));
         assert!(!l.hears(Some(10)));
         assert_eq!(l.why_not(Some(10)).as_deref(), Some("ignoré : namfoop écoute les canaux 1 · 5"));
@@ -342,7 +400,10 @@ mod tests {
     fn la_config_d_un_seul_canal_marche_telle_quelle() {
         let m = model::Midi { channel: Some(5), cc_sound: 20, ..Default::default() };
         let l = Listen::from_config(&m, None);
-        assert_eq!(l.channels, [(5, Numbers { cc_sound: 20, cc_tap: 14, cc_tuner: 15 })]);
+        assert_eq!(
+            l.channels,
+            [(5, Numbers { cc_sound: 20, cc_tap: 14, cc_tuner: 15, muted: Muted::default() })]
+        );
     }
 
     #[test]
@@ -355,5 +416,24 @@ mod tests {
         let s = MidiArgs::default().resolve(&c).expect("MIDI");
         assert_eq!(s.clock_from.as_deref(), Some("UM-ONE"));
         assert_eq!(s.ignore, ["Digital Piano"]);
+    }
+
+    fn channel(channel: u8) -> model::MidiChannel {
+        model::MidiChannel { channel, cc_sound: None, cc_tap: None, cc_tuner: None, muted: Vec::new() }
+    }
+
+    /// Un geste coupé l'est **sur son canal** : le tap coupé du canal 1 ne coupe pas celui du 5.
+    #[test]
+    fn un_geste_coupe_l_est_sur_son_canal() {
+        let m = model::Midi {
+            muted: vec![model::Gesture::Pc],
+            channels: vec![model::MidiChannel { muted: vec![model::Gesture::Tap], ..channel(1) }, channel(5)],
+            ..Default::default()
+        };
+        let l = Listen::from_config(&m, None);
+        assert!(l.numbers(Some(1)).muted.tap);
+        assert!(!l.numbers(Some(5)).muted.tap);
+        assert!(l.numbers(None).muted.pc, "les coupures de [midi] valent pour ce qui n'a pas de canal réglé");
+        assert!(!l.numbers(Some(5)).muted.pc, "un canal réglé a ses propres coupures");
     }
 }

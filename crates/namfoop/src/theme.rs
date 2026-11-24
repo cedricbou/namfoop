@@ -163,6 +163,13 @@ pub fn dim() -> Color {
     pick(Color::DarkGray, STEEL)
 }
 
+/// **L'accent d'un écran neutre** — hors des espaces, comme `namfoop midi` : titres, touches,
+/// onglet actif et ligne visée (en inverse). Le blanc pur de la charte, pour que la couleur n'y
+/// porte que des états.
+pub fn neutral() -> Color {
+    pick(Color::White, WHITE)
+}
+
 /// Texte posé sur un aplat de couleur (les inversions).
 pub fn on_accent() -> Color {
     pick(Color::Black, INK)

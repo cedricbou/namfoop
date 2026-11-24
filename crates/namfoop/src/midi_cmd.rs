@@ -1,4 +1,5 @@
-//! `namfoop midi` : les ports MIDI d'entrée de la machine, puis **ce qui en sort**, en clair.
+//! `namfoop midi` : devant un terminal, **l'écran de réglage** (`crate::midi_screen`) ; sinon, ou
+//! avec `--lines`, les ports MIDI d'entrée de la machine, puis **ce qui en sort**, en clair.
 //!
 //! C'est la commande qui répond à « est-ce que mon pédalier parle ? » avant un concert, sans
 //! ouvrir la carte son ni l'assistant : on appuie sur une pédale, et la ligne s'affiche. Les
@@ -21,13 +22,34 @@ pub struct MidiCmdArgs {
     /// Liste les ports et s'arrête, sans écouter
     #[arg(long)]
     pub list: bool,
-    /// Arrêt automatique après N secondes (tests) [défaut : Ctrl+C]
+    /// Arrêt automatique après N secondes (tests ; affiche ligne à ligne) [défaut : Ctrl+C]
     #[arg(long)]
     pub seconds: Option<f64>,
+    /// Affiche les messages ligne à ligne au lieu de l'écran de réglage (imposé quand la sortie
+    /// n'est pas un terminal)
+    #[arg(long)]
+    pub lines: bool,
 }
 
 pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<()> {
+    use std::io::IsTerminal;
     let demande = midi.resolve(&conf.config);
+    // **L'écran de réglage** (`docs/design/midi.md`), quand on est devant un terminal. Le port
+    // s'ouvre sans appareil décoché ni horloge imposée : l'écran applique son brouillon lui-même.
+    let ecran = !args.list
+        && !args.lines
+        && args.seconds.is_none()
+        && std::io::stdout().is_terminal()
+        && std::io::stdin().is_terminal();
+    if ecran {
+        let Some(mut cfg) = demande else {
+            println!("L'écoute est coupée (--no-midi ou [midi] off) : rien à régler.");
+            return Ok(());
+        };
+        cfg.ignore.clear();
+        cfg.clock_from = None;
+        return crate::midi_screen::run(midi_io::open(&cfg)?, conf);
+    }
     let ports = midi_io::ports().unwrap_or_default();
     if ports.is_empty() {
         println!(
@@ -85,7 +107,14 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
             if let Some(ligne) = horloge.ligne(&m, &input.device_name(m.device)) {
                 let effet = match listen.why_not(m.channel) {
                     Some(raison) => format!("   ({raison})"),
-                    None => en_clair(&m.event, listen.numbers(m.channel).cc_tuner),
+                    None => {
+                        let n = listen.numbers(m.channel);
+                        if n.muted.tuner {
+                            String::new()
+                        } else {
+                            en_clair(&m.event, n.cc_tuner)
+                        }
+                    }
                 };
                 println!("  {:>7.2} s  {ligne}{effet}", (m.at - debut).as_secs_f64());
             }
