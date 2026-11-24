@@ -815,6 +815,48 @@ def scenario_midi_ecran_set(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_midi_plan(binaire, lignes, colonnes):
+    """**Le Plan du set** de l'écran MIDI : donner son numéro à un morceau en recevant le Program
+    Change qu'Ableton enverra, enregistrer le set, puis relire son fichier."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-midi-plan-") as tmp:
+        bib = set_de_concert(bibliotheque_jetable(os.path.join(tmp, "library")))
+        tube = os.path.join(tmp, "cable")
+        os.mkfifo(tube)
+        config = os.path.join(tmp, "config.toml")
+        with open(config, "w", encoding="utf-8") as f:
+            f.write(f'[midi]\nin = "sim:{tube}"\n\n[set]\ndefault = "concert"\n')
+        ec = Ecran(binaire, ["--config", config, "midi", "--library", bib], lignes, colonnes,
+                   os.path.join(tmp, "trace.log"))
+        try:
+            ec.lire(1.5)
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+            ec.taper("\t", 0.5)
+            verifier("Tempo" in ec.voir(), f"{taille} : Tab ouvre le Plan du set")
+            ec.taper("\r", 0.4)
+            os.write(fd, b"pc 7\n")
+            ec.lire(0.6)
+            ec.taper("\r", 0.4)
+            verifier("PC 7" in ec.voir(), f"{taille} : le numéro reçu est posé (PC 7), pas encore écrit")
+            ec.taper("S", 0.6)
+            ec.taper("q", 0.6)
+            verifier(ec.attendre_fin(4.0) == 0, f"{taille} : l'écran se quitte proprement")
+            os.close(fd)
+            ecrit = open(os.path.join(bib, "sets/concert.set.toml"), encoding="utf-8").read()
+            verifier("pc = 7" in ecrit, f"{taille} : le set enregistré porte le PC 7")
+        finally:
+            ec.tuer()
+
+
 def scenario_midi_horloge(binaire, lignes, colonnes):
     """**L'horloge MIDI de bout en bout** : la phase du clic doit être IMMOBILE.
 
@@ -949,6 +991,7 @@ def main():
     scenario_midi_canaux(binaire, 25, 80)
     scenario_midi_ecran(binaire, 25, 80)
     scenario_midi_ecran_set(binaire, 25, 80)
+    scenario_midi_plan(binaire, 25, 80)
 
     if ECHECS:
         print(f"bout en bout : ÉCHEC ({len(ECHECS)})")

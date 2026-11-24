@@ -21,7 +21,7 @@ use anyhow::Result;
 
 use crate::config::LoadedConfig;
 use crate::tui;
-use state::{Action, DeviceLive, State};
+use state::{Action, DeviceLive, SetFile, State};
 
 /// Le tour de boucle : de quoi voir un appui tout de suite sans occuper la machine.
 const POLL_MS: u64 = 30;
@@ -29,6 +29,7 @@ const POLL_MS: u64 = 30;
 pub fn run(mut input: midi_io::Input, conf: &LoadedConfig, library: &std::path::Path) -> Result<()> {
     let mut st = State::new(conf.config.midi.clone().unwrap_or_default(), !conf.ignored);
     st.set = current_set(conf, library);
+    st.sets = sets(library);
     let port = input.description().to_string();
     let start = Instant::now();
     let mut session = tui::Session::start()?;
@@ -54,8 +55,21 @@ pub fn run(mut input: midi_io::Input, conf: &LoadedConfig, library: &std::path::
                     save(&st, conf)?;
                     st.mark_saved();
                 }
+                Action::SaveSet => match save_set(&st) {
+                    Ok(()) => st.mark_set_saved(),
+                    Err(e) => st.message = Some((format!("{e:#}"), state::Tone::Error)),
+                },
+                Action::OpenSet(path) => match library::Library::scan(library).set(&path) {
+                    Ok(spec) => st.open_set(spec, path),
+                    Err(e) => st.message = Some((format!("{e:#}"), state::Tone::Error)),
+                },
                 Action::SaveAndQuit => {
-                    save(&st, conf)?;
+                    if st.dirty() && !conf.ignored {
+                        save(&st, conf)?;
+                    }
+                    if st.set_dirty() {
+                        save_set(&st)?;
+                    }
                     return Ok(());
                 }
                 Action::Quit => return Ok(()),
@@ -80,15 +94,36 @@ fn save(st: &State, conf: &LoadedConfig) -> Result<()> {
 
 /// Le set du moment (`[set] default`), s'il se lit : c'est lui que le groupe appellera. Absent ou
 /// illisible, l'écran marche sans, et dit d'un Program Change qu'il appelle une place de banque.
-fn current_set(conf: &LoadedConfig, library: &std::path::Path) -> Option<library::set::SetSpec> {
+fn current_set(conf: &LoadedConfig, library: &std::path::Path) -> Option<SetFile> {
     let query = conf.config.set.as_ref()?.default.clone()?;
     let lib = library::Library::scan(library);
-    let found = lib.resolve_set(&query).and_then(|p| lib.set(&p));
+    let found = lib.resolve_set(&query).and_then(|p| lib.set(&p).map(|s| (s, p)));
     match found {
-        Ok(spec) => Some(spec),
+        Ok((spec, path)) => Some(SetFile::new(spec, path)),
         Err(e) => {
             log::warn!("set « {query} » : {e:#}");
             None
         }
     }
+}
+
+/// Écrit le set réglé dans l'onglet Plan du set (`library::set::SetSpec::save`, le chemin de
+/// l'édition du set).
+fn save_set(st: &State) -> Result<()> {
+    if let Some(s) = &st.set {
+        s.spec.save(&s.path)?;
+    }
+    Ok(())
+}
+
+/// Les sets de la bibliothèque, pour `L` : leur nom affiché et leur chemin.
+fn sets(library: &std::path::Path) -> Vec<(String, std::path::PathBuf)> {
+    let mut out: Vec<(String, std::path::PathBuf)> = library::Library::scan(library)
+        .entries
+        .iter()
+        .filter(|e| e.path.to_string_lossy().ends_with(".set.toml"))
+        .map(|e| (library::set::display_name(&e.path), e.path.clone()))
+        .collect();
+    out.sort();
+    out
 }

@@ -132,7 +132,7 @@ impl ActiveSet {
 
     /// Le morceau qui occupe déjà ce PC, s'il y en a un (hors `except`).
     pub fn pc_owner(&self, pc: u8, except: usize) -> Option<&Song> {
-        self.spec.songs.iter().enumerate().find(|(i, s)| *i != except && s.pc == Some(pc)).map(|(_, s)| s)
+        self.spec.pc_owner(pc, except).map(|i| &self.spec.songs[i])
     }
 
     /// `true` si le set a changé depuis son dernier enregistrement.

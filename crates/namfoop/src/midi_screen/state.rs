@@ -83,6 +83,55 @@ pub enum Target {
     ChangeChannel(u8),
     /// Le numéro de CC d'un geste, sur un canal (`None` : tous les canaux).
     Number(Option<u8>, Gesture),
+    /// Le numéro de Program Change d'un morceau du set (onglet Plan du set).
+    SongPc(usize),
+}
+
+/// Les onglets de l'écran, dans l'ordre (§ 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tab {
+    Devices,
+    Plan,
+}
+
+impl Tab {
+    pub const ALL: [Tab; 2] = [Tab::Devices, Tab::Plan];
+}
+
+/// Une fenêtre de liste (§ 5, « Les listes ») : pas une saisie.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ListWin {
+    pub kind: ListKind,
+    pub items: Vec<String>,
+    pub idx: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ListKind {
+    /// Le canal dont le Plan du set montre les CC (`C`).
+    Channel(Vec<u8>),
+    /// Un autre set (`L`) : leurs chemins, dans l'ordre des noms.
+    Set(Vec<std::path::PathBuf>),
+}
+
+/// Le set du moment, tel qu'on le règle ici, et ce qui en est enregistré.
+pub struct SetFile {
+    pub spec: library::set::SetSpec,
+    saved: library::set::SetSpec,
+    pub path: std::path::PathBuf,
+    /// Son nom de fichier (`groupe-1`), celui qu'affiche l'en-tête.
+    pub stem: String,
+}
+
+impl SetFile {
+    pub fn new(spec: library::set::SetSpec, path: std::path::PathBuf) -> Self {
+        let stem = library::set::display_name(&path);
+        Self { saved: spec.clone(), spec, path, stem }
+    }
+
+    pub fn dirty(&self) -> bool {
+        self.spec != self.saved
+    }
 }
 
 /// La fenêtre « Régler » (§ 5) : une saisie, donc un mode (ADR 0009).
@@ -106,15 +155,21 @@ pub enum Modal {
     /// « Modifications non enregistrées » (§ 9).
     Quit,
     Help,
+    List(ListWin),
 }
 
 /// Ce que la boucle doit faire.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
     None,
     /// Écrire la config, puis [`State::mark_saved`].
     Save,
+    /// Écrire le set, puis [`State::mark_set_saved`].
+    SaveSet,
+    /// Ouvrir un autre set : la boucle le lit, puis [`State::open_set`].
+    OpenSet(std::path::PathBuf),
     Quit,
+    /// Écrire ce qui n'est pas enregistré (config et set), puis quitter.
     SaveAndQuit,
 }
 
@@ -144,8 +199,21 @@ pub struct State {
     pub log: VecDeque<LogLine>,
     pub modal: Option<Modal>,
     pub message: Option<(String, Tone)>,
-    /// Le set du moment (`[set] default`), lu pour dire ce qu'un message appellerait.
-    pub set: Option<library::set::SetSpec>,
+    /// Le set du moment (`[set] default`), lu pour dire ce qu'un message appellerait, et réglé par
+    /// l'onglet Plan du set.
+    pub set: Option<SetFile>,
+    /// Les sets de la bibliothèque, pour `L` : leur nom, et leur chemin.
+    pub sets: Vec<(String, std::path::PathBuf)>,
+    pub tab: Tab,
+    /// Le morceau visé dans le Plan du set.
+    pub plan_cursor: usize,
+    /// Les morceaux dépliés (`i`).
+    pub open: BTreeSet<usize>,
+    /// Le canal dont le Plan et la Fiche montrent les CC (`C`) ; `None` : le premier réglé.
+    pub plan_channel: Option<u8>,
+    /// L'instant où le message d'un morceau (`None`) ou d'un son (`Some(k)`) est arrivé : la liste
+    /// de contrôle de la balance.
+    pub heard: HashMap<(usize, Option<usize>), u64>,
     /// **Le morceau et le son joués**, tenus par l'écran lui-même (il n'a pas de session) : le
     /// dernier Program Change reconnu, puis le dernier son. C'est ce qui permet de dire « Le Phare
     /// n'a que 2 sons ».
@@ -189,6 +257,12 @@ impl State {
             modal: None,
             message: None,
             set: None,
+            sets: Vec::new(),
+            tab: Tab::Devices,
+            plan_cursor: 0,
+            open: BTreeSet::new(),
+            plan_channel: None,
+            heard: HashMap::new(),
             playing: None,
             logged_tempo: None,
         }
@@ -312,12 +386,34 @@ impl State {
                 self.input_key(key);
                 return Action::None;
             }
+            Some(Modal::List(_)) => return self.list_key(key),
             None => {}
+        }
+        // les onglets d'abord : ils valent partout (§ 10)
+        match key {
+            Key::Tab => return self.go_tab((self.tab_index() + 1) % Tab::ALL.len()),
+            Key::BackTab => return self.go_tab((self.tab_index() + Tab::ALL.len() - 1) % Tab::ALL.len()),
+            Key::Right if self.tab_index() + 1 < Tab::ALL.len() => return self.go_tab(self.tab_index() + 1),
+            Key::Left if self.tab_index() > 0 => return self.go_tab(self.tab_index() - 1),
+            Key::Right => {
+                self.say("→ ne va pas plus loin : Plan du set est le dernier onglet", Tone::Plain);
+                return Action::None;
+            }
+            Key::Left => {
+                self.say("← ne va pas plus loin : Appareils et canaux est le premier onglet", Tone::Plain);
+                return Action::None;
+            }
+            _ => {}
+        }
+        if self.tab == Tab::Plan {
+            if let Some(a) = self.plan_key(key) {
+                return a;
+            }
         }
         match key {
             Key::Char('h') | Key::Char('?') => self.modal = Some(Modal::Help),
             Key::Char('q') => {
-                if self.dirty() {
+                if self.dirty() || self.set_dirty() {
                     self.modal = Some(Modal::Quit);
                 } else {
                     return Action::Quit;
@@ -365,7 +461,7 @@ impl State {
     fn quit_key(&mut self, key: Key) -> Action {
         self.modal = None;
         match key {
-            Key::Char('S') if self.can_save => Action::SaveAndQuit,
+            Key::Char('S') if self.can_save || !self.dirty() => Action::SaveAndQuit,
             Key::Char('S') => {
                 self.say("--no-config : rien n'est enregistré ; Q quitte sans enregistrer", Tone::Warn);
                 self.modal = Some(Modal::Quit);
@@ -406,6 +502,13 @@ impl State {
             Target::AddChannel => String::new(),
             Target::ChangeChannel(c) => c.to_string(),
             Target::Number(ch, g) => cc_of(&self.numbers(ch), g).to_string(),
+            Target::SongPc(i) => self
+                .set
+                .as_ref()
+                .and_then(|s| s.spec.songs.get(i))
+                .and_then(|s| s.pc)
+                .map(|p| p.to_string())
+                .unwrap_or_default(),
         };
         self.modal = Some(Modal::Input(InputWin {
             target,
@@ -507,6 +610,11 @@ impl State {
             }
         };
         match w.target {
+            Target::SongPc(i) => {
+                if let Err(e) = self.set_song_pc(i, v) {
+                    return refuse(self, e);
+                }
+            }
             Target::AddChannel | Target::ChangeChannel(_) => {
                 let Some(c) = v else {
                     return refuse(self, "un canal va de 1 à 16 : x retire un canal".into());
@@ -637,15 +745,31 @@ impl State {
             w.err = Some(format!("{device} est décoché : b sur sa ligne pour l'écouter"));
             return;
         }
-        let Some(ch) =
-            m.channel.filter(|_| matches!(m.event, Event::ProgramChange(_) | Event::Control { .. }))
-        else {
+        if !matches!(m.event, Event::ProgramChange(_) | Event::Control { .. }) {
             w.learned = None;
             w.err = Some("l'horloge n'a ni canal ni numéro : rien à prendre".into());
             return;
-        };
+        }
+        // un message sans canal (une ligne de port simulé écrite sans « ch ») vaut pour la ligne
+        // qu'on règle ; seul l'ajout d'un canal a besoin d'en lire un
+        let canal = m.channel.map(|c| format!(" · canal {c}")).unwrap_or_default();
         match w.target {
+            Target::SongPc(_) => {
+                let Event::ProgramChange(n) = m.event else {
+                    w.learned = None;
+                    w.err = Some("c'est un CC : un morceau s'appelle par Program Change".into());
+                    return;
+                };
+                w.buf = n.to_string();
+                w.fresh = true;
+                w.learned = Some((format!("● reçu : PC {n}{canal} · {device}"), Tone::Ok));
+            }
             Target::AddChannel | Target::ChangeChannel(_) => {
+                let Some(ch) = m.channel else {
+                    w.learned = None;
+                    w.err = Some("ce message ne dit pas son canal : tape le numéro".into());
+                    return;
+                };
                 w.buf = ch.to_string();
                 w.fresh = true;
                 w.learned = Some((format!("● reçu sur le canal {ch} · {device}"), Tone::Ok));
@@ -656,7 +780,7 @@ impl State {
                     w.err = Some("c'est un Program Change : cette ligne attend un CC".into());
                     return;
                 };
-                if let Some(lc) = line_ch.filter(|lc| *lc != ch) {
+                if let (Some(lc), Some(ch)) = (line_ch, m.channel.filter(|c| Some(*c) != line_ch)) {
                     if channels.contains(&ch) {
                         w.learned = None;
                         w.err = Some(format!(
@@ -673,8 +797,8 @@ impl State {
                     return;
                 }
                 w.buf = cc.to_string();
-                w.learned =
-                    Some((format!("● reçu : CC {cc} · valeur {value} · canal {ch} · {device}"), Tone::Ok));
+                w.fresh = true;
+                w.learned = Some((format!("● reçu : CC {cc} · valeur {value}{canal} · {device}"), Tone::Ok));
             }
         }
     }
@@ -738,15 +862,18 @@ impl State {
 
     /// Ce que namfoop ferait du morceau ou du son demandé, d'après le set du moment
     /// (`crate::midi_rules`, les règles de `browse`).
-    fn meaning(&mut self, g: Gesture, event: Event) -> (String, Tone) {
+    fn meaning(&mut self, g: Gesture, event: Event, now_ms: u64) -> (String, Tone) {
         use crate::midi_rules::{song_for_pc, sound_of, title};
         let preset = |spec: &library::set::SetSpec, song: usize, k: usize| {
             spec.songs.get(song).and_then(|s| s.sounds.get(k)).map(|s| s.preset.clone()).unwrap_or_default()
         };
-        match (g, event, &self.set) {
+        let spec = self.set.as_ref().map(|f| f.spec.clone());
+        match (g, event, spec.as_ref()) {
             (Gesture::Pc, Event::ProgramChange(p), Some(spec)) => match song_for_pc(spec, p) {
                 Ok(song) => {
                     self.playing = Some((song, 0));
+                    self.heard.insert((song, None), now_ms);
+                    self.heard.insert((song, Some(0)), now_ms);
                     (
                         format!("→ morceau « {} », son 1 « {} »", title(spec, song), preset(spec, song, 0)),
                         Tone::Plain,
@@ -761,6 +888,7 @@ impl State {
                 match sound_of(spec, self.playing.map(|(s, _)| s), value) {
                     Ok((song, k)) => {
                         self.playing = Some((song, k));
+                        self.heard.insert((song, Some(k)), now_ms);
                         (format!("→ son {} « {} »", k + 1, preset(spec, song, k)), Tone::Plain)
                     }
                     Err(r) => (format!("hors accord : {}", r.reason()), Tone::Warn),
@@ -811,7 +939,7 @@ impl State {
             return;
         }
         self.last.insert(Row::Gesture(bloc, g), last(if g == Gesture::Tap { String::new() } else { text }));
-        let (effect, tone) = self.meaning(g, m.event);
+        let (effect, tone) = self.meaning(g, m.event, now_ms);
         self.push(device, m, effect, tone);
     }
 
@@ -854,6 +982,8 @@ pub fn cc_of(n: &Numbers, g: Gesture) -> u8 {
 pub fn default_cc(g: Gesture) -> u8 {
     cc_of(&Numbers::default(), g)
 }
+
+mod plan;
 
 #[cfg(test)]
 mod tests;

@@ -7,6 +7,20 @@
 //! Chaque touche part d'un état **neuf** : on mesure une touche, pas une séquence.
 
 use super::state::{DeviceLive, Modal, Row, State};
+
+fn plan_set() -> library::set::SetSpec {
+    let sound = |p: &str| library::set::Sound { preset: p.into(), volume_db: 0.0 };
+    library::set::SetSpec {
+        name: "Live".into(),
+        songs: vec![library::set::Song {
+            title: Some("Le Phare".into()),
+            pc: Some(2),
+            sounds: vec![sound("fuzz"), sound("clean")],
+            ..Default::default()
+        }],
+        base: Default::default(),
+    }
+}
 use crate::tui::Key;
 use model::Gesture;
 
@@ -14,7 +28,8 @@ use model::Gesture;
 fn all_keys() -> Vec<Key> {
     let mut k =
         vec![Key::Up, Key::Down, Key::Left, Key::Right, Key::Enter, Key::Esc, Key::Backspace, Key::Tab];
-    k.extend("abhqxSQ?5*kuPnL1i0".chars().map(Key::Char));
+    k.push(Key::BackTab);
+    k.extend("abhqxSQ?5*kuPnL1iC0".chars().map(Key::Char));
     k
 }
 
@@ -79,6 +94,23 @@ fn contexts() -> Vec<Contexte> {
             s.on_key(Key::Char('q'));
             s
         }),
+        ("plan du set · un morceau", || {
+            let mut s = base();
+            s.set = Some(super::state::SetFile::new(plan_set(), "live.set.toml".into()));
+            s.tab = super::state::Tab::Plan;
+            s
+        }),
+        ("plan du set · sans set", || {
+            let mut s = base();
+            s.tab = super::state::Tab::Plan;
+            s
+        }),
+        ("fenêtre « Choisir le canal » (C)", || {
+            let mut s = base();
+            s.tab = super::state::Tab::Plan;
+            s.on_key(Key::Char('C'));
+            s
+        }),
         ("aide (h)", || {
             let mut s = base();
             s.on_key(Key::Char('h'));
@@ -93,6 +125,7 @@ fn modal(s: &State) -> &'static str {
         Some(Modal::Input(_)) => "Régler",
         Some(Modal::Quit) => "sortie",
         Some(Modal::Help) => "aide",
+        Some(Modal::List(_)) => "liste",
     }
 }
 
@@ -104,6 +137,7 @@ fn measure() -> String {
         for k in all_keys() {
             let mut s = make();
             let (draft, cursor, m) = (s.draft.clone(), s.cursor.clone(), modal(&s));
+            let (tab, song, open) = (s.tab, s.plan_cursor, s.open.clone());
             let action = s.on_key(k);
             let mut faits = Vec::new();
             if action != super::state::Action::None {
@@ -114,6 +148,15 @@ fn measure() -> String {
             }
             if s.cursor != cursor {
                 faits.push(format!("curseur: {cursor:?} → {:?}", s.cursor));
+            }
+            if s.tab != tab {
+                faits.push(format!("onglet: {tab:?} → {:?}", s.tab));
+            }
+            if s.plan_cursor != song {
+                faits.push(format!("morceau: {song} → {}", s.plan_cursor));
+            }
+            if s.open != open {
+                faits.push("dépliés changés".into());
             }
             if s.draft != draft {
                 faits.push("brouillon changé".into());

@@ -2,7 +2,7 @@
 //! dérivent, comme dans `browse` (ADR 0009). L'exécuteur est `State::on_key` ; l'oracle du clavier
 //! (`keyboard.rs`) fige ce que chaque touche fait vraiment, contexte par contexte.
 
-use super::state::{Modal, State};
+use super::state::{Modal, State, Tab};
 
 /// Une touche déclarée : son étiquette, ce qu'elle fait (l'aide), son segment de barre.
 pub struct Binding {
@@ -21,6 +21,10 @@ const fn b(label: &'static str, what: &'static str, bar: &'static str) -> Bindin
 pub enum Ctx {
     /// L'onglet Appareils et canaux.
     List,
+    /// L'onglet Plan du set.
+    Plan,
+    /// Une fenêtre de liste (le canal, le set) : pas une saisie.
+    Pick,
     /// La fenêtre « Régler » : une saisie, donc un mode.
     Input,
     /// « Modifications non enregistrées ».
@@ -30,7 +34,9 @@ pub enum Ctx {
 
 pub fn context(s: &State) -> Ctx {
     match s.modal {
+        None if s.tab == Tab::Plan => Ctx::Plan,
         None => Ctx::List,
+        Some(Modal::List(_)) => Ctx::Pick,
         Some(Modal::Input(_)) => Ctx::Input,
         Some(Modal::Quit) => Ctx::Quit,
         Some(Modal::Help) => Ctx::Help,
@@ -53,11 +59,28 @@ const LIST: &[Binding] = &[
     ),
     b("x", "retirer le canal visé", "x retirer"),
     b("b", "couper ou rétablir le geste visé ; décocher ou cocher un appareil", "b couper / écouter"),
+    b("Tab · →", "onglet suivant (Plan du set) ; Maj+Tab · ← : le précédent", "Tab/→ Plan du set"),
+];
+
+/// Les touches du Plan du set (§ 6).
+const PLAN: &[Binding] = &[
+    b("↑↓", "viser un morceau", "↑↓ morceau"),
+    b("Entrée", "régler son numéro de Program Change : taper, ou le recevoir", "Entrée n° de PC"),
+    b("i", "déplier ou replier ses sons, avec le CC qui appelle chacun", "i détail"),
+    b("C", "choisir le canal dont on voit les CC (le même que la Fiche)", "C canal"),
+    b("L", "choisir un autre set", "L sets"),
+    b("Maj+Tab · ←", "onglet précédent (Appareils et canaux)", "Maj+Tab/← Appareils"),
+];
+
+const PICK: &[Binding] = &[
+    b("↑↓", "choisir", "↑↓ choisir"),
+    b("Entrée", "garder", "Entrée garder"),
+    b("Échap", "ne rien changer", "Échap ne rien changer"),
 ];
 
 /// Les communes et les sorties, toujours à la fin et dans cet ordre : `S`, `h`, `q`.
 const EXITS: &[Binding] = &[
-    b("S", "enregistrer la config", "S enregistrer"),
+    b("S", "enregistrer ce qu'on a devant soi : la config, ou le set", "S enregistrer"),
     b("h · ?", "cette aide ; n'importe quelle touche la referme", "h aide"),
     b("q", "quitter, par la fenêtre « Modifications non enregistrées » s'il le faut", "q quitter"),
     b("Échap", "ne quitte pas", ""),
@@ -82,12 +105,19 @@ pub fn bar(ctx: Ctx) -> [String; 2] {
         |t: &[Binding]| t.iter().filter(|b| !b.bar.is_empty()).map(|b| b.bar).collect::<Vec<_>>().join("   ");
     match ctx {
         Ctx::List | Ctx::Help => [join(LIST), join(EXITS)],
+        Ctx::Plan => [join(PLAN), join(EXITS).replace("S enregistrer", "S enregistrer le set")],
+        Ctx::Pick => [join(PICK), String::new()],
         Ctx::Input => [join(INPUT), "ou appuie sur un bouton de l'appareil".into()],
         Ctx::Quit => [join(QUIT), "toute autre touche : rester".into()],
     }
 }
 
 /// Les lignes de l'aide `h` : l'onglet, puis les sorties.
-pub fn help() -> impl Iterator<Item = &'static Binding> {
-    LIST.iter().chain(EXITS)
+pub fn help(tab: Tab) -> impl Iterator<Item = &'static Binding> {
+    match tab {
+        Tab::Devices => LIST,
+        Tab::Plan => PLAN,
+    }
+    .iter()
+    .chain(EXITS)
 }
