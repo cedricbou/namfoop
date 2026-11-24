@@ -339,6 +339,10 @@ pub fn run(
             clock: m.clock,
         };
     }
+    // les numéros de chaque canal réglé (ADR 0012), tels que le port ouvert les a résolus
+    if let Some(m) = start_with.midi.as_ref() {
+        st.midi_channels = m.listen().channels.clone();
+    }
     // le set demandé : il remplace la banque par la sienne (§ 4). Un set illisible est signalé et
     // `browse` s'ouvre **sans** set, plutôt que de refuser de démarrer avant un concert.
     // `--set` d'abord, sinon **le set retenu** de la session précédente (§ 4)
@@ -420,7 +424,7 @@ pub fn run(
                     // mesure le tempo, pas le tour de boucle (`saturating_duration_since` parce
                     // qu'un message peut précéder le départ de la boucle)
                     let at_us = msg.at.saturating_duration_since(start).as_micros() as u64;
-                    let a = st.on_midi(msg.event, at_us, msg.clock_seq);
+                    let a = st.on_midi_from(msg.event, msg.channel, at_us, msg.clock_seq);
                     if a != Action::None {
                         midi_pending = a;
                     }

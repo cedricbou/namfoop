@@ -128,8 +128,6 @@ pub fn run(
         log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
     }
     let mut midi = midi;
-    let midi_conf = conf.config.midi.clone().unwrap_or_default();
-    let (cc_tap, cc_tuner, cc_sound) = (midi_conf.cc_tap, midi_conf.cc_tuner, midi_conf.cc_sound);
     let clock_on = conf.config.midi.as_ref().is_none_or(|m| m.clock);
     let mut ticks = 0u32;
     let mut heard_src = tempo.source();
@@ -182,6 +180,8 @@ pub fn run(
         if let Some(m) = &mut midi {
             while let Some(msg) = m.try_pop() {
                 log::debug!("MIDI : {}", midi_io::describe(&msg.event, msg.channel));
+                // les numéros du canal du message (ADR 0012)
+                let crate::cli_midi::Numbers { cc_sound, cc_tap, cc_tuner } = m.listen().numbers(msg.channel);
                 // l'accordeur au pied ou depuis Ableton : CC 15 (réglable), 64 ou plus coupe, moins
                 // de 64 rend le son ; un changement de morceau, de son ou un `Start` le rend aussi
                 let want = match msg.event {

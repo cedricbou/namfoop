@@ -20,7 +20,10 @@ cli_midi.rs     options MIDI clap (MidiArgs : --midi-in, --no-midi, --midi-chann
                 (CLI > config > défaut) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**,
                 et ne fait jamais échouer le démarrage — c'est le seul endroit où cette règle vit
                 (check-arch.sh refuse `midi_io::open` ailleurs qu'ici et dans midi_cmd.rs).
-                LE CANAL ÉCOUTÉ : `Listen::hears`, la seule règle « ce message est-il pour moi » ;
+                LES CANAUX ET LEURS NUMÉROS (ADR 0012) : `Listen` (la table canal -> `Numbers`,
+                bâtie par `from_config`) ; `hears`, la seule règle « ce message est-il pour moi » ;
+                `numbers(canal)`, ceux que browse (`State::on_midi_from`), run et midi_cmd
+                appliquent ;
                 `MidiIn` (ce que rend `open()`) l'applique en vidant la file, si bien que browse et
                 run ne voient jamais un message d'un autre canal ; midi_cmd.rs, lui, montre tout et
                 dit pourquoi il ignore (`Listen::why_not`). Sans canal, tout passe

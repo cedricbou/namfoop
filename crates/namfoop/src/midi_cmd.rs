@@ -62,7 +62,10 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
     println!(
         "\nÉcoute {}{} — {} :",
         input.description(),
-        listen.channel.map(|c| format!(" · canal {c}")).unwrap_or_default(),
+        listen
+            .label()
+            .map(|l| format!(" · {} {l}", if listen.channels.len() > 1 { "canaux" } else { "canal" }))
+            .unwrap_or_default(),
         match args.seconds {
             Some(s) => format!("{s:.0} s"),
             None => "Ctrl+C pour sortir".into(),
@@ -75,7 +78,6 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
     let debut = Instant::now();
     let fin = args.seconds.map(|s| debut + Duration::from_secs_f64(s));
     let mut horloge = Horloge::default();
-    let cc_tuner = conf.config.midi.clone().unwrap_or_default().cc_tuner;
     let mut vus = 0u64;
     while !stop.load(Ordering::Relaxed) && fin.is_none_or(|f| Instant::now() < f) {
         while let Some(m) = input.try_pop() {
@@ -83,7 +85,7 @@ pub fn run(args: &MidiCmdArgs, midi: &MidiArgs, conf: &LoadedConfig) -> Result<(
             if let Some(ligne) = horloge.ligne(&m, &input.device_name(m.device)) {
                 let effet = match listen.why_not(m.channel) {
                     Some(raison) => format!("   ({raison})"),
-                    None => en_clair(&m.event, cc_tuner),
+                    None => en_clair(&m.event, listen.numbers(m.channel).cc_tuner),
                 };
                 println!("  {:>7.2} s  {ligne}{effet}", (m.at - debut).as_secs_f64());
             }
