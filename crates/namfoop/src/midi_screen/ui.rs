@@ -13,7 +13,7 @@ use ratatui::Frame;
 
 use model::Gesture;
 
-use super::state::{cc_of, default_cc, InputWin, Modal, Row, State, Target, Tone};
+use super::state::{cc_of, default_cc, InputWin, ListWin, Modal, Row, State, Tab, Target, Tone};
 use super::table::{self, Ctx};
 use crate::theme;
 
@@ -73,11 +73,13 @@ pub fn gesture_label(g: Gesture) -> &'static str {
 /// Une ligne de la liste : des segments, et la ligne visée qu'elle représente.
 struct Item {
     row: Option<Row>,
+    /// Dans le Plan du set : le morceau que cette ligne représente.
+    song: Option<usize>,
     spans: Vec<(String, Style)>,
 }
 
 fn item(row: Option<Row>, spans: Vec<(String, Style)>) -> Item {
-    Item { row, spans }
+    Item { row, song: None, spans }
 }
 
 fn head(text: String) -> Item {
@@ -260,7 +262,13 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
     .areas(f.area());
 
     // l'en-tête : ce qu'on écoute, et l'état d'enregistrement de ce que l'onglet règle
-    let state = if !s.can_save {
+    let state = if s.tab == Tab::Plan {
+        match &s.set {
+            None => ("aucun set (L)".to_string(), tone(Tone::Dim)),
+            Some(f) if f.dirty() => (format!("set : {} ● non enregistré (S)", f.stem), tone(Tone::Warn)),
+            Some(f) => (format!("set : {} ✓", f.stem), tone(Tone::Ok)),
+        }
+    } else if !s.can_save {
         ("--no-config : rien n'est enregistré".to_string(), tone(Tone::Dim))
     } else if s.dirty() {
         ("config ● non enregistrée (S)".into(), tone(Tone::Warn))
@@ -278,9 +286,17 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
         left,
     );
     f.render_widget(Paragraph::new(Span::styled(state.0, state.1)), right);
-    let mut t = vec![Span::raw("   "), Span::styled(" Appareils et canaux ", inverse())];
-    if s.dirty() {
-        t.push(Span::styled("●", tone(Tone::Warn)));
+    let songs = s.set.as_ref().map_or(0, |f| f.spec.songs.len());
+    let names = [
+        ("Appareils et canaux".to_string(), Tab::Devices, s.dirty()),
+        (format!("Plan du set ({songs})"), Tab::Plan, s.set_dirty()),
+    ];
+    let mut t = vec![Span::raw("  ")];
+    for (name, tab, dirty) in names {
+        let style = if s.tab == tab { inverse() } else { tone(Tone::Dim) };
+        t.push(Span::styled(format!(" {name} "), style));
+        t.push(if dirty { Span::styled("●", tone(Tone::Warn)) } else { Span::raw(" ") });
+        t.push(Span::raw(" "));
     }
     f.render_widget(Paragraph::new(Line::from(t)), tabs);
 
@@ -293,21 +309,32 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
         1 => "1 canal réglé".to_string(),
         n => format!("{n} canaux réglés"),
     };
-    let title =
-        format!(" MIDI · APPAREILS ET CANAUX — {devices} appareil(s) · horloge : {clock_by} · {chans} ");
+    let title = if s.tab == Tab::Plan {
+        plan_title(s)
+    } else {
+        format!(" MIDI · APPAREILS ET CANAUX — {devices} appareil(s) · horloge : {clock_by} · {chans} ")
+    };
     let frame = Block::bordered().border_style(tone(Tone::Dim)).title(Span::styled(title, strong()));
     let inner = frame.inner(body);
     f.render_widget(frame, body);
-    let items = list(s, now_ms, inner.width as usize);
+    let items = if s.tab == Tab::Plan { plan(s, now_ms) } else { list(s, now_ms, inner.width as usize) };
     let h = inner.height as usize;
-    let cur = items.iter().position(|i| i.row.as_ref() == Some(&s.cursor)).unwrap_or(0);
-    let start = if cur >= h { cur + 1 - h } else { 0 };
+    let cur = if s.tab == Tab::Plan {
+        items
+            .iter()
+            .position(|i| i.song == Some(s.plan_cursor) && i.row.is_none() && !i.spans.is_empty())
+            .unwrap_or(usize::MAX)
+    } else {
+        items.iter().position(|i| i.row.as_ref() == Some(&s.cursor)).unwrap_or(0)
+    };
+    let selectable = |i: &Item| i.row.is_some() || i.song.is_some();
+    let start = if cur != usize::MAX && cur >= h { cur + 1 - h } else { 0 };
     let mut lines: Vec<Line> = items
         .iter()
         .enumerate()
         .skip(start)
         .take(h)
-        .map(|(i, it)| line_of(it, i == cur && it.row.is_some(), inner.width as usize))
+        .map(|(i, it)| line_of(it, i == cur && selectable(it), inner.width as usize))
         .collect();
     if items.len() > start + h && h > 0 {
         let below = items.len() - start - h + 1;
@@ -325,7 +352,8 @@ pub fn render(s: &State, port: &str, now_ms: u64, f: &mut Frame) {
     match &s.modal {
         Some(Modal::Input(w)) => input(s, w, body, f),
         Some(Modal::Quit) => quit(s, body, f),
-        Some(Modal::Help) => help(body, f),
+        Some(Modal::Help) => help(s.tab, body, f),
+        Some(Modal::List(w)) => pick(w, body, f),
         None => {}
     }
 }
@@ -409,6 +437,14 @@ fn input(s: &State, w: &InputWin, area: Rect, f: &mut Frame) {
         }
         Target::AddChannel => ("Ajouter un canal".to_string(), "Canal :", "de 1 à 16".to_string()),
         Target::ChangeChannel(c) => (format!("Régler · Canal {c}"), "Canal :", "de 1 à 16".to_string()),
+        Target::SongPc(i) => (
+            format!(
+                "Régler · Plan du set › {}",
+                s.set.as_ref().map_or(String::new(), |f| crate::midi_rules::title(&f.spec, i))
+            ),
+            "N° de PC :",
+            "de 1 à 128 · vide = pas de numéro".to_string(),
+        ),
         Target::Number(ch, g) => (
             format!(
                 "Régler · {} › {}",
@@ -427,7 +463,14 @@ fn input(s: &State, w: &InputWin, area: Rect, f: &mut Frame) {
             Span::styled(format!("   {hint}"), tone(Tone::Dim)),
         ]),
         Line::raw(""),
-        Line::styled("Ou appuie sur le bouton, si l'appareil est branché :", tone(Tone::Plain)),
+        Line::styled(
+            if matches!(w.target, Target::SongPc(_)) {
+                "Ou fais envoyer le Program Change :"
+            } else {
+                "Ou appuie sur le bouton, si l'appareil est branché :"
+            },
+            tone(Tone::Plain),
+        ),
         match &w.learned {
             Some((t, k)) => Line::styled(t.clone(), tone(*k)),
             None => Line::styled("○ rien reçu pour l'instant", tone(Tone::Dim)),
@@ -463,8 +506,8 @@ fn quit(_s: &State, area: Rect, f: &mut Frame) {
     );
 }
 
-fn help(area: Rect, f: &mut Frame) {
-    let mut lines: Vec<Line> = table::help()
+fn help(tab: Tab, area: Rect, f: &mut Frame) {
+    let mut lines: Vec<Line> = table::help(tab)
         .map(|b| {
             Line::from(vec![
                 Span::styled(pad(b.label, 10), strong()),
@@ -474,7 +517,114 @@ fn help(area: Rect, f: &mut Frame) {
         .collect();
     lines.push(Line::raw(""));
     lines.push(Line::styled("N'importe quelle touche referme l'aide.", tone(Tone::Dim)));
-    window("Aide · Appareils et canaux".into(), Style::new().fg(theme::neutral()), area, lines, f);
+    let name = if tab == Tab::Plan { "Plan du set" } else { "Appareils et canaux" };
+    window(format!("Aide · {name}"), Style::new().fg(theme::neutral()), area, lines, f);
+}
+
+/// Le bandeau du Plan du set (§ 6).
+fn plan_title(s: &State) -> String {
+    let ch = s.plan_channel().map_or("tous les canaux".to_string(), |c| format!("canal {c}"));
+    match &s.set {
+        None => " MIDI · PLAN DU SET — aucun set : L pour en choisir un ".into(),
+        Some(f) => {
+            let sans = f.spec.songs.iter().filter(|x| x.pc.is_none()).count();
+            let sans = if sans > 0 { format!(" · {sans} sans numéro") } else { String::new() };
+            format!(
+                " MIDI · PLAN DU SET — {} · {} morceaux{sans} · sons du {ch} ",
+                f.stem,
+                f.spec.songs.len()
+            )
+        }
+    }
+}
+
+/// Le corps du Plan du set (§ 6) : chaque morceau, son tempo, son numéro, et s'il est arrivé.
+fn plan(s: &State, now_ms: u64) -> Vec<Item> {
+    let Some(f) = &s.set else {
+        return vec![item(
+            None,
+            vec![("Aucun set : L en choisit un dans la bibliothèque.".into(), tone(Tone::Dim))],
+        )];
+    };
+    let cc = s.numbers(s.plan_channel()).cc_sound;
+    let mut out = vec![item(
+        None,
+        vec![(
+            format!("    {}{}{}Reçu", pad("Morceau", 26), pad("Tempo", 8), pad("Program Change", 20)),
+            tone(Tone::Dim),
+        )],
+    )];
+    for (i, song) in f.spec.songs.iter().enumerate() {
+        let joue = s.playing.map(|(x, _)| x) == Some(i);
+        let titre = format!("{}{}", if joue { "♪ " } else { "" }, crate::midi_rules::title(&f.spec, i));
+        let tempo = song.tempo_bpm.map(|b| format!("♩{b:.0}")).unwrap_or_default();
+        let pc = song.pc.map_or("PC —".to_string(), |p| format!("PC {p}"));
+        let gauche = format!("  {} {}{}{}", i + 1, pad(&titre, 26), pad(&tempo, 8), pad(&pc, 20));
+        let (recu, st) = match (song.pc, s.heard.get(&(i, None))) {
+            (None, _) => ("pas de numéro : on ne peut pas l'appeler".to_string(), tone(Tone::Warn)),
+            (_, Some(t)) => (format!("● {}", ago(*t, now_ms)), tone(Tone::Ok)),
+            _ => ("○ pas encore".to_string(), tone(Tone::Dim)),
+        };
+        let base = if song.pc.is_none() {
+            tone(Tone::Warn)
+        } else if joue {
+            strong()
+        } else {
+            tone(Tone::Plain)
+        };
+        out.push(Item { row: None, song: Some(i), spans: vec![(gauche, base), (recu, st)] });
+        if s.open.contains(&i) {
+            for (k, sound) in song.sounds.iter().enumerate() {
+                let cur = s.playing == Some((i, k));
+                let nom = format!("      {} son {} · {}", if cur { "●" } else { "○" }, k + 1, sound.preset);
+                let r = match s.heard.get(&(i, Some(k))) {
+                    Some(t) => (format!("● {}", ago(*t, now_ms)), tone(Tone::Ok)),
+                    None => ("○ pas encore".to_string(), tone(Tone::Dim)),
+                };
+                out.push(item(
+                    None,
+                    vec![
+                        (pad(&nom, 38), if cur { tone(Tone::Ok) } else { tone(Tone::Dim) }),
+                        (pad(&format!("CC {cc} = {k}"), 20), tone(Tone::Plain)),
+                        r,
+                    ],
+                ));
+            }
+        }
+    }
+    out.push(item(None, vec![]));
+    out.push(item(
+        None,
+        vec![(
+            "Les sons et leur ordre se changent dans le Set. Ici, seul le numéro du morceau se règle.".into(),
+            tone(Tone::Dim),
+        )],
+    ));
+    out
+}
+
+/// Une fenêtre de liste (le canal, le set) : pas une saisie, donc neutre.
+fn pick(w: &ListWin, area: Rect, f: &mut Frame) {
+    let title = match w.kind {
+        super::state::ListKind::Channel(_) => "Choisir le canal · Plan du set et Fiche",
+        super::state::ListKind::Set(_) => "Choisir le set",
+    };
+    let mut lines: Vec<Line> = w
+        .items
+        .iter()
+        .enumerate()
+        .map(|(i, it)| {
+            if i == w.idx {
+                Line::styled(pad(&format!("▶ {it}"), 46), inverse())
+            } else {
+                Line::styled(format!("  {it}"), tone(Tone::Plain))
+            }
+        })
+        .collect();
+    lines.push(Line::raw(""));
+    lines.push(bar_line(&table::bar(Ctx::Pick)[0]));
+    let h = (w.items.len() as u16 + 4).min(area.height);
+    window(title.into(), Style::new().fg(theme::neutral()), centered(area, 52, h), lines, f);
 }
 
 #[cfg(test)]

@@ -2266,6 +2266,22 @@ balance : le groupe envoie, tu lis. L'horloge s'y affiche par son tempo, une lig
 Ce qui arrive sur un canal non réglé n'est pas listé : une ligne le compte et nomme ses canaux.
 `--library` indique où lire le set, comme pour les autres commandes.
 
+**L'onglet Plan du set** (`Tab` ou `→`) montre le set du moment vu par ce que le groupe doit
+envoyer : chaque morceau, son tempo, son **numéro de Program Change**, et s'il est déjà arrivé. C'est
+la liste de contrôle de la balance : la ligne d'un morceau s'allume quand son Program Change arrive,
+celle d'un son (`i` déplie les sons d'un morceau, avec le CC qui appelle chacun) quand son CC arrive.
+
+- **`Entrée`** règle le numéro du morceau visé : tape-le, ou fais-le envoyer par Ableton. Un numéro
+  déjà pris est refusé en nommant le morceau qui l'a ; une saisie vide retire le numéro. Un morceau
+  sans numéro est en jaune : personne ne peut l'appeler.
+- **`C`** choisit le canal dont on voit les CC (par défaut, le premier canal réglé) ; **`L`**
+  ouvre un autre set.
+- **`S`** enregistre **le set** sur cet onglet, et la config sur l'autre : changer d'onglet ne
+  demande rien, mais un `●` reste sur l'onglet non enregistré, et `q` demande avant de rien perdre.
+
+Seul le numéro d'un morceau se règle ici ; ses sons et leur ordre se changent dans l'édition du set
+de `browse`.
+
 **L'affichage ligne à ligne** reste là pour les essais et les scripts : `namfoop midi --lines`
 (imposé quand la sortie n'est pas un terminal, et par `--seconds`) liste les ports d'entrée vus par
 la machine, puis affiche chaque message qui arrive — appuie sur une pédale, et la ligne s'écrit :

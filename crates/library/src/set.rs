@@ -181,7 +181,15 @@ impl SetSpec {
         Ok(spec)
     }
 
-    /// Écrit le set (l'édition de l'US 4). L'aller-retour ne change pas le fichier.
+    /// Le morceau qui porte déjà ce numéro de Program Change, s'il y en a un (hors `except`) : un
+    /// numéro est **unique dans le set**, et c'est cette règle que l'édition du set et l'écran MIDI
+    /// appliquent avant d'écrire.
+    pub fn pc_owner(&self, pc: u8, except: usize) -> Option<usize> {
+        self.songs.iter().enumerate().find(|(i, s)| *i != except && s.pc == Some(pc)).map(|(i, _)| i)
+    }
+
+    /// Écrit le set (son édition, dans `browse` ou l'écran MIDI). L'aller-retour ne change pas le
+    /// fichier.
     pub fn save(&self, path: &Path) -> Result<()> {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|e| Error::Msg(format!("set {} : {e}", dir.display())))?;

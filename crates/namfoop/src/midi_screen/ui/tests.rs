@@ -139,3 +139,50 @@ fn l_ecran_est_neutre() {
         }
     }
 }
+
+#[test]
+fn le_plan_du_set_montre_les_numeros_et_ce_qui_est_arrive() {
+    use crate::midi_screen::state::SetFile;
+    let sound = |p: &str| library::set::Sound { preset: p.into(), volume_db: 0.0 };
+    let spec = library::set::SetSpec {
+        name: "Live".into(),
+        songs: vec![
+            library::set::Song {
+                title: Some("Le Phare".into()),
+                pc: Some(2),
+                tempo_bpm: Some(124.0),
+                sounds: vec![sound("fuzz"), sound("clean")],
+                ..Default::default()
+            },
+            library::set::Song {
+                title: Some("Rappel".into()),
+                pc: None,
+                sounds: vec![sound("fuzz")],
+                ..Default::default()
+            },
+        ],
+        base: Default::default(),
+    };
+    let mut s = scene();
+    s.set = Some(SetFile::new(spec, "groupe-1.set.toml".into()));
+    s.on_midi("UM-ONE", &msg(Event::ProgramChange(2), Some(5)), 2300);
+    s.on_key(Key::Tab);
+    s.on_key(Key::Char('i'));
+    for t in [text(&s, 160, 50), text(&s, 80, 25)] {
+        for attendu in [
+            "Plan du set (2)",
+            "PLAN DU SET",
+            "♪ Le Phare",
+            "♩124",
+            "PC 2",
+            "son 2 · clean",
+            "pas de numéro",
+            "set : groupe-1 ✓",
+        ] {
+            assert!(t.contains(attendu), "« {attendu} » absent :\n{t}");
+        }
+    }
+    let t = text(&s, 160, 50);
+    assert!(t.contains("1 sans numéro") && t.contains("sons du canal 1"), "{t}");
+    assert!(t.contains("CC 34 = 1"), "le CC du canal du plan :\n{t}");
+}

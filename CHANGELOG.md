@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#382)
+- **L'onglet Plan du set de `namfoop midi`** : les morceaux du set du moment avec leur tempo et
+  leur numéro de Program Change ; `Entrée` règle ce numéro au clavier **ou en recevant le Program
+  Change**, et refuse un numéro déjà pris en nommant le morceau qui l'a. Un morceau sans numéro est
+  en jaune. La ligne d'un morceau ou d'un son s'allume quand son message arrive : on coche son set
+  en balance. `i` déplie les sons, `C` choisit le canal dont on voit les CC, `L` un autre set, `S`
+  enregistre le set.
+
 ### MIDI (#381)
 - **L'écran MIDI dit ce que namfoop fait de chaque message**, d'après le set du moment : le
   morceau et le son qu'un Program Change ou un CC appellent, ou, en jaune, pourquoi rien ne
