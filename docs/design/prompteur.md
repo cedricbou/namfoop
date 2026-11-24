@@ -14,6 +14,10 @@ restent **à construire** : c'est la cible des stories de l'épique « Jouer un 
 list » qui portent sur le prompteur, et ce paragraphe se retire quand elles sont livrées. Deux choix écrits ici se confirment avec
 leur story : la touche `l` (§ 5), et le tempo d'un morceau ajouté, lu dans son prompteur (§ 6).
 
+La maquette [`prompteur-variantes.html`](prompteur-variantes.html) compare les mises en page
+essayées sur un morceau aux sections découpées (structure réelle, paroles inventées) : la variante C
+est celle retenue, et décrite au § 4 ; elle affiche aussi un `.cho` chargé depuis le disque.
+
 La maquette [`prompteur.html`](prompteur.html) est une **illustration actionnable** validée avec
 l'utilisateur : à ouvrir dans un navigateur, elle se pilote au clavier et montre la mesure qui
 s'allume, les deux fenêtres de l'édition et l'écran étroit. Le morceau, ses paroles et ses sons
@@ -149,7 +153,7 @@ Dans une ligne de mesures :
 La colonne du prompteur de la vue scène (§ 6 de `set.md`), à 160 colonnes :
 
 ```
-┌ 2 · Le Phare · Em · son 1/2 Clean SVT · PgDn : ensuite Fuzz Face ─────────────────────────────────────────┐
+┌ 2 · Le Phare · Em · son 1/2 Clean SVT · PgDn : Fuzz Face ─────────────────────────────────────────────────┐
 │  ██1██   2      3      4      ♩124 4/4   mes. 3/16 COUPLET 1   ⏵                                          │
 │  → Fuzz Face dans 14 mes.   REFRAIN                                                                       │
 │ ────────────────────────────────────────────────────────────────────────────────────────────────────      │
@@ -174,25 +178,34 @@ La colonne du prompteur de la vue scène (§ 6 de `set.md`), à 160 colonnes :
 ```
 
 - **Le titre** porte la tonalité après le nom du morceau, quand le fichier la donne.
-- **Une ligne de mesures** : les accords en cyan gras, les barres et les points en gris. Les cases
-  sont alignées d'une ligne à l'autre, sur la plus large de la section.
+- **Une ligne de mesures** : les accords en cyan gras, les barres et les points en gris. Les barres
+  sont alignées d'une ligne à l'autre : chaque **colonne** de mesures (la 1ʳᵉ des lignes, la 2ᵉ…)
+  prend la largeur de sa plus large case — une seule case `G . D D#dim` n'élargit que la sienne.
 - **La mesure jouée** est en inverse vert (`▌G . . . ▐` ci-dessus) ; les mesures déjà jouées de la
   ligne courante sont grisées ; la ligne courante porte `›`.
-- **Le repère** suit la ligne, à droite, tronqué par `…` s'il dépasse. Il est en gras sur la ligne
-  courante.
+- **Le repère** est à droite de la ligne, tronqué par `…` s'il dépasse, et en gras sur la ligne
+  courante. Dans une section — et ses voisines de même nom —, **tous les repères commencent à la
+  même colonne**, celle de la ligne la plus large : l'œil ne saute pas quand les lignes n'ont pas
+  le même nombre de mesures.
 - **La cue** d'une section s'affiche en jaune sous son titre.
 - **Des sections voisines de même nom** s'affichent comme une seule : un titre, la somme de leurs
   mesures, et devant chaque grille dont la mesure change, sa mesure en gris (`2/4`, puis `4/4`). La
-  bande de battue, elle, dit la mesure en cours comme d'habitude.
+  bande de battue compte comme le prompteur montre : `mes. 11/22 REFRAIN` dans le refrain entier,
+  la section annoncée est celle d'après (`COUPLET 3 dans 12 mes.`), et un changement de mesure à
+  l'intérieur se dit à part, avec son compte (`passe en 4/4 dans 2 mes.`).
 - Les sections passées sont grisées, la courante `▸` en vert, les suivantes en gras : § 6 de
   `set.md`.
 
 **Terminal étroit.** La grille passe avant le reste, dans cet ordre :
 
-1. quand la plus large ligne de mesures du morceau ne tient pas dans la colonne du prompteur, **la
-   set list se replie** en une ligne au-dessus de lui, comme sous 70 colonnes (§ 6 de `set.md`) :
-   c'est le cas à 80 colonnes pour une ligne de quatre mesures ;
-2. quand il reste moins de vingt colonnes à droite de la ligne, **le repère passe dessous**, en gris ;
+1. quand la plus large ligne de mesures du morceau ne tient pas à côté de la set list, celle-ci **se
+   réduit à 30 colonnes** — elle garde le morceau précédent, le suivant et celui qu'on vise — ; si
+   la grille ne tient toujours pas, **elle se replie** en une ligne au-dessus du prompteur, comme sous
+   70 colonnes (§ 6 de `set.md`). À 128 colonnes (l'écran du Pi), un morceau aux accords longs
+   (`Esus4(b7) Em . .`) garde ainsi sa set list réduite ; à 80 colonnes, une ligne de quatre mesures
+   la replie ;
+2. quand il reste moins de vingt colonnes à droite de la colonne des repères, **les repères de la
+   section passent dessous**, en gris — tous, pour que la section se lise d'une seule façon ;
 3. si la ligne ne tient toujours pas, elle se coupe **à une barre de mesure** et continue dessous.
 
 À 64 colonnes :

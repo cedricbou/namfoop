@@ -95,6 +95,19 @@ pub struct Next {
     pub meter: Option<Meter>,
     /// Son tempo, seulement s'il **change** (`♩92`).
     pub tempo_bpm: Option<f32>,
+    /// Elle porte le **même nom** que la section en cours : le prompteur les montre comme une
+    /// seule (§ 4 de `prompteur.md`), donc la bande n'annonce pas son nom, seulement ce qui y
+    /// change — la mesure, le tempo, le son —, avec son propre compte.
+    pub inside: bool,
+}
+
+/// Ce qui vient **après** les sections voisines de même nom : la section que le prompteur montre
+/// comme la suivante.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Ahead {
+    pub label: String,
+    /// Combien de mesures avant d'y être. `None` : une section de durée inconnue est en travers.
+    pub bars_left: Option<u32>,
 }
 
 /// Ce que la **bande de battue** montre : des faits, pas du texte. Le dessin et les couleurs sont
@@ -110,7 +123,16 @@ pub struct Band {
     pub bars: Option<u32>,
     pub tick: u32,
     pub label: String,
+    /// La mesure et la durée **dans le groupe** de sections voisines de même nom : c'est ce que la
+    /// bande affiche (« mes. 11/22 REFRAIN »), parce que le prompteur ne montre qu'un refrain là
+    /// où la carte en compte cinq.
+    pub group_bar: u32,
+    pub group_bars: Option<u32>,
+    /// La section qui suit la section en cours, telle que la carte la voit : c'est elle qui porte
+    /// le changement de son, de mesure ou de tempo.
     pub next: Option<Next>,
+    /// La section qui suit le **groupe** : celle que la bande annonce par son nom.
+    pub ahead: Option<Ahead>,
     /// Le morceau a-t-il des sections ? Sinon la battue compte seulement les mesures (§ 11).
     pub sectioned: bool,
 }
@@ -360,7 +382,24 @@ impl State {
         let here = map.span(section)?;
         let playing = set.spec.songs.get(at.0).and_then(|s| s.sounds.get(at.1)).map(|s| s.preset.as_str());
         let sectioned = !here.label.is_empty() || map.len() > 1;
+        // **le groupe** : les sections voisines qui portent le même nom (§ 4 de `prompteur.md`)
+        let same = |a: usize, b: usize| {
+            let (x, y) = (&map.spans()[a].label, &map.spans()[b].label);
+            super::prompt::same_name(x, y)
+        };
+        let first = (0..section).rev().take_while(|i| same(*i, i + 1)).last().unwrap_or(section);
+        let end =
+            (section + 1..map.len()).take_while(|i| same(*i - 1, *i)).last().map_or(section + 1, |i| i + 1);
+        let bars_of =
+            |r: std::ops::Range<usize>| r.map(|i| map.span(i).and_then(|s| s.bars)).sum::<Option<u32>>();
+        let group_bar = bars_of(first..section).unwrap_or(0) + set.beat.bar;
+        let group_bars = bars_of(first..end);
+        let ahead = map.span(end).map(|n| Ahead {
+            label: n.label.clone(),
+            bars_left: group_bars.map(|b| b.saturating_sub(group_bar)),
+        });
         let next = map.span(section + 1).map(|n| Next {
+            inside: section + 1 < end,
             label: n.label.clone(),
             // sans durée connue, la section suivante ne vient jamais d'elle-même : on annonce
             // « dans 0 mes. » plutôt que de mentir sur un nombre
@@ -377,7 +416,10 @@ impl State {
             bars: here.bars,
             tick: set.beat.tick,
             label: here.label.clone(),
+            group_bar,
+            group_bars,
             next,
+            ahead,
             sectioned,
         })
     }
@@ -755,6 +797,33 @@ mod tests {
         assert_eq!(place(&s), (0, 0, Some(0)));
         s.on_key(Key::End);
         assert_eq!(place(&s), (1, 1, Some(0)), "la cue n'est pas une mesure");
+    }
+
+    /// **La bande compte dans le groupe** de sections voisines de même nom, celui que le prompteur
+    /// montre comme une seule : la mesure sur la durée du groupe, la section annoncée est celle
+    /// d'après, et un changement de mesure **à l'intérieur** se dit avec son propre compte.
+    #[test]
+    fn the_band_counts_in_the_group_of_same_named_sections() {
+        let cho = "{tempo: 120}\n{time: 4/4}\n\
+            {start_of_grid label=\"Refrain\"}\n| E . . . | A . . . |\n{end_of_grid}\n\
+            {time: 2/4}\n{start_of_grid label=\"Refrain\"}\n| D E | E . | E . |\n{end_of_grid}\n\
+            {time: 4/4}\n{start_of_grid label=\"Refrain\"}\n| D . . . |\n{end_of_grid}\n\
+            {start_of_grid label=\"Couplet\"}\n| Em . . . |\n{end_of_grid}\n";
+        let mut s = staged(cho);
+        s.on_key(Key::End); // la grille en 2/4
+        let band = s.band().expect("une bande");
+        assert_eq!((band.label.as_str(), band.bar, band.bars), ("Refrain", 0, Some(3)), "la section");
+        assert_eq!((band.group_bar, band.group_bars), (2, Some(6)), "et sa place dans le refrain entier");
+        let next = band.next.as_ref().expect("la grille suivante");
+        assert!(next.inside, "elle est du même refrain");
+        assert_eq!((next.bars_left, next.meter.as_ref().map(|m| m.time)), (3, Some(TimeSig::COMMON)));
+        let ahead = band.ahead.as_ref().expect("la section d'après le refrain");
+        assert_eq!((ahead.label.as_str(), ahead.bars_left), ("Couplet", Some(4)));
+        // la dernière section : pas d'après, pas de suivante
+        s.on_key(Key::End);
+        s.on_key(Key::End);
+        let band = s.band().unwrap();
+        assert_eq!((band.group_bar, band.group_bars, band.ahead), (0, Some(1), None));
     }
 
     /// **Sans set, ou sans son joué, `Espace` le dit** au lieu de ne rien faire (ADR 0009).

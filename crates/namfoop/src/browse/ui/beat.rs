@@ -37,12 +37,12 @@ fn band_beats(band: &Band, width: usize) -> Line<'static> {
     let starts = band.meter.starts();
     let head = format!("♩{:.0} {}", band.tempo_bpm, meter_label(&band.meter));
     let label = band.label.to_uppercase();
-    let bars = band.bars.map(|n| format!("/{n}")).unwrap_or_default();
-    let place_min = format!("mes. {}{bars}", band.bar + 1);
+    // la mesure se compte dans le **groupe** de sections de même nom, celui que le prompteur montre
+    let bars = band.group_bars.map(|n| format!("/{n}")).unwrap_or_default();
+    let place_min = format!("mes. {}{bars}", band.group_bar + 1);
     // **sans étiquette, la mesure reste** : un morceau sans prompteur a sa bande, et ses mesures
     // comptées, c'est tout ce qu'elle a à dire (§ 11)
-    let place_full =
-        if label.is_empty() { place_min.clone() } else { format!("mes. {}{bars} {label}", band.bar + 1) };
+    let place_full = if label.is_empty() { place_min.clone() } else { format!("{place_min} {label}") };
     let state = if band.running { "⏵" } else { "⏸" };
     let hint = if band.running { "" } else { " Espace" };
     let ticks = band.meter.ticks().max(1) as usize;
@@ -104,6 +104,10 @@ fn band_beats(band: &Band, width: usize) -> Line<'static> {
 /// La 2ᵉ ligne : ce qui **vient** — la section suivante, un changement de mesure ou de tempo, et
 /// le **compte à rebours de changement de son**, qui passe au décompte des temps sur la dernière
 /// mesure. C'est la ligne qui prévient au bon moment de changer de son.
+///
+/// La section **nommée** est celle qui suit le groupe de sections de même nom (le prompteur n'en
+/// montre qu'une) ; un changement de mesure ou de tempo **à l'intérieur** du groupe se dit à part,
+/// avec son propre compte (« passe en 4/4 dans 2 mes. »).
 fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
     let dim = Style::new().fg(theme::dim());
     if !band.sectioned {
@@ -111,7 +115,7 @@ fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
         return Line::styled(format!(" pas de sections : la battue compte les mesures{how}"), dim);
     }
     let Some(next) = band.next.as_ref() else {
-        let left = band.bars.map(|b| b.saturating_sub(band.bar));
+        let left = band.group_bars.map(|b| b.saturating_sub(band.group_bar));
         return Line::styled(
             match left {
                 Some(n) => format!(" fin du morceau dans {n} mes."),
@@ -122,13 +126,25 @@ fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
     };
     let warn = Style::new().fg(theme::warn());
     let lit = Style::new().fg(theme::warn()).add_modifier(Modifier::REVERSED | Modifier::BOLD);
-    let label = next.label.to_uppercase();
+    // la section annoncée par son nom : celle d'après le groupe, ou la fin du morceau
+    let ahead = match band.ahead.as_ref() {
+        Some(a) => {
+            let when = a.bars_left.map(|n| format!(" dans {n} mes.")).unwrap_or_default();
+            format!(" {}{when}", a.label.to_uppercase())
+        }
+        None => match band.group_bars.map(|b| b.saturating_sub(band.group_bar)) {
+            Some(n) => format!(" fin du morceau dans {n} mes."),
+            None => " dernière section".to_string(),
+        },
+    };
+    // ce qui change à la section suivante ; à l'intérieur du groupe, avec son propre compte
+    let when = if next.inside { format!(" dans {} mes.", next.bars_left) } else { String::new() };
     let mut extras: Vec<Span> = Vec::new();
     if let Some(m) = next.meter.as_ref() {
-        extras.push(Span::styled(format!("  passe en {}", meter_label(m)), warn));
+        extras.push(Span::styled(format!("  passe en {}{when}", meter_label(m)), warn));
     }
     if let Some(bpm) = next.tempo_bpm {
-        extras.push(Span::styled(format!("  ♩{bpm:.0}"), warn));
+        extras.push(Span::styled(format!("  ♩{bpm:.0}{when}"), warn));
     }
     let mut spans: Vec<Span> = Vec::new();
     if band.counting_down() {
@@ -144,7 +160,10 @@ fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
             }
             spans.push(Span::styled(format!(" {v} "), if v == left { lit } else { dim }));
         }
-        spans.push(Span::styled(format!("   {label}"), warn));
+        // la section qui suit dans le même groupe n'a pas de nom à dire : le décompte suffit
+        if !next.inside {
+            spans.push(Span::styled(format!("   {}", next.label.to_uppercase()), warn));
+        }
     } else {
         if let Some(sound) = next.sound.as_ref() {
             spans.push(Span::styled(
@@ -152,10 +171,7 @@ fn band_next(s: &State, band: &Band, width: usize) -> Line<'static> {
                 warn.add_modifier(Modifier::BOLD),
             ));
         }
-        spans.push(Span::styled(
-            format!(" {label} dans {} mes.", next.bars_left),
-            Style::new().fg(theme::text()),
-        ));
+        spans.push(Span::styled(ahead, Style::new().fg(theme::text())));
     }
     spans.extend(extras);
     // la ligne ne doit jamais pousser le cadre : on coupe au dernier segment qui tient

@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Set (#441)
+- **Une section découpée en grilles se lit d'un coup d'œil** : les paroles d'une section et de ses
+  voisines de même nom commencent toutes à la même colonne, et chaque colonne de mesures prend la
+  largeur de sa plus large case — une case `G . D D#dim` n'élargit plus tout le refrain.
+- La bande de battue compte dans les sections voisines de même nom, comme le prompteur les montre
+  (« mes. 11/22 REFRAIN », puis « COUPLET 3 dans 12 mes. »), et annonce à part le changement de
+  mesure qui vient (« passe en 4/4 dans 2 mes. »).
+- Sur l'écran du Pi (128 colonnes), la set list se réduit à 30 colonnes plutôt que de se replier
+  quand la grille ne tiendrait pas à côté : le morceau précédent, le suivant et le morceau visé
+  restent visibles.
+- Le titre du cadre nomme le morceau du prochain `PgDn` quand il en change
+  (« PgDn : 17 · Marée basse ● Clean SVT ») ; « ensuite » disparaît, `PgDn` le dit déjà.
+
 ### Set (#364)
 - **Le prompteur lit les grilles d'accords de ChordPro** (`{start_of_grid label="Couplet 1"
   shape="4x4"}`), celles qu'écrivent d'autres logiciels : chaque grille est une section qui porte

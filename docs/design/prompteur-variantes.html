@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Maquette de travail : variantes d'affichage du prompteur en grille, à comparer sur un morceau réel par sa structure (paroles inventées). Référence de comportement : docs/design/prompteur.md. Le code n'est pas à reprendre. -->
+<title>namfoop — maquette : variantes du prompteur en grille</title>
+<style>
+:root {
+  --bg: #eef0ee; --ink: #1b1f24; --muted: #56606b; --panel: #ffffff; --line: #cfd4d9; --accent: #0b6b3f;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  /* Le terminal garde ses couleurs dans les deux thèmes ; ses accents sont ceux de la charte. */
+  --t-bg: #0f0f14; --t-ink: #e6e6ec; --t-dim: #8a8a9c;
+  --t-green: #00e676; --t-cyan: #00f0ff; --t-yellow: #ffd600; --t-blue: #4aa3ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #00e676;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1013; --ink: #e3e6ea; --muted: #9aa3ae; --panel: #171a1f; --line: #2b3038; --accent: #00e676;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.page { display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 32px; max-width: 1500px; margin: 0 auto; }
+h1 { margin: 0; font-size: 22px; font-weight: 600; text-wrap: balance; }
+h2 { margin: 0; font-size: 15px; font-weight: 600; }
+p { margin: 0; max-width: 90ch; }
+.muted { color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row .lbl { font-size: 13px; color: var(--muted); min-width: 9ch; }
+button, label.file { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; padding: 5px 10px; font-size: 13px; }
+button:hover, label.file:hover { border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+label.file input { display: none; }
+.termwrap { overflow-x: auto; }
+.term {
+  --cols: 128; width: calc(var(--cols) * 1ch + 2em); background: var(--t-bg); color: var(--t-ink);
+  font-family: var(--font-mono); font-size: min(14px, calc((100vw - 60px) / (var(--cols) * 0.62)));
+  line-height: 1.35; padding: 0.8em 1em; border-radius: 8px; border: 1px solid var(--line); outline: none;
+}
+.term:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.ln { white-space: pre; height: 1.35em; overflow: hidden; }
+.dim { color: var(--t-dim); }
+.g { color: var(--t-green); }
+.gb { color: var(--t-green); font-weight: 700; }
+.c { color: var(--t-cyan); font-weight: 700; }
+.y { color: var(--t-yellow); }
+.blu { color: var(--t-blue); font-weight: 700; }
+.b { font-weight: 700; }
+.inv { background: var(--t-green); color: var(--t-bg); font-weight: 700; }
+.invy { background: var(--t-yellow); color: var(--t-bg); font-weight: 700; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.card ul { margin: 0; padding-left: 18px; }
+kbd { font-family: var(--font-mono); font-size: 12.5px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Maquette : variantes du prompteur en grille</h1>
+  <p class="muted">Un morceau réel par sa structure — sections découpées, mesures de 2/4 glissées dans un refrain, accords longs (<code>Esus4(b7)</code>), paroles longues —, paroles inventées. Cliquer dans l'écran puis <kbd>→</kbd> <kbd>←</kbd> mesure par mesure, <kbd>Fin</kbd> <kbd>Début</kbd> section par section, <kbd>Espace</kbd> la battue. « Charger un .cho » affiche un de tes fichiers : il est lu par la page, rien ne sort de la machine.</p>
+
+  <div class="row"><span class="lbl">Variante</span><span id="variants" class="row"></span></div>
+  <div class="row"><span class="lbl">Écran</span><span id="sizes" class="row"></span></div>
+  <div class="row"><span class="lbl">Set list</span><span id="lists" class="row"></span>
+    <label class="file">Charger un .cho<input type="file" id="load" accept=".cho,.chopro,.txt"></label></div>
+
+  <div class="termwrap"><div class="term" id="term" tabindex="0" aria-label="Écran de namfoop simulé"></div></div>
+
+  <div class="card"><h2 id="vtitle"></h2><ul id="vnotes"></ul></div>
+</div>
+
+<script type="text/plain" id="song">{title: Ailleurs, autrement}
+{key: E}
+{tempo: 120}
+{time: 4/4}
+
+{time: 2/4}
+{start_of_grid label="Intro" shape="1x2"}
+| N.C. . |
+{end_of_grid}
+{time: 4/4}
+
+{start_of_grid label="Intro" shape="4x4"}
+| N.C. Cmaj7/3 Em . | Esus4(b7) Em . . | Cmaj7/3 . . . | Em7 . . . |
+{end_of_grid}
+
+{start_of_grid label="Couplet 1" shape="4x4"}
+| Em Cmaj7/3 . . | Esus4(b7) Em . . | Em Cmaj7/3 . . | Esus4(b7) Em . . | Le quai est vide et la nuit tombe / On a rangé les verres et les chaises / Et moi je compte encore les heures
+| Em Cmaj7/3 . . | Esus4(b7) Em . . | C/3 . . . | Em7 . . . | Partir d'ici, laisser la ville / Bonsoir bonsoir, je prends la route
+{end_of_grid}
+
+{start_of_grid label="Couplet 2" shape="4x4"}
+| Em Cmaj7/3 . . | Esus4(b7) Em . . | Em Cmaj7/3 . . | Esus4(b7) Em . . | Adieu les rues, adieu le fleuve / Et courir, oh courir sans regarder derrière
+| Em Cmaj7/3 . . | Esus4(b7) Em . . | C/3 . . . | Em7 . . . | Il passe un train, peut-être le bon / Et tant pis pour hier, et tant pis pour demain
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| E . . . | A/5 . . . | D/2 . . . | E . . . | J'aurais pu rester sous la lampe, au chaud, sans bruit / Mais le vent tapait aux carreaux toute la nuit
+| E . . . | A/5 . . . | C . . . | G . D D#dim | La porte est ouverte et la route est à nous / On se retrouve ailleurs, ou bien autrement
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="1x4"}
+| E . A . |
+{end_of_grid}
+{time: 2/4}
+{start_of_grid label="Refrain" shape="3x2"}
+| D E | E . | E . | Quand les jours seront plus courts, plus courts que nos jours
+{end_of_grid}
+{time: 4/4}
+{start_of_grid label="Refrain" shape="1x4"}
+| D . E . | Et chanter, oh chanter, jusqu'au petit matin
+{end_of_grid}
+{time: 2/4}
+{start_of_grid label="Refrain" shape="4x2"}
+| E . | E . | A . | D . |
+| E . | C . | On se retrouve quand la ville sera éteinte
+{end_of_grid}
+{time: 4/4}
+{start_of_grid label="Refrain" shape="3x4"}
+| D . . . | A . . . | A . . . | Haut, haut, tout là-haut
+{end_of_grid}
+
+{start_of_grid label="Couplet 3" shape="4x4"}
+| Em Cmaj7/3 . . | Esus4(b7) Em . . | Em Cmaj7/3 . . | Esus4(b7) Em . . | J'aimais le bruit de tes pas sur le pont / Mais trop vite, ou trop loin, ou bien trop tard
+| Em Cmaj7/3 . . | Esus4(b7) Em . . | C/3 . . . | Em . Cmaj7/3 . | C'était la bonne chanson mais pas la bonne heure / Bonsoir (Bonsoir) bonsoir, je prends la route
+{end_of_grid}
+
+{start_of_grid label="Couplet 4" shape="4x4"}
+| Esus4(b7) Em . . | Em Cmaj7/3 . . | Esus4(b7) Em . . | Em Cmaj7/3 . . | Une valise au bout du bras et le cœur qui s'emballe / Et sauter, et danser, et tomber de haut
+| Cmaj7/3 . . Esus4(b7) | Esus4(b7) Em . . | C/3 . . . | Em7 . . . | Et descendre, et descendre jusqu'au bord de l'eau / Et tant pis pour hier (Tant pis pour hier), et tant pis pour demain
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| E . . . | A/5 . . . | D/2 . . . | E . . . | J'pourrais t'attendre ici, rien ne bouge, tout est blanc / Moi j'avais pas le temps (Pas le temps), ça tournait dedans
+| E . . . | A/5 . . . | C . . . | C'est la porte ouverte et tu dis bonsoir
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| G . D D#dim | E . A . | D . E . | E A . . | On se retrouve ailleurs (Ailleurs) / Ou bien autrement (Autrement) / Quand les jours seront plus courts (Jours plus courts) / Plus courts que nos jours (Que nos jours)
+| D . E . | E . A . | D . E . | C . G . | Et chanter, oh chanter, jusqu'au matin (Ohoh, ohoh) / On se retrouve quand la ville sera éteinte
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| D . A . | D . E . | E . A . | D . E . | On se retrouve ailleurs (Ailleurs) / Ou bien autrement (Autrement) / Une autre chance, une seconde, un autre soir (Un autre soir)
+| E . A . | Et puis rire de tout, et rire encore (Ohoh, ohoh)
+{end_of_grid}
+{time: 2/4}
+{start_of_grid label="Refrain" shape="4x2"}
+| D . | E . | D . | G . | On se retrouve quelque part entre ici et là-bas
+{end_of_grid}
+{time: 4/4}
+{start_of_grid label="Refrain" shape="1x4"}
+| G . . . | Oh oui (Oui, oui, oui)
+{end_of_grid}
+{time: 2/4}
+{start_of_grid label="Refrain" shape="3x2"}
+| A . | A . | A . |
+{end_of_grid}
+{time: 4/4}
+
+{time: 2/4}
+{start_of_grid label="Interlude" shape="4x2"}
+| E . | E . | E . | E . | (Ohoh, ohoh, ohoh oh oh) / (Ohoh, ohoh, oh oh)
+| E . | E . | E . | E . |
+{end_of_grid}
+{time: 4/4}
+{start_of_grid label="Interlude" shape="4x4"}
+| E . . . | E . . . | E . . . | C . G . | (Ailleurs) / (Ohoh, ohoh, ohoh oh oh) / On se retrouve quand la ville sera éteinte
+| D . A . | E . A/5 D/2 | E . . . | E . A/5 . | On se retrouve (Ohoh, ohoh, oh) / (Ohoh, ohoh, oh oh)
+| D/2 E . . | E . A/5 . | D/2 E . . | C . G . | (Autrement) / (Ohoh, ohoh, ohoh oh oh) / On se retrouve quelque part entre ici et là-bas / (Oh oui)
+| E A A/5 . | D/2 E . . | E . . . | E . . . | (Ohoh, ohoh, oh) / (Autrement) / (Ohoh, ohoh, oh oh) / C'est la porte ouverte et tu dis bonsoir / Ou bien ailleurs, ou bien autrement / (Ohoh, ohoh) / On se retrouve
+| E . . . | E . . . | E . . . | C . G . | Une autre chance, une seconde (Une chance, une seconde) / Et tant pis pour hier (Pour hier) / Et puis rire de tout, et rire encore / On se retrouve ailleurs, ou bien autrement (Autrement)
+| D A . . |
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| E . A . | D . E . | E . A . | D . E . | Rendez-vous au bout du quai (Du quai)
+| E . A . | D . E . | C . G . | Et puis rire de tout, et rire encore (Ohoh, ohoh) / Et plus tard, bien plus tard, ce sera si doux
+{end_of_grid}
+
+{start_of_grid label="Refrain" shape="4x4"}
+| D . A . | E . A . | D E . . | E . A . | (Ailleurs, autrement, un autre soir) / (Un autre quai, au bout du monde) / Et puis rire de tout, et rire enco
+| D . E . | E . A . | D . E . | C . G . | Et plus tard, bien plus tard, ce sera si doux
+| E A . . | D . E . | E . A . | D . E . | On se retrouve (Ailleurs) / On se retrouve (Autrement) / (Une chance, un soir)
+| E . A . | C . G . | D . A . | E . A . | (Ohoh, ohoh) / On se retrouve quelque part entre ici et là-bas / On se retrouve ailleurs (Ailleurs, ailleurs)
+| D . E . | E . A . | D . E . | E . A . |
+| D . E . | C . G . | G . . . | D . A . |
+| A . E . | A . . . | E . . . |
+{end_of_grid}
+</script>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- les variantes comparées
+const VARIANTS = {
+  A: { name: "A · aujourd'hui", cells: "group", align: false, cue: "right", band: "now",
+       notes: ["Ce que fait le code fusionné : les cases prennent la largeur de la plus large du groupe, le repère suit la dernière barre de SA ligne.",
+               "Défauts : les paroles commencent à des colonnes différentes dès que les lignes n'ont pas le même nombre de mesures ; une mesure de 2/4 est aussi large qu'une 4/4 ; la bande annonce « REFRAIN dans 1 mes. » alors qu'on y est déjà."] },
+  B: { name: "B · repère aligné", cells: "group", align: true, cue: "right", band: "group",
+       notes: ["Le correctif minimal : dans un groupe de sections, les paroles commencent toutes à la colonne de la ligne la plus large.",
+               "La bande compte la mesure dans le groupe (« mes. 9/22 REFRAIN ») et annonce le groupe suivant ; un changement de mesure interne se dit à part (« passe en 2/4 dans 1 mes. »).",
+               "Le reste ne bouge pas : une grille large (Couplet 4) repousse encore les paroles loin à droite."] },
+  C: { name: "C · colonnes ajustées", cells: "column", align: true, cue: "right", band: "group",
+       notes: ["Le titre du cadre nomme le morceau suivant quand le prochain PgDn change de morceau : « PgDn : 17 · Marée basse ● Clean SVT » (PgDn dit déjà « la suite » : plus de « ensuite »).",
+               "Comme B, mais chaque colonne de mesures prend la largeur de SA plus large case, pas de la plus large du groupe : une seule case G . D D#dim n'élargit plus tout le refrain.",
+               "Gagne de la place pour les paroles ; les barres restent alignées verticalement."] },
+  D: { name: "D · largeur au temps", cells: "time", align: true, cue: "right", band: "group",
+       notes: ["La largeur d'une mesure suit sa durée : une mesure de 2/4 fait la moitié d'une 4/4, deux 2/4 tiennent sous une 4/4.",
+               "On VOIT qu'une mesure est courte, ce qui est le piège de ce refrain ; le tag 2/4 devant la ligne le confirme.",
+               "Prix : une 2/4 au contenu long reste plus large que sa moitié, et l'alignement se perd sur cette ligne-là."] },
+  E: { name: "E · paroles dessous", cells: "column", align: true, cue: "below", band: "group",
+       notes: ["La grille seule sur sa ligne, compacte ; les paroles en gris dessous, sur toute la largeur, presque jamais tronquées.",
+               "Deux fois plus de hauteur : sur 36 lignes on voit environ la moitié moins de mesures à l'avance.",
+               "C'est ce que le § 4 fait déjà sous 20 colonnes de place ; ici ce serait la règle à 128 colonnes."] },
+};
+const SIZES = { "128×36 (Pi)": [128, 36], "160×50": [160, 50], "80×25": [80, 25] };
+const LISTS = { "30 col. avant de replier (retenu)": "narrow", "règle actuelle": "rule" };
+
+const st = { v: "C", size: "128×36 (Pi)", list: "narrow", s: 0, bar: 0, running: true, P: null };
+
+// ---------------------------------------------------------------- lecture du ChordPro (le sous-ensemble du § 2)
+function parse(text) {
+  const P = { title: "", key: "", tempo: 120, time: null, sections: [] };
+  let time = null, open = null, pending = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith("#")) continue;
+    const m = line.match(/^\{(.*)\}$/);
+    if (m) {
+      const inner = m[1];
+      const name = inner.split(/[:\s]/)[0].toLowerCase();
+      const colon = inner.indexOf(":");
+      const value = colon >= 0 ? inner.slice(colon + 1).trim() : "";
+      const label = (inner.match(/label="([^"]*)"/) || [])[1];
+      if (name === "title" || name === "t") P.title = value;
+      else if (name === "key") P.key = value;
+      else if (name === "tempo") P.tempo = parseFloat(value) || P.tempo;
+      else if (name === "time") { time = value; if (!P.time) P.time = value; if (open) open.time = value; }
+      else if (/^(comment|c|ci|cb)$/.test(name)) { const cue = { cue: value }; (open ? open.lines : pending).push(cue); }
+      else if (name.startsWith("start_of_") || /^so[vcbg]$/.test(name)) {
+        let lab = label || (colon >= 0 ? value.replace(/^[\dx+X]+\s*/, "") : "");
+        open = { label: lab || name.replace("start_of_", ""), time: time || P.time || "4/4", lines: pending.splice(0) };
+      } else if (name.startsWith("end_of_") || /^eo[vcbg]$/.test(name)) { if (open) P.sections.push(open); open = null; }
+      continue;
+    }
+    if (!open || !line) continue;
+    const row = gridRow(line);
+    open.lines.push(row ? { row } : { text: line });
+  }
+  if (open) P.sections.push(open);
+  for (const s of P.sections) s.bars = s.lines.reduce((n, l) => n + (l.row ? l.row.bars.length : 0), 0);
+  return P;
+}
+function gridRow(line) {
+  const toks = [...line.matchAll(/\S+/g)];
+  const isBar = t => t.includes("|");
+  const first = toks.findIndex(t => isBar(t[0]));
+  let last = -1; toks.forEach((t, i) => { if (isBar(t[0])) last = i; });
+  if (first < 0) return null;
+  const row = { left: line.slice(0, toks[first].index).trim(), right: line.slice(toks[last].index + toks[last][0].length).trim(), bars: [], close: "" };
+  let open = toks[first][0], cells = [];
+  for (const t of toks.slice(first + 1, last + 1)) {
+    if (isBar(t[0])) { if (cells.length) { row.bars.push({ open, cells }); cells = []; open = t[0]; } else open += t[0]; }
+    else cells.push(t[0]);
+  }
+  row.close = open;
+  return row.bars.length ? row : null;
+}
+
+// ---------------------------------------------------------------- outils de texte : une ligne = [[texte, classe], …]
+const len = s => Array.from(s).length;
+const clip = (s, w) => len(s) <= w ? s : Array.from(s).slice(0, Math.max(0, w - 1)).join("") + "…";
+const pad = (s, w) => s + " ".repeat(Math.max(0, w - len(s)));
+const lw = line => line.reduce((n, [t]) => n + len(t), 0);
+function fit(line, w) {
+  const out = []; let used = 0;
+  for (const [t, c] of line) { if (used >= w) break; const take = Array.from(t).slice(0, w - used).join(""); out.push([take, c]); used += len(take); }
+  if (used < w) out.push([" ".repeat(w - used), ""]);
+  return out;
+}
+
+// ---------------------------------------------------------------- la position : section, mesure, ligne
+function groups(P) {
+  const out = [];
+  P.sections.forEach((s, i) => {
+    const g = out[out.length - 1];
+    if (g && P.sections[g[g.length - 1]].label.trim().toLowerCase() === s.label.trim().toLowerCase()) g.push(i); else out.push([i]);
+  });
+  return out;
+}
+function place(sec, bar) {
+  let start = 0, last = null;
+  for (let i = 0; i < sec.lines.length; i++) {
+    const n = sec.lines[i].row ? sec.lines[i].row.bars.length : 0;
+    if (!n) continue;
+    if (bar < start + n) return { line: i, bar: bar - start };
+    start += n; last = i;
+  }
+  return { line: last ?? 0, bar: null };
+}
+function step(d) {
+  const P = st.P;
+  st.bar += d;
+  while (st.bar >= P.sections[st.s].bars && st.s < P.sections.length - 1) { st.bar -= P.sections[st.s].bars; st.s++; }
+  while (st.bar < 0 && st.s > 0) { st.s--; st.bar += P.sections[st.s].bars; }
+  st.bar = Math.max(0, Math.min(st.bar, P.sections[st.s].bars - 1));
+}
+
+// ---------------------------------------------------------------- la grille d'un groupe : largeurs des cases
+const LEAD = 7, CUE_MIN = 20;
+function layout(secs, V) {
+  const rows = secs.flatMap(s => s.lines.filter(l => l.row).map(l => l.row));
+  const text = b => b.cells.join(" ");
+  const all = rows.flatMap(r => r.bars);
+  const cw = Math.max(0, ...all.map(b => len(text(b))));
+  const colw = [];
+  rows.forEach(r => r.bars.forEach((b, k) => { colw[k] = Math.max(colw[k] || 0, len(text(b))); }));
+  const four = all.filter(b => b.cells.length >= 4);
+  const cw4 = Math.max(0, ...(four.length ? four : all).map(b => len(text(b))));
+  const inner = (r, k) => {
+    const b = r.bars[k], t = len(text(b));
+    if (V.cells === "group") return cw;
+    if (V.cells === "column") return colw[k];
+    return Math.max(t, Math.round((cw4 + 3) * b.cells.length / 4) - 3);
+  };
+  const rowW = r => (r.left ? len(r.left) + 1 : 0) + r.bars.reduce((n, b, k) => n + len(b.open) + inner(r, k) + 2, 0) + len(r.close);
+  const cueCol = LEAD + Math.max(0, ...rows.map(rowW));
+  return { inner, rowW, cueCol, text };
+}
+
+function cellSpans(t, cls) {
+  if (cls) return [[t, cls]];
+  return t.split(/( )/).filter(x => x).map(x => [x, x === " " ? "" : (/^[.\/%]+$/.test(x) ? "dim" : "c")]);
+}
+
+function gridLines(row, tag, L, w, look, V) {
+  const out = []; const dim = "dim";
+  let cur = [[" ".repeat(Math.max(0, 4 - len(tag))) + tag + " " + (look.cur ? "›" : " ") + " ", look.cur ? "" : dim]];
+  let used = LEAD;
+  if (row.left) { cur.push([row.left + " ", dim]); used += len(row.left) + 1; }
+  row.bars.forEach((b, k) => {
+    const iw = L.inner(row, k), bw = len(b.open) + iw + 2;
+    if (used + bw + len(row.close) > w && used > LEAD) { out.push(cur); cur = [[" ".repeat(LEAD), ""]]; used = LEAD; }
+    used += bw;
+    cur.push([b.open, dim]);
+    const t = " " + pad(L.text(b), iw) + " ";
+    const cls = look.lit === k ? "inv" : (look.lit !== null && k < look.lit) || look.past ? dim : "";
+    cur.push(...cellSpans(t, cls));
+  });
+  cur.push([row.close, dim]); used += len(row.close);
+  if (!row.right) { out.push(cur); return out; }
+  const cueCls = look.cur ? "b" : look.past ? dim : "";
+  const col = V.align ? Math.max(L.cueCol, used) : used;
+  const room = w - col - 2;
+  if (V.cue === "right" && room >= CUE_MIN && out.length === 0) {
+    cur.push([" ".repeat(col - used + 2), ""], [clip(row.right, room), cueCls]);
+    out.push(cur);
+  } else {
+    out.push(cur);
+    out.push([[" ".repeat(LEAD), ""], [clip(row.right, w - LEAD), look.cur ? "" : dim]]);
+  }
+  return out;
+}
+
+function promptLines(P, w, room, V) {
+  const flat = []; let here = 0;
+  const gs = groups(P);
+  const pl = place(P.sections[st.s], st.bar);
+  gs.forEach((g, gi) => {
+    const secs = g.map(i => P.sections[i]);
+    const state = i => i < st.s ? "past" : i === st.s ? "now" : "next";
+    const head = g.includes(st.s) ? "now" : state(g[0]);
+    const total = secs.reduce((n, s) => n + s.bars, 0);
+    const extra = secs[0].time !== P.time ? secs[0].time : "";
+    const hcls = head === "now" ? "gb" : head === "past" ? "dim" : "blu";
+    flat.push([[" " + (head === "now" ? "▸" : " ") + " " + pad(secs[0].label.toUpperCase(), 14) + pad(total + " mes.", 9) + extra, hcls]]);
+    const L = layout(secs, V);
+    g.forEach((i, ii) => {
+      const sec = P.sections[i];
+      let tag = ii > 0 && sec.time !== P.sections[i - 1].time ? sec.time : "";
+      sec.lines.forEach((line, k) => {
+        const cur = state(i) === "now" && k === pl.line;
+        if (cur) here = flat.length;
+        if (line.cue !== undefined) flat.push([["     " + clip(line.cue, w - 5), "y"]]);
+        else if (line.text !== undefined) flat.push([["     " + clip(line.text, w - 5), state(i) === "past" ? "dim" : ""]]);
+        else {
+          const lit = cur && st.running ? pl.bar : null;
+          flat.push(...gridLines(line.row, tag, L, w, { cur, past: state(i) === "past", lit }, V));
+          tag = "";
+        }
+      });
+    });
+    if (gi < gs.length - 1) flat.push([]);
+  });
+  const from = Math.max(0, Math.min(here - 2, flat.length - room));
+  return flat.slice(from, from + room);
+}
+
+// ---------------------------------------------------------------- la bande de battue (§ 11 de set.md)
+function band(P, w, V) {
+  const sec = P.sections[st.s];
+  const beats = parseInt(sec.time, 10) || 4;
+  const l1 = [[" ", ""]];
+  for (let i = 0; i < beats; i++) {
+    const on = st.running && i === 0;
+    l1.push([" ", ""], [" " + (i + 1) + " ", on ? (i === 0 ? "invy" : "inv") : i === 0 ? "y" : ""], ["   ", ""]);
+  }
+  const gs = groups(P), g = gs.find(x => x.includes(st.s)), gi = gs.indexOf(g);
+  let barTxt, label = sec.label.toUpperCase(), l2;
+  const meterNext = (i) => P.sections[i] && P.sections[i].time !== sec.time ? "passe en " + P.sections[i].time : "";
+  if (V.band === "now") {
+    barTxt = `mes. ${st.bar + 1}/${sec.bars}`;
+    const n = P.sections[st.s + 1];
+    l2 = n ? [[` ${n.label.toUpperCase()} dans ${sec.bars - st.bar} mes.  `, ""], [meterNext(st.s + 1), "y"]] : [];
+  } else {
+    const before = g.slice(0, g.indexOf(st.s)).reduce((n, i) => n + P.sections[i].bars, 0);
+    const total = g.reduce((n, i) => n + P.sections[i].bars, 0);
+    barTxt = `mes. ${before + st.bar + 1}/${total}`;
+    const ng = gs[gi + 1];
+    l2 = ng ? [[` ${P.sections[ng[0]].label.toUpperCase()} dans ${total - before - st.bar} mes.`, ""]] : [];
+    if (P.sections[st.s + 1] && P.sections[st.s + 1].time !== sec.time)
+      l2.push([`   passe en ${P.sections[st.s + 1].time} dans ${sec.bars - st.bar} mes.`, "y"]);
+  }
+  l1.push(["  ♩" + P.tempo + " " + sec.time + "   " + barTxt + " " + label + "  ", ""], [st.running ? "⏵" : "⏸ Espace", "dim"]);
+  return [l1, l2];
+}
+
+// ---------------------------------------------------------------- l'écran entier
+const LIST = [["15", "Néon", "♩148"], ["16", "", "♩120 ≡"], ["17", "Marée basse", "♩130"]];
+function screen() {
+  const [cols, rows] = SIZES[st.size]; const P = st.P; const V = VARIANTS[st.v];
+  const lines = [];
+  lines.push([[" namfoop browse", "blu"], ["   1 Bibliothèque   2 Chaîne ● 7 blocs   ", ""], [" 3 Set Concert ", "inv"], ["   ♩ " + P.tempo + " (preset)", "dim"]]);
+  lines.push([]);
+  // la set list : repliée si la grille ne tient pas à côté (§ 4 de prompteur.md)
+  const widest = Math.max(0, ...groups(P).map(g => { const secs = g.map(i => P.sections[i]); const L = layout(secs, V); return Math.max(0, ...secs.flatMap(s => s.lines.filter(l => l.row).map(l => LEAD + L.rowW(l.row)))); }));
+  let listW = cols >= 100 ? 44 : 30;
+  if (cols < 70 || widest + 4 > cols - listW) {
+    if (st.list === "narrow" && cols >= 70 && widest + 4 <= cols - 30) listW = 30; else listW = 0;
+  }
+  if (!listW) lines.push([[" 16/17 " + P.title + " ", "b"], ["● Fuzz Face", "g"], [" → Clean SVT", "dim"]]);
+  const H = rows - lines.length - 6;
+  const pw = cols - listW, w = pw - 4;
+  // le son suivant est dans un AUTRE morceau : son numéro et son titre d'abord, le preset ensuite
+  // (la variante A garde le titre d'aujourd'hui, qui ne nomme que le preset)
+  const next = st.v === "A" ? "ensuite Clean SVT" : "17 · Marée basse ● Clean SVT";
+  const title = ` 16 · ${P.title} · ${P.key ? P.key + " · " : ""}son 1/1 Fuzz Face · PgDn : ${next} `;
+  const inner = [...band(P, w, V), []];
+  const room = H - 2 - inner.length - 3;
+  inner.push(...promptLines(P, w, room, V));
+  while (inner.length < H - 2 - 3) inner.push([]);
+  inner.push([], [[" ── ensuite (→) : 17 · Marée basse  ♩130", "dim"]], [["     Clean SVT", "dim"]]);
+  const left = [];
+  if (listW) {
+    LIST.forEach(([n, t, b]) => {
+      const name = t || P.title, on = !t;
+      left.push([[pad(` ${on ? "▶" : " "} ${n} ${clip(name, listW - 18)}`, listW - 12) + pad(b, 8), on ? "gb" : ""]]);
+      if (on) left.push([[pad("      ● Fuzz Face", 22), "inv"]]);
+    });
+  }
+  const border = (t, wd) => [["┌" + clip(t, wd - 3) + "─".repeat(Math.max(0, wd - 2 - len(clip(t, wd - 3)))) + "┐", "dim"]];
+  const bottom = wd => [["└" + "─".repeat(wd - 2) + "┘", "dim"]];
+  for (let y = 0; y < H; y++) {
+    const l = [];
+    if (listW) {
+      if (y === 0) l.push(...border(` ♪ Concert · 16/17 `, listW));
+      else if (y === H - 1) l.push(...bottom(listW));
+      else l.push(["│", "dim"], ...fit(left[y - 1] || [], listW - 2), ["│", "dim"]);
+    }
+    if (y === 0) l.push(...border(title, pw));
+    else if (y === H - 1) l.push(...bottom(pw));
+    else l.push(["│", "dim"], ["", ""], ...fit(inner[y - 1] || [], pw - 2), ["│", "dim"]);
+    lines.push(l);
+  }
+  lines.push([[" ♪ set : 16/17 · " + P.title + " · son 1/1 › basse › hpf 200 › comp 4:1 › nam › peak", "g"]]);
+  lines.push([["   ♩ " + P.tempo + " (preset)", "dim"]]);
+  lines.push([[" in ░░░░░░░░░░░░  -69.0 dB   out ███░░░░░░░░░  -44.0 dB   lim  -   dsp 10 %  xruns 0", ""]]);
+  lines.push([]);
+  lines.push([[" PgDn/PgUp son   ↑↓ Entrée jouer un morceau   i détail   Espace battue   Fin/Début section   t prompteur", "dim"]]);
+  lines.push([[" e éditer   L sets   * tap   k clic   u accordeur   h aide   1 2 espaces   q quitter", "dim"]]);
+  return lines.slice(0, rows).map(l => fit(l, cols));
+}
+
+// ---------------------------------------------------------------- dessin et commandes
+const term = document.getElementById("term");
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function draw() {
+  const [cols] = SIZES[st.size];
+  term.style.setProperty("--cols", cols);
+  term.innerHTML = screen().map(l => '<div class="ln">' + l.map(([t, c]) => c ? `<span class="${c}">${esc(t)}</span>` : esc(t)).join("") + "</div>").join("");
+  const V = VARIANTS[st.v];
+  document.getElementById("vtitle").textContent = V.name;
+  document.getElementById("vnotes").innerHTML = V.notes.map(n => "<li>" + esc(n) + "</li>").join("");
+  for (const [id, key, val] of [["variants", "v"], ["sizes", "size"], ["lists", "list"]].map(x => [x[0], x[1], st[x[1]]]))
+    document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute("aria-pressed", String(b.dataset.val === val)));
+}
+function buttons(id, entries, key) {
+  const box = document.getElementById(id);
+  for (const [label, val] of entries) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.val = val;
+    b.addEventListener("click", () => { st[key] = val; draw(); });
+    box.appendChild(b);
+  }
+}
+buttons("variants", Object.entries(VARIANTS).map(([k, v]) => [v.name, k]), "v");
+buttons("sizes", Object.keys(SIZES).map(k => [k, k]), "size");
+buttons("lists", Object.entries(LISTS), "list");
+term.addEventListener("keydown", e => {
+  const P = st.P;
+  if (e.key === "ArrowRight") step(1);
+  else if (e.key === "ArrowLeft") step(-1);
+  else if (e.key === "End") { if (st.s < P.sections.length - 1) { st.s++; st.bar = 0; } }
+  else if (e.key === "Home") { if (st.s > 0) { st.s--; st.bar = 0; } }
+  else if (e.key === " ") st.running = !st.running;
+  else return;
+  e.preventDefault(); draw();
+});
+function load(text) {
+  st.P = parse(text);
+  // départ : la 2/4 glissée dans le premier refrain, s'il y en a une — c'est le passage qui piège
+  const i = st.P.sections.findIndex((s, k) => k > 0 && s.time !== st.P.sections[k - 1].time && /refrain/i.test(s.label));
+  st.s = Math.max(0, i); st.bar = 1;
+  draw();
+}
+document.getElementById("load").addEventListener("change", e => {
+  const f = e.target.files[0]; if (f) f.text().then(load);
+});
+load(document.getElementById("song").textContent);
+</script>
+</body>
+</html>

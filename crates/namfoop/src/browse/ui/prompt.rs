@@ -12,6 +12,7 @@ use library::prompt::{Prompt, Section};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
+use super::super::state::set::prompt::same_name;
 use super::super::state::set::ActiveSet;
 use super::super::state::State;
 use super::set::clip;
@@ -79,7 +80,7 @@ pub(super) fn prompt_lines(
         if !first.label.is_empty() {
             flat.push(section_head(&prompt.sections[group.clone()], head_state, prompt));
         }
-        let cell_w = cell_width(&prompt.sections[group.clone()]);
+        let cols = Columns::of(&prompt.sections[group.clone()], w);
         for i in group.clone() {
             let sec = &prompt.sections[i];
             // devant une grille dont la mesure change, au sein d'un même nom : sa mesure (§ 4)
@@ -96,7 +97,7 @@ pub(super) fn prompt_lines(
                         let tag = if tagged { "" } else { tag.as_str() };
                         tagged = true;
                         let look = RowLook { cur, past: state(i) == Was::Past, lit: lit.filter(|_| cur) };
-                        flat.extend(grid_row(row, tag, cell_w, w, look));
+                        flat.extend(grid_row(row, tag, &cols, w, look));
                     }
                     None => flat.extend(lyric_lines(line, w, cur, state(i) == Was::Past)),
                 }
@@ -115,9 +116,7 @@ pub(super) fn prompt_lines(
 /// grilles, dont une en 2/4, a un seul titre. `Fin` / `Début`, eux, vont toujours de l'une à
 /// l'autre : seul le dessin les regroupe.
 fn groups(prompt: &Prompt) -> Vec<std::ops::Range<usize>> {
-    let same = |a: &Section, b: &Section| {
-        !a.label.trim().is_empty() && a.label.trim().to_lowercase() == b.label.trim().to_lowercase()
-    };
+    let same = |a: &Section, b: &Section| same_name(&a.label, &b.label);
     let mut out: Vec<std::ops::Range<usize>> = Vec::new();
     for (i, sec) in prompt.sections.iter().enumerate() {
         match out.last_mut() {
@@ -128,41 +127,62 @@ fn groups(prompt: &Prompt) -> Vec<std::ops::Range<usize>> {
     out
 }
 
-/// La largeur d'une case de mesure dans un groupe de sections : la plus large, pour que les
-/// mesures s'alignent d'une ligne à l'autre (§ 4).
-fn cell_width(sections: &[Section]) -> usize {
-    sections
-        .iter()
-        .flat_map(|s| s.lines.iter())
-        .filter_map(|l| l.grid.as_ref())
-        .flat_map(|r| r.bars.iter())
-        .map(|b| b.text().chars().count())
-        .max()
-        .unwrap_or(0)
+/// La mise en colonnes d'un groupe de sections : la largeur de chaque **colonne** de mesures (la
+/// 1ʳᵉ mesure des lignes, la 2ᵉ…), et la colonne où commencent tous les repères du groupe.
+///
+/// Chaque colonne prend la largeur de **sa** plus large case, et non de la plus large du groupe :
+/// une seule case `G . D D#dim` n'élargit plus tout un refrain, et les barres restent alignées
+/// d'une ligne à l'autre. Les repères commencent **tous à la même colonne**, celle de la ligne la
+/// plus large : sinon l'œil saute dès que les lignes n'ont pas le même nombre de mesures. Quand
+/// cette colonne ne laisse pas [`CUE_MIN`] colonnes, ils passent **tous** dessous — la cohérence du
+/// groupe d'abord (§ 4 de `docs/design/prompteur.md`).
+struct Columns {
+    widths: Vec<usize>,
+    cue_at: usize,
+    cue_below: bool,
+}
+
+impl Columns {
+    fn of(sections: &[Section], w: usize) -> Self {
+        let rows = || sections.iter().flat_map(|s| s.lines.iter()).filter_map(|l| l.grid.as_ref());
+        let mut widths: Vec<usize> = Vec::new();
+        for row in rows() {
+            for (k, bar) in row.bars.iter().enumerate() {
+                let n = bar.text().chars().count();
+                match widths.get_mut(k) {
+                    Some(x) => *x = (*x).max(n),
+                    None => widths.push(n),
+                }
+            }
+        }
+        let mut out = Self { widths, cue_at: 0, cue_below: false };
+        out.cue_at = ROW_LEAD + rows().map(|r| out.row_width(r)).max().unwrap_or(0);
+        out.cue_below = out.cue_at + 2 + CUE_MIN > w;
+        out
+    }
+
+    fn cell(&self, k: usize) -> usize {
+        self.widths.get(k).copied().unwrap_or(0)
+    }
+
+    /// La largeur d'une ligne de mesures (marge gauche, mesures, barre finale), sans repère.
+    fn row_width(&self, row: &Row) -> usize {
+        let left = if row.left.is_empty() { 0 } else { row.left.chars().count() + 1 };
+        let bars: usize = row.bars.iter().enumerate().map(|(k, b)| bar_width(&b.open, self.cell(k))).sum();
+        left + bars + row.close.chars().count()
+    }
 }
 
 /// La largeur de la plus large ligne de mesures du morceau, marge comprise, sans son repère :
-/// en deçà, la set list se replie pour laisser la grille entière (§ 4). 0 : aucune grille.
+/// en deçà, la set list se réduit puis se replie pour laisser la grille entière (§ 4). 0 : aucune
+/// grille.
 pub(super) fn grid_width(prompt: &Prompt) -> usize {
     groups(prompt)
         .into_iter()
-        .flat_map(|g| {
-            let secs = &prompt.sections[g];
-            let cell_w = cell_width(secs);
-            secs.iter()
-                .flat_map(|s| s.lines.iter())
-                .filter_map(|l| l.grid.as_ref())
-                .map(move |r| ROW_LEAD + row_width(r, cell_w))
-                .collect::<Vec<_>>()
-        })
+        .map(|g| Columns::of(&prompt.sections[g], usize::MAX).cue_at)
+        .filter(|w| *w > ROW_LEAD)
         .max()
         .unwrap_or(0)
-}
-
-/// La largeur d'une ligne de mesures (marge gauche, mesures, barre finale), sans repère.
-fn row_width(row: &Row, cell_w: usize) -> usize {
-    let left = if row.left.is_empty() { 0 } else { row.left.chars().count() + 1 };
-    left + row.bars.iter().map(|b| bar_width(&b.open, cell_w)).sum::<usize>() + row.close.chars().count()
 }
 
 /// `| Em . . . ` : la barre, puis la case entourée d'un espace.
@@ -182,9 +202,9 @@ struct RowLook {
 }
 
 /// Une **ligne de mesures** : les accords en couleur, les barres et les points en gris, la mesure
-/// jouée allumée et celles déjà jouées grisées, puis le repère à droite — ou dessous quand il reste
-/// moins de [`CUE_MIN`] colonnes. Une ligne trop large se coupe à une barre de mesure (§ 4).
-fn grid_row(row: &Row, tag: &str, cell_w: usize, w: usize, look: RowLook) -> Vec<Line<'static>> {
+/// jouée allumée et celles déjà jouées grisées, puis le repère à la colonne du groupe — ou dessous
+/// (voir [`Columns`]). Une ligne trop large se coupe à une barre de mesure (§ 4).
+fn grid_row(row: &Row, tag: &str, cols: &Columns, w: usize, look: RowLook) -> Vec<Line<'static>> {
     let dim = Style::new().fg(theme::dim());
     let mark = if look.cur { "›" } else { " " };
     let lead = format!("{tag:>4} {mark} ");
@@ -197,6 +217,7 @@ fn grid_row(row: &Row, tag: &str, cell_w: usize, w: usize, look: RowLook) -> Vec
         spans.push(Span::styled(format!("{} ", row.left), dim));
     }
     for (k, bar) in row.bars.iter().enumerate() {
+        let cell_w = cols.cell(k);
         let bw = bar_width(&bar.open, cell_w);
         // la ligne ne tient pas : elle se coupe **à une barre** et continue dessous
         if used + bw + row.close.chars().count() > w && used > ROW_LEAD {
@@ -231,9 +252,11 @@ fn grid_row(row: &Row, tag: &str, cell_w: usize, w: usize, look: RowLook) -> Vec
         (_, true) => dim,
         _ => Style::new().fg(theme::text()),
     };
-    let left_room = w.saturating_sub(used + 2);
-    if left_room >= CUE_MIN {
-        spans.push(Span::styled(format!("  {}", clip(right, left_room)), cue_style));
+    // la ligne s'est coupée à une barre : son repère va dessous, comme celui d'un groupe trop large
+    let at = cols.cue_at.max(used);
+    if !cols.cue_below && out.is_empty() && at + 2 + CUE_MIN <= w {
+        let room = w - at - 2;
+        spans.push(Span::styled(format!("{}{}", " ".repeat(at - used + 2), clip(right, room)), cue_style));
         out.push(Line::from(spans));
     } else {
         out.push(Line::from(spans));

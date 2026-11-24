@@ -19,8 +19,17 @@ use std::path::PathBuf;
 /// Le fichier de référence du § 2 de `docs/design/prompteur.md`.
 const GRID_PHARE: &str = include_str!("../../../../../library/src/fixtures/le-phare-grille.cho");
 
+/// Un morceau aux sections découpées : des refrains de 4, 3, 2 ou 1 mesures, des 2/4 glissées
+/// dedans, des accords longs — la structure d'un vrai morceau, paroles inventées.
+const AILLEURS: &str = include_str!("ailleurs.cho");
+
 /// Un set de deux morceaux, « Le Phare » en grille et joué sur son son 1, dans l'espace Set.
 fn staged() -> State {
+    staged_with(GRID_PHARE)
+}
+
+/// Le même set, le premier morceau ayant ce prompteur.
+fn staged_with(cho: &str) -> State {
     let mut s = with_chain(vec![]);
     let preset = |name: &str| {
         let spec = PresetSpec { name: name.into(), tempo_bpm: 100.0, ..Default::default() };
@@ -44,10 +53,7 @@ fn staged() -> State {
     };
     let find = |q: &str| s.presets.iter().position(|p| p.name == q);
     s.set = Some(ActiveSet::new("s1".into(), "groupe-1".into(), set, &find));
-    s.adopt_prompts(vec![(
-        PathBuf::from("/x/sets/prompts/le-phare.cho"),
-        Loaded::Ok(Prompt::parse(GRID_PHARE)),
-    )]);
+    s.adopt_prompts(vec![(PathBuf::from("/x/sets/prompts/le-phare.cho"), Loaded::Ok(Prompt::parse(cho)))]);
     s.mark_start();
     s.on_key(Key::Char('3'));
     s.play_set_sound((0, 0));
@@ -169,4 +175,43 @@ fn the_lyrics_cue_goes_right_then_below() {
     let line = out.lines().find(|l| l.contains("La lampe")).expect("le repère").to_string();
     assert!(!line.contains('|') || line.trim_start().starts_with('│'), "dessous : {line}\n{out}");
     assert!(!line.contains("D . . ."), "dessous : {line}\n{out}");
+}
+
+/// La colonne où commence ce texte, dans la ligne qui le porte.
+fn column_of(out: &str, text: &str) -> usize {
+    let line = out.lines().find(|l| l.contains(text)).unwrap_or_else(|| panic!("{text:?} absent\n{out}"));
+    line[..line.find(text).unwrap()].chars().count()
+}
+
+/// **Une section découpée se lit d'un coup d'œil** : dans un refrain fait de lignes de 4, 3, 2 et
+/// 1 mesures, les paroles commencent toutes à la même colonne ; chaque colonne de mesures a la
+/// largeur de sa plus large case (une case `G . D D#dim` n'élargit que la sienne) ; et sur l'écran
+/// du Pi, la set list se réduit à 30 colonnes au lieu de se replier.
+#[test]
+fn a_cut_up_section_reads_at_a_glance() {
+    let mut s = staged_with(AILLEURS);
+    for _ in 0..6 {
+        s.on_key(Key::End); // le refrain, sur sa grille en 2/4
+    }
+    for (w, h) in [(128, 36), (160, 50)] {
+        let out = text(&draw(&s, w, h));
+        let cues = ["Quand les jours", "Et chanter, oh", "On se retrouve quand la ville", "Haut, haut"];
+        let at: Vec<usize> = cues.iter().map(|c| column_of(&out, c)).collect();
+        assert!(at.iter().all(|x| *x == at[0]), "{w}×{h} : les paroles à la même colonne {at:?}\n{out}");
+        // la 4ᵉ colonne est large (G . D D#dim), les autres gardent la leur
+        assert!(out.contains("| E . . . | A/5 . . . | C . . .   | G . D D#dim |"), "{w}×{h}\n{out}");
+        assert!(out.contains(" 2/4 › | D E     | E .       | E .       |"), "{w}×{h}\n{out}");
+        // la bande compte dans le refrain entier, annonce la suite, et le 4/4 qui revient à part
+        assert!(out.contains("mes. 10/22 REFRAIN"), "{w}×{h}\n{out}");
+        assert!(out.contains("COUPLET 3 dans 13 mes.") && out.contains("passe en 4/4 dans 3 mes."), "{out}");
+    }
+    // l'écran du Pi : la set list est là, réduite, avec le morceau suivant
+    let out = text(&draw(&s, 128, 36));
+    assert!(out.contains("♪ Groupe 1"), "la set list n'est pas repliée\n{out}");
+    assert!(column_of(&out, "┌ 1 · Le Phare") == 30, "elle fait 30 colonnes\n{out}");
+    assert!(out.contains("2 Néon"), "{out}");
+    // en 80 colonnes, la grille ne tient pas même à côté de 30 : la set list se replie
+    let out = text(&draw(&s, 80, 25));
+    assert!(!out.contains("♪ Groupe 1"), "{out}");
+    assert!(out.contains("Quand les jours"), "{out}");
 }

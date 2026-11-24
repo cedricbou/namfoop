@@ -177,6 +177,14 @@ impl State {
     }
 }
 
+/// **Deux sections voisines de ce nom n'en font qu'une** à l'écran (§ 4 de `prompteur.md`) : le
+/// pont en trois grilles, dont une en 2/4, a un seul titre et une seule durée. La comparaison
+/// ignore la casse et les espaces de bord ; une section sans nom n'en rejoint aucune. Le
+/// prompteur et la bande de battue regroupent par cette seule règle.
+pub fn same_name(a: &str, b: &str) -> bool {
+    !a.trim().is_empty() && a.trim().to_lowercase() == b.trim().to_lowercase()
+}
+
 /// Le nom du fichier d'un prompteur créé par `t` : le titre du morceau, en minuscules, les
 /// séparateurs remplacés par des tirets. Les accents restent — c'est un nom de fichier pour un
 /// musicien, pas un identifiant.

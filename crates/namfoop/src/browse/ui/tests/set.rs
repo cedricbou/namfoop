@@ -89,13 +89,21 @@ fn the_scene_view_shows_the_song_the_sound_and_what_comes_next() {
     assert!(!ouverture.contains("4/4"), "{ouverture}");
     // le cadre : ce qu'on joue, et CE QUE FERA LE PROCHAIN APPUI
     assert!(out.contains("son 1/2"), "{out}");
-    assert!(out.contains("PgDn : ensuite clean"), "{out}");
+    assert!(out.contains("PgDn : clean "), "même morceau : le son suivant, sans plus {out}");
     // le morceau suivant, pour voir venir
     assert!(out.contains("ensuite (→) : 3 · Néon"), "{out}");
     // la ligne d'écoute dit où l'on est dans le set
     assert!(out.contains("♪ set : 2/6 · Le Phare · son 1/2"), "{out}");
     // et la barre d'aide est celle de la scène
     assert!(out.contains("↑↓ Entrée jouer un morceau"), "{out}");
+    // le son suivant est dans un AUTRE morceau : son numéro et son titre d'abord
+    let s = staged(concert(), Some((1, 1)));
+    let out = shot(&s, 160, 30);
+    assert!(out.contains("PgDn : 3 · Néon ● drive "), "{out}");
+    // à l'étroit, c'est le nom du preset qui se coupe, jamais le morceau
+    let out = shot(&s, 89, 30);
+    let title = out.lines().find(|l| l.contains("PgDn")).expect("le titre du cadre");
+    assert!(title.contains("PgDn : 3 · Néon ● ") && title.contains('…'), "{title}");
 }
 
 /// Au **dernier son du set**, le cadre dit `fin du set` : on ne laisse pas croire qu'un appui de
@@ -104,7 +112,7 @@ fn the_scene_view_shows_the_song_the_sound_and_what_comes_next() {
 fn the_last_sound_says_the_set_ends() {
     let s = staged(concert(), Some((5, 0)));
     let out = shot(&s, 160, 30);
-    assert!(out.contains("PgDn : ensuite fin du set"), "{out}");
+    assert!(out.contains("PgDn : fin du set"), "{out}");
 }
 
 /// **Un set sans titres** (le show à trois sons) : la colonne de gauche liste directement les

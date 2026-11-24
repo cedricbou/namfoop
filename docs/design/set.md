@@ -161,7 +161,7 @@ pédaliers de l'utilisateur, et les numéros restent réglables.
 
 ```
  namfoop browse  1 Bibliothèque  2 Chaîne  [3 Set] Groupe 1 · Live Mairie        ♩ 124 4/4 (du morceau)  groupe-1 ✓
-┌ ♪ Groupe 1 · Live Mairie · 2/6 ──────────┐┌ 2 · Le Phare · son 1/2 Fuzz Face · PgDn : ensuite Clean SVT ──────┐
+┌ ♪ Groupe 1 · Live Mairie · 2/6 ──────────┐┌ 2 · Le Phare · son 1/2 Fuzz Face · PgDn : Clean SVT ──────────────┐
 │   1 Ouverture             ♩96            ││  ██1██   2      3      4      ♩124 4/4   mes. 3/4 INTRO   ⏵        │
 │ ▶ 2 Le Phare              ♩124     ≡     ││  COUPLET 1 dans 2 mes.                                             │
 │      ● Fuzz Face                         ││ ────────────────────────────────────────────────────────────────── │
@@ -192,17 +192,19 @@ pédaliers de l'utilisateur, et les numéros restent réglables.
   ce qui vient ; `… N lignes plus bas` quand elle déborde. Le curseur ↑↓ est surligné.
 - **`i` (détail)** déplie ou replie le morceau visé (le morceau joué dans `run --set`) : son n° de PC,
   ses sons avec leur valeur de CC 34 et leur volume propre, et la présence d'un prompteur. Plusieurs morceaux peuvent rester dépliés.
-- **Colonne prompteur** (le reste de la largeur) : en tête, la **bande de battue** (§ 11) ; titre `n · morceau · [tonalité ·] son k/N <preset> · PgDn :
-  ensuite <…>` — ce que fera le prochain appui —, puis le texte à partir de deux lignes avant la
+- **Colonne prompteur** (le reste de la largeur) : en tête, la **bande de battue** (§ 11) ; titre `n · morceau · [tonalité ·] son k/N <preset> · PgDn : <…>`
+  — ce que fera le prochain appui : le preset suivant, précédé de `n · morceau ●` quand il est dans
+  un autre morceau (`PgDn : 3 · Néon ● Fuzz Face`) ; si la place manque, le preset se coupe, jamais
+  le morceau —, puis le texte à partir de deux lignes avant la
   position (§ 10). Les sections passées sont grisées, la courante `▸` en vert, les suivantes en gras.
   Au bout du texte, **le morceau suivant** : titre, tempo, sons et ses premières sections, en gris.
 - Ligne d'écoute : morceau › son › la chaîne en une ligne, et le volume du morceau s'il y en a un.
 - **Set sans titres** (le show à trois sons) : la colonne de gauche liste directement les sons.
 - **Terminal étroit** : sous 100 colonnes, la set list se réduit à 30 colonnes (titres tronqués) ;
   sous 70, elle disparaît au profit d'une ligne `2/6 Le Phare ● Fuzz Face → 3 Néon` au-dessus du
-  prompteur, qui prend toute la largeur. Elle se replie de même quand la plus large ligne de mesures
-  du morceau joué ne tiendrait pas à côté d'elle : la grille passe avant la set list
-  ([`prompteur.md`](prompteur.md) § 4).
+  prompteur, qui prend toute la largeur. **La grille passe avant la set list** : quand la plus
+  large ligne de mesures du morceau joué ne tient pas à côté d'elle, elle se réduit à 30 colonnes,
+  et ne se replie que si cela ne suffit pas ([`prompteur.md`](prompteur.md) § 4).
 - **En édition** (§ 8), la set list prend toute la largeur (PC, sons et volumes de tous les morceaux)
   et le prompteur est masqué : on n'édite pas sur scène.
 

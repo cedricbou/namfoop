@@ -355,8 +355,12 @@ pas en les lisant :
 - les **largeurs** commandent les panneaux : le Spectre à partir de 128 colonnes (police 10×20 du
   Pi), les Bandes sous lui au-delà de 128 et sous la liste en dessous (±12 dB sur 5 lignes, 3 dB par
   demi-bloc, ▲/▼ hors échelle), la set list sur 44 colonnes au-delà de 100, 30 en dessous et une
-  ligne compacte sous 70 — ou dès que la grille du morceau joué ne tiendrait pas à côté
-  (`list_width`, partagé par la vue scène et la colonne de l'accordeur) ;
+  ligne compacte sous 70 ; la **grille passe avant la set list** : 44, sinon 30 si la grille du
+  morceau joué tient à côté, sinon la ligne compacte (`list_width`, partagé par la vue scène et la
+  colonne de l'accordeur) ;
+- **les sections voisines de même nom** sont un seul groupe à l'écran (`state::set::prompt::same_name`,
+  la seule règle) : `ui/prompt.rs` y aligne les colonnes de mesures et les repères (`Columns`), et
+  `State::band` y compte la mesure (`group_bar`, `ahead`) ;
 - la **bande de battue** (`band_lines`, § 11) ne tronque jamais : **quelque chose cède**. Ce qui
   cède, dans l'ordre : le rappel de la touche après `⏸` (la barre du bas la donne), l'étiquette de
   la section (le texte en dessous la marque), puis la mesure courante ; ce qui ne cède jamais, ce
