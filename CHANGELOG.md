@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#377)
+- **`namfoop midi` dit sur quel canal arrive chaque message** : `PC 3 ch 5`, `CC 34 2 ch 1`, de 1 à
+  16 comme sur un pédalier ; l'horloge, `Start` et `Stop` n'en ont pas. La ligne se recopie telle
+  quelle dans un port simulé (`echo 'pc 3 ch 5' > /tmp/m`) ; une ligne sans `ch` se lit toujours,
+  sans canal. namfoop fait des messages exactement ce qu'il en faisait : le canal est lu, pas encore
+  filtré.
+
 ## 0.7.0 — 2026-11-24
 
 ### Documentation (#417)

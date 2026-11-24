@@ -2246,13 +2246,19 @@ Ports d'entrée MIDI (2) :
   28:0  MC6 MKII MIDI 1
 
 Écoute 28:0  MC6 MKII MIDI 1 — Ctrl+C pour sortir :
-     1.84 s  PC 3
-     2.31 s  CC 34 2
+     1.84 s  PC 3 ch 1
+     2.31 s  CC 34 2 ch 1
      4.02 s  horloge  120.0 BPM
 ```
 
-Les tops d'horloge ne défilent pas un par un (il en passe 24 par noire) : une ligne par noire, avec
-le tempo mesuré. `namfoop midi --list` s'arrête après la liste des ports, sans écouter.
+Chaque Program Change et chaque CC dit **sur quel canal** il est arrivé (`ch 1` à `ch 16`, comme
+sur le pédalier) : c'est ce qui distingue ton pédalier des lights ou d'un clavier branché sur le
+même câble. L'horloge, `Start` et `Stop` n'ont pas de canal. Les tops d'horloge ne défilent pas un
+par un (il en passe 24 par noire) : une ligne par noire, avec le tempo mesuré. `namfoop midi
+--list` s'arrête après la liste des ports, sans écouter.
+
+Une ligne affichée **se recopie telle quelle** dans un port simulé, canal compris : `pc 3 ch 5`
+rejoue le Program Change 3 du canal 5 ; une ligne écrite sans `ch` n'a pas de canal.
 
 ### Changer de preset au pied : le Program Change
 

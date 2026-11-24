@@ -159,32 +159,46 @@ impl Source for SeqPort {
             // concert ne s'arrête pas pour un octet perdu.
             let mut input = self.seq.input();
             while let Ok(ev) = input.event_input() {
-                if let Some(e) = convertir(&ev) {
-                    out.push(e);
+                if let Some((e, canal)) = convertir(&ev) {
+                    out.push(e, canal);
                 }
             }
         }
     }
 }
 
-/// Un événement du séquenceur -> un [`Event`] de namfoop, ou rien (note, SysEx, annonce de port…).
-fn convertir(ev: &alsa::seq::Event) -> Option<Event> {
+/// Un événement du séquenceur -> un [`Event`] de namfoop et son canal, ou rien (note, SysEx,
+/// annonce de port…).
+fn convertir(ev: &alsa::seq::Event) -> Option<(Event, Option<u8>)> {
+    let sans_canal = |e| Some((e, None));
     match ev.get_type() {
         // +1 : le câble compte de 0 à 127, namfoop de 1 à 128 (voir `Event::ProgramChange`)
-        EventType::Pgmchange => Some(Event::ProgramChange(sept_bits(ev.get_data::<EvCtrl>()?.value)? + 1)),
+        EventType::Pgmchange => {
+            let c = ev.get_data::<EvCtrl>()?;
+            Some((Event::ProgramChange(sept_bits(c.value)? + 1), canal(c.channel)))
+        }
         EventType::Controller => {
             let c = ev.get_data::<EvCtrl>()?;
-            Some(Event::Control { cc: sept_bits(c.param as i32)?, value: sept_bits(c.value)? })
+            Some((
+                Event::Control { cc: sept_bits(c.param as i32)?, value: sept_bits(c.value)? },
+                canal(c.channel),
+            ))
         }
-        EventType::Clock => Some(Event::ClockTick),
-        EventType::Start => Some(Event::ClockStart),
-        EventType::Stop => Some(Event::ClockStop),
-        EventType::Continue => Some(Event::ClockContinue),
+        EventType::Clock => sans_canal(Event::ClockTick),
+        EventType::Start => sans_canal(Event::ClockStart),
+        EventType::Stop => sans_canal(Event::ClockStop),
+        EventType::Continue => sans_canal(Event::ClockContinue),
         EventType::Songpos => {
-            Some(Event::SongPosition(ev.get_data::<EvCtrl>()?.value.clamp(0, 16383) as u16))
+            sans_canal(Event::SongPosition(ev.get_data::<EvCtrl>()?.value.clamp(0, 16383) as u16))
         }
         _ => None,
     }
+}
+
+/// Le canal du câble (0 à 15) -> celui de namfoop (1 à 16), comme pour le Program Change. Un canal
+/// hors de ces bornes ne vient pas d'un câble MIDI : le message passe, sans canal.
+fn canal(c: u8) -> Option<u8> {
+    (c < 16).then_some(c + 1)
 }
 
 /// Une valeur MIDI tient sur 7 bits. Ce qui n'y tient pas n'est pas un message qui nous parle

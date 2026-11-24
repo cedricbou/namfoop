@@ -64,6 +64,8 @@ fn un_message_envoye_au_port_arrive_dans_la_file() {
     p.envoyer(EventType::Songpos, &ctrl(0, 64));
     // Un contrôleur hors des 7 bits (NRPN) : namfoop n'en fait rien, et il ne décale rien.
     p.envoyer(EventType::Controller, &ctrl(1000, 2));
+    // Le dernier canal du câble (15) est le canal 16 chez namfoop.
+    p.envoyer(EventType::Pgmchange, &EvCtrl { channel: 15, param: 0, value: 0 });
 
     let attendu = [
         Event::ProgramChange(4),
@@ -71,16 +73,24 @@ fn un_message_envoye_au_port_arrive_dans_la_file() {
         Event::ClockTick,
         Event::ClockStart,
         Event::SongPosition(64),
+        Event::ProgramChange(1),
     ];
     let mut vus = Vec::new();
+    let mut canaux = Vec::new();
     let limite = Instant::now() + Duration::from_secs(3);
     while vus.len() < attendu.len() && Instant::now() < limite {
         while let Some(m) = input.try_pop() {
             vus.push(m.event);
+            canaux.push(m.channel);
         }
         std::thread::sleep(Duration::from_millis(10));
     }
     assert_eq!(vus, attendu, "ce qui est passé par le séquenceur ALSA");
+    assert_eq!(
+        canaux,
+        [Some(1), Some(1), None, None, None, Some(16)],
+        "le canal du câble (0 à 15) arrive de 1 à 16, et l'horloge n'en a pas"
+    );
     assert_eq!(input.dropped(), 0);
     assert!(input.description().contains(&addr), "l'écoute se dit : {}", input.description());
 }

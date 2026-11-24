@@ -16,13 +16,14 @@ de chaînes. Un second contrôle textuel limite `midi_io::open` à deux fichiers
 **Fichiers.**
 
 ```
-src/lib.rs    Event, Message (horodaté ET numéroté en tops d'horloge), Settings, Port,
+src/lib.rs    Event, Message (horodaté, numéroté en tops d'horloge, et son canal), Settings, Port,
               Input (la file, le fil, le compteur de tops), open()
 src/seq.rs    port du séquenceur ALSA : liste des ports, choix par adresse ou par nom, abonnement,
               conversion des événements du séquenceur -> Event
 src/sim.rs    port simulé « sim:<chemin> » : fichier ou tube nommé, lu sans bloquer
-src/text.rs   le format texte d'un message (pc / cc / clock / start / stop / continue / spp),
-              lu par le port simulé ET affiché par `namfoop midi` — ce qu'on voit se recopie
+src/text.rs   le format texte d'un message (pc / cc / clock / start / stop / continue / spp, et
+              « ch N » après pc et cc), lu par le port simulé ET affiché par `namfoop midi` — ce
+              qu'on voit se recopie, canal compris
 src/error.rs  erreurs thiserror ; les messages sont ceux que lit l'utilisateur
 ```
 
@@ -63,8 +64,11 @@ porte le temps 1 demande de savoir ce qu'un message *veut dire* — l'affaire d'
   numérotation du `pc` d'un set (`library::set::PC_MIN`), donc la seule que namfoop montre. La
   conversion est faite à l'entrée, une fois — `seq.rs` ajoute 1, le format texte lit 1 à 128 — pour
   qu'aucun consommateur n'ait à y penser.
-- **Tous les canaux MIDI sont acceptés** et le canal n'est pas transmis : namfoop est un seul
-  instrument, et un pédalier sur son canal d'usine doit marcher sans réglage.
+- **Tous les canaux MIDI sont acceptés, et chaque message porte le sien** (`Message::channel`,
+  1 à 16 ; `None` pour l'horloge, le transport, la position, et une ligne simulée sans `ch`). Le
+  filtre n'est **pas** ici : décider qu'un canal est écouté demande de savoir ce qu'il veut dire,
+  et `namfoop midi` doit pouvoir montrer un message qu'on ignore. Un pédalier sur son canal d'usine
+  marche donc sans réglage. Le canal est converti à l'entrée (`seq.rs` ajoute 1), comme le PC.
 - **Une valeur hors des 7 bits est ignorée**, pas écrêtée (contrôleur 14 bits, NRPN) : ce n'est pas
   un message qui nous parle, et l'écrêter inventerait un geste.
 - Le **port simulé s'ouvre sans bloquer** (`O_NONBLOCK`) : un tube nommé sans écrivain bloquerait
