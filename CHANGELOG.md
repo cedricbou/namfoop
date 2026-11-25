@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Set et prompteur (#446)
+- **Le prompteur repart quand Ableton lance la lecture au milieu d'un morceau** : en mode « Song »,
+  Ableton envoie la position puis `Continue` (et non `Start`) ; la battue se posait à la bonne
+  mesure mais restait arrêtée. `Continue` reprend désormais la battue où elle est — là où `Stop`
+  l'a laissée, ou là où la position vient de la poser —, que le message vienne d'Ableton ou d'un
+  pédalier.
+
 ### Instruments (#203)
 - **Changer d'instrument sans refaire la calibration** : `namfoop calibrate --instrument "bb 735a"`
   enregistre un instrument nommé avec sa calibration, une par carte, dans la bibliothèque

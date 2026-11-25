@@ -2585,6 +2585,7 @@ parlent du set et non de la banque — l'adressage hiérarchique de tous les pé
 | **CC 34, valeur k** | le **son k+1** du morceau joué (son 1 = valeur 0) |
 | **Start** | la battue repart du 1 de la **mesure 1** du morceau, et elle avance ; l'en-tête passe à `⏵` |
 | **Stop** | la battue s'arrête ; le tempo est gardé ; l'en-tête passe à `⏸` |
+| **Continue** | la battue **reprend où elle est** : là où `Stop` l'a laissée, ou là où un Song Position Pointer vient de la poser ; l'en-tête passe à `⏵`. Sans position reçue, elle repart au début du temps où elle s'était arrêtée |
 | **Song Position Pointer** | la position dans le morceau, convertie en mesure et en temps par la carte des mesures — juste même après un changement de mesure. **Sans morceau joué**, elle s'affiche en temps (`position reçue : temps 5`), puisqu'aucune bande de mesure n'est là pour la montrer |
 | horloge | le tempo entendu (voir plus haut) |
 
@@ -2599,7 +2600,10 @@ par sa **place** dans le morceau : réordonner les sons change leur valeur de CC
 2. un clip (ou une automation) qui envoie **CC 34** à chaque changement de son, avec la valeur de la
    place du son **moins un** ;
 3. l'horloge et le transport : « Sync » activé vers le port MIDI de namfoop, et le mode **Song** si
-   l'on veut que la position suive les sauts dans l'arrangement.
+   l'on veut que la position suive les sauts dans l'arrangement. En mode Song, une lecture qui ne
+   part pas de 1.1.1 (un marqueur, `Maj+Espace` après un arrêt, une boucle de l'Arrangement) envoie
+   la **position puis `Continue`**, et non `Start` : le prompteur part de cette mesure. En mode
+   Pattern, sans position, `Continue` reprend là où namfoop s'était arrêté.
 
 Ce qui se passe quand la demande ne correspond à rien — jamais un autre son que celui demandé :
 
