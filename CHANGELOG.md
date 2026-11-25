@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#448)
+- **L'export et l'import de la bibliothèque ont leur spécification**
+  (`docs/design/export-import.md`) : une valise sur une clé USB, qui porte toute la bibliothèque —
+  sons, presets, sets, mélanges d'IR, corrections, instruments et calibrations — et rien de la
+  config de l'ordinateur ; `namfoop export`, qui ne recopie que ce qui a changé ; `namfoop import`,
+  qui montre le bilan avant d'écrire, fait choisir quand un élément a changé des deux côtés, fait
+  suivre les suppressions et se défait. C'est la cible des stories de l'épique « Emporter ma
+  bibliothèque d'une machine à l'autre avec une clé USB » : rien ne change encore dans namfoop.
+
 ### Set et prompteur (#446)
 - **Le prompteur repart quand Ableton lance la lecture au milieu d'un morceau** : en mode « Song »,
   Ableton envoie la position puis `Continue` (et non `Start`) ; la battue se posait à la bonne
