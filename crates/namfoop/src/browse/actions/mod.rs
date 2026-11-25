@@ -44,6 +44,8 @@ pub(super) struct Ctx<'a> {
     pub library: &'a Path,
     pub conf: &'a LoadedConfig,
     pub profiles: &'a library::profile::Profiles,
+    /// Le jeu de l'instrument joué, qui mesure le grain des modèles.
+    pub signal: &'a library::model_profile::Signal,
     /// Le mélange d'IR **écouté**, écrit dans un fichier temporaire avant d'être cité par un bloc.
     pub audition: &'a Path,
     /// Les chaînes que la banque doit préparer : refaites dès que la banque change.

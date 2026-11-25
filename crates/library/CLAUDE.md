@@ -15,7 +15,12 @@ battue, l'affichage `namfoop`. namfoop n'écrit JAMAIS un `.cho`, sauf le squele
 — `Prompt::skeleton` —, parce que ces fichiers viennent d'ailleurs), import des packs
 (`import/`), corrections de l'utilisateur (`overrides.rs`, `library/overrides.toml`, par
 empreinte du contenu), besoin d'IR et IR conseillées (`recommend.rs`), profils des IR
-(`profile.rs`) et des modèles avec la basse de l'utilisateur (`model_profile.rs`).
+(`profile.rs`) et des modèles avec la basse de l'utilisateur (`model_profile.rs` : le `Signal`
+vient du binaire, qui a résolu l'instrument joué), et **mes instruments** (`instrument.rs`,
+`library/instruments/<id>.toml`, § 14 de `docs/design/instruments.md` : lecture, contrôles —
+numéro en double, deux « par défaut », chacun nommant les deux fichiers —, désignation par
+numéro, nom ou mots, écriture sans perte ; le choix de l'instrument joué et de la carte est au
+binaire).
 
 **Ce qui reste dans le binaire** : options clap et affichage des commandes `import`
 (`import_cmd.rs`, bilan), `meta` (`meta_cmd.rs`) et `models` (`models_cmd.rs`). Les structures

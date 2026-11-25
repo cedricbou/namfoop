@@ -10,6 +10,7 @@ pub mod error;
 /// Une ligne de grille d'accords (`{start_of_grid}`) : ses mesures, ses marges.
 pub mod grid;
 pub mod import;
+pub mod instrument;
 pub mod model_profile;
 pub mod overrides;
 pub mod profile;

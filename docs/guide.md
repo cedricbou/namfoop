@@ -26,7 +26,7 @@ Sommaire :
 4. [Réglages du système](#4-réglages-du-système)
 5. [Configurer la carte : l'assistant](#5-configurer-la-carte--lassistant)
 6. [La bibliothèque de sons](#6-la-bibliothèque-de-sons)
-7. [Calibrer sa basse](#7-calibrer-sa-basse)
+7. [Calibrer ses instruments](#7-calibrer-ses-instruments)
 8. [Jouer](#8-jouer)
 9. [Régler le son et le volume](#9-régler-le-son-et-le-volume)
 10. [Effets](#10-effets)
@@ -346,7 +346,7 @@ Exemple suivi : les packs komposition101 rangés dans `nam/komposition101/` (deu
 avec versions DI et FullRig, un pack d'IR). La méthode vaut pour tout pack, Tone3000 compris.
 
 **Avant de commencer** : `namfoop setup` et `namfoop calibrate` sont faits
-([§ 5](#5-configurer-la-carte--lassistant), [§ 7](#7-calibrer-sa-basse)). La calibration sert de
+([§ 5](#5-configurer-la-carte--lassistant), [§ 7](#7-calibrer-ses-instruments)). La calibration sert de
 référence à tous les réglages d'entrée ci-dessous.
 
 #### Import ou revue : deux étapes distinctes
@@ -1101,15 +1101,43 @@ La version légère coûte environ deux fois moins de CPU : utile sur Raspberry 
 
 ---
 
-## 7. Calibrer sa basse
+## 7. Calibrer ses instruments
 
 **Pourquoi.** Un modèle NAM a été entraîné avec le DI de la personne qui l'a capturé, à un niveau
 numérique précis. Si ta basse arrive plus fort (basse active, gain de carte élevé), le modèle
 sature beaucoup plus que sur les démos : un Bassman 800 « presque clair » devient très saturé.
 Les modèles indiquent rarement leur niveau de calibration : on mesure donc **ton** niveau.
 
+Ce niveau dépend de l'instrument (une active sort plus fort qu'une passive) **et** du gain
+d'entrée de la carte. namfoop garde donc **une calibration par instrument et par carte**, avec tes
+instruments, dans la bibliothèque : changer de basse ne demande que de relancer, et copier la
+bibliothèque sur un autre ordinateur emporte tes instruments et leurs calibrations.
+
+### Le parcours
+
+1. **Une fois par carte** : règle le gain d'entrée avec ton instrument le plus fort, puis n'y
+   touche plus — c'est ce qui fait tenir les calibrations.
+2. **Une fois par instrument** : calibre-le, sous le nom que tu lui donnes. Le premier créé
+   devient l'instrument par défaut.
+   ```sh
+   namfoop calibrate --instrument "BB 735A"
+   namfoop calibrate --instrument "Fretless"
+   ```
+3. **À chaque lancement** : rien à dire, namfoop prend l'instrument par défaut. Pour en jouer un
+   autre, nomme-le par son numéro, son nom ou quelques lettres :
+   ```sh
+   namfoop --instrument fretless browse
+   namfoop --instrument 2 run --set concert
+   ```
+4. **Avant un concert** : la grille dit ce qui est calibré, sur quelle carte.
+   ```sh
+   namfoop instruments
+   ```
+
+### Calibrer
+
 ```sh
-namfoop calibrate
+namfoop calibrate --instrument "BB 735A"
 ```
 
 1. Joue **fort**, comme sur tes passages les plus appuyés, pendant la durée indiquée (15 s par
@@ -1119,21 +1147,104 @@ namfoop calibrate
    Crête max -9.8 dBFS, crête robuste -12.1 dBFS, RMS joué -24.0 dBFS
    Trim d'entrée proposé : -18.0 dB (crête robuste visée -30 dBFS à l'entrée des modèles)
    ```
-3. Il sauve le trim, ton enregistrement et le mode de volume **match** dans
-   `~/.config/namfoop/` ([§ 16](#16-le-fichier-de-configuration)). Toutes les commandes `run` et
-   `render` les utilisent ensuite.
+3. Il range le trim et ton enregistrement **avec l'instrument, pour cette carte**, dans
+   `library/instruments/`, et passe le volume en mode **match** dans la config
+   ([§ 16](#16-le-fichier-de-configuration)). Un nom qui ne désigne aucun instrument en crée un ;
+   un instrument déjà calibré sur cette carte est recalibré.
+
+Sans `--instrument`, `calibrate` mesure l'instrument par défaut. Une bibliothèque **sans aucun
+instrument** garde le fonctionnement d'avant les instruments : la calibration va dans la config,
+et elle vaut pour tout ce que tu joues.
 
 Options :
 
 | Option | Rôle |
 |---|---|
+| `--instrument` | l'instrument à mesurer (créé s'il n'existe pas) ; option commune à toutes les commandes |
 | `--seconds` | durée d'enregistrement |
 | `--target` | crête visée à l'entrée des modèles, -30 dBFS par défaut. Plus haut (ex. -27) = modèles plus saturés |
 | `--channel` | entrée de la basse, si elle diffère du routage (`setup`) |
 | `--dry-run` | analyse seulement, ne sauve rien |
+| `--library` | la bibliothèque où vivent les instruments |
 
-À refaire si tu changes de basse ou le gain de la carte. Si l'entrée sature pendant la
-calibration, namfoop refuse : baisse le gain de la carte et recommence.
+À refaire si tu changes le gain de la carte. Si l'entrée sature pendant la calibration, namfoop
+refuse : baisse le gain de la carte et recommence.
+
+### Jouer avec un instrument
+
+Au lancement de `browse`, `run` et `run --set`, une ligne dit ce qui joue :
+
+```
+instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB)
+```
+
+L'écran de `browse` et la scène le rappellent à droite de l'en-tête — en vert `calibrée`, en jaune
+`non calibrée` —, ou en tête de la ligne d'état quand l'en-tête n'a pas la place. Un instrument
+jamais calibré sur la carte branchée joue **sans calibration** (trim nul, pas de repère sur le
+vumètre d'entrée) : la ligne de démarrage dit comment le calibrer.
+
+La **carte** est celle de ton profil (`namfoop setup`). Sur la **carte simulée** et hors carte
+(`render`, `models`, `meta`, `import`), namfoop prend la calibration de l'instrument sur ta carte
+préférée (`[audio] profile` de la config), sinon sa plus récente. Avec `--no-config`, aucun
+instrument n'est pris sans être nommé : les résultats restent reproductibles.
+
+```sh
+namfoop --instrument fretless render -m b7k -o /tmp/fretless.wav
+```
+
+Le premier lancement avec un instrument mesure le grain des modèles avec **son** enregistrement ;
+les mesures des autres instruments restent en cache, et repasser de l'un à l'autre ne remesure
+rien.
+
+### `namfoop instruments` : la grille
+
+```sh
+namfoop instruments
+```
+
+```
+                      itwo       mtk        umc404hd
+ 1 BB 735A (défaut)   ✓          ✓          —
+ 2 Fretless           ✓          —          —
+
+ ✓ calibrée   — jamais calibrée   sans : jouée sans calibration
+ carte préférée : itwo
+```
+
+Une ligne par instrument, dans l'ordre de leurs numéros ; une colonne par carte réglée sur cet
+ordinateur, plus une par carte qui porte une calibration. La commande ne lit que des fichiers :
+elle marche sans carte.
+
+| Option | Rôle |
+|---|---|
+| `--adopt NOM` | reprend la calibration actuelle de la config comme premier instrument, sur la carte préférée, **sans rejouer**. La config ne change pas |
+| `--default INSTRUMENT` | fait de cet instrument celui que namfoop prend à chaque lancement |
+| `--library` | la bibliothèque à lire |
+
+Tu avais calibré ta basse avant les instruments ? Elle devient ton premier instrument :
+
+```sh
+namfoop instruments --adopt "BB 735A"
+namfoop instruments --default fretless
+```
+
+Les fichiers, un par instrument, se lisent et se corrigent à la main
+(`library/instruments/bb-735a.toml`) :
+
+```toml
+name = "BB 735A"
+number = 1            # sa ligne dans la grille
+default = true        # un seul instrument le porte
+
+[calibration.itwo]    # une table par carte : l'identifiant de son profil
+trim_db = -17.5
+target_dbfs = -30.0
+wav = "bb-735a.itwo.wav"
+date = 2026-11-25
+```
+
+Deux instruments du même numéro, ou deux par défaut, sont refusés avec un message qui nomme les
+deux fichiers.
 
 ---
 
@@ -2918,10 +3029,13 @@ DSP et les xruns, eux, sont bien là. C'est la façon de vérifier une chaîne s
 
 ## 16. Le fichier de configuration
 
-`~/.config/namfoop/config.toml`, écrit par `setup` et `calibrate`, modifiable à la main :
+`~/.config/namfoop/config.toml`, écrit par `setup` et `calibrate`, modifiable à la main. Les trois
+clés de calibration (`trim_db`, `calibration_wav`, `calibration_target_dbfs`) ne servent que tant
+que la bibliothèque n'a aucun instrument ; ensuite, chaque instrument porte les siennes
+([§ 7](#7-calibrer-ses-instruments)).
 
 ```toml
-trim_db = -18.0                      # trim d'entrée de l'instrument (dB)       — calibrate
+trim_db = -18.0                      # trim d'entrée, sans instrument (dB)     — calibrate
 level = "match"                      # "match", "normalize" ou "raw"           — calibrate
 target_db = -18.0                    # cible du mode normalize
 limiter = true                       # limiteur de sortie

@@ -51,19 +51,28 @@ impl From<&ImportArgs> for library::import::ImportArgs {
 }
 
 /// Importe, affiche le bilan ; renvoie les modèles ajoutés (chemins relatifs à la bibliothèque).
-pub fn run(a: &ImportArgs, conf: &LoadedConfig) -> Result<Vec<String>> {
+pub fn run(
+    a: &ImportArgs,
+    conf: &LoadedConfig,
+    signal: &library::model_profile::Signal,
+) -> Result<Vec<String>> {
     let out = library::import::run(&a.into())?;
-    print_report(a, conf, &out)?;
+    print_report(a, conf, signal, &out)?;
     Ok(out.imported_models())
 }
 
-fn print_report(a: &ImportArgs, conf: &LoadedConfig, out: &Outcome) -> Result<()> {
+fn print_report(
+    a: &ImportArgs,
+    conf: &LoadedConfig,
+    signal: &library::model_profile::Signal,
+    out: &Outcome,
+) -> Result<()> {
     let (reports, skipped, corrected, written) = (&out.reports, &out.skipped, out.corrected, out.written);
     let lib = (!a.dry_run).then(|| Library::scan(&a.library));
     // profils (IR puis modèles, avec ta basse) : calculés ici pour les nouveaux fichiers
     let profiles = lib.as_ref().map(|l| library::profile::Profiles::load(l, |_| {}));
     let model_profiles = match (&lib, &profiles) {
-        (Some(l), Some(p)) => Some(library::model_profile::ModelProfiles::load(l, conf, p, |n| {
+        (Some(l), Some(p)) => Some(library::model_profile::ModelProfiles::load(l, conf, signal, p, |n| {
             if n >= 3 {
                 eprintln!("profilage de {n} modèles avec ton enregistrement de calibration…")
             }

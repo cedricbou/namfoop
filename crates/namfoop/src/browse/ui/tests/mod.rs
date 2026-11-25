@@ -162,6 +162,23 @@ fn input_meter_shows_calibration_mark_and_model_level() {
     assert!(t.contains("┃") && t.contains("→ modèle -30 dB"), "{t}");
 }
 
+/// **L'instrument joué** (`docs/design/instruments.md` § 7) : à droite de l'en-tête quand il y
+/// tient, sinon en tête de la ligne d'état — jamais perdu, jamais deux fois.
+#[test]
+fn the_played_instrument_is_always_on_screen_once() {
+    let s = sample();
+    let st = Status {
+        instrument: Some(("2 Fretless · itwo · non calibrée".into(), false)),
+        ..Default::default()
+    };
+    for w in [80, 160] {
+        let t = crate::tui::screen_text(w, 25, |f| render(&s, &st, f));
+        assert_eq!(t.matches("2 Fretless · itwo · non calibrée").count(), 1, "{w} colonnes :\n{t}");
+    }
+    let wide = crate::tui::screen_text(160, 25, |f| render(&s, &st, f));
+    assert!(wide.lines().next().unwrap().contains("2 Fretless"), "en-tête :\n{wide}");
+}
+
 /// Le préchargement de la banque se voit tant qu'il reste des places, et disparaît ensuite.
 #[test]
 fn the_bank_preloading_shows_until_it_is_done() {

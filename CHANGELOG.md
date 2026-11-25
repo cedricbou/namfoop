@@ -6,6 +6,19 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Instruments (#203)
+- **Changer d'instrument sans refaire la calibration** : `namfoop calibrate --instrument "bb 735a"`
+  enregistre un instrument nommé avec sa calibration, une par carte, dans la bibliothèque
+  (`library/instruments/`) — elle suit donc ta bibliothèque d'un ordinateur à l'autre. Le premier
+  créé est l'instrument par défaut, pris à chaque lancement ; `--instrument fretless` en prend un
+  autre, par son numéro, son nom ou quelques lettres, pour `browse`, `run`, `render` et les autres.
+- L'instrument joué s'affiche au démarrage (`instrument  1 BB 735A · calibrée sur itwo`) et dans
+  l'en-tête de `browse` et de la scène, en vert « calibrée » ou en jaune « non calibrée ».
+- `namfoop instruments` montre la grille : chaque instrument, chaque carte, ce qui est calibré ;
+  `--adopt "BB 735A"` fait de la calibration d'aujourd'hui ton premier instrument sans rejouer,
+  `--default` change l'instrument par défaut. Sans instrument, la calibration de la config vaut
+  comme avant.
+
 ## 0.8.0 — 2026-11-25
 
 ### Documentation (#443)

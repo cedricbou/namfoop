@@ -51,6 +51,16 @@ pub struct Status {
     /// affiché tant qu'il reste des places à bâtir.
     pub bank: Option<(usize, usize)>,
     pub device: String,
+    /// L'instrument joué, sa carte et son état (`docs/design/instruments.md` § 7), et s'il est
+    /// calibré : à droite de l'en-tête quand il y tient, sinon en tête de la ligne d'état.
+    pub instrument: Option<(String, bool)>,
+}
+
+/// Le badge de l'instrument joué : aplat vert s'il est calibré, jaune sinon, texte à l'encre.
+fn instrument_badge(st: &Status) -> Option<Span<'static>> {
+    let (text, calibrated) = st.instrument.as_ref()?;
+    let bg = if *calibrated { theme::ok() } else { theme::warn() };
+    Some(Span::styled(format!(" {text} "), Style::new().fg(theme::on_accent()).bg(bg)))
 }
 
 pub(super) fn cursor_span(on: bool) -> Span<'static> {
@@ -286,16 +296,30 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             },
         ));
     }
+    let mut right_spans: Vec<Span<'static>> = Vec::new();
     if !what.is_empty() {
-        let used: usize = head.iter().map(|sp| sp.content.chars().count()).sum();
         let right =
             if up_to_date { format!("{what} ✓") } else { format!("{what} ● non enregistré (S)") };
-        let pad = (spaces.width as usize).saturating_sub(used + right.chars().count() + 1);
-        head.push(Span::raw(" ".repeat(pad)));
-        head.push(Span::styled(
+        right_spans.push(Span::styled(
             right,
             if up_to_date { Style::new().fg(theme::ok()) } else { Style::new().fg(theme::warn()) },
         ));
+    }
+    // l'instrument joué, en aplat : vert calibré, jaune sinon (§ 7). Il ne prend la place que si
+    // tout l'en-tête tient ; sinon il passe en tête de la ligne d'état, qui a la largeur.
+    let width = |v: &[Span]| v.iter().map(|sp| sp.content.chars().count()).sum::<usize>();
+    let mut instrument_in_head = false;
+    if let Some(badge) = instrument_badge(st) {
+        if width(&head) + width(&right_spans) + badge.content.chars().count() + 3 <= spaces.width as usize {
+            right_spans.push(Span::raw("  "));
+            right_spans.push(badge);
+            instrument_in_head = true;
+        }
+    }
+    if !right_spans.is_empty() {
+        let pad = (spaces.width as usize).saturating_sub(width(&head) + width(&right_spans) + 1);
+        head.push(Span::raw(" ".repeat(pad)));
+        head.extend(right_spans);
     }
     f.render_widget(Paragraph::new(Line::from(head)), spaces);
 
@@ -624,10 +648,17 @@ pub fn render(s: &State, st: &Status, f: &mut Frame) {
             heard,
             second,
             Line::from(meters),
-            Line::from(Span::styled(
-                s.message.clone().unwrap_or_else(|| format!(" {}", st.device)),
-                Style::new().fg(theme::warn()),
-            )),
+            match (&s.message, instrument_in_head) {
+                (None, false) if st.instrument.is_some() => Line::from(vec![
+                    Span::raw(" "),
+                    instrument_badge(st).unwrap_or_default(),
+                    Span::styled(format!(" {}", st.device), Style::new().fg(theme::warn())),
+                ]),
+                _ => Line::from(Span::styled(
+                    s.message.clone().unwrap_or_else(|| format!(" {}", st.device)),
+                    Style::new().fg(theme::warn()),
+                )),
+            },
         ]),
         now,
     );

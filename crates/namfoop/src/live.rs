@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::amp::AmpArgs;
-use crate::config::{CalibrationExt, LoadedConfig};
+use crate::config::LoadedConfig;
 use engine::{Engine, EngineConfig, Routing, MAX_BLOCK};
 /// Fondu d'un changement de chaîne (presets à venir ; `run` n'en change pas encore).
 const FADE_MS: f32 = 20.0;
@@ -123,7 +123,7 @@ pub fn run(
     let mut max_load = 0.0f32;
     let model_db = spec.first_nam_input_db();
     let to_model_db = spec.trim_db + model_db.unwrap_or(0.0);
-    let mark = conf.config.calibrated_input_peak_dbfs();
+    let mark = amp.calibration.input_peak_dbfs();
     if let Some(m) = mark {
         log::info!("calibration : en jouant fort, « in » doit atteindre ~{m:.1} dBFS (crête de ta basse)");
     }

@@ -6,11 +6,11 @@ use std::path::Path;
 use crate::config::LoadedConfig;
 use library::{Entry, Kind, Library};
 
-pub fn list(library: &Path, conf: &LoadedConfig) -> Result<()> {
+pub fn list(library: &Path, conf: &LoadedConfig, signal: &library::model_profile::Signal) -> Result<()> {
     let default_ir = conf.config.default_ir.as_deref();
     let lib = Library::scan(library);
     let profiles = library::profile::Profiles::load_verbose(&lib);
-    let model_profiles = library::model_profile::ModelProfiles::load_verbose(&lib, conf, &profiles);
+    let model_profiles = library::model_profile::ModelProfiles::load_verbose(&lib, conf, signal, &profiles);
     let models: Vec<&Entry> = lib.of_kind(Kind::Model).collect();
     let irs: Vec<&Entry> = lib.of_kind(Kind::Ir).collect();
     if models.is_empty() && irs.is_empty() && lib.of_kind(Kind::Cab).next().is_none() {

@@ -86,7 +86,7 @@ impl From<&MetaArgs> for library::overrides::MetaArgs {
 }
 
 /// `namfoop meta` : affiche ou corrige les métadonnées d'un ou plusieurs modèles.
-pub fn run(a: &MetaArgs, conf: &LoadedConfig) -> Result<()> {
+pub fn run(a: &MetaArgs, conf: &LoadedConfig, signal: &library::model_profile::Signal) -> Result<()> {
     let default_ir = conf.config.default_ir.as_deref();
     let out = library::overrides::run(&a.into())?;
     if out.edited {
@@ -94,7 +94,7 @@ pub fn run(a: &MetaArgs, conf: &LoadedConfig) -> Result<()> {
     }
     let lib = Library::scan(&a.library);
     let irs = library::profile::Profiles::load_verbose(&lib);
-    let models = library::model_profile::ModelProfiles::load_verbose(&lib, conf, &irs);
+    let models = library::model_profile::ModelProfiles::load_verbose(&lib, conf, signal, &irs);
     for p in &out.targets {
         show(&lib, p, default_ir, &models)?;
     }

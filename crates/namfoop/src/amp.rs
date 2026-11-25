@@ -105,6 +105,10 @@ pub struct AmpArgs {
     /// La bibliothèque retenue (`library_dir`), posée par `main`.
     #[arg(skip)]
     pub library: PathBuf,
+    /// La calibration jouée (instrument, carte), résolue par `main` : le trim et la référence du
+    /// niveau « match » viennent d'elle, jamais de la config.
+    #[arg(skip)]
+    pub calibration: crate::instrument::Calibration,
 }
 
 /// Mini-syntaxe d'un effet pour clap (message d'erreur de `FxSpec`).
@@ -241,9 +245,8 @@ impl AmpArgs {
         Ok(Some(s.entry.path.clone()))
     }
 
-    /// Construit la description de chaîne à partir des options et de la config (`cfg`, avec son
-    /// chemin pour retrouver l'enregistrement de calibration). `limiter_meter` reçoit la
-    /// réduction de gain du limiteur.
+    /// Construit la description de chaîne à partir des options, de la config et de la calibration
+    /// jouée (`self.calibration`). `limiter_meter` reçoit la réduction de gain du limiteur.
     pub fn spec(&self, file: &LoadedConfig, limiter_meter: Option<Arc<AtomicU32>>) -> Result<AmpSpec> {
         let cfg = &file.config;
         let lib = Library::scan(&self.library);
@@ -286,8 +289,11 @@ impl AmpArgs {
             LevelMode::Raw => Level::Raw,
             LevelMode::Normalize => Level::Normalize { target_db },
             LevelMode::Match => {
-                let p = cfg.calibration_path(&file.path);
-                match dsp::wav::read_mono(&p) {
+                let read = match &self.calibration.wav {
+                    Some(p) => dsp::wav::read_mono(p).map_err(|e| e.to_string()),
+                    None => Err("aucun enregistrement de calibration pour cet instrument".into()),
+                };
+                match read {
                     Ok((samples, sample_rate)) => Level::Match { reference: Arc::new(samples), sample_rate },
                     Err(e) => {
                         log::warn!("niveau « match » impossible ({e}) : lancer `namfoop calibrate`. Normalisation à {target_db} dB");
@@ -296,7 +302,7 @@ impl AmpArgs {
                 }
             }
         };
-        let trim_db = self.trim.unwrap_or(cfg.trim_db);
+        let trim_db = self.trim.unwrap_or(self.calibration.trim_db);
         if trim_db != 0.0 {
             log::info!("trim d'entrée {trim_db:+.1} dB");
         }

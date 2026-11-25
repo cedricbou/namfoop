@@ -32,7 +32,7 @@ pub(super) fn save_meta(ctx: &mut Ctx, edits: &[(usize, ModelMeta)]) -> Result<F
         }
     }
     // l'entrée ou l'IR ont pu changer : profils remesurés (le reste vient du cache)
-    let mp = library::model_profile::ModelProfiles::load(&lib, ctx.conf, ctx.profiles, |_| {});
+    let mp = library::model_profile::ModelProfiles::load(&lib, ctx.conf, ctx.signal, ctx.profiles, |_| {});
     for m in ctx.st.models.iter_mut() {
         m.profile = mp.by_rel.get(&m.rel).cloned();
     }

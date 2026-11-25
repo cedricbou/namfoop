@@ -25,7 +25,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::config::{CalibrationExt, LevelMode, LoadedConfig};
+use crate::config::{LevelMode, LoadedConfig};
 use crate::tui;
 use audio_io::Settings;
 use build::{bank_requests, Built, Job};
@@ -185,6 +185,9 @@ pub struct Start<'a> {
     /// Le port MIDI déjà ouvert par le binaire (`--midi-in`, `[midi] in`), s'il y en a un. La
     /// boucle le vide à chaque tour : jamais le fil audio (ADR 0011).
     pub midi: Option<crate::cli_midi::MidiIn>,
+    /// La calibration jouée (instrument, carte), résolue par `main` avant d'ouvrir l'écran
+    /// (`docs/design/instruments.md` § 4) : l'écran ne la change pas, il la montre.
+    pub calibration: crate::instrument::Calibration,
 }
 
 pub fn run(
@@ -197,8 +200,10 @@ pub fn run(
     mut start_with: Start,
 ) -> Result<()> {
     let lib = Library::scan(library);
+    let cal = start_with.calibration.clone();
+    let signal = cal.signal();
     let profiles = library::profile::Profiles::load_verbose(&lib);
-    let model_profiles = library::model_profile::ModelProfiles::load_verbose(&lib, conf, &profiles);
+    let model_profiles = library::model_profile::ModelProfiles::load_verbose(&lib, conf, &signal, &profiles);
     let (mut models, irs) = index(&lib, conf.default_ir.as_deref(), &profiles, &model_profiles);
     if let Some(only) = start_with.only {
         models.retain(|m| only.contains(&m.rel));
@@ -270,14 +275,22 @@ pub fn run(
     let mut next_reading = 0u64;
     let mut traced_note: Option<(i32, i32)> = None;
     // construction des chaînes hors temps réel, et préchargement de la banque de presets
-    let (tx_req, rx_built) = build::spawn(handle, conf, library, cfg.rate, limiter, size, live.clone())?;
+    let (tx_req, rx_built) = build::spawn(
+        handle,
+        conf,
+        library,
+        cfg.rate,
+        limiter,
+        live.clone(),
+        build::Frame { size, calibration: cal.clone() },
+    )?;
 
     // grain de l'éditeur : mesuré hors temps réel avec la basse de l'utilisateur, la plus récente gagne
     let (tx_grain, rx_grain) = mpsc::channel::<(usize, f32, PathBuf)>();
     let (tx_grain_done, rx_grain_done) = mpsc::channel::<(usize, f32, String)>();
-    let conf3 = conf.clone();
+    let signal3 = signal.clone();
     std::thread::Builder::new().name("namfoop-grain".into()).spawn(move || {
-        let signal = library::model_profile::Signal::from_config(&conf3);
+        let signal = signal3;
         while let Ok(mut job) = rx_grain.recv() {
             while let Ok(newer) = rx_grain.try_recv() {
                 job = newer;
@@ -401,8 +414,9 @@ pub fn run(
     let midi_label = midi.as_ref().map(|m| format!(" · MIDI {}", m.description())).unwrap_or_default();
     let mut status = ui::Status {
         device: format!("{}{midi_label} — q pour quitter", stream_label(cfg)),
-        in_mark: conf.config.calibrated_input_peak_dbfs(),
-        trim_db: conf.config.trim_db,
+        in_mark: cal.input_peak_dbfs(),
+        trim_db: cal.trim_db,
+        instrument: cal.badge().map(|b| (b, cal.measured())),
         ..Default::default()
     };
     let mut saved: Option<(String, Vec<BlendPart>, bool)> = None; // (id, mélange sauvé, align)
@@ -473,6 +487,7 @@ pub fn run(
                 library,
                 conf,
                 profiles: &profiles,
+                signal: &signal,
                 audition: &audition,
                 bank_reqs: &mut bank_reqs,
                 tx_req: &tx_req,
