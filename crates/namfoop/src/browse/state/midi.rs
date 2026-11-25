@@ -139,6 +139,9 @@ impl State {
             }
             Event::ClockContinue if self.midi.clock => {
                 self.tempo.clock_continue();
+                // avec un set, la battue **reprend où elle est** : là où `Stop` l'a laissée, ou là
+                // où le SPP qui précède vient de la poser
+                self.beat_continue(at_us / 1000);
                 Action::None
             }
             Event::ClockStop if self.midi.clock => {

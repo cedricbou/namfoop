@@ -216,6 +216,24 @@ impl State {
         }
     }
 
+    /// **`Continue` du transport** : la battue **reprend où elle est** — là où `Stop` l'a laissée,
+    /// ou là où un SPP vient de la poser (Ableton en mode « Song » envoie SPP puis `Continue` dès
+    /// que la lecture ne part pas de 1.1.1). Les deux repères sont recalés à cet instant, parce que
+    /// l'arbitre **réancre** l'horloge sur `Continue` : compté depuis l'ancre d'avant, le repère en
+    /// tops attendrait que le compteur le rattrape. Sans SPP, on repart au début du temps où l'on
+    /// s'était arrêté : une fraction de temps rejouée, jamais plus.
+    pub(in crate::browse::state) fn beat_continue(&mut self, now_ms: u64) {
+        if self.set.as_ref().is_none_or(|s| s.at.is_none()) {
+            return;
+        }
+        let ticks = self.clock_elapsed_ticks().unwrap_or(0);
+        if let Some(set) = self.set.as_mut() {
+            let (bar, tick) = (set.beat.bar, set.beat.tick);
+            set.beat.seek(bar, tick, now_ms, ticks);
+            set.beat.running = true;
+        }
+    }
+
     /// **Song Position Pointer** : une position en doubles-croches depuis le début du morceau,
     /// convertie par la carte des mesures — c'est elle qui sait qu'une section change de mesure.
     /// Rend faux si la position tombe au-delà de ce que le morceau déclare : on le dit alors,
@@ -555,6 +573,102 @@ mod tests {
         // mesure 3 (le refrain), premier temps — 2 mesures de 4/4 puis le début de la 3e
         souffler(&mut s, 7 * TICKS_PER_BEAT, &mut at_us, &mut seq);
         assert_eq!(pos(&s), (1, 0, 0), "8 noires de tops = section 2, mesure 1, temps 1");
+    }
+
+    /// Une horloge à ♩120 vue par la boucle : chaque top passe par `on_midi`, puis un tour de
+    /// boucle. Le top dure **un rien plus** que 500 ms / 24, pour qu'avant le verrou — la battue
+    /// compte alors les millisecondes — le 24ᵉ top tombe bien après la noire.
+    struct Horloge {
+        at_us: u64,
+        seq: u64,
+    }
+
+    impl Horloge {
+        const TOP_US: u64 = 20_834;
+
+        fn tops(&mut self, s: &mut State, n: u32) {
+            for _ in 0..n {
+                self.at_us += Self::TOP_US;
+                self.seq += 1;
+                s.on_midi(midi_io::Event::ClockTick, self.at_us, self.seq);
+                s.tick(self.at_us / 1000);
+            }
+        }
+
+        fn send(&self, s: &mut State, e: midi_io::Event) {
+            s.on_midi(e, self.at_us, self.seq);
+        }
+    }
+
+    /// **`Stop` puis `Continue` : la battue reprend où elle s'était arrêtée**, et non au 1 du
+    /// morceau. L'arbitre réancre l'horloge sur `Continue` : la battue doit quand même avancer
+    /// dès les premiers tops, puis compter juste une fois le verrou retrouvé.
+    #[test]
+    fn continue_resumes_the_beat_where_stop_left_it() {
+        use midi_io::Event;
+        let mut s = staged(CHO);
+        let mut h = Horloge { at_us: 1_000_000, seq: 0 };
+        h.tops(&mut s, 2 * TICKS_PER_BEAT);
+        h.send(&mut s, Event::ClockStart);
+        // le temps 1 est le **premier top** après le transport (norme MIDI) : cinq noires plus
+        // loin, c'est le 121ᵉ
+        h.tops(&mut s, 5 * TICKS_PER_BEAT + 1);
+        assert_eq!(pos(&s), (0, 1, 1), "cinq noires : mesure 2, temps 2");
+
+        h.send(&mut s, Event::ClockStop);
+        assert!(!running(&s));
+        // Ableton peut continuer d'envoyer des tops à l'arrêt : la battue n'en bouge pas
+        h.tops(&mut s, 3 * TICKS_PER_BEAT);
+        assert_eq!(pos(&s), (0, 1, 1), "arrêtée, elle ne bouge plus");
+
+        h.send(&mut s, Event::ClockContinue);
+        assert!(running(&s), "Continue relance la battue");
+        assert_eq!(pos(&s), (0, 1, 1), "là où Stop l'a laissée, pas au 1 du morceau");
+        h.tops(&mut s, TICKS_PER_BEAT + 1);
+        assert_eq!(pos(&s), (0, 1, 2), "elle avance dès la première noire, avant le verrou");
+        // deux noires de plus : le verrou est retrouvé, la battue compte alors les tops
+        h.tops(&mut s, 2 * TICKS_PER_BEAT);
+        assert_eq!(pos(&s), (1, 0, 0), "fin du couplet : le Refrain, sur son 1");
+        h.tops(&mut s, 3 * TICKS_PER_BEAT);
+        assert_eq!(pos(&s), (1, 0, 3), "et elle suit les tops sans glisser");
+    }
+
+    /// **Ableton lancé au milieu du morceau** (mode « Song ») : SPP puis `Continue`. La battue part
+    /// de la position reçue — c'est le cas le plus courant en répétition.
+    #[test]
+    fn a_song_position_then_continue_starts_from_that_position() {
+        use midi_io::Event;
+        let mut s = staged(CHO);
+        let mut h = Horloge { at_us: 1_000_000, seq: 0 };
+        h.tops(&mut s, 2 * TICKS_PER_BEAT);
+        h.send(&mut s, Event::ClockStop);
+        // 20 doubles-croches : la mesure 2 du couplet, sur son 2ᵉ temps
+        h.send(&mut s, Event::SongPosition(20));
+        assert_eq!(pos(&s), (0, 1, 1));
+        assert!(!running(&s), "le SPP pose la battue sans la lancer");
+
+        h.send(&mut s, Event::ClockContinue);
+        assert!(running(&s));
+        h.tops(&mut s, 2 * TICKS_PER_BEAT + 1);
+        assert_eq!(pos(&s), (0, 1, 3), "deux noires plus loin que la position reçue");
+    }
+
+    /// `Continue` ne lance rien **sans son joué**, ni **horloge coupée** (`[midi] clock = false`) :
+    /// la battue reste au pied.
+    #[test]
+    fn continue_does_nothing_without_a_sound_or_with_the_clock_off() {
+        use midi_io::Event;
+        let mut s = staged(CHO);
+        s.midi.clock = false;
+        s.on_midi(Event::ClockContinue, 1_000_000, 0);
+        assert!(!running(&s), "horloge coupée : Continue n'a rien à dire à la battue");
+
+        let mut s = staged(CHO);
+        if let Some(set) = s.set.as_mut() {
+            set.at = None;
+        }
+        s.on_midi(Event::ClockContinue, 1_000_000, 0);
+        assert!(!running(&s), "aucun son joué : rien à battre");
     }
 
     /// Sans horloge, **rien ne change** : la battue compte les millisecondes comme avant.

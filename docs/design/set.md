@@ -367,7 +367,7 @@ dans l'arbitre : un tap ou l'horloge le recouvrent.
 | Pied, `Espace` | lance / arrête ; l'appui est le 1 de la mesure en cours |
 | `Fin` / `Début` | section suivante / précédente, recalée sur son 1 (en marche comme à l'arrêt) |
 | Tap `*` | recale le tempo et le temps, pas la mesure |
-| Transport MIDI | `Start` = le 1 de la mesure 1 du morceau, et la battue part ; `SPP` = position, convertie en mesure et temps par la carte des mesures ; `Stop` arrête |
+| Transport MIDI | `Start` = le 1 de la mesure 1 du morceau, et la battue part ; `SPP` = position, convertie en mesure et temps par la carte des mesures ; `Stop` arrête ; `Continue` reprend où la battue est (là où `Stop` l'a laissée, ou là où un SPP vient de la poser) |
 
 Changer de morceau remet la position au début du morceau (et arrête la battue, sauf horloge).
 
@@ -380,8 +380,9 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
 
 - **PC / CC 34** : § 5 (PC = morceau, CC 34 = son du morceau, fenêtre PC + CC). Sans set : PC n =
   n-ième preset de la banque.
-- **Horloge** : Start lance la battue sur le 1 de la mesure 1, Stop l'arrête, le tempo reçu devient
-  le tempo entendu.
+- **Horloge** : Start lance la battue sur le 1 de la mesure 1, Stop l'arrête, Continue la reprend
+  où elle est — Ableton en mode « Song » envoie SPP puis Continue dès que la lecture ne part pas de
+  1.1.1 —, le tempo reçu devient le tempo entendu.
 - **CC 15** : l'accordeur — 64 ou plus coupe la basse et l'affiche à la place du prompteur, moins de 64
   rend le son ; un PC, un CC 34 ou un Start rendent aussi le son ([`accordeur.md`](accordeur.md) § 3).
 - **Song Position Pointer** (Ableton l'envoie en mode « Song ») : position en doubles croches,
