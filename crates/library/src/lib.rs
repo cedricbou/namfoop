@@ -7,6 +7,8 @@
 /// La carte des mesures d'un morceau : section, mesure, temps, et le Song Position Pointer.
 pub mod bars;
 pub mod error;
+/// L'échange de la bibliothèque entre machines : la valise sur la clé USB.
+pub mod exchange;
 /// Une ligne de grille d'accords (`{start_of_grid}`) : ses mesures, ses marges.
 pub mod grid;
 pub mod import;

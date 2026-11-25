@@ -5,6 +5,8 @@ mod cli_audio;
 mod cli_midi;
 mod cli_routing;
 mod config;
+mod exchange;
+mod export_cmd;
 mod fx_cmd;
 mod import_cmd;
 mod instrument;
@@ -144,6 +146,8 @@ enum Cmd {
         #[command(flatten)]
         args: import_cmd::ImportArgs,
     },
+    /// Met toute la bibliothèque dans une valise sur la clé USB : ne recopie que ce qui a changé
+    Export(export_cmd::ExportArgs),
     /// Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
     Meta {
         #[command(flatten)]
@@ -377,6 +381,7 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
+        Cmd::Export(args) => export_cmd::start(args, &conf),
         Cmd::Meta { mut args } => {
             args.library = lib(&args.library_arg).require()?.to_path_buf();
             meta_cmd::run(&args, &conf, &offline(&args.library)?.signal())

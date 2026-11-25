@@ -58,8 +58,8 @@ library_dir.rs  OÙ EST LA BIBLIOTHÈQUE : --library > NAMFOOP_LIBRARY > clé `l
                 les commandes qui n'ont rien à faire sans bibliothèque (browse, run --set, models,
                 presets, sets, meta). `import` la crée ; `run`, `render`, `bench`, `latency` et
                 `setup` s'en passent
-theme.rs        LA liste des couleurs des écrans, nommées par ce qu'elles signifient : les espaces
-                (Bibliothèque, Chaîne, Set), les modes, les états, les vumètres, la chaîne en
+theme.rs        LA liste des couleurs des écrans (et `paint` pour les commandes ligne à ligne),
+                nommées par ce qu'elles signifient : les espaces (Bibliothèque, Chaîne, Set), les modes, les états, les vumètres, la chaîne en
                 blocs. **Aucune couleur en dur ailleurs dans le binaire** — check-arch.sh refuse
                 tout `Color::` hors de ce fichier. Des fonctions et non des constantes : la teinte
                 se choisit à l'exécution. Deux usages qui partagent une teinte aujourd'hui gardent
@@ -125,6 +125,13 @@ calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule
                 n'a aucun instrument et qu'on n'en nomme pas
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start)
+export_cmd.rs   `export` : options clap, bilan, place libre sur la clé (statvfs) ; l'écriture est dans
+                library::exchange::suitcase
+exchange.rs     commun à `export` et `import` : la mémoire des échanges (`echanges/` À CÔTÉ du
+                fichier de config, jamais la config elle-même ; `--exchanges` sous --no-config), le
+                nom de la machine (demandé une fois), l'heure locale notée, le dossier de la clé
+                (celui du dernier échange sans argument), le bilan famille par famille
+                (theme::paint : couleurs seulement vers un terminal)
 meta_cmd.rs     `meta` : affichage d'un modèle
 midi_rules.rs   ce qu'un message demande à un set (le morceau d'un PC, le son d'un CC, la raison d'un
                 refus) : règles pures, partagées par browse/state/midi.rs, qui joue, et l'écran MIDI,

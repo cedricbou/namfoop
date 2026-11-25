@@ -536,6 +536,55 @@ Au démarrage, `run` affiche ce qu'il applique : `entrée propre au modèle -3.0
 Pour repartir de zéro sur un modèle : `namfoop meta <id> --reset`. Tes corrections ne touchent
 jamais aux fichiers achetés, et survivent à un réimport.
 
+### Emporter ma bibliothèque : `namfoop export`
+
+Quand tu joues sur plusieurs machines — l'ordinateur du studio, le portable de répétition, le Pi
+de scène —, une clé USB les relie. `namfoop export` y pose une **valise** : un dossier
+`valise-namfoop/` qui porte **toute** la bibliothèque — sons et notices, presets, sets et leurs
+prompteurs, mélanges d'IR, corrections de modèles, instruments et leurs calibrations — et une
+étiquette qui dit quelle machine l'a écrite, et quand. Rien ne se choisit, donc rien ne s'oublie.
+
+```sh
+namfoop export /run/media/moi/NAMFOOP     # la première fois : le dossier de la clé
+namfoop export                            # ensuite : la clé du dernier échange
+namfoop export --dry-run                  # ce qui n'est pas encore dans la valise, sans rien écrire
+```
+
+```
+valise      /run/media/moi/NAMFOOP/valise-namfoop · vue ici le lun. 23/11
+machine     studio
+
+ sons         + 2 modèles  + 1 IR          Darkglass pack · 41 Mo
+ créations    ~ 2 presets  + 1 set         Chill verse, Fuzz refrain, Live Mairie
+ instruments  = 4 instruments, 6 calibrations
+
+ 44 Mo copiés en 6 s. La valise est complète : 312 sons, 16 presets, 3 sets.
+ Tu peux retirer la clé.
+```
+
+- **La première fois**, namfoop demande le nom de la machine (`studio`, `portable`, `pi`) en
+  proposant celui de l'ordinateur sur le réseau, et le retient : il désigne ensuite chaque version
+  écrite depuis cette machine.
+- **Seul ce qui a changé est recopié**, et décidé sur le **contenu** des fichiers, jamais sur leur
+  date : l'horloge d'un Pi sans réseau est fausse. Le bilan dit, famille par famille, ce qui part :
+  `+` nouveau, `~` modifié, `-` supprimé ; `=` et le compte quand rien ne bouge. Rien à emporter :
+  `La valise est déjà à jour avec studio.`, et rien ne s'écrit sur la clé.
+- **Une suppression suit** : un preset supprimé ici est retiré de la valise.
+- **« Tu peux retirer la clé »** ne s'affiche qu'une fois tout écrit et vidé sur la clé. Une clé
+  retirée trop tôt laisse une valise marquée incomplète ; relancer `namfoop export` la répare.
+- **Les refus n'écrivent rien** : une clé pleine (`il manque 120 Mo sur la clé`), une clé protégée
+  en écriture, ou un nom de fichier qu'une clé FAT refuse (`:`, `?`, `*`, `"`, `<`, `>`, `|`, un
+  point ou une espace final, deux noms qui ne diffèrent que par la casse) — le message nomme le
+  fichier à renommer.
+- **La valise reste une bibliothèque ordinaire** : en secours, elle se joue telle quelle,
+  `namfoop --library /run/media/moi/NAMFOOP/valise-namfoop/library browse`.
+
+**Ce qui ne voyage pas** : la config de l'ordinateur — carte et `setup`, MIDI, mode de niveau,
+limiteur, accordeur, métronome, set du moment. Elle se règle une fois par machine, et `export` ne la
+lit ni ne l'écrit. Le cache des mesures (`library/.cache/`) ne voyage pas non plus : chaque machine
+le refait. La machine retient son nom et ses échanges dans `echanges/`, à côté du fichier de config ;
+avec `--no-config`, `--exchanges <dossier>` en donne un.
+
 ### Inventaire : `namfoop models`
 
 ```sh
