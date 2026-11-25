@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+## 0.8.0 — 2026-11-25
+
+### Documentation (#443)
+- **La carte de l'architecture relue pour la publication** : la table des règles vérifiées reprend
+  celles du script de contrôle (`midi-io` interdit à `dsp` et à `library`, `dsp` sans thread, les
+  couleurs des écrans toutes dans `theme`), et le coût d'un contexte clavier nomme ses trois `match`
+  exhaustifs.
+
 ### Set (#441)
 - **Une section découpée en grilles se lit d'un coup d'œil** : les paroles d'une section et de ses
   voisines de même nom commencent toutes à la même colonne, et chaque colonne de mesures prend la
