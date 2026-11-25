@@ -15,21 +15,22 @@ Multi-effet basse temps réel (NAM + IR) — ALSA direct ou carte simulée
 Usage: namfoop [OPTIONS] <COMMAND>
 
 Commands:
-  run        Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
-  render     Traite un WAV hors ligne avec la même chaîne que `run`
-  bench      Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
-  import     Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
-  meta       Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
-  fx         Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
-  models     Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
-  presets    Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
-  sets       Liste les sets de concert (identifiant, nom, morceaux et sons, avertissements)
-  calibrate  Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
-  browse     Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
-  midi       Liste les ports MIDI d'entrée, puis affiche en clair ce qui en arrive (pédalier, Ableton)
-  setup      Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
-  latency    Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
-  help       Print this message or the help of the given subcommand(s)
+  run          Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
+  render       Traite un WAV hors ligne avec la même chaîne que `run`
+  bench        Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
+  import       Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
+  meta         Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
+  fx           Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
+  models       Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
+  presets      Liste les presets enregistrés (identifiant pour `run --preset`, nom, chaîne)
+  sets         Liste les sets de concert (identifiant, nom, morceaux et sons, avertissements)
+  calibrate    Mesure le niveau de ton instrument (joue fort ~15 s) et règle le trim d'entrée + le volume pour lui, sur cette carte (--instrument : lequel ; défaut : l'instrument par défaut)
+  instruments  Mes instruments : la grille de leurs calibrations, carte par carte ; --adopt, --default
+  browse       Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
+  midi         Liste les ports MIDI d'entrée, puis affiche en clair ce qui en arrive (pédalier, Ableton)
+  setup        Assistant plein écran : backend, carte, entrées (vumètres), sorties (bip), buffer
+  latency      Mesure la latence aller-retour (câble sortie -> entrée nécessaire)
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
       --backend <BACKEND>
@@ -72,6 +73,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -80,7 +84,8 @@ Options:
 
 Exemples :
   namfoop setup              (une fois : carte, entrées, sorties, buffer)
-  namfoop calibrate          (une fois : règle le niveau de ta basse)
+  namfoop calibrate --instrument "bb 735a"   (une fois par instrument : son niveau)
+  namfoop --instrument fretless browse   (un autre instrument que celui par défaut)
   namfoop browse             (choisir modèle / IR / mélange en jouant)
   namfoop run -m b7k
   namfoop run -m "800d modern" -i "dg212 sm57" --route 2=di
@@ -190,6 +195,9 @@ Options:
 
       --tempo <BPM>
           Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
       --pre <FX>
           Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
@@ -343,6 +351,9 @@ Options:
       --tempo <BPM>
           Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
       --pre <FX>
           Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
 
@@ -454,6 +465,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -524,6 +538,9 @@ Options:
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
   -h, --help
           Print help (see a summary with '-h')
@@ -612,6 +629,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -667,6 +687,9 @@ Options:
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
   -h, --help
           Print help (see a summary with '-h')
@@ -724,6 +747,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -779,6 +805,9 @@ Options:
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
   -h, --help
           Print help (see a summary with '-h')
@@ -836,6 +865,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -843,7 +875,7 @@ Options:
 ## namfoop calibrate
 
 ```text
-Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
+Mesure le niveau de ton instrument (joue fort ~15 s) et règle le trim d'entrée + le volume pour lui, sur cette carte (--instrument : lequel ; défaut : l'instrument par défaut)
 
 Usage: namfoop calibrate [OPTIONS]
 
@@ -880,6 +912,9 @@ Options:
       --dry-run
           Analyse seulement, ne sauve rien
 
+      --library <DOSSIER>
+          Dossier de la bibliothèque, où vivent les instruments [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
@@ -903,6 +938,73 @@ Options:
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop instruments
+
+```text
+Mes instruments : la grille de leurs calibrations, carte par carte ; --adopt, --default
+
+Usage: namfoop instruments [OPTIONS]
+
+Options:
+      --adopt <NOM>
+          Range la calibration actuelle de la config (trim, cible, enregistrement) comme calibration d'un NOUVEL instrument de ce nom, sur la carte préférée, sans rejouer. La config ne change pas
+
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon alsa]
+
+          Possible values:
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --default <INSTRUMENT>
+          Fait de cet instrument (numéro, nom ou quelques lettres) celui que namfoop prend à chaque lancement
+
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
   -h, --help
           Print help (see a summary with '-h')
@@ -982,6 +1084,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -1052,6 +1157,9 @@ Options:
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -1106,6 +1214,9 @@ Options:
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
   -h, --help
           Print help (see a summary with '-h')
@@ -1188,6 +1299,9 @@ Options:
 
       --no-config
           Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
   -h, --help
           Print help (see a summary with '-h')

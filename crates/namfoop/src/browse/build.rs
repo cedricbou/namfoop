@@ -14,6 +14,7 @@ use super::state::State;
 use super::{trace, MAX_BLOCK};
 use crate::amp::AmpArgs;
 use crate::config::LoadedConfig;
+use crate::instrument::Calibration;
 use library::Library;
 
 pub(super) enum Built {
@@ -108,7 +109,7 @@ pub(super) fn drain(
     }
 }
 
-pub(super) fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
+pub(super) fn amp_args(library: &Path, size: f64, req: &Request, calibration: &Calibration) -> AmpArgs {
     AmpArgs {
         model: req.first_model().map(|p| p.display().to_string()),
         ir: req.first_ir().map(|p| p.display().to_string()),
@@ -132,6 +133,7 @@ pub(super) fn amp_args(library: &Path, size: f64, req: &Request) -> AmpArgs {
         preset: None,
         library_arg: None,
         library: library.to_path_buf(),
+        calibration: calibration.clone(),
     }
 }
 
@@ -146,6 +148,14 @@ pub(super) struct Live {
     pub tempo: dsp::param::Control,
 }
 
+/// Ce qui ne change pas de la session : la taille des modèles slimmable et la calibration de
+/// l'instrument joué (le trim, la référence du niveau « match »). Changer d'instrument relance la
+/// session (`docs/design/instruments.md` § 1, règle 7).
+pub(super) struct Frame {
+    pub size: f64,
+    pub calibration: Calibration,
+}
+
 /// Lance le thread de construction et rend les deux bouts du dialogue : les demandes d'un côté,
 /// ce qui a été installé de l'autre.
 pub(super) fn spawn(
@@ -154,9 +164,10 @@ pub(super) fn spawn(
     library: &Path,
     rate: u32,
     limiter: Arc<AtomicU32>,
-    size: f64,
     live: Live,
+    frame: Frame,
 ) -> Result<(mpsc::Sender<Job>, mpsc::Receiver<Built>)> {
+    let Frame { size, calibration: cal } = frame;
     // construction des chaînes hors temps réel : la demande la plus récente gagne, et les chaînes
     // des presets sont bâties à l'avance (banque préchargée : bascule en 1 µs au lieu de 80 ms)
     let (tx_req, rx_req) = mpsc::channel::<Job>();
@@ -169,7 +180,8 @@ pub(super) fn spawn(
         // le cadre (trim, niveau, master, limiteur) vient des options et de la config ; les blocs,
         // eux, sont ceux de l'éditeur. Les vumètres par bloc voyagent avec la chaîne.
         let to_spec = |req: &Request, lib: &Library| -> Result<dsp::block::ChainSpec> {
-            let mut spec = amp_args(&lib_dir, size, req).spec(&conf2, Some(limiter.clone()))?.to_chain_spec();
+            let mut spec =
+                amp_args(&lib_dir, size, req, &cal).spec(&conf2, Some(limiter.clone()))?.to_chain_spec();
             spec.blocks = block_specs(&req.blocks, lib, req, size);
             // le volume du preset, après l'alignement de niveau : vivant, donc la chaîne
             // suit la case au lieu de porter un gain figé

@@ -974,6 +974,49 @@ def scenario_midi_horloge(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_instruments(binaire, lignes, colonnes):
+    """**Mes instruments** (`docs/design/instruments.md` § 4, § 7) : `--instrument` prend un autre
+    instrument que celui par défaut, l'écran le montre, et la config de l'ordinateur reste
+    identique **à l'octet** après la session — plusieurs chemins de `browse` réécrivent la config
+    qu'ils ont chargée, et ils ne doivent jamais y porter la calibration de l'instrument du jour."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-instr-") as tmp:
+        bib = bibliotheque_jetable(os.path.join(tmp, "library"))
+        os.makedirs(os.path.join(bib, "instruments"))
+        for fichier, texte in (
+            ("bb-735a.toml", 'name = "BB 735A"\nnumber = 1\ndefault = true\n\n'
+                             '[calibration.itwo]\ntrim_db = -17.5\ntarget_dbfs = -30.0\n'),
+            ("fretless.toml", 'name = "Fretless"\nnumber = 2\n\n'
+                              '[calibration.itwo]\ntrim_db = -9.0\ntarget_dbfs = -30.0\n'),
+        ):
+            with open(os.path.join(bib, "instruments", fichier), "w", encoding="utf-8") as f:
+                f.write(texte)
+        config = os.path.join(tmp, "config.toml")
+        with open(config, "w", encoding="utf-8") as f:
+            f.write('trim_db = -6.0\n\n[audio]\nbackend = "sim"\ndevice = "4x6"\n')
+        with open(config, "rb") as f:
+            avant = f.read()
+        ec = Ecran(
+            binaire,
+            ["--config", config, "--instrument", "fret", "browse", "--library", bib],
+            lignes, colonnes, os.path.join(tmp, "trace.log"),
+        )
+        try:
+            ec.lire(2.5)
+            vu = ec.voir()
+            verifier("2 Fretless" in vu, f"{taille} : l'instrument choisi est à l'écran")
+            verifier("BB 735A" not in vu, f"{taille} : pas l'instrument par défaut")
+            ec.taper("\x1b[B", 1.5)
+            ec.taper("q", 0.8)
+            ec.taper("Q", 0.6)
+            code = ec.attendre_fin(4.0)
+            verifier(code == 0, f"{taille} : `Q` quitte proprement (code {code})")
+        finally:
+            ec.tuer()
+        with open(config, "rb") as f:
+            verifier(f.read() == avant, f"{taille} : la config est identique à l'octet après la session")
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -989,6 +1032,7 @@ def main():
         scenario_browse(binaire, lignes, colonnes)
         scenario_battue(binaire, lignes, colonnes)
         scenario_accordeur(binaire, lignes, colonnes)
+        scenario_instruments(binaire, lignes, colonnes)
     # une seule taille : le MIDI ne dessine presque rien, la taille d'écran n'y change rien
     scenario_midi(binaire, 25, 80)
     scenario_midi_horloge(binaire, 25, 80)

@@ -7,6 +7,8 @@ mod cli_routing;
 mod config;
 mod fx_cmd;
 mod import_cmd;
+mod instrument;
+mod instruments_cmd;
 mod latency;
 mod library_dir;
 mod live;
@@ -39,7 +41,8 @@ use crate::config::LoadedConfig;
     about = "Multi-effet basse temps réel (NAM + IR) — ALSA direct ou carte simulée",
     after_help = "Exemples :\n  \
         namfoop setup              (une fois : carte, entrées, sorties, buffer)\n  \
-        namfoop calibrate          (une fois : règle le niveau de ta basse)\n  \
+        namfoop calibrate --instrument \"bb 735a\"   (une fois par instrument : son niveau)\n  \
+        namfoop --instrument fretless browse   (un autre instrument que celui par défaut)\n  \
         namfoop browse             (choisir modèle / IR / mélange en jouant)\n  \
         namfoop run -m b7k\n  \
         namfoop run -m \"800d modern\" -i \"dg212 sm57\" --route 2=di\n  \
@@ -63,6 +66,12 @@ struct Cli {
     /// Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
     #[arg(long, global = true)]
     no_config: bool,
+
+    /// Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut :
+    /// l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le
+    /// trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+    #[arg(long, global = true, value_name = "INSTRUMENT")]
+    instrument: Option<String>,
 
     #[command(subcommand)]
     cmd: Cmd,
@@ -163,7 +172,8 @@ enum Cmd {
         #[arg(value_name = "DOSSIER")]
         library: Option<PathBuf>,
     },
-    /// Mesure le niveau de ta basse (joue fort ~15 s) et règle le trim d'entrée + le volume
+    /// Mesure le niveau de ton instrument (joue fort ~15 s) et règle le trim d'entrée + le volume
+    /// pour lui, sur cette carte (--instrument : lequel ; défaut : l'instrument par défaut)
     Calibrate {
         /// Durée d'enregistrement (s)
         #[arg(long, default_value_t = 15.0)]
@@ -177,6 +187,15 @@ enum Cmd {
         /// Analyse seulement, ne sauve rien
         #[arg(long)]
         dry_run: bool,
+        /// Dossier de la bibliothèque, où vivent les instruments
+        /// [défaut : ./library, sinon ~/.local/share/namfoop/library]
+        #[arg(long, value_name = "DOSSIER")]
+        library: Option<PathBuf>,
+    },
+    /// Mes instruments : la grille de leurs calibrations, carte par carte ; --adopt, --default
+    Instruments {
+        #[command(flatten)]
+        args: instruments_cmd::InstrumentsArgs,
     },
     /// Navigateur plein écran qui joue en direct : modèles, IR conseillées, mélanges d'IR à l'oreille
     Browse {
@@ -254,6 +273,27 @@ fn main() -> Result<()> {
     let lib = |option: &Option<PathBuf>| library_dir::locate(option.as_deref(), &conf);
     // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
     let audio = || cli_audio::settings(&cli.audio, &conf);
+    // la calibration jouée (instrument, carte), résolue une fois ici : instrument.rs
+    let calib = |card: &instrument::Card, library: &std::path::Path| {
+        let list = instrument::load(library)?;
+        instrument::resolve(&conf, &list, cli.instrument.as_deref(), card, library)
+    };
+    // sur la carte : la ligne de démarrage dit ce qui joue (§ 4 de docs/design/instruments.md)
+    let on_card =
+        |audio: &audio_io::Settings, library: &std::path::Path| -> Result<instrument::Calibration> {
+            let c = calib(&instrument::card_of(&conf, audio)?, library)?;
+            if let Some(line) = c.startup_line() {
+                eprintln!("{line}");
+            }
+            Ok(c)
+        };
+    let offline = |library: &std::path::Path| -> Result<instrument::Calibration> {
+        let c = calib(&instrument::Card::Offline, library)?;
+        if let Some(line) = c.startup_line() {
+            log::info!("{line}");
+        }
+        Ok(c)
+    };
     match cli.cmd {
         Cmd::Run { mut amp, routing, seconds, quiet, no_trails, click, set } => {
             let found = lib(&amp.library_arg);
@@ -284,18 +324,21 @@ fn main() -> Result<()> {
                 let start = browse::Start {
                     set: (!query.is_empty()).then_some(query.as_str()),
                     locked: true,
+                    calibration: on_card(&audio, &amp.library)?,
                     midi: cli.midi.open(&conf.config),
                     ..Default::default()
                 };
                 return browse::run(&audio, &conf, &amp.library, &routing, 1.0, !no_trails, start);
             }
             let (audio, profile) = audio()?;
+            amp.calibration = on_card(&audio, &amp.library)?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
             let session = live::Session { seconds, quiet, trails: !no_trails, click };
             live::run(&audio, &conf, &amp, &routing, cli.midi.open(&conf.config), session)
         }
         Cmd::Render { mut amp, input, output, block } => {
             amp.library = lib(&amp.library_arg).path;
+            amp.calibration = offline(&amp.library)?;
             let input = input.unwrap_or_else(offline::default_input);
             let stats = offline::render(&amp, &conf, &input, output.as_deref(), block)?;
             offline::print_render(&stats);
@@ -315,7 +358,7 @@ fn main() -> Result<()> {
         Cmd::Import { mut args } => {
             // `import` crée la bibliothèque si elle n'existe pas encore
             args.library = lib(&args.library_arg).path;
-            let imported = import_cmd::run(&args, &conf)?;
+            let imported = import_cmd::run(&args, &conf, &offline(&args.library)?.signal())?;
             if args.review && !args.dry_run {
                 if imported.is_empty() {
                     println!("--review : aucun nouveau modèle à revoir");
@@ -328,6 +371,7 @@ fn main() -> Result<()> {
                     ..Default::default()
                 };
                 let (audio, profile) = audio()?;
+                let start = browse::Start { calibration: on_card(&audio, &args.library)?, ..start };
                 let routing = cli_audio::base_routing(&conf, profile.as_ref());
                 browse::run(&audio, &conf, &args.library, &routing, 1.0, true, start)?;
             }
@@ -335,23 +379,46 @@ fn main() -> Result<()> {
         }
         Cmd::Meta { mut args } => {
             args.library = lib(&args.library_arg).require()?.to_path_buf();
-            meta_cmd::run(&args, &conf)
+            meta_cmd::run(&args, &conf, &offline(&args.library)?.signal())
         }
-        Cmd::Models { library } => models_cmd::list(lib(&library).require()?, &conf),
+        Cmd::Models { library } => {
+            let library = lib(&library).require()?.to_path_buf();
+            models_cmd::list(&library, &conf, &offline(&library)?.signal())
+        }
+        Cmd::Instruments { args } => {
+            let library = lib(&args.library).path;
+            instruments_cmd::run(&args, &conf, &library)
+        }
         Cmd::Presets { library } => presets_cmd::list(lib(&library).require()?, &conf),
         Cmd::Sets { library } => sets_cmd::list(lib(&library).require()?, &conf),
         Cmd::Fx { name } => fx_cmd::run(name.as_deref()),
-        Cmd::Calibrate { seconds, target, channel, dry_run } => {
+        Cmd::Calibrate { seconds, target, channel, dry_run, library } => {
+            let library = lib(&library).path;
             let (audio, profile) = audio()?;
             let mut routing = cli_audio::base_routing(&conf, profile.as_ref());
             if let Some(c) = channel {
                 routing.bass_in = c;
             }
-            let save = !dry_run && !conf.ignored;
-            if !dry_run && conf.ignored {
-                log::warn!("--no-config : rien ne sera sauvé");
-            }
-            calibrate::run(&audio, &conf.path, seconds, target, &routing, save)
+            let list = instrument::load(&library)?;
+            let dest = match instrument::to_calibrate(&list, cli.instrument.as_deref())? {
+                _ if dry_run => calibrate::Dest::Nowhere,
+                Some((instrument, new)) => {
+                    let card = match instrument::card_of(&conf, &audio)? {
+                        instrument::Card::Real(id) => id,
+                        _ => "sim".into(),
+                    };
+                    let what = if new { "nouvel instrument" } else { "instrument" };
+                    eprintln!("{what}  {} · sur {card}", instrument.label());
+                    let config = (!conf.ignored).then(|| conf.path.clone());
+                    calibrate::Dest::Instrument { library, instrument, new, card, config }
+                }
+                None if conf.ignored => {
+                    log::warn!("--no-config : rien ne sera sauvé");
+                    calibrate::Dest::Nowhere
+                }
+                None => calibrate::Dest::Config(conf.path.clone()),
+            };
+            calibrate::run(&audio, dest, seconds, target, &routing)
         }
         Cmd::Browse { library, size, filter, set, no_trails, routing } => {
             let found = lib(&library);
@@ -361,6 +428,7 @@ fn main() -> Result<()> {
             let start = browse::Start {
                 filter: filter.as_deref(),
                 set: set.as_deref(),
+                calibration: on_card(&audio, library)?,
                 midi: cli.midi.open(&conf.config),
                 ..Default::default()
             };

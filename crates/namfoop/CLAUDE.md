@@ -36,7 +36,20 @@ amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (CLI > config >
                 « bandes [HZ] : son direct | NAM › IR » ; --tempo BPM (ADR 0008) pose
                 AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run` et `render` n'ont pas de tap,
                 et c'est ce qui rend une mesure reproductible ; --pre / --post les effets
-config.rs       glue de la config (types dans crates/model) : CalibrationExt (repère des vumètres)
+config.rs       glue de la config (types dans crates/model)
+instrument.rs   LA CALIBRATION JOUÉE (docs/design/instruments.md § 4) : `resolve`, pure — (instrument
+                demandé, carte) -> trim, enregistrement, cible, état ; --instrument > instrument par
+                défaut de la bibliothèque > calibration de la config ; --no-config ne prend aucun
+                instrument qu'on ne nomme pas. Résolue UNE fois dans main, puis passée à ceux qui
+                lisaient la config : AmpArgs::calibration (#[arg(skip)], comme `library`),
+                browse::Start::calibration, le Signal des profils de modèles. Ne JAMAIS la poser
+                dans `conf.config` : `remember` (browse/actions/set.rs), l'écran MIDI et setup
+                réécrivent la config chargée, et y porteraient l'instrument du jour (le scénario
+                `scenario_instruments` de check-e2e.py compare la config à l'octet). La carte : le
+                profil retenu, sinon le device ALSA réduit à un identifiant ; carte simulée et hors
+                carte : la carte préférée, sinon la mesure la plus récente
+instruments_cmd.rs `instruments` : la grille (fonction pure `grid`, testée), --adopt (la calibration
+                de la config devient un instrument, config intacte), --default
 library_dir.rs  OÙ EST LA BIBLIOTHÈQUE : --library > NAMFOOP_LIBRARY > clé `library` de la config >
                 ./library s'il existe > model::config::data_dir()/library. Choisie UNE fois dans
                 main, après la config ; les options clap portent `library_arg: Option<PathBuf>` et
@@ -107,7 +120,9 @@ latency/        mesure de latence par impulsion (câble de bouclage ; engine::ra
                 `assert_no_alloc` (la garde est dans `drive`, le pilote de test : tout test de la
                 mesure vérifie du même coup la règle temps réel)
 calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le
-                niveau « match »
+                niveau « match ». `Dest` dit où va la mesure : l'instrument (créé s'il n'existe
+                pas, instrument::to_calibrate) sur cette carte, ou la config quand la bibliothèque
+                n'a aucun instrument et qu'on n'en nomme pas
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start)
 meta_cmd.rs     `meta` : affichage d'un modèle

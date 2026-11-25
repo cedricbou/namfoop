@@ -84,6 +84,7 @@ impl ModelProfile {
 // Le signal de mesure : fenêtre la plus forte, basse synthétique, crête robuste
 
 /// Signal de mesure, au niveau de la carte (avant trim).
+#[derive(Clone)]
 pub struct Signal {
     pub samples: Vec<f32>,
     /// Gain (dB) appliqué avant le modèle en plus de l'entrée propre : le trim.
@@ -145,13 +146,14 @@ fn robust_peak(x: &[f32]) -> f32 {
 }
 
 impl Signal {
-    /// Enregistrement de calibration de la config, sinon signal de synthèse.
-    pub fn from_config(conf: &LoadedConfig) -> Self {
-        let path = conf.config.calibration_path(&conf.path);
-        match dsp::wav::read_mono(&path) {
-            Ok((x, sr)) if !conf.ignored && !x.is_empty() => {
+    /// L'enregistrement de calibration de l'instrument joué (`None` : aucun), sinon un signal de
+    /// synthèse. La calibration est résolue par le binaire (instrument, carte), pas lue ici dans
+    /// la config.
+    pub fn from_recording(wav: Option<&Path>, trim_db: f32) -> Self {
+        match wav.map(dsp::wav::read_mono) {
+            Some(Ok((x, sr))) if !x.is_empty() => {
                 let x = if sr == RATE { x } else { dsp::ir::resample(&x, sr, RATE) };
-                Self::new(loudest_window(&x, RATE).to_vec(), conf.config.trim_db, false)
+                Self::new(loudest_window(&x, RATE).to_vec(), trim_db, false)
             }
             _ => Self::new(synthetic_bass(), 0.0, true),
         }
@@ -249,8 +251,13 @@ pub struct ModelProfiles {
 impl ModelProfiles {
     /// Lit le cache, mesure les modèles manquants (en parallèle), puis étiquette chaque modèle par
     /// rapport à son pack. `irs` fournit la réponse des IR pour la courbe entendue.
-    pub fn load(lib: &Library, conf: &LoadedConfig, irs: &Profiles, progress: impl FnOnce(usize)) -> Self {
-        let signal = Signal::from_config(conf);
+    pub fn load(
+        lib: &Library,
+        conf: &LoadedConfig,
+        signal: &Signal,
+        irs: &Profiles,
+        progress: impl FnOnce(usize),
+    ) -> Self {
         let mut cache: Cache = std::fs::read(cache_path(&lib.root))
             .ok()
             .and_then(|b| serde_json::from_slice::<Cache>(&b).ok())
@@ -263,7 +270,7 @@ impl ModelProfiles {
             .zip(&metas)
             .map(|(e, m)| {
                 let h = content_hash(&e.path).ok()?;
-                Some(key(&h, m.as_ref().and_then(|m| m.input_db).unwrap_or(0.0), &signal))
+                Some(key(&h, m.as_ref().and_then(|m| m.input_db).unwrap_or(0.0), signal))
             })
             .collect();
         let missing: Vec<usize> = (0..models.len())
@@ -284,7 +291,7 @@ impl ModelProfiles {
                     let k = next.fetch_add(1, Ordering::Relaxed);
                     let Some(&i) = missing.get(k) else { break };
                     let input = metas[i].as_ref().and_then(|m| m.input_db).unwrap_or(0.0);
-                    match measure(&models[i].path, &signal, input) {
+                    match measure(&models[i].path, signal, input) {
                         Ok(p) => results.lock().expect("verrou").push((i, p)),
                         Err(e) => log::debug!("profil impossible pour {} : {e:#}", models[i].rel),
                     }
@@ -347,8 +354,8 @@ impl ModelProfiles {
     }
 
     /// Avec message de progression (commandes en ligne).
-    pub fn load_verbose(lib: &Library, conf: &LoadedConfig, irs: &Profiles) -> Self {
-        let p = Self::load(lib, conf, irs, |n| {
+    pub fn load_verbose(lib: &Library, conf: &LoadedConfig, signal: &Signal, irs: &Profiles) -> Self {
+        let p = Self::load(lib, conf, signal, irs, |n| {
             if n >= 3 {
                 eprintln!("profilage de {n} modèles avec ton enregistrement de calibration (une seule fois)…")
             }

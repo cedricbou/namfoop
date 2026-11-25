@@ -95,7 +95,7 @@ le **trim** d'entrée et aligne le volume de sortie sur celui de ta basse en dir
 l'autre, le niveau reste le même et l'oreille juge le timbre. À refaire si tu changes de basse ou
 le gain de la carte.
 
-→ En détail : [Calibrer sa basse](guide.md#7-calibrer-sa-basse),
+→ En détail : [Calibrer ses instruments](guide.md#7-calibrer-ses-instruments),
 [Lire les vumètres](guide.md#lire-les-vumètres).
 
 ## 4. Importer et écouter des modèles NAM et des IR

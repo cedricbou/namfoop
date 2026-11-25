@@ -10,6 +10,7 @@ pub mod error;
 /// Une ligne de grille d'accords (`{start_of_grid}`) : ses mesures, ses marges.
 pub mod grid;
 pub mod import;
+pub mod instrument;
 pub mod model_profile;
 pub mod overrides;
 pub mod profile;
@@ -172,6 +173,9 @@ impl Library {
         for kind in [Kind::Model, Kind::Ir, Kind::Cab, Kind::Preset, Kind::Set] {
             let mut files = Vec::new();
             walk(root, kind.ext(), &mut files);
+            // les enregistrements de calibration de mes instruments ne sont pas des IR
+            let instruments = crate::instrument::dir(root);
+            files.retain(|p| !p.starts_with(&instruments));
             // trois sortes de TOML dans la bibliothèque : les mélanges, les presets et les sets
             match kind {
                 Kind::Cab => files.retain(|p| dsp::blend::is_cab_file(p)),

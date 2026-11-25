@@ -1,5 +1,7 @@
 //! `namfoop calibrate` : le bassiste joue fort quelques secondes (il s'entend en direct),
-//! on enregistre le DI, on en déduit le trim d'entrée et on sauve config + enregistrement.
+//! on enregistre le DI, on en déduit le trim d'entrée et on sauve trim + enregistrement : avec
+//! l'instrument mesuré, sur cette carte, dans la bibliothèque (`docs/design/instruments.md` § 6),
+//! ou dans la config quand la bibliothèque n'a aucun instrument et qu'on n'en nomme pas.
 //!
 //! Le trim vise une crête « robuste » (99,9e centile, insensible à un pic isolé) de
 //! `target` dBFS à l'entrée des modèles. -30 dBFS a été trouvé à l'oreille sur les captures
@@ -8,7 +10,9 @@
 use anyhow::{bail, Result};
 use std::time::{Duration, Instant};
 
-use std::path::Path;
+use std::path::PathBuf;
+
+use library::instrument::Instrument;
 
 use engine::{Engine, EngineConfig, Routing, MAX_BLOCK};
 
@@ -58,14 +62,18 @@ fn trim_silence(x: &[f32], rate: u32) -> &[f32] {
 
 /// `routing` : la basse est lue sur `routing.bass_in` et renvoyée en direct (DI) sur les sorties
 /// « basse traitée » du routage, pour que le bassiste s'entende là où il s'entend d'habitude.
-pub fn run(
-    cfg: &audio_io::Settings,
-    path: &Path,
-    seconds: f64,
-    target: f32,
-    routing: &Routing,
-    save: bool,
-) -> Result<()> {
+/// Où va la mesure.
+pub enum Dest {
+    /// `--dry-run`, ou `--no-config` sans instrument : rien n'est sauvé.
+    Nowhere,
+    /// La config (bibliothèque sans instrument, aucun nommé).
+    Config(PathBuf),
+    /// Un instrument, sur une carte. `config` : la config où passer le niveau en « match »
+    /// (`None` avec `--no-config`).
+    Instrument { library: PathBuf, instrument: Instrument, new: bool, card: String, config: Option<PathBuf> },
+}
+
+pub fn run(cfg: &audio_io::Settings, dest: Dest, seconds: f64, target: f32, routing: &Routing) -> Result<()> {
     let channel = routing.bass_in;
     channel.checked_sub(1).ok_or_else(|| anyhow::anyhow!("canaux numérotés à partir de 1"))?;
     // chaîne vide : on s'entend en direct ; le tap rend l'entrée basse brute
@@ -146,10 +154,41 @@ pub fn run(
         "Trim d'entrée proposé : {trim:+.1} dB (crête robuste visée {target:.0} dBFS à l'entrée des modèles)"
     );
 
-    if !save {
-        println!("(--dry-run : rien n'est sauvé)");
-        return Ok(());
-    }
+    let path = match dest {
+        Dest::Nowhere => {
+            println!("(rien n'est sauvé)");
+            return Ok(());
+        }
+        Dest::Instrument { library, instrument, new, card, config } => {
+            let who = instrument.label();
+            let (file, wav) = crate::instrument::save_measure(
+                &library,
+                instrument,
+                &card,
+                trim,
+                target,
+                trim_silence(&rec, rate),
+                rate,
+            )?;
+            if let Some(path) = config {
+                // le niveau « match » est un réglage de l'ordinateur : on ne touche qu'à lui
+                let mut conf = Config::load(&path)?;
+                if conf.level != LevelMode::Match {
+                    conf.level = LevelMode::Match;
+                    conf.save(&path)?;
+                }
+            }
+            println!(
+                "{} {who} calibrée sur {card} (trim {trim:+.1} dB)\n       {}\n       {}",
+                if new { "Nouvel instrument :" } else { "Calibration :" },
+                file.display(),
+                wav.display()
+            );
+            return Ok(());
+        }
+        Dest::Config(path) => path,
+    };
+    let path = path.as_path();
     let mut conf = Config::load(path)?;
     conf.trim_db = trim;
     conf.calibration_target_dbfs = Some(target);

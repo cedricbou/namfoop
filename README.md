@@ -33,7 +33,8 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop import nam/         # zips (Tone3000, packs achetés) -> library/
 ./target/release/namfoop models               # inventaire des modèles et IR
 ./target/release/namfoop setup                # une fois : carte, entrées, sorties, buffer
-./target/release/namfoop calibrate            # une fois : joue fort 15 s
+./target/release/namfoop calibrate --instrument "bb 735a"   # une fois par instrument : joue fort 15 s
+./target/release/namfoop instruments          # mes instruments et leurs calibrations, carte par carte
 ./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant (S enregistre un preset, n repart de zéro)
 ./target/release/namfoop presets              # les presets enregistrés
 ./target/release/namfoop sets                 # les sets de concert (morceaux et leurs sons)
