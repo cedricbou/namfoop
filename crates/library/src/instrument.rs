@@ -304,6 +304,22 @@ skipped = true
         assert_eq!(load_all(&lib).unwrap()[0], *bb);
     }
 
+    /// Les enregistrements de calibration vivent dans la bibliothèque, mais ne sont pas des IR.
+    #[test]
+    fn calibration_recordings_are_not_irs() {
+        let lib = fake_library(
+            "instr-scan",
+            &[
+                ("ir/pack/cab.wav", ""),
+                ("instruments/bb-735a.itwo.wav", ""),
+                ("instruments/bb-735a.toml", BB),
+            ],
+        );
+        let scanned = crate::Library::scan(&lib);
+        let irs: Vec<&str> = scanned.of_kind(crate::Kind::Ir).map(|e| e.rel.as_str()).collect();
+        assert_eq!(irs, ["ir/pack/cab.wav"]);
+    }
+
     #[test]
     fn two_defaults_are_refused_naming_both_files() {
         let lib = fake_library(
