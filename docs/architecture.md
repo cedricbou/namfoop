@@ -11,7 +11,7 @@ C'est l'état réel du code (vérifié par `scripts/check-arch.sh`), pas une cib
 ```
 namfoop  (binaire : CLI, écrans, une fonction mince par commande)
   ├─> engine   (session audio : routeur, swap, vumètres, tap d'entrée ; raw pour les mesures)  ─> audio-io, dsp, model
-  ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model
+  ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model, nam-sys
   ├─> midi-io  (entrée MIDI : port ALSA seq, port simulé ; ni clap, ni config, ni DSP)
   └─> model    (types sérialisables : config, routage, profils de carte)
 audio-io (ALSA, carte simulée, priorité RT ; ni clap, ni config, ni DSP)
@@ -42,8 +42,7 @@ Règles clés : `dsp` et `audio-io` ne se connaissent pas ; seule `engine` ouvre
 `midi-io` ouvre un port MIDI ; `model` ne dépend d'aucune crate du projet ; aucune crate de
 bibliothèque n'utilise `clap` ni `ratatui`.
 
-**Ce que « ne connaît pas la config » veut dire exactement**, parce que la formulation courte était
-fausse : `dsp` **lit et écrit des fichiers** — ses propres formats, les presets (`.preset.toml`) et
+**Ce que « ne connaît pas la config » veut dire exactement** : `dsp` **lit et écrit des fichiers** — ses propres formats, les presets (`.preset.toml`) et
 les mélanges d'IR (`.cab.toml`). Ce qu'il ne peut pas voir, c'est la configuration de
 l'utilisateur : il ne dépend pas de `model`, donc le type `Config` lui est inaccessible, et
 `check-arch.sh` le vérifie. `audio-io`, lui, ne dépend ni de `toml` ni de `serde` : il ne
@@ -82,7 +81,7 @@ suivant** : combien de fichiers il faut toucher, et si le compilateur sait les n
 |---|---|---|
 | un **effet** | **6**, tous dans `dsp` | le `match` de `with_effect!` et le test `catalog_covers_every_variant` : le compilateur et un test refusent l'oubli (procédure dans `crates/dsp/CLAUDE.md`) |
 | un **backend** | **6** | trois `match` **exhaustifs** (`audio_io::start_with`, `setup::devices::list`, `setup::state`) : le compilateur nomme lui-même ce qui manque |
-| un **contexte clavier** | **9** | un seul `match` exhaustif (`ui::windows::help_lines`) ; l'oracle du clavier signale le contexte non mesuré, mais **cinq** endroits restent silencieux |
+| un **contexte clavier** | **9** | trois `match` exhaustifs (`on_key` dans `state/keys/mod.rs`, `bindings` dans `state/bindings/mod.rs`, `help_title` dans `ui/windows.rs`) ; l'oracle du clavier signale le contexte non mesuré, mais les autres endroits restent silencieux |
 
 Le détail, parce que c'est la différence qui compte :
 
@@ -114,12 +113,13 @@ dev-dependencies). Une crate nouvelle ajoute ses règles à la table du script *
 | Crate     | Règle                                                       |
 |-----------|-------------------------------------------------------------|
 | `nam-sys` | seulement `thiserror` (+ `cc` en build)                     |
-| `dsp`     | interdit `alsa`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io`, `engine`, `model` |
+| `dsp`     | interdit `alsa`, `clap`, `ratatui`, `libc`, `namfoop`, `audio-io`, `midi-io`, `engine`, `model` ; aucun thread créé (contrôle textuel) |
 | `audio-io` | interdit `clap`, `ratatui`, `dsp`, `nam-sys`, `namfoop`, `toml`, `engine`, `serde`, `midi-io` |
 | `midi-io` | seulement `alsa`, `libc`, `log`, `rtrb`, `thiserror` (aucune crate du projet) |
 | `engine`  | interdit `clap`, `ratatui`, `namfoop`, `toml`, `alsa` (la carte passe par `audio-io`), `midi-io` |
 | `model`   | seulement `serde`, `toml`, `thiserror` (aucune crate du projet) |
-| `library` | interdit `audio-io`, `engine`, `clap`, `ratatui`, `alsa` |
+| `library` | interdit `audio-io`, `midi-io`, `engine`, `clap`, `ratatui`, `alsa` |
 | tout le code | aucun `audio_io::start` / `start_with` hors d'`engine` et `audio-io` (contrôle textuel) |
 | tout le code | aucun `midi_io::open` hors de `cli_midi.rs` et `midi_cmd.rs` (contrôle textuel) : ailleurs, on reçoit un port déjà ouvert, et la règle « un port absent n'empêche jamais de démarrer » tient en un endroit |
+| `namfoop` | aucune couleur nommée (`Color::…`) hors de `theme.rs` (contrôle textuel) |
 | toutes     | un `CLAUDE.md` par crate, cité dans la carte racine et ici ; `.rs` > 1 000 lignes refusé (`check-docs.sh`) |
