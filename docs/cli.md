@@ -513,14 +513,17 @@ Options:
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
 
-      --exchanges <DOSSIER>
-          Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
+      --overwrite
+          Valise : fait de cette machine la copie exacte de la valise. Ce qui a changé ici est remplacé sans question, après confirmation ; l'état d'avant est gardé
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --exchanges <DOSSIER>
+          Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
 
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
@@ -575,17 +578,20 @@ Options:
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
-      --exchanges <DOSSIER>
-          Dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
+      --overwrite
+          Écrit même sur une valise qui porte des changements que cette machine n'a pas vus : la valise devient exactement cette machine, après confirmation, et ces changements sont perdus
 
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
-      --library <DOSSIER>
-          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+      --exchanges <DOSSIER>
+          Dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
+
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]

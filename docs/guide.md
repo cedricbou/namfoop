@@ -628,8 +628,8 @@ machine     portable · dernier échange lun. 23/11
 - **Chaque machine retient son dernier échange avec la valise** : c'est ce qui dit de quel côté un
   élément a changé, et qui distingue une suppression au studio d'un ajout ici. Une suppression suit,
   annoncée par un `-`.
-- **Un élément changé des deux côtés ne se règle jamais seul** : l'import s'arrête, le nomme, et
-  n'écrit rien.
+- **Un élément changé des deux côtés ne se règle jamais seul** : namfoop montre les deux versions
+  et te laisse choisir (ci-dessous).
 - **Ce que l'import remplace ou supprime est gardé de côté**, dans `.avant-import/` de la
   bibliothèque, jusqu'à l'import suivant.
 - **À la fin**, si des changements d'ici ne sont pas dans la valise, namfoop propose de les y mettre
@@ -640,6 +640,45 @@ machine     portable · dernier échange lun. 23/11
   valise abîmé, une valise écrite par un namfoop plus récent (`mets à jour namfoop ici`), et
   namfoop qui joue sur cette machine (`quitte-le, puis relance l'import`) : la banque en mémoire ne
   suivrait pas.
+
+#### Quand un élément a changé des deux côtés
+
+Tu as retouché `Chill verse` en répétition et au studio : l'import pose une question par élément, et
+**toutes les questions passent avant la première écriture**.
+
+```
+ à trancher 1/2 · preset  Chill verse
+
+   ici       portable   mar. 24/11 20:15   comp › b7k › dg212 › reverb
+   valise    studio     mer. 25/11 21:40   comp › b7k › dg212
+   diffère   reverb présent ici seulement · volume +2,0 dB dans la valise
+
+   i  garder celui d'ici            I  celui d'ici pour tous les suivants
+   v  prendre celui de la valise    V  celui de la valise pour tous les suivants
+   a  abandonner l'import : rien n'est écrit
+```
+
+- **Chaque version** porte la machine qui l'a changée en dernier, sa date (affichée, jamais
+  comparée) et son résumé : la chaîne d'un preset, les morceaux d'un set, le trim d'une
+  calibration. `diffère` nomme jusqu'à trois écarts.
+- **Un élément supprimé d'un côté** et modifié de l'autre pose la même question ; garder le côté
+  supprimé, c'est supprimer.
+- **Garder celui d'ici** en fait un changement d'ici : il part au prochain `export`.
+- **`a`**, même à la dernière question, abandonne tout l'import : rien n'est écrit.
+- **Sans clavier pour répondre** (une commande lancée par un script), un élément à trancher
+  abandonne l'import et le dit.
+- **Rien à trancher** pour deux calibrations du même instrument faites sur deux cartes, ou deux
+  modèles différents corrigés sur deux machines : chacune arrive de son côté.
+
+**On importe avant d'exporter.** Si la valise porte des changements que cette machine n'a pas vus
+— une retouche de la répétition, une calibration faite sur le Pi —, `namfoop export` refuse, les
+liste, et te dit d'importer d'abord : écrire par-dessus les perdrait. `--overwrite` passe outre,
+après une confirmation `(o / N)` (Entrée, c'est non), le jour où une machine fait foi :
+
+```sh
+namfoop export --overwrite     # la valise devient exactement cette machine
+namfoop import --overwrite     # cette machine devient exactement la valise (l'état d'avant est gardé)
+```
 
 **Ce qui ne voyage pas** : la config de l'ordinateur — carte et `setup`, MIDI, mode de niveau,
 limiteur, accordeur, métronome, set du moment. Elle se règle une fois par machine, et `export` comme

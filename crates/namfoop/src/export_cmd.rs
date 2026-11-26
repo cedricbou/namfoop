@@ -9,7 +9,7 @@ use crate::config::LoadedConfig;
 use crate::exchange::{self as xchg, lib_err};
 use library::exchange::label::Stamp;
 use library::exchange::memory;
-use library::exchange::suitcase::{apply_export, plan_export, Suitcase};
+use library::exchange::suitcase::{ahead, apply_export, plan_export, Suitcase};
 use library::exchange::{inventory, new_id, portable_names};
 
 #[derive(Clone, Debug, clap::Args)]
@@ -21,6 +21,10 @@ pub struct ExportArgs {
     /// Montre ce qui partirait, sans rien écrire
     #[arg(long)]
     pub dry_run: bool,
+    /// Écrit même sur une valise qui porte des changements que cette machine n'a pas vus : la
+    /// valise devient exactement cette machine, après confirmation, et ces changements sont perdus
+    #[arg(long)]
+    pub overwrite: bool,
     /// Dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges)
     /// [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
     #[arg(long, value_name = "DOSSIER")]
@@ -78,10 +82,35 @@ pub fn run(a: &ExportArgs, conf: &LoadedConfig, ui: &mut dyn xchg::Ui) -> Result
     }
     println!("machine     {}", machine.name);
     println!();
+    // on importe avant d'exporter : écrire par-dessus perdrait le travail d'une autre machine
+    let unseen = ahead(&held, &last.as_ref().map(|x| x.by_path()).unwrap_or_default(), &local);
+    if !unseen.is_empty() && !a.overwrite {
+        bail!(
+            "{}\n\n Importe d'abord : namfoop import\n Rien n'est écrit sur la clé.",
+            unseen_list(&unseen, &machine.name)
+        );
+    }
     for line in xchg::report(&plan.changes, &local) {
         println!("{line}");
     }
     println!();
+    if !unseen.is_empty() {
+        println!("{}", unseen_list(&unseen, &machine.name));
+        println!();
+        let n = unseen.len();
+        let q = format!(
+            " Écraser {} ? (o / N) ",
+            if n > 1 { format!("ces {n} changements") } else { "ce changement".into() }
+        );
+        if a.dry_run {
+            println!(" --dry-run : rien n'est écrit.");
+            return Ok(());
+        }
+        if !xchg::confirm(ui, &crate::theme::paint(&q, crate::theme::warn()), false) {
+            println!(" Rien n'est écrit sur la clé.");
+            return Ok(());
+        }
+    }
 
     let elements: Vec<_> = local.elements.values().cloned().collect();
     let remember =
@@ -110,6 +139,20 @@ pub fn run(a: &ExportArgs, conf: &LoadedConfig, ui: &mut dyn xchg::Ui) -> Result
     );
     println!(" {}", crate::theme::paint("Tu peux retirer la clé.", crate::theme::ok()));
     Ok(())
+}
+
+/// « La valise porte 3 changements que studio n'a pas : », puis un par ligne.
+fn unseen_list(unseen: &[(library::exchange::Change, library::exchange::Element)], machine: &str) -> String {
+    let n = unseen.len();
+    let mut s = format!(
+        " La valise porte {n} {} que {machine} n'a pas :",
+        if n > 1 { "changements" } else { "changement" }
+    );
+    for (c, e) in unseen {
+        let sign = crate::theme::paint(&c.sign().to_string(), xchg::tint(*c));
+        s.push_str(&format!("\n   {sign} {:<12} {}", e.kind.noun(1), e.name));
+    }
+    s
 }
 
 /// La place libre sur la clé, vérifiée avant la première écriture.
@@ -164,6 +207,7 @@ mod tests {
         ExportArgs {
             folder: folder.map(Path::to_path_buf),
             dry_run: false,
+            overwrite: false,
             exchanges: None,
             library_arg: None,
             library: root.join("library"),

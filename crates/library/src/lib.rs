@@ -266,6 +266,31 @@ impl Library {
         Ok(spec)
     }
 
+    /// La chaîne d'un preset en une ligne, ses sons résolus comme pour jouer : celle que montrent
+    /// `namfoop presets` et la question d'un preset à trancher. Une erreur s'écrit à sa place.
+    pub fn chain_line(&self, path: &Path) -> String {
+        let spec = match self.preset(path) {
+            Ok(s) => s,
+            Err(e) => return format!("⚠ {e}"),
+        };
+        match spec.to_blocks(1.0, &|_| 0.0, &|id| self.path_of_id(id)) {
+            Ok(blocks) => {
+                let parts: Vec<String> = blocks.iter().map(dsp::block::BlockSpec::describe).collect();
+                // le volume du preset fait partie de ce qu'on entendra
+                let volume = match spec.volume_db {
+                    0.0 => String::new(),
+                    v => format!(" › volume {v:+.1} dB"),
+                };
+                if parts.is_empty() {
+                    format!("(chaîne vide){volume}")
+                } else {
+                    format!("{}{volume}", parts.join(" › "))
+                }
+            }
+            Err(e) => format!("⚠ {e}"),
+        }
+    }
+
     /// Le chemin d'un son par son identifiant court : c'est le **filet** des presets quand un
     /// fichier a bougé (`PresetSpec::to_blocks`).
     pub fn path_of_id(&self, id: &str) -> Option<PathBuf> {

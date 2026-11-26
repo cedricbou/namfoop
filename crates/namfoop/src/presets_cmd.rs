@@ -22,25 +22,7 @@ pub fn list(library: &Path, _conf: &LoadedConfig) -> Result<()> {
     let w = entries.iter().map(|e| e.stem.chars().count()).max().unwrap_or(0).min(32);
     for e in &entries {
         // la chaîne en clair : on résout les sons comme pour jouer, et `describe()` la raconte
-        let line = match lib.preset(&e.path) {
-            Ok(spec) => match spec.to_blocks(1.0, &|_| 0.0, &|id| lib.path_of_id(id)) {
-                Ok(blocks) => {
-                    let parts: Vec<String> = blocks.iter().map(dsp::block::BlockSpec::describe).collect();
-                    // le volume du preset fait partie de ce qu'on entendra
-                    let volume = match spec.volume_db {
-                        0.0 => String::new(),
-                        v => format!(" › volume {v:+.1} dB"),
-                    };
-                    if parts.is_empty() {
-                        format!("(chaîne vide){volume}")
-                    } else {
-                        format!("{}{volume}", parts.join(" › "))
-                    }
-                }
-                Err(err) => format!("⚠ {err}"),
-            },
-            Err(err) => format!("⚠ {err}"),
-        };
+        let line = lib.chain_line(&e.path);
         println!("  {:<6} {:<w$}  {line}", e.id, e.stem, w = w);
     }
     println!("\nJouer : namfoop run --preset <id | mots-clés>   ·   modifier : namfoop browse (S, P)");

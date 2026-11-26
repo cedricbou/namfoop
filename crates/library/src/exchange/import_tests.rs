@@ -255,3 +255,71 @@ fn a_decided_conflict_follows_the_answer() {
     d.insert("presets/a.preset.toml".to_string(), Side::Here);
     assert!(plan(&lines, &d, Path::new("/x"), Path::new("/y"), &inv).unwrap().ops.is_empty());
 }
+
+#[test]
+fn a_suitcase_ahead_is_what_this_machine_has_not_seen() {
+    use super::suitcase::ahead;
+    let inv = |v: &[(&str, &str)]| Inventory { files: Default::default(), elements: map(v) };
+    let last = map(&[("a", "1"), ("b", "1"), ("c", "1")]);
+    let held = inv(&[("a", "2"), ("b", "1"), ("d", "1")]);
+    let local = inv(&[("a", "1"), ("b", "3"), ("c", "1"), ("d", "1")]);
+    let got: Vec<(Change, String)> =
+        ahead(&held, &last, &local).into_iter().map(|(c, e)| (c, e.path)).collect();
+    // a : changé dans la valise ; c : supprimé dans la valise ; d : déjà ici à l'identique
+    assert_eq!(got, [(Change::Modified, "a".to_string()), (Change::Removed, "c".to_string())]);
+    // ce que la valise porte et qui est déjà ici n'est pas « en avance »
+    assert!(ahead(&local, &BTreeMap::new(), &local).is_empty());
+}
+
+/// Le résumé d'une version et ce qui diffère, famille par famille.
+#[test]
+fn both_versions_are_described() {
+    use super::describe::{differs, summary, Version};
+    let a = fake_library(
+        "desc-a",
+        &[
+            (
+                "presets/Chill.preset.toml",
+                "name = \"Chill\"\n[[block]]\nkind = \"fx\"\n[block.fx]\ntype = \"comp\"\n\n[[block]]\nkind = \"fx\"\n[block.fx]\ntype = \"reverb\"\nmix = 30.0\n",
+            ),
+            ("sets/Live.set.toml", "name = \"Live\"\n[[song]]\ntitle = \"Un\"\n[[song]]\ntitle = \"Deux\"\n"),
+            ("instruments/bb.toml", "name = \"BB\"\nnumber = 1\n[calibration.itwo]\ntrim_db = -17.5\nwav = \"bb.itwo.wav\"\ndate = 2026-11-24\n"),
+            ("instruments/bb.itwo.wav", "RIFF a"),
+            ("overrides.toml", "[model.h]\nfile = \"nam/A.nam\"\ngear_type = \"amp\"\n"),
+        ],
+    );
+    let b = fake_library(
+        "desc-b",
+        &[
+            (
+                "presets/Chill.preset.toml",
+                "name = \"Chill\"\nvolume_db = 2.0\n[[block]]\nkind = \"fx\"\n[block.fx]\ntype = \"comp\"\n",
+            ),
+            ("sets/Live.set.toml", "name = \"Live\"\n[[song]]\ntitle = \"Un\"\n[[song]]\ntitle = \"Trois\"\n[[song]]\ntitle = \"Deux\"\n"),
+            ("instruments/bb.toml", "name = \"BB\"\nnumber = 1\n[calibration.itwo]\ntrim_db = -12.0\nwav = \"bb.itwo.wav\"\ndate = 2026-11-25\n"),
+            ("instruments/bb.itwo.wav", "RIFF b"),
+            ("overrides.toml", "[model.h]\nfile = \"nam/A.nam\"\ngear_type = \"amp_cab\"\n"),
+        ],
+    );
+    let (la, lb) = (crate::Library::scan(&a), crate::Library::scan(&b));
+    let (ia, ib) = (inventory(&a).unwrap(), inventory(&b).unwrap());
+    let pair = |k: &str| {
+        (
+            Version { element: &ia.elements[k], library: &la },
+            Version { element: &ib.elements[k], library: &lb },
+        )
+    };
+    let (h, t) = pair("presets/Chill.preset.toml");
+    assert!(summary(&h).contains("reverb"), "{}", summary(&h));
+    let d = differs(&h, &t);
+    assert!(d.contains("volume +2,0 dB dans la valise") && d.contains("reverb présent ici seulement"), "{d}");
+    let (h, t) = pair("sets/Live.set.toml");
+    assert_eq!((summary(&h), summary(&t)), ("2 morceaux".into(), "3 morceaux".into()));
+    assert!(differs(&h, &t).contains("« Trois » dans la valise seulement"));
+    let (h, t) = pair("instruments/bb.toml#itwo");
+    assert_eq!(summary(&h), "trim -17,5 dB · 2026-11-24");
+    assert!(differs(&h, &t).contains("trim -17,5 dB ici, -12,0 dB dans la valise"), "{}", differs(&h, &t));
+    let (h, t) = pair("overrides.toml#h");
+    assert_eq!(summary(&h), "type amp");
+    assert_eq!(differs(&h, &t), "type amp ici · type amp_cab dans la valise");
+}

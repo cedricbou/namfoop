@@ -11,7 +11,7 @@
 //! Une valise incomplète n'a plus d'étiquette fiable : l'export suivant relit ses fichiers pour
 //! savoir ce qu'elle porte vraiment, et la répare.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::label::{Label, Stamp};
@@ -122,6 +122,40 @@ pub fn plan_export(
     }
     let up_to_date = copy.is_empty() && remove.is_empty() && suitcase.complete();
     ExportPlan { copy, remove, bytes, changes, label, up_to_date }
+}
+
+/// Les changements que la valise porte et que cette machine n'a pas vus : un élément dont
+/// l'empreinte, dans la valise, diffère à la fois de celle du dernier échange et de celle d'ici.
+/// Exporter par-dessus les perdrait : `export` refuse, et demande d'importer d'abord. Le signe est
+/// celui du changement depuis le dernier échange.
+pub fn ahead(
+    held: &Inventory,
+    last: &BTreeMap<String, Element>,
+    local: &Inventory,
+) -> Vec<(Change, Element)> {
+    let mut keys: Vec<&String> = held.elements.keys().chain(last.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    let hash = |e: Option<&Element>| e.map(|e| e.hash.clone());
+    let mut out: Vec<(Change, Element)> = keys
+        .into_iter()
+        .filter_map(|k| {
+            let (v, m, h) = (held.elements.get(k), last.get(k), local.elements.get(k));
+            if hash(v) == hash(m) || hash(v) == hash(h) {
+                return None;
+            }
+            Some(match (m, v) {
+                (None, Some(v)) => (Change::Added, v.clone()),
+                (Some(m), None) => (Change::Removed, m.clone()),
+                (_, Some(v)) => (Change::Modified, v.clone()),
+                (None, None) => return None,
+            })
+        })
+        .collect();
+    out.sort_by(|(ca, a), (cb, b)| {
+        (a.kind, ca).cmp(&(b.kind, cb)).then_with(|| crate::natural_cmp(&a.name, &b.name))
+    });
+    out
 }
 
 /// Une clé en lecture seule se reconnaît à la première écriture.

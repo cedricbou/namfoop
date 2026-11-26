@@ -32,6 +32,10 @@ pub struct ImportArgs {
     /// capture, gain d'entrée, IR préférée (prend la carte son)
     #[arg(long)]
     pub review: bool,
+    /// Valise : fait de cette machine la copie exacte de la valise. Ce qui a changé ici est
+    /// remplacé sans question, après confirmation ; l'état d'avant est gardé
+    #[arg(long)]
+    pub overwrite: bool,
     /// Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers
     /// échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
     #[arg(long, value_name = "DOSSIER")]
