@@ -8,13 +8,10 @@ les refus et les fichiers. Les instruments et les cartes sont décrits dans
 [`instruments.md`](instruments.md), l'import des packs de sons dans le guide, § 6, les couleurs dans
 la [charte](../identite/charte.md).
 
-**État** : `namfoop export` et `namfoop import`, le choix quand un élément a changé des deux côtés
-et `--overwrite` sont livrés, et leur code fait foi (§ 3, § 5 à § 7, § 10, § 12) ; le retour en
-arrière et la ligne `vérifié` (§ 6, § 8) sont la cible de la dernière story de l'épique « Emporter
-ma bibliothèque d'une machine à l'autre avec une clé USB ». Le mot « valise » est confirmé. Le
-bilan se confirme par `Écrire ces changements ? (O / n)` — `Entrée` ou `o` écrit, `n` abandonne —,
-la même question que les autres confirmations de l'échange ; l'exemple du § 6 garde la proposition
-`Entrée / a`. Reste à confirmer avec sa story le nom de l'option `--undo` (§ 8).
+**État** : le parcours est livré, et le code fait foi. Le mot « valise » et l'option `--undo` sont
+confirmés. Le bilan se confirme par `Écrire ces changements ? (O / n)` — `Entrée` ou `o` écrit,
+`n` abandonne —, la même question que les autres confirmations de l'échange ; l'exemple du § 6
+garde la proposition `Entrée / a`.
 
 **Couleurs** : `export` et `import` ne sont pas un espace de `browse` ; ils sont **neutres**, comme
 `setup` et `run`. Le **vert signal** dit ce qui arrive ou ce qui est en règle (`+`, « complète »),

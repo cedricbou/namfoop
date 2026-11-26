@@ -32,6 +32,10 @@ pub struct ImportArgs {
     /// capture, gain d'entrée, IR préférée (prend la carte son)
     #[arg(long)]
     pub review: bool,
+    /// Défait le dernier import d'une valise : ce qui est arrivé repart, ce que l'import a
+    /// remplacé ou supprimé revient. Un seul niveau ; la valise n'est pas touchée
+    #[arg(long)]
+    pub undo: bool,
     /// Valise : fait de cette machine la copie exacte de la valise. Ce qui a changé ici est
     /// remplacé sans question, après confirmation ; l'état d'avant est gardé
     #[arg(long)]
@@ -67,6 +71,10 @@ pub fn run(
     conf: &LoadedConfig,
     signal: &library::model_profile::Signal,
 ) -> Result<Vec<String>> {
+    if a.undo {
+        crate::import_valise::undo(a, conf)?;
+        return Ok(vec![]);
+    }
     if let Some(src) = crate::import_valise::source(&a.sources)? {
         crate::import_valise::run(a, conf, src, &mut crate::exchange::Terminal)?;
         return Ok(vec![]);

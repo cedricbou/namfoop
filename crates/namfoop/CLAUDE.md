@@ -133,7 +133,10 @@ import_valise/  `import` d'une valise (mod.rs ; tests.rs : deux machines jetable
                 (library::exchange::import), la mémoire, l'export proposé dans la foulée. Un
                 abandon n'écrit RIEN, pas même le nom de la machine. Refus avant tout : valise
                 incomplète, format plus récent, fichier abîmé, namfoop qui joue ici. `--overwrite` :
-                tout changement d'ici prend la valise, après « (o / N) »
+                tout changement d'ici prend la valise, après « (o / N) ». La ligne `vérifié`
+                (library::exchange::verify) se calcule avant la question, refaite après les
+                réponses si elle change. `--undo` : library::exchange::import::undo, puis la
+                mémoire de l'échange d'avant remise (c'est ce qui redonne le même bilan)
 import_ask.rs   la question d'un élément à trancher : les deux versions (machine, date, résumé de
                 library::exchange::describe), `diffère`, puis i / v / I / V / a. TOUTES les
                 réponses avant la première écriture ; sans terminal (Ui::interactive), on abandonne

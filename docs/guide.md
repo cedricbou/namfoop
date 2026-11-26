@@ -616,6 +616,7 @@ machine     portable · dernier échange lun. 23/11
                ~ preset      Fuzz refrain
                - preset      Vieux test
  reste ici    ~ 1 preset                    Slap couplet
+ vérifié      16 presets et 3 sets trouvent leurs sons
 
  Écrire ces changements ? (O / n)
 ```
@@ -630,8 +631,19 @@ machine     portable · dernier échange lun. 23/11
   annoncée par un `-`.
 - **Un élément changé des deux côtés ne se règle jamais seul** : namfoop montre les deux versions
   et te laisse choisir (ci-dessous).
-- **Ce que l'import remplace ou supprime est gardé de côté**, dans `.avant-import/` de la
-  bibliothèque, jusqu'à l'import suivant.
+- **`vérifié`** dit, avant que tu confirmes, si chaque preset et chaque set trouvera ses sons après
+  l'import ; sinon la ligne passe en jaune et nomme ceux qui en perdraient un
+  (`Slap couplet cite un modèle qui part : Darkglass B7K v2`). L'import reste permis : le set
+  s'ouvre et le reste joue, comme pour tout son introuvable.
+- **Un import se défait** : ce qu'il remplace ou supprime est gardé de côté (dans `.avant-import/`
+  de la bibliothèque) jusqu'à l'import suivant, et `namfoop import --undo` remet la machine comme
+  avant — ce qui est arrivé repart, ce que l'import a remplacé ou supprimé revient, et un nouvel import
+  de la même valise remontre le même bilan. Un seul niveau : défaire deux fois est refusé
+  (`aucun import à défaire`). Défaire ne touche pas la valise.
+
+```sh
+namfoop import --undo
+```
 - **À la fin**, si des changements d'ici ne sont pas dans la valise, namfoop propose de les y mettre
   tout de suite (`(O / n)`) : la clé repart complète, et la machine suivante n'a qu'à importer.
 - **Une machine sans bibliothèque** reçoit tout, instruments compris, à l'emplacement par défaut
