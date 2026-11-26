@@ -26,6 +26,42 @@ pub use error::{Error, Result};
 use crate::error::bail;
 use std::path::{Path, PathBuf};
 
+/// Les sons, presets et sets parmi des fichiers : `files(ext)` donne ceux d'une extension. Les
+/// enregistrements de calibration ne sont pas des IR, et ce que l'échange met de côté (l'état
+/// d'avant un import) n'appartient plus à la bibliothèque.
+fn entries_of(root: &Path, files: &dyn Fn(&str) -> Vec<PathBuf>) -> Vec<Entry> {
+    let mut entries = Vec::new();
+    let instruments = crate::instrument::dir(root);
+    let before = root.join(crate::exchange::BEFORE_DIR);
+    for kind in [Kind::Model, Kind::Ir, Kind::Cab, Kind::Preset, Kind::Set] {
+        let mut files = files(kind.ext());
+        files.retain(|p| !p.starts_with(&instruments) && !p.starts_with(&before));
+        // trois sortes de TOML dans la bibliothèque : les mélanges, les presets et les sets
+        match kind {
+            Kind::Cab => files.retain(|p| dsp::blend::is_cab_file(p)),
+            Kind::Preset => files.retain(|p| dsp::preset::is_preset_file(p)),
+            Kind::Set => files.retain(|p| crate::set::is_set_file(p)),
+            _ => {}
+        }
+        let mut batch: Vec<Entry> = files
+            .into_iter()
+            .map(|path| {
+                let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+                let pack = pack_of(&rel);
+                let stem = match kind {
+                    Kind::Preset => dsp::preset::display_name(&path),
+                    Kind::Set => crate::set::display_name(&path),
+                    _ => dsp::blend::display_name(&path),
+                };
+                Entry { kind, id: String::new(), path, rel, pack, stem }
+            })
+            .collect();
+        assign_ids(&mut batch);
+        entries.extend(batch);
+    }
+    entries
+}
+
 /// Ordre « naturel » : les nombres sont comparés comme des nombres (Mix 2 < Mix 10), le texte
 /// sans tenir compte de la casse.
 pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
@@ -171,41 +207,32 @@ fn pack_of(rel: &str) -> String {
 
 impl Library {
     pub fn scan(root: &Path) -> Self {
-        let mut entries = Vec::new();
-        for kind in [Kind::Model, Kind::Ir, Kind::Cab, Kind::Preset, Kind::Set] {
+        let entries = entries_of(root, &|ext| {
             let mut files = Vec::new();
-            walk(root, kind.ext(), &mut files);
-            // les enregistrements de calibration de mes instruments ne sont pas des IR
-            let instruments = crate::instrument::dir(root);
-            files.retain(|p| !p.starts_with(&instruments));
-            // trois sortes de TOML dans la bibliothèque : les mélanges, les presets et les sets
-            match kind {
-                Kind::Cab => files.retain(|p| dsp::blend::is_cab_file(p)),
-                Kind::Preset => files.retain(|p| dsp::preset::is_preset_file(p)),
-                Kind::Set => files.retain(|p| crate::set::is_set_file(p)),
-                _ => {}
-            }
-            let mut batch: Vec<Entry> = files
-                .into_iter()
-                .map(|path| {
-                    let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
-                    let pack = pack_of(&rel);
-                    let stem = match kind {
-                        Kind::Preset => dsp::preset::display_name(&path),
-                        Kind::Set => crate::set::display_name(&path),
-                        _ => dsp::blend::display_name(&path),
-                    };
-                    Entry { kind, id: String::new(), path, rel, pack, stem }
-                })
-                .collect();
-            assign_ids(&mut batch);
-            entries.extend(batch);
-        }
+            walk(root, ext, &mut files);
+            files
+        });
         let overrides = crate::overrides::Overrides::load(root).unwrap_or_else(|e| {
             log::warn!("{e:#} : corrections ignorées");
             Default::default()
         });
         Self { root: root.to_path_buf(), entries, overrides }
+    }
+
+    /// La bibliothèque que formeraient ces fichiers (chemins relatifs), sans lire le disque : ce
+    /// que serait la bibliothèque après un import, pour vérifier avant d'écrire que chaque preset
+    /// et chaque set y trouve ses sons.
+    pub fn of_files(root: &Path, rels: &[String]) -> Self {
+        let mut sorted: Vec<&String> = rels.iter().collect();
+        sorted.sort_by(|a, b| natural_cmp(a, b));
+        let entries = entries_of(root, &|ext| {
+            sorted
+                .iter()
+                .filter(|r| r.rsplit('.').next().is_some_and(|e| e.eq_ignore_ascii_case(ext)))
+                .map(|r| root.join(r))
+                .collect()
+        });
+        Self { root: root.to_path_buf(), entries, overrides: Default::default() }
     }
 
     /// Métadonnées d'un modèle, corrections de l'utilisateur appliquées.

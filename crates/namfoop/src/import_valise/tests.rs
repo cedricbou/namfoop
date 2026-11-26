@@ -79,6 +79,7 @@ impl World {
             dry_run: false,
             skip_duplicates: false,
             review: false,
+            undo: false,
             overwrite: false,
             exchanges: None,
             library_arg: None,
@@ -312,4 +313,41 @@ fn a_suitcase_and_packs_do_not_mix() {
     assert!(e.contains("seule"), "{e}");
     assert!(source(&[w.root.join("pack.zip")]).unwrap().is_none(), "un pack reste un pack");
     assert!(matches!(source(&[]).unwrap(), Some(Source::Remembered)));
+}
+
+/// Défaire : la bibliothèque et la mémoire reviennent, la valise ne bouge pas, et un nouvel import
+/// de la même valise refait le même travail. Défaire deux fois est refusé.
+#[test]
+fn undo_puts_everything_back_and_only_once() {
+    let w = World::new("undo");
+    w.export("studio", &["studio"]);
+    w.import("portable", &["portable", "\n"]).unwrap();
+    // au studio : le pack part, un preset change ; un preset du portable cite le modèle du pack
+    write(
+        &w.lib("portable"),
+        &[(
+            "presets/Slap.preset.toml",
+            "name = \"Slap\"\n[[block]]\nkind = \"nam\"\n[block.model]\nfile = \"nam/Darkglass pack/B7K.nam\"\n",
+        )],
+    );
+    std::fs::remove_dir_all(w.lib("studio").join("nam/Darkglass pack")).unwrap();
+    write(&w.lib("studio"), &[("presets/Chill verse.preset.toml", "name = \"Chill verse\"\n# 2\n")]);
+    w.export("studio", &[]);
+    let (lib, mem, cle) =
+        (w.files("portable"), memory_of(&w, "portable"), library::exchange::list_files(&w.cle).unwrap());
+    // « vérifié » prévient, mais l'import reste permis
+    w.import("portable", &["\n", "n"]).unwrap();
+    assert!(!w.lib("portable").join("nam/Darkglass pack/B7K.nam").exists());
+    let mut a = w.args("portable", false);
+    a.undo = true;
+    undo(&a, &w.conf("portable")).unwrap();
+    assert_eq!(w.files("portable"), lib, "la bibliothèque à l'octet");
+    assert_eq!(memory_of(&w, "portable"), mem, "la mémoire de l'échange d'avant");
+    assert_eq!(library::exchange::list_files(&w.cle).unwrap(), cle, "la valise n'est pas touchée");
+    let e = undo(&a, &w.conf("portable")).unwrap_err().to_string();
+    assert!(e.contains("aucun import à défaire"), "{e}");
+    // le même import, à nouveau
+    w.import("portable", &["\n", "n"]).unwrap();
+    assert!(w.lib("portable").join("presets/Chill verse.preset.toml").is_file());
+    assert!(!w.lib("portable").join("nam/Darkglass pack/B7K.nam").exists());
 }

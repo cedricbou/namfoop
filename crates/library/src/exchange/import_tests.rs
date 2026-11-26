@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use super::import::{apply, compare, damaged, plan, Fate, Line, Side};
+use super::import::{apply, compare, damaged, plan, undo, Fate, Journal, Line, Side};
 use super::label::Stamp;
 use super::suitcase::{apply_export, plan_export, Suitcase};
 use super::{inventory, list_files, Change, Element, Family, Inventory};
@@ -119,8 +119,19 @@ fn import(
     }
     let p = plan(&lines, &BTreeMap::new(), lib, &s.library(), &there).unwrap();
     assert!(damaged(&p, &s.library(), &there).is_empty());
-    apply(&p, lib, &s.library()).unwrap();
+    apply(&p, lib, &s.library(), journal()).unwrap();
     (lines, Some(there.elements))
+}
+
+fn journal() -> Journal {
+    Journal {
+        date: "2026-11-25T22:31:00+01:00".parse().unwrap(),
+        valise: "v1".into(),
+        writer: "studio".into(),
+        last: None,
+        previous: None,
+        files: vec![],
+    }
 }
 
 fn files(lib: &Path) -> Vec<(String, Vec<u8>)> {
@@ -322,4 +333,90 @@ fn both_versions_are_described() {
     let (h, t) = pair("overrides.toml#h");
     assert_eq!(summary(&h), "type amp");
     assert_eq!(differs(&h, &t), "type amp ici · type amp_cab dans la valise");
+}
+
+/// Un import défait rend la bibliothèque identique à l'octet ; défaire deux fois est refusé.
+#[test]
+fn an_undone_import_leaves_the_library_byte_identical() {
+    let (studio, portable, cle) = (studio(), empty("undo-p"), empty("undo-c"));
+    export(&studio, &cle, "studio");
+    let (_, mem) = import(&portable, &cle, &BTreeMap::new());
+    std::fs::write(portable.join("presets/Slap.preset.toml"), "name = \"Slap\"\n").unwrap();
+    // au studio : un pack supprimé, un preset retouché, un set ajouté, une calibration
+    std::fs::remove_dir_all(studio.join("nam/Darkglass pack")).unwrap();
+    std::fs::write(studio.join("presets/Chill verse.preset.toml"), "name = \"Chill verse\"\n# 2\n").unwrap();
+    std::fs::write(studio.join("sets/Répet.set.toml"), "name = \"Répet\"\n").unwrap();
+    std::fs::write(
+        studio.join("instruments/bb.toml"),
+        format!("{BB}[calibration.hat]\ntrim_db = -9.0\nwav = \"bb.hat.wav\"\n"),
+    )
+    .unwrap();
+    std::fs::write(studio.join("instruments/bb.hat.wav"), "RIFF hat").unwrap();
+    export(&studio, &cle, "studio");
+    let before = files(&portable);
+    let (lines, _) = import(&portable, &cle, &mem.unwrap());
+    assert!(lines.iter().any(|l| l.fate == Fate::Arrives(Change::Removed)));
+    assert_ne!(files(&portable), before);
+    let j = undo(&portable).unwrap();
+    assert_eq!(j.writer, "studio");
+    assert_eq!(files(&portable), before, "à l'octet, comme avant l'import");
+    assert!(!portable.join(".avant-import").exists());
+    let e = undo(&portable).unwrap_err().to_string();
+    assert_eq!(e, "aucun import à défaire");
+}
+
+#[test]
+fn verified_when_every_preset_finds_its_sounds_and_named_when_one_would_lose_one() {
+    use super::verify::verify;
+    let preset =
+        "name = \"Slap\"\n[[block]]\nkind = \"nam\"\n[block.model]\nfile = \"nam/Darkglass pack/B7K.nam\"\n";
+    let (studio, portable, cle) = (studio(), empty("ver-p"), empty("ver-c"));
+    std::fs::write(
+        studio.join("sets/Live Mairie.set.toml"),
+        "name = \"Live\"\n[[song]]\ntitle = \"Un\"\n[[song.sound]]\npreset = \"Vieux test\"\n",
+    )
+    .unwrap();
+    export(&studio, &cle, "studio");
+    let (_, mem) = import(&portable, &cle, &BTreeMap::new());
+    std::fs::write(portable.join("presets/Slap.preset.toml"), preset).unwrap();
+    let check = |lib: &Path, base: &BTreeMap<String, Element>| {
+        let s = Suitcase::open(&cle).unwrap();
+        let there = s.label.as_ref().unwrap().inventory();
+        let here = inventory(lib).unwrap();
+        let lines = compare(&here.elements, &there.elements, base);
+        let p = plan(&lines, &BTreeMap::new(), lib, &s.library(), &there).unwrap();
+        verify(&p, lib, &s.library(), &here)
+    };
+    // rien ne part : en règle
+    let c = check(&portable, mem.as_ref().unwrap());
+    assert!(c.losses.is_empty(), "{c:?}");
+    assert_eq!((c.presets, c.sets), (3, 1));
+    // le studio supprime le pack et le preset que cite le set
+    std::fs::remove_dir_all(studio.join("nam/Darkglass pack")).unwrap();
+    std::fs::remove_file(studio.join("presets/Vieux test.preset.toml")).unwrap();
+    export(&studio, &cle, "studio");
+    let c = check(&portable, mem.as_ref().unwrap());
+    let got: Vec<(String, String)> = c.losses.iter().map(|l| (l.who.clone(), l.what.clone())).collect();
+    assert_eq!(
+        got,
+        [
+            ("Slap".to_string(), "un modèle qui part : B7K".to_string()),
+            ("Live Mairie".to_string(), "un preset qui part : Vieux test".to_string()),
+        ]
+    );
+}
+
+/// Ce que l'import met de côté n'appartient plus à la bibliothèque : ni preset, ni son.
+#[test]
+fn what_an_import_set_aside_is_not_in_the_library() {
+    let d = fake_library(
+        "aside",
+        &[
+            ("presets/A.preset.toml", "name = \"A\"\n"),
+            (".avant-import/presets/B.preset.toml", "name = \"B\"\n"),
+        ],
+    );
+    let lib = crate::Library::scan(&d);
+    let names: Vec<&str> = lib.of_kind(crate::Kind::Preset).map(|e| e.stem.as_str()).collect();
+    assert_eq!(names, ["A"]);
 }

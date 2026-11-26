@@ -35,7 +35,9 @@ choisit ; `exchange/suitcase.rs` : reconnaître une valise, le plan d'un export 
 `exchange/import.rs` : la comparaison à trois (ici, valise, dernier échange → arrive, reste, à
 trancher, identique), le plan de l'import — une réponse prime sur la comparaison —, les fichiers
 abîmés, l'écriture ; `exchange/describe.rs` : le résumé d'une version et ce qui diffère entre deux
-(preset, set, calibration, correction, sons), ce que montre la question d'un élément à trancher.
+(preset, set, calibration, correction, sons), ce que montre la question d'un élément à trancher ;
+`exchange/verify.rs` : la ligne `vérifié`, le plan appliqué en mémoire (`Library::of_files`) puis
+chaque preset et chaque set résolu contre lui — seules les pertes dues à l'import sont signalées.
 
 Les contrats que le reste suppose :
 
@@ -55,7 +57,8 @@ Les contrats que le reste suppose :
 - **la mémoire d'un échange est l'état de la valise** à ce moment-là, après un export comme après un
   import : un élément gardé d'ici reste donc un changement d'ici, et part au prochain export ;
 - **un import déplace** ce qu'il remplace ou supprime dans `.avant-import/` (vidé à l'import
-  suivant) ; un fichier qui porte plusieurs éléments est recopié tel quel s'ils viennent tous de la
+  suivant, ignoré par `Library::scan` et par l'inventaire), après y avoir écrit son journal — un
+  import interrompu se défait donc aussi ; `undo` rejoue ce journal à l'envers ; un fichier qui porte plusieurs éléments est recopié tel quel s'ils viennent tous de la
   valise, réécrit fusionné sinon — et une calibration ne reste jamais sans son instrument.
 
 **Ce qui reste dans le binaire** : options clap et affichage des commandes `import`

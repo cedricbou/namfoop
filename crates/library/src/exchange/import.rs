@@ -13,6 +13,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
+use super::memory::Exchange;
 use super::{instrument_file, is_multi, Change, Element, Inventory, BEFORE_DIR};
 use crate::error::{bail, Context, Result};
 use crate::instrument::Instrument;
@@ -331,9 +334,51 @@ pub fn before_dir(library: &Path) -> PathBuf {
     library.join(BEFORE_DIR)
 }
 
-/// Écrit le plan. L'état d'avant du dernier import est vidé, puis tout ce qui est remplacé ou
-/// supprimé y est déplacé avant d'être écrit.
-pub fn apply(plan: &ImportPlan, library: &Path, suitcase: &Path) -> Result<()> {
+/// Le journal de l'état d'avant (`.avant-import/journal.toml`) : ce que l'import a touché, et la
+/// mémoire de l'échange d'avant. `import --undo` le rejoue à l'envers.
+pub const JOURNAL_FILE: &str = "journal.toml";
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Journal {
+    /// L'heure de l'import, notée.
+    pub date: toml::value::Datetime,
+    /// L'identité de la valise importée, et la machine qui l'avait écrite.
+    pub valise: String,
+    pub writer: String,
+    /// La valise du dernier échange de la machine, avant cet import.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last: Option<String>,
+    /// Le dernier échange avec cette valise, avant cet import : le remettre, c'est retrouver le
+    /// même bilan au prochain import.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous: Option<Exchange>,
+    #[serde(default, rename = "file")]
+    pub files: Vec<Touched>,
+}
+
+/// Un fichier que l'import a touché.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Touched {
+    pub path: String,
+    pub how: How,
+}
+
+/// Ce que l'import a fait d'un fichier, donc ce que défaire fait.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum How {
+    /// Absent avant : défaire le retire.
+    Added,
+    /// Remplacé : défaire remet celui d'avant.
+    Replaced,
+    /// Supprimé : défaire le fait revenir.
+    Removed,
+}
+
+/// Écrit le plan. L'état d'avant du dernier import est vidé ; le journal s'écrit **avant** la
+/// première écriture dans la bibliothèque, si bien qu'un import interrompu se défait aussi ; puis
+/// tout ce qui est remplacé ou supprimé est déplacé dans l'état d'avant avant d'être écrit.
+pub fn apply(plan: &ImportPlan, library: &Path, suitcase: &Path, mut journal: Journal) -> Result<()> {
     let before = before_dir(library);
     std::fs::create_dir_all(library).with_context(|| format!("création de {}", library.display()))?;
     match std::fs::remove_dir_all(&before) {
@@ -341,6 +386,27 @@ pub fn apply(plan: &ImportPlan, library: &Path, suitcase: &Path) -> Result<()> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(e).with_context(|| format!("suppression de {}", before.display())),
     }
+    journal.files = plan
+        .ops
+        .iter()
+        .map(|op| {
+            let existed = library.join(op.path()).is_file();
+            let how = match (op, existed) {
+                (_, false) => How::Added,
+                (Op::Remove(_), true) => How::Removed,
+                _ => How::Replaced,
+            };
+            Touched { path: op.path().into(), how }
+        })
+        // retirer un fichier qui n'existe pas ne touche rien
+        .filter(|t| {
+            t.how != How::Added
+                || !matches!(plan.ops.iter().find(|o| o.path() == t.path), Some(Op::Remove(_)))
+        })
+        .collect();
+    std::fs::create_dir_all(&before).with_context(|| format!("création de {}", before.display()))?;
+    super::write_atomic(&before.join(JOURNAL_FILE), toml::to_string(&journal)?.as_bytes())
+        .with_context(|| format!("écriture de {}", before.display()))?;
     for op in &plan.ops {
         let rel = op.path();
         let target = library.join(rel);
@@ -380,4 +446,42 @@ fn prune(mut dir: &Path, library: &Path) {
         let Some(p) = dir.parent() else { return };
         dir = p;
     }
+}
+
+/// Défait le dernier import : ce qui est arrivé repart, ce que l'import a remplacé ou supprimé revient,
+/// puis l'état d'avant est vidé — un seul niveau. Rend le journal : la mémoire de l'échange
+/// d'avant est à remettre par l'appelant. Ne touche pas la valise.
+pub fn undo(library: &Path) -> Result<Journal> {
+    let before = before_dir(library);
+    let path = before.join(JOURNAL_FILE);
+    let journal: Journal = match std::fs::read_to_string(&path) {
+        Ok(t) => toml::from_str(&t).with_context(|| format!("{} illisible", path.display()))?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => bail!("aucun import à défaire"),
+        Err(e) => return Err(e).with_context(|| format!("lecture de {}", path.display())),
+    };
+    for t in &journal.files {
+        let target = library.join(&t.path);
+        match t.how {
+            How::Added => {
+                match std::fs::remove_file(&target) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e).with_context(|| format!("suppression de {}", target.display())),
+                }
+                prune(target.parent().unwrap_or(library), library);
+            }
+            How::Replaced | How::Removed => {
+                let kept = before.join(&t.path);
+                if kept.is_file() {
+                    let parent = target.parent().unwrap_or(library);
+                    std::fs::create_dir_all(parent)
+                        .with_context(|| format!("création de {}", parent.display()))?;
+                    std::fs::rename(&kept, &target)
+                        .with_context(|| format!("retour de {}", target.display()))?;
+                }
+            }
+        }
+    }
+    std::fs::remove_dir_all(&before).with_context(|| format!("suppression de {}", before.display()))?;
+    Ok(journal)
 }

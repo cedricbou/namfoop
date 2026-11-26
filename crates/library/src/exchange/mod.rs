@@ -31,6 +31,7 @@ pub mod memory;
 pub mod suitcase;
 #[cfg(test)]
 mod tests;
+pub mod verify;
 
 /// Le dossier de la valise, dans le dossier désigné (la racine d'une clé).
 pub const SUITCASE_DIR: &str = "valise-namfoop";
@@ -275,7 +276,7 @@ pub(crate) fn instrument_file(rel: &str) -> Option<&str> {
     rel.strip_prefix("instruments/")?.strip_suffix(".toml").filter(|id| !id.contains('/'))
 }
 
-fn suffix_ci<'a>(name: &'a str, suffix: &str) -> Option<&'a str> {
+pub(crate) fn suffix_ci<'a>(name: &'a str, suffix: &str) -> Option<&'a str> {
     let n = name.len().checked_sub(suffix.len())?;
     (name.is_char_boundary(n) && name[n..].eq_ignore_ascii_case(suffix)).then(|| &name[..n])
 }
@@ -382,6 +383,20 @@ pub fn elements_of(
         out.insert(rel.clone(), el(kind, name, rel.clone(), info.hash.clone(), info.size));
     }
     out
+}
+
+/// La famille d'un fichier, pour compter ce qu'un import a touché : un fichier d'instrument compte
+/// pour l'instrument, son enregistrement pour une calibration, `overrides.toml` pour une correction.
+pub fn family_of(rel: &str) -> Family {
+    if rel == crate::overrides::FILE {
+        Family::Correction
+    } else if instrument_file(rel).is_some() {
+        Family::Instrument
+    } else if rel.starts_with("instruments/") && suffix_ci(rel, ".wav").is_some() {
+        Family::Calibration
+    } else {
+        classify(rel).0
+    }
 }
 
 /// La famille et le nom affiché d'un fichier qui porte un seul élément.

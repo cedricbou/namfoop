@@ -513,23 +513,26 @@ Options:
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
 
-      --overwrite
-          Valise : fait de cette machine la copie exacte de la valise. Ce qui a changé ici est remplacé sans question, après confirmation ; l'état d'avant est gardé
-
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --undo
+          Défait le dernier import d'une valise : ce qui est arrivé repart, ce que l'import a remplacé ou supprimé revient. Un seul niveau ; la valise n'est pas touchée
 
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
+      --overwrite
+          Valise : fait de cette machine la copie exacte de la valise. Ce qui a changé ici est remplacé sans question, après confirmation ; l'état d'avant est gardé
+
       --exchanges <DOSSIER>
           Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
 
-      --library <DOSSIER>
-          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
-
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
+
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --midi-in <PORT>
           Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]

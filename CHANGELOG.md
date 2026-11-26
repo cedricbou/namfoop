@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Bibliothèque (#453)
+- **Défaire un import** : `namfoop import --undo` remet la machine dans l'état d'avant le dernier
+  import d'une valise — ce qui est arrivé repart, ce qui a été remplacé ou supprimé revient — et dit
+  ce qu'il a défait ; un nouvel import de la même valise remontre le même bilan. Un seul niveau :
+  défaire deux fois est refusé. La valise n'est pas touchée.
+- **Voir qu'aucun preset ne perd ses sons** : le bilan de l'import porte une ligne `vérifié` —
+  chaque preset et chaque set trouvera ses sons, ou bien la ligne nomme en jaune ceux qui en
+  perdraient un, avant que tu confirmes.
+- Ce qu'un import met de côté (`.avant-import/`) n'apparaît pas dans `browse`, `namfoop presets`
+  ni `namfoop models`.
+
 ### Bibliothèque (#452)
 - **Choisir quand un son a changé des deux côtés** : `namfoop import` montre les deux versions de
   chaque élément à trancher — la machine, la date, le résumé (la chaîne d'un preset, les morceaux
