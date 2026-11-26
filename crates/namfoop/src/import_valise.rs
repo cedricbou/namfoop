@@ -120,19 +120,10 @@ pub fn run(a: &ImportArgs, conf: &LoadedConfig, src: Source, ui: &mut dyn Ui) ->
         println!(" --dry-run : rien n'est écrit.");
         return Ok(());
     }
-    loop {
-        match ui.key(&format!(
-            " {}    {}  ",
-            theme::paint("Entrée : continuer", theme::warn()),
-            "a : abandonner, rien n'est écrit"
-        )) {
-            Some('\n') => break,
-            Some('a' | 'A') | None => {
-                println!(" Import abandonné : rien n'est écrit.");
-                return Ok(());
-            }
-            Some(_) => continue,
-        }
+    let question = format!(" {} ", theme::paint("Écrire ces changements ? (O / n)", theme::warn()));
+    if !xchg::confirm(ui, &question, true) {
+        println!(" Import abandonné : rien n'est écrit.");
+        return Ok(());
     }
     let p = plan(&lines, &BTreeMap::new(), &a.library, &suitcase.library(), &there).map_err(lib_err)?;
     let bad = damaged(&p, &suitcase.library(), &there);
@@ -179,9 +170,9 @@ fn offer_export(
     } else {
         " L'y mettre maintenant ? (O / n) "
     };
-    match ui.key(question) {
-        Some('n' | 'N') | None => Ok(()),
-        Some(_) => {
+    match xchg::confirm(ui, question, true) {
+        false => Ok(()),
+        true => {
             println!();
             let args = crate::export_cmd::ExportArgs {
                 folder: Some(folder.to_path_buf()),
@@ -448,7 +439,7 @@ mod tests {
     fn abandoning_writes_nothing_not_even_the_machine_name() {
         let w = World::new("abandon");
         w.export("studio", &["studio"]);
-        w.import("portable", &["portable", "a"]).unwrap();
+        w.import("portable", &["portable", "n"]).unwrap();
         assert!(!w.lib("portable").exists());
         assert!(!w.root.join("portable/config").join(xchg::DIR).exists());
         // dry-run : pareil

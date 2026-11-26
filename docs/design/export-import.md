@@ -12,8 +12,10 @@ la [charte](../identite/charte.md).
 § 7, § 10, § 12) ; le choix quand un élément a changé des deux côtés (§ 7 : le code abandonne
 l'import et nomme l'élément) et le retour en arrière (§ 8) sont la cible des stories qui suivent dans l'épique
 « Emporter ma bibliothèque d'une machine à l'autre avec une clé USB ». Le mot « valise » est
-confirmé ; deux choix se confirment avec leur story : la touche unique de confirmation du bilan
-(§ 6) et le nom de l'option `--undo` (§ 8).
+confirmé. Le bilan se confirme par `Écrire ces changements ? (O / n)` — `Entrée` ou `o` écrit,
+`n` abandonne —, la même question que les autres confirmations de l'échange ; l'exemple du § 6
+garde la proposition `Entrée / a`. Reste à confirmer avec sa story le nom de l'option `--undo`
+(§ 8).
 
 **Couleurs** : `export` et `import` ne sont pas un espace de `browse` ; ils sont **neutres**, comme
 `setup` et `run`. Le **vert signal** dit ce qui arrive ou ce qui est en règle (`+`, « complète »),

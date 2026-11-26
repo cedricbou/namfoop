@@ -10,7 +10,7 @@ section prend le numéro de version.
 - **Retrouver sur une autre machine ce que la valise apporte** : `namfoop import <dossier de la
   clé>` reconnaît une valise (un pack de sons s'importe comme avant), montre le bilan — ce qui
   **arrive**, ce qui **reste ici** parce que tu l'as changé sur cette machine, ce qui a changé des
-  deux côtés — puis `Entrée` écrit et `a` abandonne sans rien écrire ; `--dry-run` s'arrête au
+  deux côtés — puis `Écrire ces changements ? (O / n)` : `Entrée` écrit, `n` abandonne sans rien écrire ; `--dry-run` s'arrête au
   bilan. Ce que l'import remplace ou supprime est gardé dans `.avant-import/` jusqu'à l'import
   suivant. Ce que tu as changé ici reste intact, et namfoop propose de le mettre dans la valise tout
   de suite. Une machine sans bibliothèque reçoit tout. Un élément changé des deux côtés fait

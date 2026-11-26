@@ -128,7 +128,8 @@ import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'
                 porte une valise (ou aucune source : la clé du dernier échange) part dans
                 import_valise.rs, et une valise ne se mélange pas à des packs
 import_valise.rs `import` d'une valise : le bilan (arrive / reste ici / à trancher), UNE touche
-                (Entrée écrit, `a` abandonne ; sans réponse, on abandonne), l'écriture
+                (exchange::confirm, « (O / n) » : Entrée écrit, `n` abandonne ; sans réponse, on
+                abandonne), l'écriture
                 (library::exchange::import), la mémoire, l'export proposé dans la foulée. Un
                 abandon n'écrit RIEN, pas même le nom de la machine. Refus avant tout : valise
                 incomplète, format plus récent, fichier abîmé, namfoop qui joue ici
@@ -139,7 +140,8 @@ exchange.rs     commun à `export` et `import` : la mémoire des échanges (`ech
                 nom de la machine (demandé une fois), l'heure locale notée, le dossier de la clé
                 (celui du dernier échange sans argument), le bilan famille par famille
                 (theme::paint : couleurs seulement vers un terminal) ; `Ui`, les questions (une
-                ligne, une touche sans Entrée : `Terminal`, ou `Script` en test) ; `playing`,
+                ligne, une touche sans Entrée : `Terminal`, ou `Script` en test) ; `confirm`, LA
+                question « (O / n) » / « (o / N) » de l'échange ; `playing`,
                 namfoop qui joue ici, cherché dans /proc (`browse`, `run`, `--review`) plutôt
                 qu'un verrou qu'un arrêt brutal laisserait derrière lui
 meta_cmd.rs     `meta` : affichage d'un modèle

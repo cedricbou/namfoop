@@ -617,13 +617,14 @@ machine     portable · dernier échange lun. 23/11
                - preset      Vieux test
  reste ici    ~ 1 preset                    Slap couplet
 
- Entrée : continuer    a : abandonner, rien n'est écrit
+ Écrire ces changements ? (O / n)
 ```
 
 - **Rien ne s'écrit avant le bilan.** `arrive` : ce qui a changé dans la valise seulement, et sera
   écrit ici ; `reste ici` : ce que tu as changé sur cette machine seulement, qui n'est pas touché ;
   `à trancher` : ce qui a changé des deux côtés.
-- **`Entrée` écrit, `a` abandonne** sans rien écrire — pas même le nom de la machine.
+- **`Entrée` (ou `o`) écrit, `n` abandonne** sans rien écrire — pas même le nom de la machine. Sans
+  personne pour répondre (un script), l'import abandonne.
 - **Chaque machine retient son dernier échange avec la valise** : c'est ce qui dit de quel côté un
   élément a changé, et qui distingue une suppression au studio d'un ajout ici. Une suppression suit,
   annoncée par un `-`.

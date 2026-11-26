@@ -75,6 +75,20 @@ pub trait Ui {
     fn key(&mut self, question: &str) -> Option<char>;
 }
 
+/// Une confirmation `(O / n)` ou `(o / N)` : Entrée prend `default`, `o` et `n` répondent, une
+/// autre touche repose la question. Personne pour répondre : non, quel que soit le défaut — rien
+/// ne s'écrit sans quelqu'un pour le vouloir.
+pub fn confirm(ui: &mut dyn Ui, question: &str, default: bool) -> bool {
+    loop {
+        match ui.key(question) {
+            Some('\n') => return default,
+            Some('o' | 'O') => return true,
+            Some('n' | 'N') | None => return false,
+            Some(_) => continue,
+        }
+    }
+}
+
 /// Le clavier de l'utilisateur.
 pub struct Terminal;
 
