@@ -79,7 +79,7 @@ ce qui garde l'esprit d'une capture.
 | À chaque lancement | rien | prend la carte branchée, l'instrument par défaut, vérifie la calibration, joue |
 | En balance | je joue fort quelques notes | le vumètre d'entrée montre ma crête et le repère de la calibration |
 | Je prends un autre instrument | au clavier : je relance avec `--instrument` ; au pied : le geste de l'instrument, deux fois | relance la session avec sa calibration |
-| Sur un autre ordinateur | je copie ma bibliothèque, puis `namfoop setup` pour la carte | retrouve mes instruments et leurs calibrations |
+| Sur un autre ordinateur | `namfoop import` de la valise de ma clé, puis `namfoop setup` pour la carte | retrouve mes instruments et leurs calibrations |
 
 ## 4. Au lancement : la préparation
 

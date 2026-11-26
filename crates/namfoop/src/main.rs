@@ -9,6 +9,7 @@ mod exchange;
 mod export_cmd;
 mod fx_cmd;
 mod import_cmd;
+mod import_valise;
 mod instrument;
 mod instruments_cmd;
 mod latency;
@@ -141,7 +142,8 @@ enum Cmd {
         #[arg(long, value_name = "DOSSIER")]
         library: Option<PathBuf>,
     },
-    /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
+    /// Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques,
+    /// type de capture ; ou la valise d'une clé (`namfoop export`) : bilan, une touche, écriture
     Import {
         #[command(flatten)]
         args: import_cmd::ImportArgs,

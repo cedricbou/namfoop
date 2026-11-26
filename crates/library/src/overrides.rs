@@ -87,13 +87,18 @@ impl Overrides {
         }
     }
 
-    pub fn save(&self, root: &Path) -> Result<()> {
-        let p = Self::path(root);
+    /// Le texte du fichier, tel que `save` l'écrit.
+    pub fn to_text(&self) -> Result<String> {
         let body = toml::to_string_pretty(self)?;
-        let text = format!(
+        Ok(format!(
             "# Corrections namfoop des métadonnées des modèles (namfoop import / namfoop meta).\n\
              # Clé = empreinte du contenu du .nam : les fichiers d'origine ne sont jamais modifiés.\n\n{body}"
-        );
+        ))
+    }
+
+    pub fn save(&self, root: &Path) -> Result<()> {
+        let p = Self::path(root);
+        let text = self.to_text()?;
         let tmp = p.with_extension("toml.tmp");
         std::fs::write(&tmp, text).with_context(|| format!("écriture {}", tmp.display()))?;
         std::fs::rename(&tmp, &p).with_context(|| format!("écriture {}", p.display()))

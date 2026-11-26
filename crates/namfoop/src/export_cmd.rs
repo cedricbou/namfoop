@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use crate::config::LoadedConfig;
 use crate::exchange::{self as xchg, lib_err};
 use library::exchange::label::Stamp;
-use library::exchange::memory::{self, Exchange};
+use library::exchange::memory;
 use library::exchange::suitcase::{apply_export, plan_export, Suitcase};
 use library::exchange::{inventory, new_id, portable_names};
 
@@ -36,12 +36,12 @@ pub struct ExportArgs {
 /// La commande, telle que `main` l'appelle : la bibliothèque doit exister.
 pub fn start(mut a: ExportArgs, conf: &LoadedConfig) -> Result<()> {
     a.library = crate::library_dir::locate(a.library_arg.as_deref(), conf).require()?.to_path_buf();
-    run(&a, conf, &mut xchg::ask_line)
+    run(&a, conf, &mut xchg::Terminal)
 }
 
-pub fn run(a: &ExportArgs, conf: &LoadedConfig, ask: &mut dyn FnMut(&str) -> Option<String>) -> Result<()> {
+pub fn run(a: &ExportArgs, conf: &LoadedConfig, ui: &mut dyn xchg::Ui) -> Result<()> {
     let mem = xchg::memory_dir(a.exchanges.as_deref(), conf)?;
-    let mut machine = xchg::machine(&mem, a.dry_run, ask)?;
+    let mut machine = xchg::machine(&mem, ui)?;
     let folder = xchg::folder(a.folder.as_deref(), &mem, &machine)?;
     let started = std::time::Instant::now();
     let local = inventory(&a.library).map_err(lib_err)?;
@@ -83,18 +83,9 @@ pub fn run(a: &ExportArgs, conf: &LoadedConfig, ask: &mut dyn FnMut(&str) -> Opt
     }
     println!();
 
-    let remember = |machine: &mut memory::Machine| -> Result<()> {
-        let folder = std::fs::canonicalize(suitcase.folder()).unwrap_or_else(|_| suitcase.folder().into());
-        let x = Exchange {
-            valise: id.clone(),
-            folder,
-            date,
-            elements: local.elements.values().cloned().collect(),
-        };
-        memory::save_exchange(&mem, &x).map_err(lib_err)?;
-        machine.last = Some(id.clone());
-        memory::save_machine(&mem, machine).map_err(lib_err)
-    };
+    let elements: Vec<_> = local.elements.values().cloned().collect();
+    let remember =
+        |m: &mut memory::Machine| xchg::remember(&mem, m, &id, suitcase.folder(), elements.clone());
     if plan.up_to_date {
         println!(" La valise est déjà à jour avec {}.", machine.name);
         if !a.dry_run {
@@ -191,11 +182,7 @@ mod tests {
         let text = b"# ma config\n[audio]\ndevice = \"hw:iTwo\"\nlevel = \"match\"\n";
         std::fs::write(&config, text).unwrap();
         let conf = LoadedConfig::load(Some(config.clone()), false).unwrap();
-        let asked = std::cell::Cell::new(0);
-        let mut ask = |_: &str| {
-            asked.set(asked.get() + 1);
-            Some("studio\n".to_string())
-        };
+        let mut ask = xchg::Script::new(&["studio\n"]);
         run(&args(&root, Some(&cle)), &conf, &mut ask).unwrap();
         assert_eq!(std::fs::read(&config).unwrap(), text);
         let mem = root.join("config").join(xchg::DIR);
@@ -205,7 +192,7 @@ mod tests {
         // sans dossier : celui du dernier échange ; le nom n'est plus demandé
         std::fs::write(root.join("library/presets/Neuf.preset.toml"), "name = \"Neuf\"\n").unwrap();
         run(&args(&root, None), &conf, &mut ask).unwrap();
-        assert_eq!(asked.get(), 1);
+        assert_eq!(memory::load_machine(&mem).unwrap().unwrap().name, "studio", "pas redemandé");
         assert!(cle.join("valise-namfoop/library/presets/Neuf.preset.toml").is_file());
         assert_eq!(std::fs::read(&config).unwrap(), text);
         // la clé retirée : le message la nomme
@@ -224,7 +211,7 @@ mod tests {
         let mut a = args(&root, Some(&cle));
         a.dry_run = true;
         a.exchanges = Some(root.join("mem"));
-        run(&a, &conf, &mut |_| Some("pi".into())).unwrap();
+        run(&a, &conf, &mut xchg::Script::new(&["pi"])).unwrap();
         assert_eq!(std::fs::read_dir(&cle).unwrap().count(), 0);
         assert!(!root.join("mem").exists());
     }
@@ -239,7 +226,7 @@ mod tests {
         let conf = LoadedConfig::load(None, true).unwrap();
         let mut a = args(&root, Some(&cle));
         a.exchanges = Some(root.join("mem"));
-        let e = run(&a, &conf, &mut |_| Some("pi".into())).unwrap_err().to_string();
+        let e = run(&a, &conf, &mut xchg::Script::new(&["pi"])).unwrap_err().to_string();
         assert!(e.contains("A: B.preset.toml"), "{e}");
         assert_eq!(std::fs::read_dir(&cle).unwrap().count(), 0);
     }

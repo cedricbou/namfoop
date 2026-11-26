@@ -37,31 +37,137 @@ pub fn lib_err(e: library::Error) -> anyhow::Error {
 }
 
 /// Le nom de cette machine. La première fois, il est demandé — le nom de l'ordinateur sur le
-/// réseau est proposé — puis retenu, sauf `dry_run`.
-pub fn machine(dir: &Path, dry_run: bool, ask: &mut dyn FnMut(&str) -> Option<String>) -> Result<Machine> {
+/// réseau est proposé. Il n'est retenu qu'avec l'échange (`remember`) : un import abandonné
+/// n'écrit rien, pas même lui.
+pub fn machine(dir: &Path, ui: &mut dyn Ui) -> Result<Machine> {
     if let Some(m) = memory::load_machine(dir).map_err(lib_err)? {
         return Ok(m);
     }
     let host = hostname();
-    let answer = ask(&format!(" Comment s'appelle cet ordinateur ? [{host}] "));
+    let answer = ui.line(&format!(" Comment s'appelle cet ordinateur ? [{host}] "));
     let name = answer.map(|a| a.trim().to_string()).filter(|a| !a.is_empty()).unwrap_or(host);
-    let m = Machine { name, last: None };
-    if !dry_run {
-        memory::save_machine(dir, &m).map_err(lib_err)?;
-    }
-    Ok(m)
+    Ok(Machine { name, last: None })
 }
 
-/// Pose la question sur la sortie d'erreur et lit une ligne ; fin d'entrée : pas de réponse.
-pub fn ask_line(question: &str) -> Option<String> {
-    use std::io::Write;
-    eprint!("{question}");
-    let _ = std::io::stderr().flush();
-    let mut line = String::new();
-    match std::io::stdin().read_line(&mut line) {
-        Ok(0) | Err(_) => None,
-        Ok(_) => Some(line),
+/// Retient l'échange : l'état commun de la machine et de la valise, le dossier de la clé, et le
+/// nom de la machine.
+pub fn remember(
+    dir: &Path,
+    machine: &mut Machine,
+    id: &str,
+    folder: &Path,
+    elements: Vec<Element>,
+) -> Result<()> {
+    let folder = std::fs::canonicalize(folder).unwrap_or_else(|_| folder.into());
+    let x = memory::Exchange { valise: id.into(), folder, date: now(), elements };
+    memory::save_exchange(dir, &x).map_err(lib_err)?;
+    machine.last = Some(id.into());
+    memory::save_machine(dir, machine).map_err(lib_err)
+}
+
+/// Les questions d'`export` et d'`import` : une ligne (le nom de la machine) ou une touche
+/// (continuer, abandonner). Les tests répondent à la place du clavier.
+pub trait Ui {
+    /// Une ligne ; fin d'entrée : pas de réponse.
+    fn line(&mut self, question: &str) -> Option<String>;
+    /// Une touche, sans Entrée dans un terminal (`'\n'` pour Entrée) ; personne pour répondre :
+    /// `None`.
+    fn key(&mut self, question: &str) -> Option<char>;
+}
+
+/// Une confirmation `(O / n)` ou `(o / N)` : Entrée prend `default`, `o` et `n` répondent, une
+/// autre touche repose la question. Personne pour répondre : non, quel que soit le défaut — rien
+/// ne s'écrit sans quelqu'un pour le vouloir.
+pub fn confirm(ui: &mut dyn Ui, question: &str, default: bool) -> bool {
+    loop {
+        match ui.key(question) {
+            Some('\n') => return default,
+            Some('o' | 'O') => return true,
+            Some('n' | 'N') | None => return false,
+            Some(_) => continue,
+        }
     }
+}
+
+/// Le clavier de l'utilisateur.
+pub struct Terminal;
+
+impl Ui for Terminal {
+    fn line(&mut self, question: &str) -> Option<String> {
+        use std::io::Write;
+        eprint!("{question}");
+        let _ = std::io::stderr().flush();
+        let mut line = String::new();
+        match std::io::stdin().read_line(&mut line) {
+            Ok(0) | Err(_) => None,
+            Ok(_) => Some(line),
+        }
+    }
+
+    fn key(&mut self, question: &str) -> Option<char> {
+        use std::io::{IsTerminal, Write};
+        eprint!("{question}");
+        let _ = std::io::stderr().flush();
+        if !std::io::stdin().is_terminal() {
+            // un script : la première lettre de la ligne, Entrée pour une ligne vide
+            let l = self.line("");
+            eprintln!();
+            return Some(l?.trim_end_matches(['\n', '\r']).chars().next().unwrap_or('\n'));
+        }
+        let c = read_key();
+        eprintln!();
+        c
+    }
+}
+
+/// Une touche, le terminal sans écho ni mode ligne le temps de la lire, puis rendu tel quel.
+fn read_key() -> Option<char> {
+    // SAFETY : `termios` est une structure C simple, remplie par `tcgetattr` avant tout usage ;
+    // la lecture est bloquante (VMIN = 1) dans un tampon local
+    unsafe {
+        let mut t: libc::termios = std::mem::zeroed();
+        if libc::tcgetattr(libc::STDIN_FILENO, &mut t) != 0 {
+            return None;
+        }
+        let saved = t;
+        t.c_lflag &= !(libc::ICANON | libc::ECHO);
+        t.c_cc[libc::VMIN] = 1;
+        t.c_cc[libc::VTIME] = 0;
+        if libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &t) != 0 {
+            return None;
+        }
+        let mut buf = [0u8; 8];
+        let n = libc::read(libc::STDIN_FILENO, buf.as_mut_ptr().cast(), buf.len());
+        libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &saved);
+        if n <= 0 {
+            return None;
+        }
+        let c = std::str::from_utf8(&buf[..n as usize]).ok()?.chars().next()?;
+        Some(if c == '\r' { '\n' } else { c })
+    }
+}
+
+/// Un autre namfoop joue-t-il sur cette machine (`browse`, `run`) ? Sa banque en mémoire ne
+/// suivrait pas un import : on le cherche parmi les processus, sans verrou à laisser derrière soi
+/// si namfoop s'arrête mal.
+pub fn playing() -> bool {
+    if cfg!(test) {
+        return false;
+    }
+    let me = std::process::id().to_string();
+    let Ok(rd) = std::fs::read_dir("/proc") else { return false };
+    rd.flatten().any(|e| {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name == me || !name.bytes().all(|b| b.is_ascii_digit()) {
+            return false;
+        }
+        let comm = std::fs::read_to_string(e.path().join("comm")).unwrap_or_default();
+        if comm.trim() != "namfoop" {
+            return false;
+        }
+        let cmd = std::fs::read(e.path().join("cmdline")).unwrap_or_default();
+        cmd.split(|b| *b == 0).any(|a| a == b"browse" || a == b"run" || a == b"--review")
+    })
 }
 
 fn hostname() -> String {
@@ -184,7 +290,7 @@ pub fn seconds(s: f64) -> String {
 }
 
 /// La couleur d'un changement : vert ce qui arrive, jaune ce qui change, rouge ce qui part.
-fn tint(c: Change) -> ratatui::style::Color {
+pub fn tint(c: Change) -> ratatui::style::Color {
     match c {
         Change::Added => theme::ok(),
         Change::Modified => theme::warn(),
@@ -212,6 +318,23 @@ pub fn totals(inv: &Inventory) -> String {
     )
 }
 
+/// « + 2 modèles  + 1 IR  ~ 1 preset », en clair et peint, dans l'ordre des familles.
+pub fn counts(items: impl Iterator<Item = (Change, Family)>) -> (String, String) {
+    let mut counts: Vec<(Family, Change, usize)> = Vec::new();
+    for (c, f) in items {
+        match counts.iter_mut().find(|(g, k, _)| *g == f && *k == c) {
+            Some(x) => x.2 += 1,
+            None => counts.push((f, c, 1)),
+        }
+    }
+    counts.sort();
+    let texts: Vec<(String, Change)> =
+        counts.iter().map(|(f, c, n)| (format!("{} {}", c.sign(), f.count(*n)), *c)).collect();
+    let plain = texts.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>().join("  ");
+    let painted = texts.iter().map(|(t, c)| theme::paint(t, tint(*c))).collect::<Vec<_>>().join("  ");
+    (plain, painted)
+}
+
 /// Le bilan : une ligne par famille de l'échange (sons, créations, instruments) — ce qui change,
 /// `+` `~` `-`, puis les noms ; ou `=` et le compte quand rien ne bouge.
 pub fn report(changes: &[(Change, Element)], now: &Inventory) -> Vec<String> {
@@ -232,19 +355,7 @@ pub fn report(changes: &[(Change, Element)], now: &Inventory) -> Vec<String> {
                 let text = format!("= {}", if parts.is_empty() { "aucun".into() } else { parts.join(", ") });
                 (text.clone(), theme::paint(&text, theme::dim()), String::new())
             } else {
-                let mut counts: Vec<(Family, Change, usize)> = Vec::new();
-                for (c, e) in &mine {
-                    match counts.iter_mut().find(|(f, k, _)| *f == e.kind && k == c) {
-                        Some(x) => x.2 += 1,
-                        None => counts.push((e.kind, *c, 1)),
-                    }
-                }
-                counts.sort();
-                let texts: Vec<(String, Change)> =
-                    counts.iter().map(|(f, c, n)| (format!("{} {}", c.sign(), f.count(*n)), *c)).collect();
-                let plain = texts.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>().join("  ");
-                let painted =
-                    texts.iter().map(|(t, c)| theme::paint(t, tint(*c))).collect::<Vec<_>>().join("  ");
+                let (plain, painted) = counts(mine.iter().map(|(c, e)| (*c, e.kind)));
                 (plain, painted, group_names(*g, &mine))
             };
             let pad = " ".repeat(COUNTS.saturating_sub(plain.chars().count()));
@@ -271,6 +382,27 @@ fn group_names(g: Group, mine: &[&(Change, Element)]) -> String {
         names(&packs)
     } else {
         format!("{} · {}", names(&packs), size(bytes))
+    }
+}
+
+/// Des réponses écrites d'avance, pour les tests : chaque question prend la suivante.
+#[cfg(test)]
+pub struct Script(pub std::collections::VecDeque<String>);
+
+#[cfg(test)]
+impl Script {
+    pub fn new(answers: &[&str]) -> Self {
+        Self(answers.iter().map(|a| a.to_string()).collect())
+    }
+}
+
+#[cfg(test)]
+impl Ui for Script {
+    fn line(&mut self, _: &str) -> Option<String> {
+        self.0.pop_front()
+    }
+    fn key(&mut self, _: &str) -> Option<char> {
+        self.0.pop_front().map(|a| a.chars().next().unwrap_or('\n'))
     }
 }
 
