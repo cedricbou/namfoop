@@ -55,7 +55,8 @@ pub struct AmpArgs {
     /// Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
     #[arg(long, allow_hyphen_values = true)]
     pub trim: Option<f32>,
-    /// Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
+    /// Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : match si
+    /// l'instrument joué est calibré, sinon la config
     #[arg(long, value_enum)]
     pub level: Option<LevelArg>,
     /// Cible du mode normalize (dB)
@@ -158,6 +159,12 @@ fn first_of(blocks: &[dsp::block::BlockSpec], nam: bool) -> Option<PathBuf> {
 }
 
 impl AmpArgs {
+    /// Le niveau de sortie : `--level`, sinon celui de la calibration jouée
+    /// (`instrument::Calibration::level`).
+    pub fn level_mode(&self, config: LevelMode) -> LevelMode {
+        self.level.map(LevelMode::from).unwrap_or_else(|| self.calibration.level(config))
+    }
+
     /// La chaîne à jouer : celle des options, ou celle d'un **preset** (`--preset`). Le
     /// **cadre** (trim, niveau, master, limiteur) reste celui des options et de la config ; seuls
     /// les blocs viennent du preset — exactement ce que fait `browse`.
@@ -285,7 +292,7 @@ impl AmpArgs {
             }
         }
         let target_db = self.target_db.unwrap_or(cfg.target_db);
-        let level = match self.level.map(LevelMode::from).unwrap_or(cfg.level) {
+        let level = match self.level_mode(cfg.level) {
             LevelMode::Raw => Level::Raw,
             LevelMode::Normalize => Level::Normalize { target_db },
             LevelMode::Match => {

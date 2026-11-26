@@ -6,6 +6,15 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Correction (#454)
+- **Un instrument calibré joue en volume `match` sur tout ordinateur** : une calibration arrivée
+  avec la bibliothèque (copie, ou `namfoop import` d'une valise) aligne le volume comme sur la
+  machine qui l'a mesurée, au lieu de rester en `normalize` tant que `calibrate` n'y avait pas
+  tourné. `--level` garde la main pour une session, et la ligne de démarrage dit le niveau retenu
+  (`… · niveau match`). Un `level = "normalize"` ou `"raw"` écrit dans la config ne vaut plus que
+  pour un instrument jamais calibré ou joué sans calibration ; `calibrate --instrument` ne touche
+  plus à la config.
+
 ### Documentation (#460)
 - Les raisons des choix de forme de l'échange par valise ont leur ADR (`docs/adr/0013-echange-par-valise.md`) ;
   la spécification de l'export et de l'import est retirée : le guide (§ 6) décrit le parcours, et le

@@ -148,7 +148,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --level <LEVEL>
-          Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
+          Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : match si l'instrument joué est calibré, sinon la config
 
           Possible values:
           - match:     Volume traité aligné sur le volume de la basse en direct (nécessite `calibrate`)
@@ -303,7 +303,7 @@ Options:
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --level <LEVEL>
-          Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : config
+          Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : match si l'instrument joué est calibré, sinon la config
 
           Possible values:
           - match:     Volume traité aligné sur le volume de la basse en direct (nécessite `calibrate`)

@@ -309,7 +309,7 @@ pub fn run(
     let mut last_req: Option<Request> = None;
     let mut st = State::new(models, irs);
     // volume aligné sur le DI : l'alignement annule les blocs `gain`, l'écran doit le dire
-    st.level_match = conf.level == LevelMode::Match;
+    st.level_match = cal.level(conf.level) == LevelMode::Match;
     // sans sortie qui le reçoit, `k` doit le dire au lieu d'allumer un clic inaudible
     st.metronome_routed = click_routed;
     if let Some(f) = start_with.filter {

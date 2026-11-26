@@ -111,6 +111,9 @@ instrument  2 Fretless · jouée sans calibration sur UMC404HD
 carte       PreSonus AudioBox iTwo — aussi branchée : MTK (--card mtk)
 ```
 
+- **Le niveau** : un instrument dont la calibration est mesurée joue en volume « match », sur
+  tout ordinateur, quel que soit le `level` de la config ; `--level` passe avant. La ligne de
+  l'instrument le dit (`… · niveau match`).
 - **`browse` comme `run --set`** : la préparation est la même. Le set choisi avec `L` dans `browse`
   reste le set du moment, celui que `run --set` rouvre ([`set.md`](set.md) § 9).
 - **En carte simulée**, la préparation ne pose aucune question.

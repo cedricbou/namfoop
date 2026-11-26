@@ -464,7 +464,7 @@ te semblent trop saturés, ne corrige pas modèle par modèle : relance `calibra
 
 #### Et le volume de sortie ?
 
-**Tu n'as rien à régler par modèle.** En mode `level = "match"` (celui que `calibrate` active),
+**Tu n'as rien à régler par modèle.** En mode `match` (celui d'un instrument calibré),
 namfoop recalcule le volume **à chaque chargement**. Ton enregistrement de calibration passe dans
 la chaîne complète (entrée, modèle, IR), et un gain ramène le résultat au volume de ta basse en
 direct. Conséquences :
@@ -1313,13 +1313,18 @@ namfoop calibrate --instrument "BB 735A"
    Trim d'entrée proposé : -18.0 dB (crête robuste visée -30 dBFS à l'entrée des modèles)
    ```
 3. Il range le trim et ton enregistrement **avec l'instrument, pour cette carte**, dans
-   `library/instruments/`, et passe le volume en mode **match** dans la config
-   ([§ 16](#16-le-fichier-de-configuration)). Un nom qui ne désigne aucun instrument en crée un ;
-   un instrument déjà calibré sur cette carte est recalibré.
+   `library/instruments/`, sans toucher à la config. Un nom qui ne désigne aucun instrument en
+   crée un ; un instrument déjà calibré sur cette carte est recalibré.
+
+**Un instrument calibré joue en volume `match`** ([§ 9](#volume-de-sortie--level)), sur tout
+ordinateur où arrive ta bibliothèque, quel que soit le `level` de la config : c'est sa mesure qui
+sert de référence. `--level` garde la main pour une session. Un instrument jamais calibré, ou joué
+sans calibration, suit le `level` de la config.
 
 Sans `--instrument`, `calibrate` mesure l'instrument par défaut. Une bibliothèque **sans aucun
 instrument** garde le fonctionnement d'avant les instruments : la calibration va dans la config,
-et elle vaut pour tout ce que tu joues.
+qui passe en mode **match** ([§ 16](#16-le-fichier-de-configuration)), et elle vaut pour tout ce
+que tu joues.
 
 Options :
 
@@ -1340,7 +1345,7 @@ refuse : baisse le gain de la carte et recommence.
 Au lancement de `browse`, `run` et `run --set`, une ligne dit ce qui joue :
 
 ```
-instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB)
+instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB) · niveau match
 ```
 
 L'écran de `browse` et la scène le rappellent à droite de l'en-tête — en vert `calibrée`, en jaune
@@ -1588,7 +1593,7 @@ Les captures sortent à des niveaux très différents (de -14 à -40 dB). Trois 
 
 | Mode | Effet |
 |---|---|
-| `match` | (après `calibrate`) le son traité a **le même volume que ta basse en direct**. Au chargement, ton enregistrement de calibration passe dans la chaîne et un gain compense l'écart de **loudness** (pondération K d'ITU-R BS.1770, la norme de la diffusion : l'oreille n'entend pas le fondamental d'une basse comme ses harmoniques). Pas de saut de volume d'un modèle à l'autre ni entre clair et traité |
+| `match` | (défaut d'un instrument calibré, ou après `calibrate` sans instrument) le son traité a **le même volume que ta basse en direct**. Au chargement, ton enregistrement de calibration passe dans la chaîne et un gain compense l'écart de **loudness** (pondération K d'ITU-R BS.1770, la norme de la diffusion : l'oreille n'entend pas le fondamental d'une basse comme ses harmoniques). Pas de saut de volume d'un modèle à l'autre ni entre clair et traité |
 | `normalize` | (défaut sans calibration) la loudness annoncée par le modèle est ramenée à `--target-db` (-18 dB, la convention NAM) |
 | `raw` | sortie brute du modèle, sans correction |
 
@@ -3205,7 +3210,7 @@ que la bibliothèque n'a aucun instrument ; ensuite, chaque instrument porte les
 
 ```toml
 trim_db = -18.0                      # trim d'entrée, sans instrument (dB)     — calibrate
-level = "match"                      # "match", "normalize" ou "raw"           — calibrate
+level = "match"                      # "match", "normalize" ou "raw" — calibrate ; un instrument calibré joue en match
 target_db = -18.0                    # cible du mode normalize
 limiter = true                       # limiteur de sortie
 calibration_wav = "calibration.wav"  # enregistrement de calibration (relatif à ce dossier)
