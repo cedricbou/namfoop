@@ -22,6 +22,7 @@ mod midi_rules;
 mod midi_screen;
 mod models_cmd;
 mod offline;
+mod prepare;
 mod presets_cmd;
 mod sets_cmd;
 mod setup;
@@ -183,7 +184,7 @@ enum Cmd {
     /// pour lui, sur cette carte (--instrument : lequel ; défaut : l'instrument par défaut)
     Calibrate {
         /// Durée d'enregistrement (s)
-        #[arg(long, default_value_t = 15.0)]
+        #[arg(long, default_value_t = calibrate::DEFAULT_SECONDS)]
         seconds: f64,
         /// Crête robuste visée à l'entrée des modèles (dBFS)
         #[arg(long, default_value_t = calibrate::DEFAULT_TARGET_DBFS, allow_hyphen_values = true)]
@@ -280,34 +281,15 @@ fn main() -> Result<()> {
     let lib = |option: &Option<PathBuf>| library_dir::locate(option.as_deref(), &conf);
     // réglages audio (et profil de carte) : seulement pour les commandes qui ouvrent la carte
     let audio = || cli_audio::settings(&cli.audio, &conf);
-    // la calibration jouée (instrument, carte), résolue une fois ici : instrument.rs
-    let calib = |card: &instrument::Card, library: &std::path::Path| {
-        let list = instrument::load(library)?;
-        instrument::resolve(&conf, &list, cli.instrument.as_deref(), card, library)
-    };
-    // sur la carte : la ligne de démarrage dit ce qui joue (§ 4 de docs/design/instruments.md)
-    // `level` : `--level` des commandes qui l'ont ; la ligne dit le niveau retenu
-    let level_of = |c: &instrument::Calibration, level: Option<amp::LevelArg>| {
-        level.map(Into::into).unwrap_or_else(|| c.level(conf.config.level))
-    };
-    let on_card = |audio: &audio_io::Settings,
-                   library: &std::path::Path,
-                   level: Option<amp::LevelArg>|
-     -> Result<instrument::Calibration> {
-        let c = calib(&instrument::card_of(&conf, audio)?, library)?;
-        if let Some(line) = c.startup_line(level_of(&c, level)) {
-            eprintln!("{line}");
-        }
-        Ok(c)
-    };
-    let offline =
-        |library: &std::path::Path, level: Option<amp::LevelArg>| -> Result<instrument::Calibration> {
-            let c = calib(&instrument::Card::Offline, library)?;
-            if let Some(line) = c.startup_line(level_of(&c, level)) {
-                log::info!("{line}");
-            }
-            Ok(c)
+    // la préparation (prepare.rs) : la question si l'instrument n'est pas calibré sur la carte,
+    // puis la ligne de démarrage, avec le niveau retenu (`level` : `--level` de la commande)
+    let query = cli.instrument.as_deref();
+    let on_card =
+        |audio: &audio_io::Settings, library: &std::path::Path, level, routing: &engine::Routing| {
+            let prep = prepare::Prep { audio, routing, library, query };
+            prepare::on_card(&conf, &prep, level)
         };
+    let offline = |library: &std::path::Path, level| prepare::offline(&conf, library, query, level);
     match cli.cmd {
         Cmd::Run { mut amp, routing, seconds, quiet, no_trails, click, set } => {
             let found = lib(&amp.library_arg);
@@ -338,15 +320,15 @@ fn main() -> Result<()> {
                 let start = browse::Start {
                     set: (!query.is_empty()).then_some(query.as_str()),
                     locked: true,
-                    calibration: on_card(&audio, &amp.library, None)?,
+                    calibration: on_card(&audio, &amp.library, None, &routing)?,
                     midi: cli.midi.open(&conf.config),
                     ..Default::default()
                 };
                 return browse::run(&audio, &conf, &amp.library, &routing, 1.0, !no_trails, start);
             }
             let (audio, profile) = audio()?;
-            amp.calibration = on_card(&audio, &amp.library, amp.level)?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
+            amp.calibration = on_card(&audio, &amp.library, amp.level, &routing)?;
             let session = live::Session { seconds, quiet, trails: !no_trails, click };
             live::run(&audio, &conf, &amp, &routing, cli.midi.open(&conf.config), session)
         }
@@ -385,8 +367,9 @@ fn main() -> Result<()> {
                     ..Default::default()
                 };
                 let (audio, profile) = audio()?;
-                let start = browse::Start { calibration: on_card(&audio, &args.library, None)?, ..start };
                 let routing = cli_audio::base_routing(&conf, profile.as_ref());
+                let calibration = on_card(&audio, &args.library, None, &routing)?;
+                let start = browse::Start { calibration, ..start };
                 browse::run(&audio, &conf, &args.library, &routing, 1.0, true, start)?;
             }
             Ok(())
@@ -442,7 +425,7 @@ fn main() -> Result<()> {
             let start = browse::Start {
                 filter: filter.as_deref(),
                 set: set.as_deref(),
-                calibration: on_card(&audio, library, None)?,
+                calibration: on_card(&audio, library, None, &routing)?,
                 midi: cli.midi.open(&conf.config),
                 ..Default::default()
             };

@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Instruments (#432)
+- **Calibrer un instrument au moment de lancer** : `browse`, `run` et `run --set` avec un instrument
+  jamais calibré sur la carte branchée posent la question avant d'ouvrir la carte — `Entrée` lance
+  la mesure (15 s) puis ouvre l'écran, `Échap` joue sans calibration et ne redemande plus
+  (`skipped = true` dans le fichier de l'instrument), `q` renonce. Sans clavier, namfoop joue sans
+  calibration et le dit ; en carte simulée, aucune question.
+
 ### Correction (#454)
 - **Un instrument calibré joue en volume `match` sur tout ordinateur** : une calibration arrivée
   avec la bibliothèque (copie, ou `namfoop import` d'une valise) aligne le volume comme sur la

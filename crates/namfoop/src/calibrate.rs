@@ -19,6 +19,8 @@ use engine::{Engine, EngineConfig, Routing, MAX_BLOCK};
 use crate::config::{Config, LevelMode};
 
 pub const DEFAULT_TARGET_DBFS: f32 = -30.0;
+/// Durée de la mesure (s), celle de `calibrate` et de la question du lancement.
+pub const DEFAULT_SECONDS: f64 = 15.0;
 const SILENCE: f32 = 0.003; // ~ -50 dBFS
 
 pub struct Analysis {

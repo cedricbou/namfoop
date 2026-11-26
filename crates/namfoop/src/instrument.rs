@@ -1,4 +1,4 @@
-//! **La calibration jouée**, résolue une fois par `main` avant toute commande
+//! **La calibration jouée**, résolue une fois par la préparation (`prepare.rs`) avant toute commande
 //! (`docs/design/instruments.md` § 4) : quel instrument, sur quelle carte, donc quel trim, quel
 //! enregistrement, quelle cible. Ceux qui lisaient la calibration dans la config (le cadre de la
 //! chaîne, le repère du vumètre, le grain des modèles) la reçoivent d'ici.

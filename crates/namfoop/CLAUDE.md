@@ -37,10 +37,16 @@ amp.rs          options CLI de la chaîne -> dsp::chain::AmpSpec (CLI > config >
                 AmpSpec::tempo_bpm, donc un Tempo::Bpm FIGÉ : `run` et `render` n'ont pas de tap,
                 et c'est ce qui rend une mesure reproductible ; --pre / --post les effets
 config.rs       glue de la config (types dans crates/model)
+prepare.rs      LA PRÉPARATION d'une session qui joue (docs/design/instruments.md § 4-5), appelée
+                par main (`on_card`, et `offline` hors carte, sans question) AVANT d'ouvrir la carte : `decide`, pure (état de la
+                calibration, clavier) -> jouer | demander | jouer sans et le dire ; la question en
+                plein écran (Entrée : calibrate::run puis relecture ; Échap : `skipped` dans le
+                fichier de l'instrument, une écriture impossible ne vaut que pour la session)
 instrument.rs   LA CALIBRATION JOUÉE (docs/design/instruments.md § 4) : `resolve`, pure — (instrument
                 demandé, carte) -> trim, enregistrement, cible, état ; --instrument > instrument par
                 défaut de la bibliothèque > calibration de la config ; --no-config ne prend aucun
-                instrument qu'on ne nomme pas. Résolue UNE fois dans main, puis passée à ceux qui
+                instrument qu'on ne nomme pas. Résolue UNE fois (prepare::on_card / prepare::offline,
+                appelées par main), puis passée à ceux qui
                 lisaient la config : AmpArgs::calibration (#[arg(skip)], comme `library`),
                 Calibration::level (« match » dès qu'une mesure a son enregistrement, sinon le
                 `level` de la config ; `--level` passe avant, AmpArgs::level_mode),

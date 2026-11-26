@@ -90,6 +90,14 @@ impl Instrument {
         format!("{}.{card}.wav", self.id)
     }
 
+    /// Retient « jouée sans » pour cette carte : la question du lancement ne se repose pas. Une
+    /// mesure déjà là n'est pas effacée.
+    pub fn skip(&mut self, card: &str) {
+        if self.on_card(card).is_none() {
+            self.calibration.insert(card.into(), Calibration { skipped: true, ..Default::default() });
+        }
+    }
+
     /// Range une mesure pour cette carte ; elle efface une réponse « jouée sans ».
     pub fn set_calibration(&mut self, card: &str, trim_db: f32, target_dbfs: f32, date: &str) -> Result<()> {
         let date = date.parse().with_context(|| format!("date « {date} » illisible"))?;
@@ -287,6 +295,18 @@ date = 2026-11-24
 [calibration.umc404hd]
 skipped = true
 "#;
+
+    /// « Jouée sans » se retient, ne remplace pas une mesure, et la première mesure l'efface.
+    #[test]
+    fn skipping_is_kept_until_the_first_measure() {
+        let mut i = create(&[], "Fretless");
+        i.skip("itwo");
+        assert!(i.calibration["itwo"].skipped && i.on_card("itwo").is_none());
+        i.set_calibration("itwo", -9.0, -30.0, "2026-11-27").unwrap();
+        i.skip("itwo");
+        assert_eq!(i.on_card("itwo").and_then(|c| c.trim_db), Some(-9.0));
+        assert!(!i.calibration["itwo"].skipped);
+    }
 
     /// Un instrument relu à l'identique après écriture, deux cartes dans un même fichier.
     #[test]
