@@ -42,6 +42,8 @@ instrument.rs   LA CALIBRATION JOUÉE (docs/design/instruments.md § 4) : `resol
                 défaut de la bibliothèque > calibration de la config ; --no-config ne prend aucun
                 instrument qu'on ne nomme pas. Résolue UNE fois dans main, puis passée à ceux qui
                 lisaient la config : AmpArgs::calibration (#[arg(skip)], comme `library`),
+                Calibration::level (« match » dès qu'une mesure a son enregistrement, sinon le
+                `level` de la config ; `--level` passe avant, AmpArgs::level_mode),
                 browse::Start::calibration, le Signal des profils de modèles. Ne JAMAIS la poser
                 dans `conf.config` : `remember` (browse/actions/set.rs), l'écran MIDI et setup
                 réécrivent la config chargée, et y porteraient l'instrument du jour (le scénario
@@ -119,10 +121,10 @@ latency/        mesure de latence par impulsion (câble de bouclage ; engine::ra
                 sans état impossible. Deux machines à états pures, testées sans carte et sous
                 `assert_no_alloc` (la garde est dans `drive`, le pilote de test : tout test de la
                 mesure vérifie du même coup la règle temps réel)
-calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim, active le
-                niveau « match ». `Dest` dit où va la mesure : l'instrument (créé s'il n'existe
-                pas, instrument::to_calibrate) sur cette carte, ou la config quand la bibliothèque
-                n'a aucun instrument et qu'on n'en nomme pas
+calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule le trim. `Dest` dit
+                où va la mesure : l'instrument (créé s'il n'existe pas, instrument::to_calibrate)
+                sur cette carte, config intacte, ou la config — qui passe en niveau « match » —
+                quand la bibliothèque n'a aucun instrument et qu'on n'en nomme pas
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
                 `--review` ouvre browse sur les modèles importés (browse::Start). Une source qui
                 porte une valise (ou aucune source : la clé du dernier échange) part dans

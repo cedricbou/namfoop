@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use library::instrument::{self as lib_instrument, Instrument};
 
-use crate::config::LoadedConfig;
+use crate::config::{LevelMode, LoadedConfig};
 
 /// La carte pour laquelle on résout.
 #[derive(Clone, Debug, PartialEq)]
@@ -97,8 +97,21 @@ impl Calibration {
         })
     }
 
-    /// La ligne de démarrage (§ 4) : `instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB)`.
-    pub fn startup_line(&self) -> Option<String> {
+    /// Le niveau de sortie, faute de `--level` : « match » dès que l'instrument joué a une mesure
+    /// avec son enregistrement — sur la carte, ou empruntée hors carte —, sinon celui de la
+    /// config. La config ne suffit pas : `setup` y écrit `normalize` en toutes lettres, et une
+    /// calibration arrivée avec la bibliothèque doit jouer comme sur la machine qui l'a mesurée.
+    pub fn level(&self, config: LevelMode) -> LevelMode {
+        if self.instrument.is_some() && self.measured() && self.wav.is_some() {
+            LevelMode::Match
+        } else {
+            config
+        }
+    }
+
+    /// La ligne de démarrage (§ 4), avec le niveau retenu :
+    /// `instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB) · niveau match`.
+    pub fn startup_line(&self, level: LevelMode) -> Option<String> {
         let who = self.instrument.as_deref()?;
         let trim = format!("{:+.1}", self.trim_db).replace('.', ",");
         let what = match (&self.state, &self.card) {
@@ -111,7 +124,12 @@ impl Calibration {
             (State::Borrowed { card }, _) => format!("calibration de {card} (trim {trim} dB)"),
             _ => "aucune calibration".into(),
         };
-        Some(format!("instrument  {who} · {what}"))
+        let level = match level {
+            LevelMode::Match => "match",
+            LevelMode::Normalize => "normalize",
+            LevelMode::Raw => "raw",
+        };
+        Some(format!("instrument  {who} · {what} · niveau {level}"))
     }
 }
 
@@ -353,10 +371,32 @@ mod tests {
         let d = tmp("lines");
         let conf = conf_in(&d, "");
         let c = resolve(&conf, &two(), None, &Card::Real("itwo".into()), &d).unwrap();
-        assert_eq!(c.startup_line().unwrap(), "instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB)");
+        assert_eq!(
+            c.startup_line(LevelMode::Match).unwrap(),
+            "instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB) · niveau match"
+        );
         let c = resolve(&conf, &two(), Some("2"), &Card::Real("mtk".into()), &d).unwrap();
-        assert_eq!(c.startup_line().unwrap(), "instrument  2 Fretless · jouée sans calibration sur mtk");
-        assert_eq!(resolve(&conf, &[], None, &Card::Sim, &d).unwrap().startup_line(), None);
+        assert_eq!(
+            c.startup_line(LevelMode::Normalize).unwrap(),
+            "instrument  2 Fretless · jouée sans calibration sur mtk · niveau normalize"
+        );
+        assert_eq!(resolve(&conf, &[], None, &Card::Sim, &d).unwrap().startup_line(LevelMode::Raw), None);
+    }
+
+    /// Le niveau suit la calibration de l'instrument, pas la config de la machine : celle qui
+    /// arrive avec la bibliothèque joue en « match » comme sur la machine qui l'a mesurée.
+    #[test]
+    fn a_measured_instrument_plays_matched_whatever_the_config_says() {
+        let d = tmp("level");
+        let conf = conf_in(&d, "level = \"normalize\"\n");
+        let n = LevelMode::Normalize;
+        let on = |q, card: &str| resolve(&conf, &two(), q, &Card::Real(card.into()), &d).unwrap();
+        assert_eq!(on(None, "itwo").level(n), LevelMode::Match, "mesurée sur la carte");
+        assert_eq!(on(Some("2"), "mtk").level(n), n, "« jouée sans » : la config");
+        assert_eq!(on(None, "umc").level(LevelMode::Raw), LevelMode::Raw, "jamais calibrée : la config");
+        let c = resolve(&conf, &two(), None, &Card::Offline, &d).unwrap();
+        assert_eq!(c.level(n), LevelMode::Match, "hors carte, la mesure empruntée");
+        assert_eq!(resolve(&conf, &[], None, &Card::Offline, &d).unwrap().level(n), n, "sans instrument");
     }
 
     #[test]

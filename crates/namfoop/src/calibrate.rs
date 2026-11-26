@@ -68,9 +68,9 @@ pub enum Dest {
     Nowhere,
     /// La config (bibliothèque sans instrument, aucun nommé).
     Config(PathBuf),
-    /// Un instrument, sur une carte. `config` : la config où passer le niveau en « match »
-    /// (`None` avec `--no-config`).
-    Instrument { library: PathBuf, instrument: Instrument, new: bool, card: String, config: Option<PathBuf> },
+    /// Un instrument, sur une carte. Le niveau « match » suit alors l'instrument
+    /// (`instrument::Calibration::level`) : la config n'est pas touchée.
+    Instrument { library: PathBuf, instrument: Instrument, new: bool, card: String },
 }
 
 pub fn run(cfg: &audio_io::Settings, dest: Dest, seconds: f64, target: f32, routing: &Routing) -> Result<()> {
@@ -159,7 +159,7 @@ pub fn run(cfg: &audio_io::Settings, dest: Dest, seconds: f64, target: f32, rout
             println!("(rien n'est sauvé)");
             return Ok(());
         }
-        Dest::Instrument { library, instrument, new, card, config } => {
+        Dest::Instrument { library, instrument, new, card } => {
             let who = instrument.label();
             let (file, wav) = crate::instrument::save_measure(
                 &library,
@@ -170,14 +170,6 @@ pub fn run(cfg: &audio_io::Settings, dest: Dest, seconds: f64, target: f32, rout
                 trim_silence(&rec, rate),
                 rate,
             )?;
-            if let Some(path) = config {
-                // le niveau « match » est un réglage de l'ordinateur : on ne touche qu'à lui
-                let mut conf = Config::load(&path)?;
-                if conf.level != LevelMode::Match {
-                    conf.level = LevelMode::Match;
-                    conf.save(&path)?;
-                }
-            }
             println!(
                 "{} {who} calibrée sur {card} (trim {trim:+.1} dB)\n       {}\n       {}",
                 if new { "Nouvel instrument :" } else { "Calibration :" },

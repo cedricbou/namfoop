@@ -1017,6 +1017,55 @@ def scenario_instruments(binaire, lignes, colonnes):
             verifier(f.read() == avant, f"{taille} : la config est identique à l'octet après la session")
 
 
+def scenario_niveau_de_l_instrument(binaire):
+    """**Le niveau suit l'instrument** : une calibration arrivée avec la bibliothèque joue en
+    niveau « match » comme sur la machine qui l'a mesurée. Le même preset rendu (1) avec une
+    calibration de la config et `level = "match"`, comme après `calibrate` sur cette machine, et
+    (2) avec la même mesure portée par un instrument et une config qui dit `normalize` en toutes
+    lettres, comme après `setup` ailleurs, sort identique ; (3) sans instrument, la config
+    `normalize` vaut, et le rendu diffère."""
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-niveau-") as tmp:
+        bib = bibliotheque_jetable(os.path.join(tmp, "library"))
+        # l'enregistrement de calibration : n'importe quel son fait l'affaire, la même mesure sert
+        # aux trois rendus
+        ir_de_synthese(os.path.join(tmp, "calibration.wav"), secondes=1.0)
+        os.makedirs(os.path.join(bib, "instruments"))
+        shutil.copy(os.path.join(tmp, "calibration.wav"), os.path.join(bib, "instruments", "bb.itwo.wav"))
+
+        def rendre(nom, config, instrument):
+            dossier = os.path.join(tmp, nom)
+            os.makedirs(dossier)
+            shutil.copy(os.path.join(tmp, "calibration.wav"), dossier)
+            chemin = os.path.join(dossier, "config.toml")
+            with open(chemin, "w", encoding="utf-8") as f:
+                f.write(config)
+            fiche = os.path.join(bib, "instruments", "bb.toml")
+            if instrument:
+                with open(fiche, "w", encoding="utf-8") as f:
+                    f.write('name = "BB"\nnumber = 1\n\n[calibration.itwo]\ntrim_db = -6.0\n'
+                            'target_dbfs = -30.0\nwav = "bb.itwo.wav"\ndate = 2026-11-27\n')
+            elif os.path.exists(fiche):
+                os.remove(fiche)
+            sortie = os.path.join(dossier, "sortie.wav")
+            r = subprocess.run(
+                [binaire, "--config", chemin, "render", "--library", bib, "-m", MODELE,
+                 "-i", os.path.join(bib, "ir/essai/essai.wav"), "-o", sortie],
+                capture_output=True, text=True, timeout=120,
+            )
+            ok = r.returncode == 0
+            verifier(ok, f"niveau : rendu « {nom} »" + ("" if ok else f" ({r.stderr.strip()[-300:]})"))
+            with open(sortie, "rb") as f:
+                return f.read(), r.stderr
+
+        cadre = 'trim_db = -6.0\ncalibration_wav = "calibration.wav"\ncalibration_target_dbfs = -30.0\n'
+        ici, _ = rendre("ici", cadre + 'level = "match"\n', instrument=False)
+        ailleurs, log = rendre("ailleurs", 'level = "normalize"\n', instrument=True)
+        normalise, _ = rendre("sans", cadre + 'level = "normalize"\n', instrument=False)
+        verifier(ici == ailleurs, "niveau : la calibration venue avec la bibliothèque joue comme celle d'ici")
+        verifier("niveau match" in log, "niveau : la ligne de démarrage dit le niveau retenu")
+        verifier(normalise != ici, "niveau : sans instrument, la config `normalize` vaut")
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -1033,6 +1082,7 @@ def main():
         scenario_battue(binaire, lignes, colonnes)
         scenario_accordeur(binaire, lignes, colonnes)
         scenario_instruments(binaire, lignes, colonnes)
+    scenario_niveau_de_l_instrument(binaire)
     # une seule taille : le MIDI ne dessine presque rien, la taille d'écran n'y change rien
     scenario_midi(binaire, 25, 80)
     scenario_midi_horloge(binaire, 25, 80)
