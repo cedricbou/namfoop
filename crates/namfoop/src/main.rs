@@ -8,6 +8,7 @@ mod config;
 mod exchange;
 mod export_cmd;
 mod fx_cmd;
+mod import_ask;
 mod import_cmd;
 mod import_valise;
 mod instrument;

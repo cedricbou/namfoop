@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Bibliothèque (#452)
+- **Choisir quand un son a changé des deux côtés** : `namfoop import` montre les deux versions de
+  chaque élément à trancher — la machine, la date, le résumé (la chaîne d'un preset, les morceaux
+  d'un set, le trim d'une calibration) et ce qui diffère —, puis `i` garde celui d'ici, `v` prend
+  celui de la valise, `I` / `V` répondent pour tous les suivants, `a` abandonne. Toutes les
+  questions passent avant la première écriture : abandonner à la dernière n'écrit rien. Un élément
+  supprimé d'un côté et modifié de l'autre pose la même question ; sans clavier, l'import abandonne
+  et le dit.
+- `namfoop export` refuse une valise qui porte des changements que cette machine n'a pas vus, les
+  liste et dit d'importer d'abord. `--overwrite` passe outre après confirmation `(o / N)` : à
+  l'export, la valise devient cette machine ; à l'import, la machine devient la valise.
+
 ### Bibliothèque (#451)
 - **Retrouver sur une autre machine ce que la valise apporte** : `namfoop import <dossier de la
   clé>` reconnaît une valise (un pack de sons s'importe comme avant), montre le bilan — ce qui

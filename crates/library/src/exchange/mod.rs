@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{bail, Context, Result};
 
+pub mod describe;
 pub mod import;
 #[cfg(test)]
 mod import_tests;
@@ -486,6 +487,18 @@ pub fn portable_names<'a>(paths: impl IntoIterator<Item = &'a String>) -> Result
         );
     }
     Ok(())
+}
+
+/// Des octets lisibles : « 44 Mo », « 1,2 Mo », « 830 Ko ».
+pub fn human_size(bytes: u64) -> String {
+    let mb = bytes as f64 / 1e6;
+    if mb >= 10.0 {
+        format!("{mb:.0} Mo")
+    } else if mb >= 1.0 {
+        format!("{mb:.1} Mo").replace('.', ",")
+    } else {
+        format!("{} Ko", bytes.div_ceil(1000))
+    }
 }
 
 /// Un identifiant court de valise, tiré d'une graine (l'heure et le processus, côté binaire).

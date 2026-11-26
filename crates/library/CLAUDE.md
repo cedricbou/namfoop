@@ -33,7 +33,9 @@ bibliothèque — chaque fichier empreint (`bytes_hash`), `.cache/` et `.avant-i
 le nom de la machine et son dernier échange avec chaque valise, dans un dossier que le binaire
 choisit ; `exchange/suitcase.rs` : reconnaître une valise, le plan d'un export et son écriture ;
 `exchange/import.rs` : la comparaison à trois (ici, valise, dernier échange → arrive, reste, à
-trancher, identique), le plan de l'import, les fichiers abîmés, l'écriture.
+trancher, identique), le plan de l'import — une réponse prime sur la comparaison —, les fichiers
+abîmés, l'écriture ; `exchange/describe.rs` : le résumé d'une version et ce qui diffère entre deux
+(preset, set, calibration, correction, sons), ce que montre la question d'un élément à trancher.
 
 Les contrats que le reste suppose :
 
@@ -48,6 +50,8 @@ Les contrats que le reste suppose :
   vidés puis renommés, dossiers vidés, étiquette complète en dernier) est ce qui rend « tu peux
   retirer la clé » vrai ; une valise incomplète se relit fichier par fichier, jamais sur son étiquette ;
 - **un nom qu'une clé FAT refuse** est un refus qui le nomme (`portable_names`), jamais un renommage.
+- **une valise est en avance** (`suitcase::ahead`) quand un élément y diffère à la fois du dernier
+  échange et d'ici : `export` refuse alors d'écrire par-dessus ;
 - **la mémoire d'un échange est l'état de la valise** à ce moment-là, après un export comme après un
   import : un élément gardé d'ici reste donc un changement d'ici, et part au prochain export ;
 - **un import déplace** ce qu'il remplace ou supprime dans `.avant-import/` (vidé à l'import

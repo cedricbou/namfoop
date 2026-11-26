@@ -61,11 +61,16 @@ impl Line {
         }
     }
 
+    /// Le côté que suit l'élément : la réponse s'il y en a une — un élément à trancher, ou tout
+    /// changement d'ici que `--overwrite` remplace —, sinon celui que la comparaison donne.
     fn side(&self, decided: &BTreeMap<String, Side>) -> Option<Side> {
+        if let Some(s) = decided.get(&self.path) {
+            return Some(*s);
+        }
         match self.fate {
             Fate::Arrives(_) => Some(Side::Suitcase),
             Fate::Stays(_) | Fate::Same => Some(Side::Here),
-            Fate::Conflict => decided.get(&self.path).copied(),
+            Fate::Conflict => None,
         }
     }
 }

@@ -73,6 +73,10 @@ pub trait Ui {
     /// Une touche, sans Entrée dans un terminal (`'\n'` pour Entrée) ; personne pour répondre :
     /// `None`.
     fn key(&mut self, question: &str) -> Option<char>;
+    /// Quelqu'un peut répondre aux questions d'un élément à trancher.
+    fn interactive(&self) -> bool {
+        true
+    }
 }
 
 /// Une confirmation `(O / n)` ou `(o / N)` : Entrée prend `default`, `o` et `n` répondent, une
@@ -93,6 +97,11 @@ pub fn confirm(ui: &mut dyn Ui, question: &str, default: bool) -> bool {
 pub struct Terminal;
 
 impl Ui for Terminal {
+    fn interactive(&self) -> bool {
+        use std::io::IsTerminal;
+        std::io::stdin().is_terminal()
+    }
+
     fn line(&mut self, question: &str) -> Option<String> {
         use std::io::Write;
         eprint!("{question}");
@@ -185,10 +194,12 @@ fn hostname() -> String {
 
 /// L'heure locale, avec son décalage : celle que la machine croit, notée et jamais comparée.
 pub fn now() -> toml::value::Datetime {
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as libc::time_t)
-        .unwrap_or(0);
+    local(std::time::SystemTime::now())
+}
+
+/// Un instant en heure locale (la date d'un fichier, pour l'afficher).
+pub fn local(at: std::time::SystemTime) -> toml::value::Datetime {
+    let t = at.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as libc::time_t).unwrap_or(0);
     // SAFETY: `tm` est initialisé par localtime_r, qui ne garde aucun pointeur.
     let tm = unsafe {
         let mut tm: libc::tm = std::mem::zeroed();
@@ -270,14 +281,7 @@ pub fn folder(arg: Option<&Path>, dir: &Path, m: &Machine) -> Result<PathBuf> {
 
 /// Des octets lisibles : « 44 Mo », « 1,2 Mo », « 830 Ko ».
 pub fn size(bytes: u64) -> String {
-    let mb = bytes as f64 / 1e6;
-    if mb >= 10.0 {
-        format!("{mb:.0} Mo")
-    } else if mb >= 1.0 {
-        format!("{mb:.1} Mo").replace('.', ",")
-    } else {
-        format!("{} Ko", bytes.div_ceil(1000))
-    }
+    library::exchange::human_size(bytes)
 }
 
 /// « 6 s », « 0,4 s ».
@@ -387,12 +391,12 @@ fn group_names(g: Group, mine: &[&(Change, Element)]) -> String {
 
 /// Des réponses écrites d'avance, pour les tests : chaque question prend la suivante.
 #[cfg(test)]
-pub struct Script(pub std::collections::VecDeque<String>);
+pub struct Script(pub std::collections::VecDeque<String>, pub bool);
 
 #[cfg(test)]
 impl Script {
     pub fn new(answers: &[&str]) -> Self {
-        Self(answers.iter().map(|a| a.to_string()).collect())
+        Self(answers.iter().map(|a| a.to_string()).collect(), true)
     }
 }
 
@@ -403,6 +407,9 @@ impl Ui for Script {
     }
     fn key(&mut self, _: &str) -> Option<char> {
         self.0.pop_front().map(|a| a.chars().next().unwrap_or('\n'))
+    }
+    fn interactive(&self) -> bool {
+        self.1
     }
 }
 

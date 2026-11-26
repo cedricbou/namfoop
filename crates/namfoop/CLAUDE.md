@@ -127,13 +127,18 @@ import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'
                 `--review` ouvre browse sur les modèles importés (browse::Start). Une source qui
                 porte une valise (ou aucune source : la clé du dernier échange) part dans
                 import_valise.rs, et une valise ne se mélange pas à des packs
-import_valise.rs `import` d'une valise : le bilan (arrive / reste ici / à trancher), UNE touche
+import_valise/  `import` d'une valise (mod.rs ; tests.rs : deux machines jetables et une clé) : le bilan (arrive / reste ici / à trancher), UNE touche
                 (exchange::confirm, « (O / n) » : Entrée écrit, `n` abandonne ; sans réponse, on
                 abandonne), l'écriture
                 (library::exchange::import), la mémoire, l'export proposé dans la foulée. Un
                 abandon n'écrit RIEN, pas même le nom de la machine. Refus avant tout : valise
-                incomplète, format plus récent, fichier abîmé, namfoop qui joue ici
-export_cmd.rs   `export` : options clap, bilan, place libre sur la clé (statvfs) ; l'écriture est dans
+                incomplète, format plus récent, fichier abîmé, namfoop qui joue ici. `--overwrite` :
+                tout changement d'ici prend la valise, après « (o / N) »
+import_ask.rs   la question d'un élément à trancher : les deux versions (machine, date, résumé de
+                library::exchange::describe), `diffère`, puis i / v / I / V / a. TOUTES les
+                réponses avant la première écriture ; sans terminal (Ui::interactive), on abandonne
+export_cmd.rs   `export` : options clap, bilan, refus d'une valise en avance (suitcase::ahead ;
+                --overwrite après « (o / N) »), place libre sur la clé (statvfs) ; l'écriture est dans
                 library::exchange::suitcase
 exchange.rs     commun à `export` et `import` : la mémoire des échanges (`echanges/` À CÔTÉ du
                 fichier de config, jamais la config elle-même ; `--exchanges` sous --no-config), le
