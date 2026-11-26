@@ -1,5 +1,5 @@
-//! `namfoop import` : options de la ligne de commande et bilan affiché. L'import lui-même est dans
-//! `library::import`.
+//! `namfoop import` : options de la ligne de commande et bilan affiché. L'import d'un pack est dans
+//! `library::import` ; celui d'une valise passe par `import_valise.rs`.
 
 use anyhow::Result;
 use std::path::PathBuf;
@@ -12,8 +12,10 @@ use library::Library;
 
 #[derive(Clone, Debug, clap::Args)]
 pub struct ImportArgs {
-    /// Zips, dossiers ou fichiers .nam / .wav à importer (un dossier de zips importe chaque zip)
-    #[arg(required = true)]
+    /// Zips, dossiers ou fichiers .nam / .wav à importer (un dossier de zips importe chaque zip) ;
+    /// ou le dossier d'une clé qui porte une valise (`namfoop export`) [défaut : la valise du
+    /// dernier échange]
+    #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
     /// Nom du pack (dossier dans la bibliothèque) [défaut : nom du zip ou du dossier]
     #[arg(long)]
@@ -30,6 +32,10 @@ pub struct ImportArgs {
     /// capture, gain d'entrée, IR préférée (prend la carte son)
     #[arg(long)]
     pub review: bool,
+    /// Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers
+    /// échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
+    #[arg(long, value_name = "DOSSIER")]
+    pub exchanges: Option<PathBuf>,
     /// Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
     #[arg(long = "library", value_name = "DOSSIER")]
     pub library_arg: Option<PathBuf>,
@@ -51,11 +57,16 @@ impl From<&ImportArgs> for library::import::ImportArgs {
 }
 
 /// Importe, affiche le bilan ; renvoie les modèles ajoutés (chemins relatifs à la bibliothèque).
+/// Une valise passe par `import_valise`.
 pub fn run(
     a: &ImportArgs,
     conf: &LoadedConfig,
     signal: &library::model_profile::Signal,
 ) -> Result<Vec<String>> {
+    if let Some(src) = crate::import_valise::source(&a.sources)? {
+        crate::import_valise::run(a, conf, src, &mut crate::exchange::Terminal)?;
+        return Ok(vec![]);
+    }
     let out = library::import::run(&a.into())?;
     print_report(a, conf, signal, &out)?;
     Ok(out.imported_models())

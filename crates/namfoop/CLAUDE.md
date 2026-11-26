@@ -124,14 +124,24 @@ calibrate.rs    `calibrate` : enregistre le DI (tap d'entrée d'Engine), calcule
                 pas, instrument::to_calibrate) sur cette carte, ou la config quand la bibliothèque
                 n'a aucun instrument et qu'on n'en nomme pas
 import_cmd.rs   `import` : options clap, bilan affiché (profils calculés à l'affichage) ;
-                `--review` ouvre browse sur les modèles importés (browse::Start)
+                `--review` ouvre browse sur les modèles importés (browse::Start). Une source qui
+                porte une valise (ou aucune source : la clé du dernier échange) part dans
+                import_valise.rs, et une valise ne se mélange pas à des packs
+import_valise.rs `import` d'une valise : le bilan (arrive / reste ici / à trancher), UNE touche
+                (Entrée écrit, `a` abandonne ; sans réponse, on abandonne), l'écriture
+                (library::exchange::import), la mémoire, l'export proposé dans la foulée. Un
+                abandon n'écrit RIEN, pas même le nom de la machine. Refus avant tout : valise
+                incomplète, format plus récent, fichier abîmé, namfoop qui joue ici
 export_cmd.rs   `export` : options clap, bilan, place libre sur la clé (statvfs) ; l'écriture est dans
                 library::exchange::suitcase
 exchange.rs     commun à `export` et `import` : la mémoire des échanges (`echanges/` À CÔTÉ du
                 fichier de config, jamais la config elle-même ; `--exchanges` sous --no-config), le
                 nom de la machine (demandé une fois), l'heure locale notée, le dossier de la clé
                 (celui du dernier échange sans argument), le bilan famille par famille
-                (theme::paint : couleurs seulement vers un terminal)
+                (theme::paint : couleurs seulement vers un terminal) ; `Ui`, les questions (une
+                ligne, une touche sans Entrée : `Terminal`, ou `Script` en test) ; `playing`,
+                namfoop qui joue ici, cherché dans /proc (`browse`, `run`, `--review`) plutôt
+                qu'un verrou qu'un arrêt brutal laisserait derrière lui
 meta_cmd.rs     `meta` : affichage d'un modèle
 midi_rules.rs   ce qu'un message demande à un set (le morceau d'un PC, le son d'un CC, la raison d'un
                 refus) : règles pures, partagées par browse/state/midi.rs, qui joue, et l'écran MIDI,

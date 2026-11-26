@@ -18,7 +18,7 @@ Commands:
   run          Joue en temps réel : entrée basse -> [NAM -> IR] -> sorties selon leur rôle
   render       Traite un WAV hors ligne avec la même chaîne que `run`
   bench        Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
-  import       Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
+  import       Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture ; ou la valise d'une clé (`namfoop export`) : bilan, une touche, écriture
   export       Met toute la bibliothèque dans une valise sur la clé USB : ne recopie que ce qui a changé
   meta         Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
   fx           Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
@@ -476,13 +476,13 @@ Options:
 ## namfoop import
 
 ```text
-Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
+Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture ; ou la valise d'une clé (`namfoop export`) : bilan, une touche, écriture
 
-Usage: namfoop import [OPTIONS] <SOURCES>...
+Usage: namfoop import [OPTIONS] [SOURCE]...
 
 Arguments:
-  <SOURCES>...
-          Zips, dossiers ou fichiers .nam / .wav à importer (un dossier de zips importe chaque zip)
+  [SOURCE]...
+          Zips, dossiers ou fichiers .nam / .wav à importer (un dossier de zips importe chaque zip) ; ou le dossier d'une clé qui porte une valise (`namfoop export`) [défaut : la valise du dernier échange]
 
 Options:
       --backend <BACKEND>
@@ -513,14 +513,17 @@ Options:
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
 
-      --library <DOSSIER>
-          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+      --exchanges <DOSSIER>
+          Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]

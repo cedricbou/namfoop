@@ -41,6 +41,7 @@ cargo build --release                         # prérequis : voir « Prérequis 
 ./target/release/namfoop midi                 # régler le MIDI : appareils, canaux, numéros (--lines : ligne à ligne)
 ./target/release/namfoop midi --fiche         # la fiche MIDI à envoyer au groupe, prête à coller
 ./target/release/namfoop export /run/media/moi/CLE   # toute ma bibliothèque dans une valise sur la clé USB
+./target/release/namfoop import /run/media/moi/CLE   # sur l'autre machine : le bilan, Entrée, et elle a tout
 ./target/release/namfoop run --set concert    # JOUER UN CONCERT : écran de scène verrouillé (u : accordeur, basse coupée)
 ./target/release/namfoop run --preset chill   # rejouer un preset
 ./target/release/namfoop run -m b7k           # jouer

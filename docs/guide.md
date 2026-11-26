@@ -536,13 +536,29 @@ Au démarrage, `run` affiche ce qu'il applique : `entrée propre au modèle -3.0
 Pour repartir de zéro sur un modèle : `namfoop meta <id> --reset`. Tes corrections ne touchent
 jamais aux fichiers achetés, et survivent à un réimport.
 
-### Emporter ma bibliothèque : `namfoop export`
+### Emporter ma bibliothèque : `namfoop export` et `namfoop import`
 
 Quand tu joues sur plusieurs machines — l'ordinateur du studio, le portable de répétition, le Pi
 de scène —, une clé USB les relie. `namfoop export` y pose une **valise** : un dossier
 `valise-namfoop/` qui porte **toute** la bibliothèque — sons et notices, presets, sets et leurs
 prompteurs, mélanges d'IR, corrections de modèles, instruments et leurs calibrations — et une
-étiquette qui dit quelle machine l'a écrite, et quand. Rien ne se choisit, donc rien ne s'oublie.
+étiquette qui dit quelle machine l'a écrite, et quand. `namfoop import`, sur l'autre machine, montre
+ce que la valise apporte et l'écrit. Rien ne se choisit, donc rien ne s'oublie.
+
+**Le parcours**, avec les deux mêmes commandes partout (sur le Pi : au clavier, namfoop arrêté) :
+
+| Moment | Commande |
+|---|---|
+| au studio, avant la répétition | `namfoop export /run/media/moi/NAMFOOP` |
+| sur le portable, avant de jouer | `namfoop import /run/media/moi/NAMFOOP` |
+| en répétition, j'ai retouché un son | `namfoop export` |
+| de retour au studio | `namfoop import` |
+| une machine neuve | `namfoop import <clé>`, puis `namfoop setup` pour sa carte |
+
+Sans dossier, les deux commandes reprennent la clé du dernier échange ; débranchée, le message la
+nomme.
+
+#### Mettre la bibliothèque dans la valise : `namfoop export`
 
 ```sh
 namfoop export /run/media/moi/NAMFOOP     # la première fois : le dossier de la clé
@@ -579,11 +595,58 @@ machine     studio
 - **La valise reste une bibliothèque ordinaire** : en secours, elle se joue telle quelle,
   `namfoop --library /run/media/moi/NAMFOOP/valise-namfoop/library browse`.
 
+#### Retrouver ce que la valise apporte : `namfoop import`
+
+`import` reconnaît seul ce qu'on lui donne : un dossier qui porte une valise est un échange, tout le
+reste est un pack de sons (sous-partie précédente).
+
+```sh
+namfoop import /run/media/moi/NAMFOOP     # la valise de la clé
+namfoop import                            # la clé du dernier échange
+namfoop import --dry-run                  # le bilan seul
+```
+
+```
+valise      de studio, mer. 25/11 22:10
+machine     portable · dernier échange lun. 23/11
+
+ arrive       + 2 modèles  + 1 IR  + 1 set  ~ 1 preset  - 1 preset
+               + pack        Darkglass pack (2 modèles, 1 IR)
+               + set         Live Mairie
+               ~ preset      Fuzz refrain
+               - preset      Vieux test
+ reste ici    ~ 1 preset                    Slap couplet
+
+ Entrée : continuer    a : abandonner, rien n'est écrit
+```
+
+- **Rien ne s'écrit avant le bilan.** `arrive` : ce qui a changé dans la valise seulement, et sera
+  écrit ici ; `reste ici` : ce que tu as changé sur cette machine seulement, qui n'est pas touché ;
+  `à trancher` : ce qui a changé des deux côtés.
+- **`Entrée` écrit, `a` abandonne** sans rien écrire — pas même le nom de la machine.
+- **Chaque machine retient son dernier échange avec la valise** : c'est ce qui dit de quel côté un
+  élément a changé, et qui distingue une suppression au studio d'un ajout ici. Une suppression suit,
+  annoncée par un `-`.
+- **Un élément changé des deux côtés ne se règle jamais seul** : l'import s'arrête, le nomme, et
+  n'écrit rien.
+- **Ce que l'import remplace ou supprime est gardé de côté**, dans `.avant-import/` de la
+  bibliothèque, jusqu'à l'import suivant.
+- **À la fin**, si des changements d'ici ne sont pas dans la valise, namfoop propose de les y mettre
+  tout de suite (`(O / n)`) : la clé repart complète, et la machine suivante n'a qu'à importer.
+- **Une machine sans bibliothèque** reçoit tout, instruments compris, à l'emplacement par défaut
+  (`Où namfoop la cherche`, plus haut). Il reste à y régler la carte (`namfoop setup`) et le MIDI.
+- **Les refus** : une valise incomplète (`relance namfoop export sur studio`), un fichier de la
+  valise abîmé, une valise écrite par un namfoop plus récent (`mets à jour namfoop ici`), et
+  namfoop qui joue sur cette machine (`quitte-le, puis relance l'import`) : la banque en mémoire ne
+  suivrait pas.
+
 **Ce qui ne voyage pas** : la config de l'ordinateur — carte et `setup`, MIDI, mode de niveau,
-limiteur, accordeur, métronome, set du moment. Elle se règle une fois par machine, et `export` ne la
-lit ni ne l'écrit. Le cache des mesures (`library/.cache/`) ne voyage pas non plus : chaque machine
-le refait. La machine retient son nom et ses échanges dans `echanges/`, à côté du fichier de config ;
-avec `--no-config`, `--exchanges <dossier>` en donne un.
+limiteur, accordeur, métronome, set du moment. Elle se règle une fois par machine, et `export` comme
+`import` ne la lisent ni ne l'écrivent. Les calibrations, elles, voyagent : celle d'un instrument sur
+une carte sert sur toute machine où cette carte est branchée. Le cache des mesures
+(`library/.cache/`) ne voyage pas non plus : chaque machine le refait. La machine retient son nom et
+ses échanges dans `echanges/`, à côté du fichier de config ; avec `--no-config`, `--exchanges
+<dossier>` en donne un.
 
 ### Inventaire : `namfoop models`
 
@@ -1031,7 +1094,8 @@ Trois règles tiennent l'ensemble :
   ```
 
   Les presets sont rangés dans la bibliothèque, comme tes mélanges d'IR : ils suivent donc la même
-  sauvegarde et la même copie vers le Pi. Ils contiennent la chaîne **entière** (blocs, parallèles,
+  sauvegarde, et passent d'une machine à l'autre avec elle (`namfoop export`, puis `namfoop import`,
+  [§ 6](#emporter-ma-bibliothèque--namfoop-export-et-namfoop-import)). Ils contiennent la chaîne **entière** (blocs, parallèles,
   branches, blocs coupés) avec **tous** les paramètres des effets, pour qu'un preset sonne pareil
   dans un an ; le gain d'entrée propre à un modèle reste, lui, dans `library/overrides.toml`.
 - **`h` (ou `?`) ouvre l'aide** : toutes les touches de l'écran où tu es — Bibliothèque (selon

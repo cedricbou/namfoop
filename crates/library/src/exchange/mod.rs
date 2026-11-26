@@ -22,6 +22,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{bail, Context, Result};
 
+pub mod import;
+#[cfg(test)]
+mod import_tests;
 pub mod label;
 pub mod memory;
 pub mod suitcase;
@@ -262,12 +265,12 @@ pub fn inventory(root: &Path) -> Result<Inventory> {
 }
 
 /// `overrides.toml` et `instruments/<id>.toml` portent plusieurs éléments.
-fn is_multi(rel: &str) -> bool {
+pub(crate) fn is_multi(rel: &str) -> bool {
     rel == crate::overrides::FILE || instrument_file(rel).is_some()
 }
 
 /// L'identifiant d'un instrument, si `rel` est son fichier.
-fn instrument_file(rel: &str) -> Option<&str> {
+pub(crate) fn instrument_file(rel: &str) -> Option<&str> {
     rel.strip_prefix("instruments/")?.strip_suffix(".toml").filter(|id| !id.contains('/'))
 }
 
