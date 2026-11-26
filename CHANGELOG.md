@@ -6,6 +6,17 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Bibliothèque (#450)
+- **Mettre toute ma bibliothèque dans une valise sur ma clé USB** : `namfoop export <dossier de la
+  clé>` y pose un dossier `valise-namfoop/` qui porte toute la bibliothèque — sons, presets, sets
+  et prompteurs, mélanges d'IR, corrections, instruments et calibrations — et une étiquette qui dit
+  de quelle machine elle vient et quand. La première fois, namfoop demande le nom de la machine et
+  le retient. Un export suivant ne recopie que ce qui a changé (décidé sur le contenu, jamais sur
+  les dates) et le dit famille par famille ; sans changement, il n'écrit rien. Sans dossier, il
+  reprend celui du dernier échange ; `--dry-run` montre ce qui partirait. « Tu peux retirer la
+  clé » ne s'affiche qu'une fois tout écrit ; une valise interrompue est marquée incomplète, et
+  l'export suivant la répare. La config de l'ordinateur n'est ni lue ni écrite.
+
 ### Documentation (#448)
 - **L'export et l'import de la bibliothèque ont leur spécification**
   (`docs/design/export-import.md`) : une valise sur une clé USB, qui porte toute la bibliothèque —

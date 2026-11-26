@@ -8,11 +8,11 @@ les refus et les fichiers. Les instruments et les cartes sont décrits dans
 [`instruments.md`](instruments.md), l'import des packs de sons dans le guide, § 6, les couleurs dans
 la [charte](../identite/charte.md).
 
-**État** : spécification d'un parcours **à construire**. Rien ici n'est vérifié par un test : c'est
-la cible que suivent les stories de l'épique « Emporter ma bibliothèque d'une machine à l'autre avec
-une clé USB ». À mesure qu'elles sont livrées, le code fait foi, et ce paragraphe se retire. Trois
-choix écrits ici se confirment avec leur story : le mot « valise », le nom de l'option `--undo`
-(§ 8), et la touche unique de confirmation du bilan (§ 6).
+**État** : `namfoop export` est livré, et son code fait foi (§ 3, § 5, § 12) ; `import`, le choix
+quand un élément a changé des deux côtés et le retour en arrière (§ 6 à § 8, § 10) sont la cible
+des stories qui suivent dans l'épique « Emporter ma bibliothèque d'une machine à l'autre avec une
+clé USB ». Trois choix écrits ici se confirment avec leur story : le mot « valise », le nom de
+l'option `--undo` (§ 8), et la touche unique de confirmation du bilan (§ 6).
 
 **Couleurs** : `export` et `import` ne sont pas un espace de `browse` ; ils sont **neutres**, comme
 `setup` et `run`. Le **vert signal** dit ce qui arrive ou ce qui est en règle (`+`, « complète »),

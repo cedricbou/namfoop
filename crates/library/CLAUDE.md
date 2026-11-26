@@ -22,6 +22,31 @@ numéro en double, deux « par défaut », chacun nommant les deux fichiers —,
 numéro, nom ou mots, écriture sans perte ; le choix de l'instrument joué et de la carte est au
 binaire).
 
+## `exchange/` — la valise et la mémoire des échanges
+
+Faire passer la bibliothèque d'une machine à l'autre par une **valise** posée sur une clé USB
+(`<clé>/valise-namfoop/` : l'étiquette valise.toml, et `library/`, la bibliothèque telle quelle).
+`exchange/mod.rs` : l'**élément** (famille, nom affiché, chemin, empreinte), l'**inventaire** d'une
+bibliothèque — chaque fichier empreint (`bytes_hash`), `.cache/` et `.avant-import/` exclus — et la
+**différence** entre deux états ; `exchange/label.rs` : l'étiquette, aller-retour sans perte ;
+`exchange/memory.rs` :
+le nom de la machine et son dernier échange avec chaque valise, dans un dossier que le binaire
+choisit ; `exchange/suitcase.rs` : reconnaître une valise, le plan d'un export et son écriture.
+
+Quatre contrats que le reste suppose :
+
+- **un fichier est un élément, sauf deux** : `instruments/<id>.toml` donne un élément
+  « instrument » (nom, numéro, défaut) et un par calibration (table + enregistrement), clé
+  `instruments/<id>.toml#<carte>` ; `library/overrides.toml` un par modèle corrigé, clé « overrides.toml#<empreinte> ».
+  L'empreinte d'un sous-élément est celle de sa sérialisation canonique : réécrire le fichier sans
+  changer la table ne change rien ;
+- **« changé » se décide sur l'empreinte**, jamais sur une date : les dates de l'étiquette
+  s'affichent seulement ;
+- **l'ordre d'écriture d'un export** (étiquette `complete = false`, fichiers sous nom temporaire
+  vidés puis renommés, dossiers vidés, étiquette complète en dernier) est ce qui rend « tu peux
+  retirer la clé » vrai ; une valise incomplète se relit fichier par fichier, jamais sur son étiquette ;
+- **un nom qu'une clé FAT refuse** est un refus qui le nomme (`portable_names`), jamais un renommage.
+
 **Ce qui reste dans le binaire** : options clap et affichage des commandes `import`
 (`import_cmd.rs`, bilan), `meta` (`meta_cmd.rs`) et `models` (`models_cmd.rs`). Les structures
 `import::ImportArgs` et `overrides::MetaArgs` sont des options simples ; le binaire a leurs
@@ -91,6 +116,8 @@ section de durée inconnue est en travers, parce qu'on ne peut alors pas compter
 
 ## Faits mesurés
 
+- Inventaire de l'échange (`exchange::inventory`, binaire optimisé, PC) : 628 fichiers, 73 Mo, en
+  0,45 s cache disque froid et 0,08 s chaud — aucun cache d'empreintes n'est nécessaire.
 - Bibliothèque de l'utilisateur (relevé non refait depuis qu'elle a grandi) : modèles NAM 0.7.0
   `SlimmableContainer` (WaveNet 3ch + 8ch, `--size 0` = 3ch), loudness entre -14 et -40 dB (d'où la
   normalisation à -18 dB) ; IR surtout 48 kHz mono, quelques-unes en 44,1 / 96 kHz (rééchantillonnées

@@ -19,6 +19,7 @@ Commands:
   render       Traite un WAV hors ligne avec la même chaîne que `run`
   bench        Mesure le coût CPU des modèles NAM (fichiers, dossiers ou mots-clés ; défaut : bibliothèque)
   import       Importe des packs (zip, dossier, .nam, .wav) : rangement, vérification, fichiers identiques, type de capture
+  export       Met toute la bibliothèque dans une valise sur la clé USB : ne recopie que ce qui a changé
   meta         Affiche ou corrige les métadonnées d'un modèle (type de capture, entrée, IR préférée…)
   fx           Liste les effets (--pre / --post) ou, avec un nom, les paramètres d'un effet
   models       Liste les modèles et IR avec leur identifiant, et l'IR conseillée pour chaque modèle
@@ -514,6 +515,74 @@ Options:
 
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
+
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## namfoop export
+
+```text
+Met toute la bibliothèque dans une valise sur la clé USB : ne recopie que ce qui a changé
+
+Usage: namfoop export [OPTIONS] [DOSSIER]
+
+Arguments:
+  [DOSSIER]
+          Dossier où poser la valise : la racine de la clé USB, ou tout autre dossier [défaut : celui du dernier échange]
+
+Options:
+      --backend <BACKEND>
+          Backend audio [défaut : config, sinon alsa]
+
+          Possible values:
+          - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
+          - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --dry-run
+          Montre ce qui partirait, sans rien écrire
+
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+
+      --exchanges <DOSSIER>
+          Dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+
+      --library <DOSSIER>
+          Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]

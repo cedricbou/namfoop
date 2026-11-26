@@ -11,7 +11,7 @@ C'est l'état réel du code (vérifié par `scripts/check-arch.sh`), pas une cib
 ```
 namfoop  (binaire : CLI, écrans, une fonction mince par commande)
   ├─> engine   (session audio : routeur, swap, vumètres, tap d'entrée ; raw pour les mesures)  ─> audio-io, dsp, model
-  ├─> library  (bibliothèque, import, overrides, recommandations, profils)               ─> dsp, model, nam-sys
+  ├─> library  (bibliothèque, import, échange, overrides, recommandations, profils)       ─> dsp, model, nam-sys
   ├─> midi-io  (entrée MIDI : port ALSA seq, port simulé ; ni clap, ni config, ni DSP)
   └─> model    (types sérialisables : config, routage, profils de carte)
 audio-io (ALSA, carte simulée, priorité RT ; ni clap, ni config, ni DSP)
@@ -35,7 +35,7 @@ par la crate elle-même et par le contrôle textuel ci-dessous.
 | `midi-io`  | ouvrir un port MIDI (séquenceur ALSA, simulé), livrer des messages typés | clap, la config, DSP, toute crate du projet |
 | `model`    | types sérialisables : config, routage, profils de carte              | toute logique, toute crate du projet       |
 | `engine`   | session audio : routeur, swap, mesures, commandes, reprise           | clap, ratatui, bibliothèque de sons        |
-| `library`  | modèles et IR, import, overrides, recommandations, profils de sons   | carte son, clap, ratatui                   |
+| `library`  | modèles et IR, import, échange, overrides, recommandations, profils | carte son, clap, ratatui                   |
 | `namfoop`  | CLI, écrans plein écran, une fonction mince par commande             | logique audio, accès direct à un backend   |
 
 Règles clés : `dsp` et `audio-io` ne se connaissent pas ; seule `engine` ouvre la carte ; seule

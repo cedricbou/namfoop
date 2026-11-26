@@ -202,6 +202,50 @@ pub fn error() -> Color {
     pick(Color::Red, RED)
 }
 
+/// Un texte peint pour une commande qui écrit ligne à ligne (`export`, `import`) : la couleur
+/// seulement si la sortie est un terminal et que `NO_COLOR` n'est pas posé, sinon le texte nu —
+/// un journal ou un script ne reçoit pas de séquences d'échappement.
+pub fn paint(text: &str, color: Color) -> String {
+    if !colored_output() {
+        return text.to_string();
+    }
+    let code = match color {
+        Color::Rgb(r, g, b) => format!("38;2;{r};{g};{b}"),
+        Color::Indexed(i) => format!("38;5;{i}"),
+        Color::Black => "30".into(),
+        Color::Red => "31".into(),
+        Color::Green => "32".into(),
+        Color::Yellow => "33".into(),
+        Color::Blue => "34".into(),
+        Color::Magenta => "35".into(),
+        Color::Cyan => "36".into(),
+        Color::Gray => "37".into(),
+        Color::DarkGray => "90".into(),
+        Color::LightRed => "91".into(),
+        Color::LightGreen => "92".into(),
+        Color::LightYellow => "93".into(),
+        Color::LightBlue => "94".into(),
+        Color::LightMagenta => "95".into(),
+        Color::LightCyan => "96".into(),
+        Color::White => "97".into(),
+        Color::Reset => return text.to_string(),
+    };
+    format!("\x1b[{code}m{text}\x1b[0m")
+}
+
+#[cfg(not(test))]
+fn colored_output() -> bool {
+    use std::io::IsTerminal;
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none())
+}
+
+/// En test, jamais : les sorties se comparent en texte nu.
+#[cfg(test)]
+fn colored_output() -> bool {
+    false
+}
+
 // --- Les commandes et les fenêtres ------------------------------------------------------------
 
 /// Une touche à presser, le curseur « ▶ », le cadre et le titre d'une fenêtre, l'invite de filtre.
