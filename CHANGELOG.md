@@ -6,6 +6,11 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Documentation (#460)
+- Les raisons des choix de forme de l'échange par valise ont leur ADR (`docs/adr/0013-echange-par-valise.md`) ;
+  la spécification de l'export et de l'import est retirée : le guide (§ 6) décrit le parcours, et le
+  code fait foi.
+
 ### Bibliothèque (#453)
 - **Défaire un import** : `namfoop import --undo` remet la machine dans l'état d'avant le dernier
   import d'une valise — ce qui est arrivé repart, ce qui a été remplacé ou supprimé revient — et dit

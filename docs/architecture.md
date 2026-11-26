@@ -66,6 +66,7 @@ Chacune a son ADR dans [`docs/adr/`](adr/), qui porte le contexte, les alternati
 | [0010](adr/0010-retrait-de-jack.md) | deux backends, ALSA et sim, et aucun autre (elle supersède l'ADR 0001) |
 | [0011](adr/0011-midi-conventions-fractal.md) | le **MIDI** : les conventions des pédaliers **Fractal** par défaut (PC = morceau, CC 34 = son, CC 14 = tap), **Ableton** pour le transport (horloge, `Start` / `Stop`, SPP) ; les numéros restent réglables |
 | [0012](adr/0012-midi-appareils-et-canaux.md) | le **MIDI** en **appareils et canaux**, sans rôles : tous les appareils écoutés (un se décoche), **une seule horloge** (le premier qui bat, ou celui qu'on choisit), les **numéros appartiennent au canal** ; amende l'ADR 0011 |
+| [0013](adr/0013-echange-par-valise.md) | l'**échange de la bibliothèque** entre machines par une **valise** sur une clé USB : tout emporter, un dossier et non une archive, le **contenu** et non la date, le **dernier échange retenu**, l'un ou l'autre jamais un mélange, importer avant d'exporter ; la config reste sur chaque machine |
 
 Deux conséquences structurelles qui ne se lisent nulle part ailleurs : les **profils de carte** sont
 des données (`profiles/*.toml`, `model::card`) et `audio-io` ne reçoit qu'une liste de contrôles
