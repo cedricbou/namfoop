@@ -193,6 +193,9 @@ fn en_clair(event: &midi_io::Event, n: &crate::cli_midi::Numbers) -> String {
     if cc == n.cc_tuner && !n.muted.tuner {
         return format!("   (accordeur : {})", if value >= 64 { "basse coupée" } else { "son rendu" });
     }
+    if cc == n.cc_instrument && !n.muted.instrument {
+        return format!("   (instrument {})", value as u32 + 1);
+    }
     let song = if cc == n.cc_next_song && !n.muted.next_song {
         "morceau suivant"
     } else if cc == n.cc_prev_song && !n.muted.prev_song {
@@ -263,6 +266,7 @@ mod tests {
         let n = crate::cli_midi::Numbers::default();
         assert_eq!(en_clair(&Event::Control { cc: 104, value: 127 }, &n), "   (morceau suivant)");
         assert_eq!(en_clair(&Event::Control { cc: 103, value: 127 }, &n), "   (morceau précédent)");
+        assert_eq!(en_clair(&Event::Control { cc: 102, value: 1 }, &n), "   (instrument 2)");
         assert_eq!(
             en_clair(&Event::Control { cc: 104, value: 0 }, &n),
             "   (morceau suivant : relâché, ignoré)"

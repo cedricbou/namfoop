@@ -46,6 +46,7 @@ fn sans_canal_regle_un_seul_bloc_tous_les_canaux() {
             Row::Gesture(None, Gesture::Tuner),
             Row::Gesture(None, Gesture::PrevSong),
             Row::Gesture(None, Gesture::NextSong),
+            Row::Gesture(None, Gesture::Instrument),
         ]
     );
     assert!(!s.dirty());

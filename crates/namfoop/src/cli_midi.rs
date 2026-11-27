@@ -38,6 +38,7 @@ pub struct Numbers {
     pub cc_tuner: u8,
     pub cc_prev_song: u8,
     pub cc_next_song: u8,
+    pub cc_instrument: u8,
     /// Les gestes **coupés** (`b` dans `namfoop midi`) : un message qui les demande est ignoré.
     pub muted: Muted,
 }
@@ -51,6 +52,7 @@ impl Default for Numbers {
             cc_tuner: m.cc_tuner,
             cc_prev_song: m.cc_prev_song,
             cc_next_song: m.cc_next_song,
+            cc_instrument: m.cc_instrument,
             muted: Muted::default(),
         }
     }
@@ -65,6 +67,7 @@ pub struct Muted {
     pub tuner: bool,
     pub prev_song: bool,
     pub next_song: bool,
+    pub instrument: bool,
 }
 
 impl Muted {
@@ -77,6 +80,7 @@ impl Muted {
             tuner: list.contains(&G::Tuner),
             prev_song: list.contains(&G::PrevSong),
             next_song: list.contains(&G::NextSong),
+            instrument: list.contains(&G::Instrument),
         }
     }
 
@@ -89,6 +93,7 @@ impl Muted {
             G::Tuner => self.tuner,
             G::PrevSong => self.prev_song,
             G::NextSong => self.next_song,
+            G::Instrument => self.instrument,
         }
     }
 }
@@ -102,6 +107,7 @@ pub fn gesture_name(g: model::Gesture) -> &'static str {
         model::Gesture::Tuner => "l'accordeur",
         model::Gesture::PrevSong => "le morceau précédent",
         model::Gesture::NextSong => "le morceau suivant",
+        model::Gesture::Instrument => "l'instrument",
     }
 }
 
@@ -129,6 +135,7 @@ impl Listen {
             cc_tuner: m.cc_tuner,
             cc_prev_song: m.cc_prev_song,
             cc_next_song: m.cc_next_song,
+            cc_instrument: m.cc_instrument,
             muted: Muted::from_list(&m.muted),
         };
         let mut channels: Vec<(u8, Numbers)> = m
@@ -143,6 +150,7 @@ impl Listen {
                         cc_tuner: c.cc_tuner.unwrap_or(base.cc_tuner),
                         cc_prev_song: c.cc_prev_song.unwrap_or(base.cc_prev_song),
                         cc_next_song: c.cc_next_song.unwrap_or(base.cc_next_song),
+                        cc_instrument: c.cc_instrument.unwrap_or(base.cc_instrument),
                         muted: Muted::from_list(&c.muted),
                     },
                 )
@@ -404,6 +412,7 @@ mod tests {
                 cc_tuner: 15,
                 cc_prev_song: 103,
                 cc_next_song: 104,
+                cc_instrument: 102,
                 muted: Muted::default()
             }
         );
@@ -415,6 +424,7 @@ mod tests {
                 cc_tuner: 16,
                 cc_prev_song: 103,
                 cc_next_song: 104,
+                cc_instrument: 102,
                 muted: Muted::default()
             }
         );
@@ -426,6 +436,7 @@ mod tests {
                 cc_tuner: 15,
                 cc_prev_song: 103,
                 cc_next_song: 104,
+                cc_instrument: 102,
                 muted: Muted::default()
             }
         );
@@ -452,6 +463,7 @@ mod tests {
                     cc_tuner: 15,
                     cc_prev_song: 103,
                     cc_next_song: 104,
+                    cc_instrument: 102,
                     muted: Muted::default()
                 }
             )]
@@ -478,6 +490,7 @@ mod tests {
             cc_tuner: None,
             cc_prev_song: None,
             cc_next_song: None,
+            cc_instrument: None,
             muted: Vec::new(),
         }
     }

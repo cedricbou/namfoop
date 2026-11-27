@@ -129,6 +129,16 @@ impl State {
                     None => ((if down { "dernier morceau" } else { "premier morceau" }).into(), Tone::Dim),
                 }
             }
+            // deux gestes dans les 5 secondes : l'écran ne relance rien, il dit ce qui serait proposé
+            (Gesture::Instrument, Event::Control { value, .. }, _) => {
+                let n = value as u32 + 1;
+                match self.instruments.iter().find(|(x, _)| *x == n) {
+                    Some((_, label)) => {
+                        (format!("→ instrument {label} (refaire le geste confirme)"), Tone::Plain)
+                    }
+                    None => (format!("aucun instrument {n}"), Tone::Warn),
+                }
+            }
             (Gesture::Tuner, Event::Control { value, .. }, _) if value >= 64 => {
                 ("→ basse coupée, accordeur".into(), Tone::Cut)
             }

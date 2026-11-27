@@ -351,6 +351,7 @@ pub fn run(
             cc_tuner: m.cc_tuner,
             cc_prev_song: m.cc_prev_song,
             cc_next_song: m.cc_next_song,
+            cc_instrument: m.cc_instrument,
             clock: m.clock,
             muted: crate::cli_midi::Muted::from_list(&m.muted),
         };

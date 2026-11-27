@@ -57,6 +57,7 @@ pub struct MidiKeys {
     /// `→` ; 0-63 est ignoré (un bouton qui envoie 127 puis 0 ne change qu'une fois).
     pub cc_prev_song: u8,
     pub cc_next_song: u8,
+    pub cc_instrument: u8,
     /// Écouter l'horloge et le transport ? Coupée, le tempo ne vient plus que du preset et du tap
     /// — et le tap, lui, marche toujours : ce n'est pas le MIDI qu'on coupe, c'est l'horloge.
     pub clock: bool,
@@ -73,6 +74,7 @@ impl Default for MidiKeys {
             cc_tuner: m.cc_tuner,
             cc_prev_song: m.cc_prev_song,
             cc_next_song: m.cc_next_song,
+            cc_instrument: m.cc_instrument,
             clock: m.clock,
             muted: Default::default(),
         }
@@ -105,6 +107,7 @@ impl State {
                 cc_tuner: n.cc_tuner,
                 cc_prev_song: n.cc_prev_song,
                 cc_next_song: n.cc_next_song,
+                cc_instrument: n.cc_instrument,
                 muted: n.muted,
                 ..self.midi
             },

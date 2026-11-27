@@ -172,6 +172,11 @@ pub struct Midi {
     /// Le CC du **morceau suivant** (défaut 104), comme `→`.
     #[serde(default = "default_next_song")]
     pub cc_next_song: u8,
+    /// Le CC de l'**instrument** (défaut 102) : la valeur n désigne l'instrument de numéro n+1
+    /// (la forme du CC des sons). Un geste propose, le même geste dans les 5 secondes confirme :
+    /// namfoop se relance alors avec cet instrument et sa calibration.
+    #[serde(default = "default_instrument")]
+    pub cc_instrument: u8,
     /// Écouter l'**horloge** MIDI (Beat Clock, `Start` / `Stop`) ? Faux : le tempo ne vient plus
     /// que du preset et du tap. Une horloge bruyante en jam est un risque, pas un service
     /// (ADR 0008).
@@ -211,6 +216,8 @@ pub enum Gesture {
     /// Le morceau suivant du set.
     #[serde(rename = "next_song")]
     NextSong,
+    /// Changer d'instrument (ou le recalibrer), en deux gestes.
+    Instrument,
 }
 
 /// Un canal réglé et ses numéros. Un numéro absent reprend celui de `[midi]`.
@@ -229,6 +236,8 @@ pub struct MidiChannel {
     pub cc_prev_song: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cc_next_song: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cc_instrument: Option<u8>,
     /// Les gestes coupés sur ce canal.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub muted: Vec<Gesture>,
@@ -246,6 +255,7 @@ impl Default for Midi {
             cc_tuner: 15,
             cc_prev_song: default_prev_song(),
             cc_next_song: default_next_song(),
+            cc_instrument: default_instrument(),
             clock: true,
             channels: Vec::new(),
             clock_from: None,
@@ -261,6 +271,10 @@ fn default_prev_song() -> u8 {
 
 fn default_next_song() -> u8 {
     104
+}
+
+fn default_instrument() -> u8 {
+    102
 }
 
 /// `[midi] channel` : un canal de 1 à 16, refusé avec une phrase lisible sinon. Le canal 0 du câble
@@ -512,6 +526,7 @@ mod tests {
                     cc_tuner: None,
                     cc_prev_song: None,
                     cc_next_song: None,
+                    cc_instrument: None,
                     muted: Vec::new()
                 },
                 MidiChannel {
@@ -521,6 +536,7 @@ mod tests {
                     cc_tuner: None,
                     cc_prev_song: None,
                     cc_next_song: None,
+                    cc_instrument: None,
                     muted: vec![Gesture::Tap]
                 },
             ]
