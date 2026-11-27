@@ -101,11 +101,13 @@ impl Calibration {
     /// avec son enregistrement — sur la carte, ou empruntée hors carte —, sinon celui de la
     /// config. La config ne suffit pas : `setup` y écrit `normalize` en toutes lettres, et une
     /// calibration arrivée avec la bibliothèque doit jouer comme sur la machine qui l'a mesurée.
+    /// Sans enregistrement, « match » n'a pas de référence : la config qui le demande joue en
+    /// `normalize`, et la ligne de démarrage le dit.
     pub fn level(&self, config: LevelMode) -> LevelMode {
-        if self.instrument.is_some() && self.measured() && self.wav.is_some() {
-            LevelMode::Match
-        } else {
-            config
+        match (self.instrument.is_some() && self.measured(), self.wav.is_some(), config) {
+            (true, true, _) => LevelMode::Match,
+            (_, false, LevelMode::Match) => LevelMode::Normalize,
+            _ => config,
         }
     }
 
@@ -394,6 +396,11 @@ mod tests {
         assert_eq!(on(None, "itwo").level(n), LevelMode::Match, "mesurée sur la carte");
         assert_eq!(on(Some("2"), "mtk").level(n), n, "« jouée sans » : la config");
         assert_eq!(on(None, "umc").level(LevelMode::Raw), LevelMode::Raw, "jamais calibrée : la config");
+        // sans enregistrement, « match » de la config n'a pas de référence
+        let m = LevelMode::Match;
+        assert_eq!(on(None, "umc").level(m), n, "jamais calibrée, config en match");
+        assert_eq!(on(Some("2"), "mtk").level(m), n, "« jouée sans », config en match");
+        assert_eq!(on(None, "itwo").level(m), m);
         let c = resolve(&conf, &two(), None, &Card::Offline, &d).unwrap();
         assert_eq!(c.level(n), LevelMode::Match, "hors carte, la mesure empruntée");
         assert_eq!(resolve(&conf, &[], None, &Card::Offline, &d).unwrap().level(n), n, "sans instrument");
