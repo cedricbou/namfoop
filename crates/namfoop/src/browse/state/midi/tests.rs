@@ -560,3 +560,28 @@ fn the_song_ccs_are_settable_and_mutable() {
         s.message
     );
 }
+
+/// **Un tap en plein set ne demande rien au morceau suivant** : c'est le tempo du soir, pas un
+/// réglage du preset. Dans l'espace Chaîne, en revanche, il modifie le preset (test du tempo des
+/// presets).
+#[test]
+fn a_tap_during_a_set_never_asks_to_save() {
+    let mut s = scene();
+    let t0 = 1_000_000;
+    s.on_midi(Event::Control { cc: 14, value: 127 }, t0, 0);
+    s.on_midi(Event::Control { cc: 14, value: 127 }, t0 + 577_000, 0);
+    assert!((s.heard_tempo_bpm() - 104.0).abs() < 0.5, "le tap s'entend : {} BPM", s.heard_tempo_bpm());
+    assert!(s.unsaved().is_empty(), "rien de non enregistré : {:?}", s.unsaved());
+    assert!(matches!(
+        s.on_midi(Event::Control { cc: 104, value: 127 }, t0 + 2_000_000, 0),
+        Action::Play { .. }
+    ));
+    assert_eq!(at(&s), Some((1, 0)), "le morceau suivant, sans confirmation");
+    assert_eq!(s.tempo_source(), TempoSource::Preset, "le tap est oublié avec le morceau");
+
+    // dans l'espace Chaîne, le même tap modifie le preset
+    s.on_key(Key::Char('2'));
+    s.on_midi(Event::Control { cc: 14, value: 127 }, t0 + 3_000_000, 0);
+    s.on_midi(Event::Control { cc: 14, value: 127 }, t0 + 3_577_000, 0);
+    assert!(!s.unsaved().is_empty(), "le tap de l'espace Chaîne est un réglage");
+}

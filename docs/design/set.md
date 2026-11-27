@@ -122,6 +122,8 @@ avertissements.
   morceau s'il en a un, sinon celui du preset) dans leurs cases vivantes, sans rebâtir de chaîne.
 - Le tempo du morceau entre dans l'arbitre (`engine::tempo::Arbiter`) comme le ferait celui d'un
   preset : un tap (`*`) ou une horloge MIDI le recouvrent ensuite.
+- **Un tap dans l'espace Set ne modifie pas le preset** : c'est le tempo du soir, il ne rend rien
+  « non enregistré » et le changement de son l'oublie. Dans l'espace Chaîne, il reste un réglage.
 - Le set actif est retenu d'une session à l'autre (`browse` rouvre le dernier set) ; « aucun set »
   rend la banque entière.
 
