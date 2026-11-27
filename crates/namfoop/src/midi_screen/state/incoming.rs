@@ -1,6 +1,6 @@
 //! **Ce qui arrive** sur le port (`docs/design/midi.md` § 8) : un message reçu, ce que namfoop en
 //! ferait d'après le set du moment, et la zone « reçu ». La capture par la fenêtre « Régler » est
-//! dans `state.rs`, avec la fenêtre.
+//! dans `input.rs`, avec la fenêtre.
 
 use super::*;
 
