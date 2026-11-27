@@ -74,8 +74,9 @@ l'ordre de branchement.
   guide dit de couper celle du pédalier.
 
 **Un canal** porte les numéros de ses gestes : le morceau (Program Change), le son du morceau, le
-tap tempo, l'accordeur. Le parcours des instruments en spécifie trois de plus — l'instrument, le
-morceau précédent, le morceau suivant ([`instruments.md`](instruments.md) § 13).
+tap tempo, l'accordeur, le morceau précédent (CC 103) et le morceau suivant (CC 104), pour un
+pédalier qui n'a pas un bouton par morceau ([`instruments.md`](instruments.md) § 9). Le parcours
+des instruments en spécifie un de plus, l'instrument ([`instruments.md`](instruments.md) § 13).
 
 - **Les numéros appartiennent au canal**, quel que soit l'appareil qui l'emprunte : le canal 5
   appelle les sons par le CC 20 pendant que le canal 1 garde le CC 34.
@@ -299,6 +300,8 @@ Morceau : Program Change, compté de 1 à 128
   (logiciel qui compte de 0 à 127 : retire 1)
 Son du morceau : CC 20, valeur 0 = 1er son
 Tap tempo : CC 14
+Morceau suivant : CC 104 = 127
+Morceau précédent : CC 103 = 127
 Tempo : horloge MIDI, Start, Stop, position
 Accordeur : CC 15 = 127 coupe ma basse
   CC 15 = 0, un PC ou Start la rendent

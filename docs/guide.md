@@ -2590,8 +2590,8 @@ Un pédalier MIDI sous le pied, Ableton sur la table : namfoop **écoute** ce qu
 rien avoir à configurer dans le cas courant. Les numéros de message suivent les conventions des
 pédaliers **Fractal**, celles que répètent les gabarits des pédaliers tiers
 ([ADR 0011](adr/0011-midi-conventions-fractal.md)) : un **Program Change** choisit le morceau ou le
-preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, le **CC 15** l'accordeur, et
-l'horloge vient d'Ableton.
+preset, le **CC 34** le son du morceau, le **CC 14** est le tap tempo, le **CC 15** l'accordeur, les
+**CC 103 / 104** le morceau précédent / suivant, et l'horloge vient d'Ableton.
 
 Ce que namfoop écoute, selon qu'un set est ouvert ou non : **sans set**, un Program Change choisit un
 preset de la banque ; **avec un set**, il choisit un morceau et le CC 34 son son, et le transport
@@ -2861,6 +2861,38 @@ echo 'cc 15 0' > /tmp/m        # le son revient
 
 `namfoop midi` montre ce que namfoop en fait : `CC 15 127   (accordeur : basse coupée)`. Le numéro
 se règle par `[midi] cc_tuner` (§ 16).
+
+### Changer de morceau au pied, sans Ableton : CC 103 et 104
+
+Sans Ableton, un pédalier à quelques boutons ne peut pas en donner un à chaque morceau. Deux messages
+font ce que font `←` et `→` dans un set : **CC 104** joue le **morceau suivant**, **CC 103** le
+**morceau précédent**, chacun sur son premier son, sans boucler en fin de set. Ils marchent dans
+`browse` comme dans `run --set`, et rendent le son si tu étais à l'accordeur.
+
+- **64 ou plus** agit, **moins de 64** est ignoré : un bouton qui envoie 127 à l'appui et 0 au
+  relâcher ne change de morceau qu'une fois.
+- **Sans set ouvert**, ils ne font rien, et l'écran le dit (`CC 104 : aucun set ouvert`).
+- Les numéros se règlent par canal dans `namfoop midi` (lignes « Morceau précédent » et « Morceau
+  suivant »), ou par `[midi] cc_prev_song` / `cc_next_song` (§ 16) ; `b` coupe le geste. La fiche
+  pour le groupe les mentionne.
+
+**Un pédalier à quatre boutons réglé pour la scène** — appui court pour les sons, appui long pour
+les morceaux (Hotone Ampero Control, Morningstar, la plupart des pédaliers programmables) :
+
+| Bouton | Appui court | Appui long |
+|---|---|---|
+| 1 | CC 34 = 0 : son 1 du morceau | — |
+| 2 | CC 34 = 1 : son 2 | — |
+| 3 | CC 34 = 2 : son 3 | CC 103 = 127 : morceau précédent |
+| 4 | CC 15 = 127 / 0 (bascule) : accordeur | CC 104 = 127 : morceau suivant |
+
+Pour l'essayer sans pédalier, par le port simulé :
+
+```sh
+mkfifo /tmp/m && namfoop --midi-in sim:/tmp/m run --set
+echo 'cc 104 127' > /tmp/m     # depuis un autre terminal : le morceau suivant
+echo 'cc 103 127' > /tmp/m     # le morceau précédent
+```
 
 ### Choisir le port : `--midi-in`, `--no-midi`
 
@@ -3313,6 +3345,8 @@ off = false                          # true : aucune écoute MIDI (comme --no-mi
 cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
 cc_tap = 14                          # le CC du tap tempo (convention Fractal)
 cc_tuner = 15                        # le CC de l'accordeur : 64 ou plus coupe la basse, moins la rend
+cc_prev_song = 103                   # le morceau précédent du set (64 ou plus)
+cc_next_song = 104                   # le morceau suivant du set (64 ou plus)
 clock = true                         # false : ne pas écouter l'horloge MIDI (le tap reste actif)
 channel = 5                          # le seul canal écouté (absent : tous)
 clock_from = "UM-ONE"                # l'appareil qui donne l'horloge (absent : le premier qui bat)

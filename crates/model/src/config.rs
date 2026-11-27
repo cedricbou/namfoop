@@ -164,6 +164,14 @@ pub struct Midi {
     /// Le CC de l'**accordeur** (défaut 15, celui de l'Axe-Fx II) : 64 ou plus coupe la basse et
     /// affiche l'accordeur, moins de 64 rend le son. Ce n'est pas une bascule.
     pub cc_tuner: u8,
+    /// Le CC du **morceau précédent** du set (défaut 103) : 64 ou plus joue le morceau d'avant,
+    /// sur son premier son, comme `←` ; 0-63 est ignoré, si bien qu'un bouton qui envoie 127 puis
+    /// 0 ne change de morceau qu'une fois. La plage 102-119 est libre dans la norme MIDI.
+    #[serde(default = "default_prev_song")]
+    pub cc_prev_song: u8,
+    /// Le CC du **morceau suivant** (défaut 104), comme `→`.
+    #[serde(default = "default_next_song")]
+    pub cc_next_song: u8,
     /// Écouter l'**horloge** MIDI (Beat Clock, `Start` / `Stop`) ? Faux : le tempo ne vient plus
     /// que du preset et du tap. Une horloge bruyante en jam est un risque, pas un service
     /// (ADR 0008).
@@ -197,6 +205,12 @@ pub enum Gesture {
     Tap,
     /// L'accordeur.
     Tuner,
+    /// Le morceau précédent du set.
+    #[serde(rename = "prev_song")]
+    PrevSong,
+    /// Le morceau suivant du set.
+    #[serde(rename = "next_song")]
+    NextSong,
 }
 
 /// Un canal réglé et ses numéros. Un numéro absent reprend celui de `[midi]`.
@@ -211,6 +225,10 @@ pub struct MidiChannel {
     pub cc_tap: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cc_tuner: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cc_prev_song: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cc_next_song: Option<u8>,
     /// Les gestes coupés sur ce canal.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub muted: Vec<Gesture>,
@@ -226,6 +244,8 @@ impl Default for Midi {
             cc_sound: 34,
             cc_tap: 14,
             cc_tuner: 15,
+            cc_prev_song: default_prev_song(),
+            cc_next_song: default_next_song(),
             clock: true,
             channels: Vec::new(),
             clock_from: None,
@@ -233,6 +253,14 @@ impl Default for Midi {
             muted: Vec::new(),
         }
     }
+}
+
+fn default_prev_song() -> u8 {
+    103
+}
+
+fn default_next_song() -> u8 {
+    104
 }
 
 /// `[midi] channel` : un canal de 1 à 16, refusé avec une phrase lisible sinon. Le canal 0 du câble
@@ -482,6 +510,8 @@ mod tests {
                     cc_sound: Some(20),
                     cc_tap: None,
                     cc_tuner: None,
+                    cc_prev_song: None,
+                    cc_next_song: None,
                     muted: Vec::new()
                 },
                 MidiChannel {
@@ -489,6 +519,8 @@ mod tests {
                     cc_sound: None,
                     cc_tap: None,
                     cc_tuner: None,
+                    cc_prev_song: None,
+                    cc_next_song: None,
                     muted: vec![Gesture::Tap]
                 },
             ]

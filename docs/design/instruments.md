@@ -12,9 +12,8 @@ l'[ADR 0011](../adr/0011-midi-conventions-fractal.md), l'écran de réglage du M
 **État** : spécification d'un parcours **à construire**. Rien ici n'est vérifié par un test : c'est
 la cible que suivent les stories de l'épique « Changer d'instrument ou de carte son et jouer
 calibré, sans rien re-régler ». À mesure qu'elles sont livrées, le code fait foi, et ce paragraphe
-se retire. Trois choix écrits ici se confirment avec leur story : le nom de l'option de reprise
-(§ 11), la fenêtre de 5 secondes (§ 8), et ce que font les messages de morceau sans set ouvert
-(§ 9).
+se retire. Deux choix écrits ici se confirment avec leur story : le nom de l'option de reprise
+(§ 11) et la fenêtre de 5 secondes (§ 8).
 
 La maquette [`instruments.html`](instruments.html) est une **illustration actionnable** : à ouvrir
 dans un navigateur, elle déroule le parcours de l'arrivée sur le lieu au changement d'instrument en

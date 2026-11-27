@@ -495,3 +495,68 @@ fn a_muted_gesture_does_nothing_and_says_so() {
         "le canal 5 n'est pas coupé"
     );
 }
+
+/// **Morceau suivant / précédent au pied** (CC 104 / 103) : le chemin de `→` / `←` — le premier
+/// son du morceau, sans boucler aux bornes du set. Un bouton qui envoie 127 puis 0 ne change
+/// qu'une fois.
+#[test]
+fn the_song_ccs_step_through_the_set_like_the_arrows() {
+    let mut s = scene();
+    s.play_set_sound((0, 1));
+    assert!(matches!(s.on_midi(Event::Control { cc: 104, value: 127 }, 0, 0), Action::Play { .. }));
+    assert_eq!(at(&s), Some((1, 0)), "le morceau suivant, sur son premier son");
+    assert_eq!(s.on_midi(Event::Control { cc: 104, value: 0 }, 1000, 0), Action::None, "le relâcher");
+    assert_eq!(at(&s), Some((1, 0)), "une seule fois");
+    assert_eq!(s.on_midi(Event::Control { cc: 104, value: 127 }, 2000, 0), Action::None);
+    assert_eq!(s.message.as_deref(), Some("dernier morceau"), "pas de bouclage");
+    assert!(matches!(s.on_midi(Event::Control { cc: 103, value: 127 }, 3000, 0), Action::Play { .. }));
+    assert_eq!(at(&s), Some((0, 0)));
+    assert_eq!(s.on_midi(Event::Control { cc: 103, value: 64 }, 4000, 0), Action::None);
+    assert_eq!(s.message.as_deref(), Some("premier morceau"));
+}
+
+/// Pendant l'accordage, changer de morceau au pied **rend le son**, comme tout chargement.
+#[test]
+fn a_song_cc_gives_the_sound_back() {
+    let mut s = scene();
+    s.on_midi(Event::Control { cc: 15, value: 127 }, 0, 0);
+    assert!(s.bass_cut());
+    assert!(matches!(s.on_midi(Event::Control { cc: 104, value: 127 }, 1000, 0), Action::Play { .. }));
+    assert!(!s.bass_cut(), "le son revient avec le morceau");
+}
+
+/// Sans set ouvert, les deux messages ne font rien, et l'écran le dit.
+#[test]
+fn the_song_ccs_without_a_set_say_so() {
+    let mut s = bank();
+    assert_eq!(s.on_midi(Event::Control { cc: 104, value: 127 }, 0, 0), Action::None);
+    assert_eq!(s.message.as_deref(), Some("CC 104 : aucun set ouvert"));
+}
+
+/// Un PC en attente est oublié par un changement de morceau au pied : la dernière demande gagne.
+#[test]
+fn a_song_cc_wins_over_a_waiting_program_change() {
+    let mut s = scene();
+    s.on_midi(Event::ProgramChange(4), 0, 0);
+    s.on_midi(Event::Control { cc: 103, value: 127 }, 1000, 0);
+    assert_eq!(at(&s), Some((0, 0)), "déjà au premier morceau : rien ne bouge");
+    assert_eq!(s.tick(100), Action::None, "le PC ne se joue plus");
+    assert_eq!(at(&s), Some((0, 0)));
+}
+
+/// Les numéros se règlent, et le geste se coupe par canal.
+#[test]
+fn the_song_ccs_are_settable_and_mutable() {
+    let mut s = scene();
+    s.midi.cc_next_song = 110;
+    assert_eq!(s.on_midi(Event::Control { cc: 104, value: 127 }, 0, 0), Action::None, "104 n'agit plus");
+    assert!(matches!(s.on_midi(Event::Control { cc: 110, value: 127 }, 1000, 0), Action::Play { .. }));
+    let muted = crate::cli_midi::Muted { prev_song: true, ..Default::default() };
+    s.midi_channels = vec![(1, crate::cli_midi::Numbers { muted, ..Default::default() })];
+    assert_eq!(s.on_midi_from(Event::Control { cc: 103, value: 127 }, Some(1), 2000, 0), Action::None);
+    assert!(
+        s.message.clone().unwrap_or_default().contains("le morceau précédent est coupé"),
+        "{:?}",
+        s.message
+    );
+}

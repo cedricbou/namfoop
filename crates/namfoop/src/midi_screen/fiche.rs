@@ -54,6 +54,12 @@ pub fn lines(midi: &Midi, channel: Option<u8>, set: Option<(&SetSpec, &str)>) ->
     if !n.muted.has(Gesture::Tap) {
         out.push(format!("Tap tempo : CC {}", n.cc_tap));
     }
+    if !n.muted.has(Gesture::NextSong) {
+        out.push(format!("Morceau suivant : CC {} = 127", n.cc_next_song));
+    }
+    if !n.muted.has(Gesture::PrevSong) {
+        out.push(format!("Morceau précédent : CC {} = 127", n.cc_prev_song));
+    }
     out.push("Tempo : horloge MIDI, Start, Stop, position".into());
     if !n.muted.has(Gesture::Tuner) {
         out.push(format!("Accordeur : CC {} = 127 coupe ma basse", n.cc_tuner));
@@ -116,6 +122,8 @@ mod tests {
                 cc_sound: Some(20),
                 cc_tap: None,
                 cc_tuner: None,
+                cc_prev_song: None,
+                cc_next_song: None,
                 muted: vec![],
             }],
             ..Default::default()
@@ -128,7 +136,7 @@ mod tests {
         let s = set();
         let l = lines(&midi(), Some(5), Some((&s, "groupe-1")));
         assert_eq!(
-            &l[..12],
+            &l[..14],
             [
                 "Basse (namfoop) · ce que j'attends en MIDI",
                 "",
@@ -137,6 +145,8 @@ mod tests {
                 "  (logiciel qui compte de 0 à 127 : retire 1)",
                 "Son du morceau : CC 20, valeur 0 = 1er son",
                 "Tap tempo : CC 14",
+                "Morceau suivant : CC 104 = 127",
+                "Morceau précédent : CC 103 = 127",
                 "Tempo : horloge MIDI, Start, Stop, position",
                 "Accordeur : CC 15 = 127 coupe ma basse",
                 "  CC 15 = 0, un PC ou Start la rendent",

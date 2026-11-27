@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#435)
+- **Changer de morceau au pied, sans Ableton** : CC 104 joue le morceau suivant du set, CC 103 le
+  précédent, sur leur premier son, comme `→` / `←`, dans `browse` comme dans `run --set` ; ils
+  rendent le son si tu étais à l'accordeur. 64 ou plus agit, 0-63 est ignoré (un bouton qui envoie
+  127 puis 0 ne change qu'une fois). Sans set ouvert, l'écran le dit.
+- `namfoop midi` connaît ces deux gestes : leurs numéros se règlent par canal (`[midi]
+  cc_prev_song` / `cc_next_song`), `b` les coupe, la zone « reçu » dit le morceau appelé, et la
+  fiche pour le groupe les mentionne. Le guide montre un pédalier à quatre boutons réglé pour la
+  scène.
+
 ### Atelier (#470)
 - L'écran de `namfoop midi` est découpé en fichiers plus petits, avant d'y ajouter les gestes de
   morceau et d'instrument. Aucun comportement ne change.
