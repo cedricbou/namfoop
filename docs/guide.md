@@ -1378,8 +1378,8 @@ question, et rien ne sort tant que tu n'as pas répondu.
 
    2 Fretless n'est pas calibrée sur itwo.
 
-   Entrée    calibrer maintenant : je joue fort 15 s
-   Échap     jouer sans calibrer (la question ne reviendra pas)
+   Entrée    calibrer maintenant : je joue fort 15 s (au pied : le geste de cet instrument)
+   Échap     jouer sans calibrer, la question ne reviendra pas (au pied : un bouton de son)
    q         ne pas jouer
 ```
 
@@ -1389,13 +1389,45 @@ question, et rien ne sort tant que tu n'as pas répondu.
   calibrée` dans l'en-tête) et le retient dans le fichier de l'instrument : les lancements
   suivants ne demandent plus rien. La première calibration efface ce choix. Si la bibliothèque est
   protégée en écriture, la réponse vaut pour la session.
-- Jouer une note ne répond pas : seule une touche répond.
+- **Au pied** : le geste de cet instrument (CC 102, voir plus bas) calibre, un bouton de son
+  (CC 34) joue sans. Le geste d'un autre instrument ne répond pas, et l'écran le dit.
+- Jouer une note ne répond pas : seul un geste répond.
 - **Sans clavier** (namfoop lancé par un service, sur le Pi), personne ne peut répondre : il joue
   sans calibration et le dit dans ses lignes de démarrage, sans rien retenir.
 - Un instrument calibré, la carte simulée et une bibliothèque sans instrument ne posent jamais la
   question.
 
-`namfoop calibrate --instrument` reste la façon de refaire une calibration existante.
+`namfoop calibrate --instrument` reste la façon de refaire une calibration existante au clavier.
+
+### Changer d'instrument au pied : CC 102
+
+Sur scène, sans clavier, **un bouton par instrument** : le CC 102, dont la valeur donne le numéro
+de l'instrument (0 pour le 1, 1 pour le 2, comme le CC des sons). Un appui **propose**, le même
+appui dans les 5 secondes **confirme** : un appui raté en plein morceau ne coupe jamais le son.
+
+| Geste | Ce qui se passe |
+|---|---|
+| le bouton d'un autre instrument | `Passer à 2 Fretless ? Refais le geste (5 s)` — le son ne change pas |
+| le même dans les 5 secondes | le son se coupe, namfoop se relance avec cet instrument : même set, même morceau, même son |
+| rien pendant 5 secondes | `Geste oublié : rien n'a changé` |
+| un autre geste pendant l'attente | il agit normalement, et le changement est abandonné |
+| le bouton de l'instrument joué, deux fois | la calibration (15 s, je joue fort), puis la relance : pour la balance, si un gain a bougé |
+| un numéro sans instrument | `CC 102 = 6 : aucun instrument 7` |
+
+- **Après la relance**, un instrument jamais calibré sur la carte pose la question ci-dessus, qui
+  se répond au pied.
+- Ça marche dans `browse` comme dans `run --set`. Dans `browse`, une chaîne ou un set non
+  enregistrés retiennent la relance (`S` l'enregistre, puis refais le geste) : la relance
+  rouvre la session depuis tes fichiers.
+- Le pédalier n'a pas à se rebrancher : namfoop garde le port MIDI ouvert pendant la relance.
+- Le numéro se règle par canal dans `namfoop midi` (ligne « Instrument »), ou par
+  `[midi] cc_instrument` (§ 16) ; `b` coupe le geste. Au clavier, il n'y a pas de touche : on
+  quitte et on relance avec `--instrument`.
+
+```sh
+mkfifo /tmp/m && namfoop --midi-in sim:/tmp/m run --set
+echo 'cc 102 1' > /tmp/m; echo 'cc 102 1' > /tmp/m   # deux fois : passer à l'instrument 2
+```
 
 La **carte** est celle de ton profil (`namfoop setup`). Sur la **carte simulée** et hors carte
 (`render`, `models`, `meta`, `import`), namfoop prend la calibration de l'instrument sur ta carte
@@ -2892,8 +2924,8 @@ les morceaux (Hotone Ampero Control, Morningstar, la plupart des pédaliers prog
 
 | Bouton | Appui court | Appui long |
 |---|---|---|
-| 1 | CC 34 = 0 : son 1 du morceau | — |
-| 2 | CC 34 = 1 : son 2 | — |
+| 1 | CC 34 = 0 : son 1 du morceau | CC 102 = 0 : instrument 1 (deux fois) |
+| 2 | CC 34 = 1 : son 2 | CC 102 = 1 : instrument 2 (deux fois) |
 | 3 | CC 34 = 2 : son 3 | CC 103 = 127 : morceau précédent |
 | 4 | CC 15 = 127 / 0 (bascule) : accordeur | CC 104 = 127 : morceau suivant |
 
@@ -3358,6 +3390,7 @@ cc_tap = 14                          # le CC du tap tempo (convention Fractal)
 cc_tuner = 15                        # le CC de l'accordeur : 64 ou plus coupe la basse, moins la rend
 cc_prev_song = 103                   # le morceau précédent du set (64 ou plus)
 cc_next_song = 104                   # le morceau suivant du set (64 ou plus)
+cc_instrument = 102                  # l'instrument : la valeur n choisit l'instrument n+1 (deux fois)
 clock = true                         # false : ne pas écouter l'horloge MIDI (le tap reste actif)
 channel = 5                          # le seul canal écouté (absent : tous)
 clock_from = "UM-ONE"                # l'appareil qui donne l'horloge (absent : le premier qui bat)

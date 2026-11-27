@@ -242,7 +242,7 @@ const CHO: &str = "{title: Le Phare}\n{tempo: 120}\n{time: 4/4}\n\
 
 /// Un set de concert ouvert, son premier son joué : « Le Phare » (PC 2, deux sons, un
 /// prompteur) et « Marée basse » (PC 4, deux sons).
-fn scene() -> State {
+pub(super) fn scene() -> State {
     use crate::browse::state::set::prompt::Loaded;
     use crate::browse::state::set::ActiveSet;
     use library::prompt::Prompt;

@@ -131,7 +131,10 @@ impl State {
                 self.message = Some(format!("PC {n} ignoré : le Program Change est coupé sur ce canal"));
                 Action::None
             }
-            Event::ProgramChange(n) => self.midi_program(n, at_us),
+            Event::ProgramChange(n) => {
+                self.abandon_instrument();
+                self.midi_program(n, at_us)
+            }
             Event::Control { cc, value } => self.midi_control(keys, cc, value, at_us),
             // L'horloge et le transport vont à l'arbitre de tempo (ADR 0008), qui tranche entre
             // le preset, le tap et l'horloge. Coupée par la config, on ne lui dit rien du tout —
@@ -308,10 +311,18 @@ impl State {
             (keys.cc_sound, keys.muted.sound, "le son du morceau"),
             (keys.cc_prev_song, keys.muted.prev_song, "le morceau précédent"),
             (keys.cc_next_song, keys.muted.next_song, "le morceau suivant"),
+            (keys.cc_instrument, keys.muted.instrument, "l'instrument"),
         ];
         if let Some((_, _, quoi)) = coupe.iter().find(|(n, off, _)| *off && *n == cc) {
             self.message = Some(format!("CC {cc} ignoré : {quoi} est coupé sur ce canal"));
             return Action::None;
+        }
+        if cc == keys.cc_instrument {
+            return self.midi_instrument(cc, value, at_us);
+        }
+        // un autre geste connu pendant qu'un changement d'instrument attend : il l'abandonne
+        if coupe.iter().any(|(n, _, _)| *n == cc) {
+            self.abandon_instrument();
         }
         if cc == keys.cc_tap {
             // le tap du pédalier EST la touche `*` : mêmes règles, même message, même recalage
@@ -336,6 +347,8 @@ impl State {
         Action::None
     }
 }
+
+pub mod instrument;
 
 #[cfg(test)]
 mod tests;

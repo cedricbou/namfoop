@@ -584,6 +584,7 @@ fn short_action(a: &Action) -> &'static str {
         Action::SetChanged => "SetChanged",
         Action::SaveSet(_) => "SaveSet",
         Action::EditPrompt(_) => "EditPrompt",
+        Action::Relaunch(_) => "Relaunch",
         Action::Quit => "Quit",
     }
 }

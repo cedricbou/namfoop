@@ -232,8 +232,10 @@ Un **bouton par instrument** : le CC de l'instrument (§ 13), dont la valeur don
 
 - **Après la relance**, si l'instrument n'est pas calibré sur la carte, c'est la question du § 5
   qui s'affiche, et elle se répond au pied.
-- **Dans `browse`** comme dans `run --set`. Dans `browse`, une chaîne non enregistrée pose d'abord
-  sa question habituelle avant la relance.
+- **Dans `browse`** comme dans `run --set`. Dans `browse`, une chaîne ou un set non enregistrés
+  retiennent la relance, qui rouvre la session depuis les fichiers : le message le dit (`S`
+  l'enregistre, puis refais le geste) plutôt que d'ouvrir une fenêtre qu'il faudrait fermer au
+  clavier.
 - **Pendant l'accordage**, le geste est accepté ; la relance rend le son, comme tout démarrage
   ([`accordeur.md`](accordeur.md) § 1, règle 6).
 - **Pendant une saisie de texte**, le geste est ignoré, comme tout message MIDI.

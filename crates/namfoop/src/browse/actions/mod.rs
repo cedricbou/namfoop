@@ -35,6 +35,9 @@ pub(super) enum Flow {
     Next,
     /// Quitter `browse`.
     Quit,
+    /// Quitter pour **relancer** la session avec un autre instrument (§ 8 de
+    /// `docs/design/instruments.md`).
+    Relaunch(crate::browse::state::midi::instrument::Relaunch),
 }
 
 /// Ce qu'une action a le droit de toucher. C'est **la liste des effets de bord** de `browse` : en
@@ -79,6 +82,7 @@ pub(super) fn run(ctx: &mut Ctx, action: Action) -> Result<Flow> {
     match action {
         Action::None => Ok(Flow::Go),
         Action::Quit => Ok(Flow::Quit),
+        Action::Relaunch(r) => Ok(Flow::Relaunch(r)),
         Action::SaveSet(stem) => set::save(ctx, &stem),
         Action::EditPrompt(song) => set::edit_prompt(ctx, song),
         Action::ListSets => set::list(ctx),

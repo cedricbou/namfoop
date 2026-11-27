@@ -2,7 +2,8 @@
 //! § 4 et § 5 de `docs/design/instruments.md` : si l'instrument joué n'a jamais été calibré sur
 //! la carte branchée, namfoop le dit **avant d'ouvrir la carte** et attend une réponse —
 //! `Entrée` calibre (la mesure de `calibrate`, puis la session s'ouvre), `Échap` joue sans et le
-//! retient dans le fichier de l'instrument. Rien ne sort tant qu'on n'a pas répondu, et jouer une
+//! retient dans le fichier de l'instrument. **Au pied**, le geste de cet instrument calibre et le
+//! CC du son joue sans : le port MIDI, déjà ouvert, est lu pendant la question. Rien ne sort tant qu'on n'a pas répondu, et jouer une
 //! note ne répond pas : la carte n'est pas encore ouverte.
 //!
 //! La décision est pure (`decide`) ; l'écran et la mesure ne servent qu'au cas `Ask`. Hors
@@ -59,6 +60,8 @@ pub struct Prep<'a> {
     pub routing: &'a Routing,
     pub library: &'a Path,
     pub query: Option<&'a str>,
+    /// Le pédalier, qui répond aussi à la question (§ 5) ; `None` : le clavier seul.
+    pub midi: Option<&'a std::cell::RefCell<crate::cli_midi::MidiIn>>,
 }
 
 /// Sur la carte : résout la calibration jouée, pose la question s'il le faut, puis écrit la
@@ -87,6 +90,19 @@ pub fn offline(
         log::info!("{line}");
     }
     Ok(c)
+}
+
+/// **Recalibrer** l'instrument demandé sur la carte (le même geste fait deux fois, § 8) : la
+/// mesure de `calibrate`, puis le temps de lire le trim.
+pub fn recalibrate(prep: &Prep) -> Result<()> {
+    let card = match &prep.card {
+        instrument::Card::Real(id) => id.clone(),
+        instrument::Card::Sim => "sim".into(),
+        instrument::Card::Offline => anyhow::bail!("aucune carte pour calibrer"),
+    };
+    measure(prep, &card)?;
+    std::thread::sleep(Duration::from_secs(2));
+    Ok(())
 }
 
 /// La réponse à la question.
@@ -121,8 +137,9 @@ pub fn run(cal: Calibration, prep: &Prep, again: impl Fn() -> Result<Calibration
         }
         Decision::Ask => {
             let mut refused: Option<String> = None;
+            let number = instrument_of(prep).ok().map(|i| i.number);
             loop {
-                match question(&who, &card, refused.as_deref())? {
+                match question(&who, &card, number, prep.midi, &mut refused)? {
                     Answer::Quit => {
                         anyhow::bail!("lancement abandonné : {who} n'est pas calibrée sur {card}")
                     }
@@ -135,7 +152,7 @@ pub fn run(cal: Calibration, prep: &Prep, again: impl Fn() -> Result<Calibration
                         }
                         // une mesure refusée (saturation, signal trop faible) dit quoi corriger,
                         // et la question revient
-                        Err(e) => refused = Some(format!("{e:#}")),
+                        Err(e) => refused = Some(format!("Mesure refusée : {e:#}")),
                     },
                 }
             }
@@ -180,15 +197,50 @@ fn skip(cal: Calibration, prep: &Prep, card: &str) -> Calibration {
     Calibration { state: State::Skipped, ..cal }
 }
 
-/// La question, en plein écran, jusqu'à une réponse.
-fn question(who: &str, card: &str, refused: Option<&str>) -> Result<Answer> {
+/// La question, en plein écran, jusqu'à une réponse au clavier ou au pied. `note` : la ligne
+/// d'avertissement (mesure refusée, geste d'un autre instrument).
+fn question(
+    who: &str,
+    card: &str,
+    number: Option<u32>,
+    midi: Option<&std::cell::RefCell<crate::cli_midi::MidiIn>>,
+    note: &mut Option<String>,
+) -> Result<Answer> {
     let mut session = tui::Session::start()?;
     loop {
-        session.terminal.draw(|f| screen(f, who, card, refused))?;
-        if let Some(a) = tui::poll_key(Duration::from_millis(250))?.and_then(answer_of) {
+        session.terminal.draw(|f| screen(f, who, card, note.as_deref()))?;
+        if let Some(a) = tui::poll_key(Duration::from_millis(50))?.and_then(answer_of) {
             return Ok(a);
         }
+        let Some(m) = midi else { continue };
+        let mut m = m.borrow_mut();
+        while let Some(msg) = m.try_pop() {
+            let n = m.listen().numbers(msg.channel);
+            match foot_answer(&msg.event, &n, number) {
+                Some(Ok(a)) => return Ok(a),
+                Some(Err(other)) => {
+                    *note = Some(format!("Réponds d'abord pour {who} (geste de l'instrument {other})"))
+                }
+                None => {}
+            }
+        }
     }
+}
+
+/// Ce que vaut un message pendant la question : le geste de **cet** instrument calibre, le CC du
+/// son joue sans, le geste d'un autre instrument ne répond pas (son numéro, pour le dire). Une
+/// note jouée n'arrive pas ici : seul un geste répond.
+fn foot_answer(
+    event: &midi_io::Event,
+    n: &crate::cli_midi::Numbers,
+    number: Option<u32>,
+) -> Option<std::result::Result<Answer, u32>> {
+    let midi_io::Event::Control { cc, value } = *event else { return None };
+    if cc == n.cc_instrument && !n.muted.instrument {
+        let asked = value as u32 + 1;
+        return Some(if Some(asked) == number { Ok(Answer::Calibrate) } else { Err(asked) });
+    }
+    (cc == n.cc_sound && !n.muted.sound).then_some(Ok(Answer::Skip))
 }
 
 /// L'écran de la question (§ 5), en couleurs neutres : l'ambre dit ce qui demande attention.
@@ -208,16 +260,21 @@ fn screen(f: &mut Frame, who: &str, card: &str, refused: Option<&str>) {
         Line::default(),
     ];
     if let Some(why) = refused {
-        lines.push(Line::from(Span::styled(
-            format!("   Mesure refusée : {why}"),
-            Style::new().fg(theme::error()),
-        )));
+        lines.push(Line::from(Span::styled(format!("   {why}"), Style::new().fg(theme::error()))));
         lines.push(Line::default());
     }
     let secs = crate::calibrate::DEFAULT_SECONDS;
     lines.extend([
-        Line::from(vec![key("Entrée"), Span::raw(format!("calibrer maintenant : je joue fort {secs:.0} s"))]),
-        Line::from(vec![key("Échap"), Span::raw("jouer sans calibrer (la question ne reviendra pas)")]),
+        Line::from(vec![
+            key("Entrée"),
+            Span::raw(format!(
+                "calibrer maintenant : je joue fort {secs:.0} s (au pied : le geste de cet instrument)"
+            )),
+        ]),
+        Line::from(vec![
+            key("Échap"),
+            Span::raw("jouer sans calibrer, la question ne reviendra pas (au pied : un bouton de son)"),
+        ]),
         Line::from(vec![key("q"), Span::styled("ne pas jouer", Style::new().fg(theme::dim()))]),
         Line::default(),
         Line::from(Span::styled(
@@ -269,13 +326,29 @@ mod tests {
         assert_eq!(answer_of(Key::Down), None);
     }
 
+    /// **Au pied** : le geste de cet instrument calibre, le CC du son joue sans, le geste d'un
+    /// autre instrument ne répond pas, et une note ou un autre CC ne disent rien.
+    #[test]
+    fn the_foot_answers_with_a_gesture() {
+        use midi_io::Event;
+        let n = crate::cli_midi::Numbers::default();
+        let cc = |cc, value| Event::Control { cc, value };
+        assert_eq!(foot_answer(&cc(102, 1), &n, Some(2)), Some(Ok(Answer::Calibrate)));
+        assert_eq!(foot_answer(&cc(102, 0), &n, Some(2)), Some(Err(1)), "un autre instrument");
+        assert_eq!(foot_answer(&cc(34, 0), &n, Some(2)), Some(Ok(Answer::Skip)));
+        assert_eq!(foot_answer(&cc(104, 127), &n, Some(2)), None);
+        assert_eq!(foot_answer(&Event::ProgramChange(1), &n, Some(2)), None);
+    }
+
     #[test]
     fn the_question_names_the_instrument_the_card_and_both_answers() {
         let text = tui::screen_text(80, 25, |f| screen(f, "2 Fretless", "itwo", None));
         assert!(text.contains("2 Fretless n'est pas calibrée sur itwo."), "{text}");
         assert!(text.contains("Entrée") && text.contains("Échap"), "{text}");
         assert!(text.contains("Rien ne sort"), "{text}");
-        let text = tui::screen_text(80, 25, |f| screen(f, "2 Fretless", "itwo", Some("signal trop faible")));
+        let text = tui::screen_text(80, 25, |f| {
+            screen(f, "2 Fretless", "itwo", Some("Mesure refusée : signal trop faible"))
+        });
         assert!(text.contains("Mesure refusée : signal trop faible"), "{text}");
     }
 }

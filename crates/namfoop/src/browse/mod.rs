@@ -188,6 +188,23 @@ pub struct Start<'a> {
     /// La calibration jouée (instrument, carte), résolue par `main` avant d'ouvrir l'écran
     /// (`docs/design/instruments.md` § 4) : l'écran ne la change pas, il la montre.
     pub calibration: crate::instrument::Calibration,
+    /// **Après une relance** (changement d'instrument au pied) : l'espace, et le son du set à
+    /// rejouer, au lieu du premier.
+    pub resume: Option<Resume>,
+}
+
+/// Où reprendre après une relance : l'espace, le set (son identifiant) et le son joué.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Resume {
+    pub space: state::space::Space,
+    pub set: Option<String>,
+    pub at: Option<(usize, usize)>,
+}
+
+/// Comment la session s'est terminée, et le port MIDI, qui survit à une relance.
+pub struct Outcome {
+    pub relaunch: Option<(state::midi::instrument::Relaunch, Resume)>,
+    pub midi: Option<crate::cli_midi::MidiIn>,
 }
 
 pub fn run(
@@ -198,7 +215,7 @@ pub fn run(
     size: f64,
     trails: bool,
     mut start_with: Start,
-) -> Result<()> {
+) -> Result<Outcome> {
     let lib = Library::scan(library);
     let cal = start_with.calibration.clone();
     let signal = cal.signal();
@@ -384,11 +401,38 @@ pub fn run(
              ouvre-le une fois dans `browse` (touche L) pour qu'il devienne le set par défaut."
         );
     }
+    // mes instruments, pour le geste du pied (§ 8) : une bibliothèque illisible le prive de
+    // noms, pas de session
+    st.instrument.list =
+        crate::instrument::load(library).unwrap_or_default().iter().map(|i| (i.number, i.label())).collect();
+    st.instrument.now =
+        st.instrument.list.iter().find(|(_, l)| Some(l) == cal.instrument.as_ref()).map(|(n, _)| *n);
+    st.instrument.card = cal.card.clone();
+    // après une relance : le même son du set, dans le même espace
+    let resume = start_with.resume.take();
+    // une ligne par session : c'est ce qui montre une relance, et avec quel instrument
+    trace(&format!(
+        "session instrument={} reprise={:?}",
+        cal.instrument.as_deref().unwrap_or("aucun"),
+        resume.as_ref().and_then(|r| r.at)
+    ));
+    let resumed = resume
+        .as_ref()
+        .and_then(|r| r.at)
+        .filter(|at| st.set.as_ref().is_some_and(|s| s.slot(*at).is_some()));
+    if let Some(at) = resumed {
+        st.play_set_sound(at);
+    }
+    if let Some(r) = resume.as_ref().filter(|_| !start_with.locked) {
+        st.space = r.space;
+    }
     if start_with.locked {
         // la scène : on ouvre sur la vue du set, verrouillée, et le premier son joue tout de suite
         st.locked = true;
         st.space = state::space::Space::Set;
-        if let Some(at) = st.set.as_ref().and_then(|s| s.flat().first().copied()) {
+        if let Some(at) =
+            st.set.as_ref().and_then(|s| s.flat().first().copied()).filter(|_| resumed.is_none())
+        {
             st.play_set_sound(at);
         }
         if !st.set.as_ref().is_some_and(|s| s.is_playable()) {
@@ -425,6 +469,14 @@ pub fn run(
     let mut saved: Option<(String, Vec<BlendPart>, bool)> = None; // (id, mélange sauvé, align)
     let mut midi_pending = Action::None; // ce qu'un message MIDI demande, en attente d'un tour libre
     let mut midi_ignored = 0u64; // messages d'un autre canal, déjà tracés
+                                 // un instrument joué sans calibration : le geste qui la fait se dit à l'ouverture (§ 15)
+    if let (Some(who), Some(card)) = (cal.instrument.as_ref(), cal.card.as_ref()) {
+        if matches!(cal.state, crate::instrument::State::Uncalibrated | crate::instrument::State::Skipped) {
+            st.message =
+                Some(format!("{who} joue sans calibration sur {card} : son geste, deux fois, la calibre"));
+        }
+    }
+    let mut relaunch = None;
     let start = Instant::now();
     let mut session = tui::Session::start()?;
     let result = (|| -> Result<()> {
@@ -505,6 +557,10 @@ pub fn run(
                 actions::Flow::Go => {}
                 actions::Flow::Next => continue,
                 actions::Flow::Quit => return Ok(()),
+                actions::Flow::Relaunch(r) => {
+                    relaunch = Some(r);
+                    return Ok(());
+                }
             }
             // le volume écouté : posé **juste après** le `match`, pour qu'une chaîne installée par
             // ce tour-ci le lise dès son premier bloc (ADR 0007). `plan()` plutôt qu'une règle
@@ -601,11 +657,19 @@ pub fn run(
     drop(engine);
     let _ = std::fs::remove_file(&audition);
     result?;
+    if let Some(r) = relaunch {
+        let resume = Resume {
+            space: st.space,
+            set: st.set.as_ref().map(|s| s.stem.clone()),
+            at: st.set.as_ref().and_then(|s| s.at),
+        };
+        return Ok(Outcome { relaunch: Some((r, resume)), midi });
+    }
     let saved_id = saved.filter(|(_, b, a)| *b == st.blend && *a == st.align).map(|(id, ..)| id);
     if let Some(cmd) = st.command_line(saved_id.as_deref()) {
         println!("Pour rejouer ce son :\n  {cmd}");
     }
-    Ok(())
+    Ok(Outcome { relaunch: None, midi })
 }
 
 /// Trace des chaînes installées dans le thread audio (`NAMFOOP_BROWSE_TRACE=<fichier>`) : sert aux

@@ -640,6 +640,78 @@ def scenario_midi_set(binaire, lignes, colonnes):
             ec.tuer()
 
 
+def scenario_instrument_au_pied(binaire, lignes, colonnes):
+    """**Changer d'instrument au pied** (§ 8 de `docs/design/instruments.md`), sur la scène
+    verrouillée : un geste propose sans rien changer, le même geste confirme, et la session se
+    relance avec l'autre instrument **au même son du set**, le port MIDI toujours ouvert."""
+    taille = f"{lignes}×{colonnes}"
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-instrument-") as tmp:
+        bib = set_de_concert(bibliotheque_jetable(os.path.join(tmp, "library")))
+        os.makedirs(os.path.join(bib, "instruments"))
+        for fichier, nom, n in (("bb", "BB", 1), ("fretless", "Fretless", 2)):
+            with open(os.path.join(bib, "instruments", f"{fichier}.toml"), "w", encoding="utf-8") as f:
+                f.write(f'name = "{nom}"\nnumber = {n}\n')
+        trace = os.path.join(tmp, "trace.log")
+        tube = os.path.join(tmp, "pedalier")
+        os.mkfifo(tube)
+        ec = Ecran(
+            binaire,
+            ["--no-config", "--backend", "sim", "--device", "4x6", "--midi-in", f"sim:{tube}",
+             "--instrument", "1", "run", "--set", "concert", "--library", bib, "--master-db", "-120"],
+            lignes, colonnes, trace,
+        )
+        try:
+            ec.lire(3.0)
+            fd = None
+            for _ in range(50):
+                try:
+                    fd = os.open(tube, os.O_WRONLY | os.O_NONBLOCK)
+                    break
+                except OSError:
+                    ec.lire(0.1)
+            verifier(fd is not None, f"{taille} : namfoop a ouvert le tube MIDI")
+            if fd is None:
+                return
+            os.write(fd, b"cc 34 1\n")  # le son 2, « fuzz » : la réverbe le signe dans la trace
+            ec.lire(1.5)
+            avant = len([l for l in ec.lignes_de_trace() if "chaîne=" in l])
+            os.write(fd, b"cc 102 1\n")
+            ec.lire(1.0)
+            # « Refais le geste » : ratatui réécrit seulement les cellules changées (piège 7)
+            verifier("Refais le geste" in ec.voir(), f"{taille} : un geste propose")
+            verifier(
+                len([l for l in ec.lignes_de_trace() if "chaîne=" in l]) == avant,
+                f"{taille} : un seul geste ne change pas le son",
+            )
+            os.write(fd, b"cc 102 1\n")
+            ec.lire(5.0)
+            sessions = [l for l in ec.lignes_de_trace() if " session " in l]
+            verifier(
+                sessions[-1:] and sessions[-1].endswith("session instrument=2 Fretless reprise=Some((0, 1))"),
+                f"{taille} : la session se relance avec Fretless, au son 2 du morceau ({sessions[-1:]})",
+            )
+            # ce qui s'écrit après la ligne de démarrage du nouvel instrument : le nouvel écran
+            t = ec.voir()
+            apres = t[t.rfind("instrument 2 Fretless"):] if "instrument 2 Fretless" in t else ""
+            verifier("son 2/2 fuzz" in apres, f"{taille} : le nouvel écran joue le son 2, « fuzz »")
+            # le port a survécu à la relance : le pied rejoue le son 1
+            os.write(fd, b"cc 34 0\n")
+            ec.lire(1.5)
+            tr = ec.lignes_de_trace()
+            depuis = max(i for i, l in enumerate(tr) if " session " in l)
+            chaines = [l for l in tr[depuis:] if "chaîne=" in l]
+            verifier(
+                chaines and "reverb" not in chaines[-1],
+                f"{taille} : le pédalier répond après la relance (CC 34 = 0 : « clean »)",
+            )
+            os.close(fd)
+            ec.taper("q")
+            ec.taper("Q")  # la scène demande confirmation
+            verifier(ec.attendre_fin(4.0) == 0, f"{taille} : on quitte proprement après une relance")
+        finally:
+            ec.tuer()
+
+
 def scenario_midi_canal(binaire, lignes, colonnes):
     """**Le canal écouté** (`--midi-channel 5`), sur l'écran de scène : un CC venu d'un autre canal
     (les lights, sur le 10) ne change pas le son et se compte ; le même CC sur le canal 5 le change.
@@ -1170,6 +1242,7 @@ def main():
     scenario_midi(binaire, 25, 80)
     scenario_midi_horloge(binaire, 25, 80)
     scenario_midi_set(binaire, 25, 80)
+    scenario_instrument_au_pied(binaire, 25, 80)
     scenario_midi_canal(binaire, 25, 80)
     scenario_midi_canaux(binaire, 25, 80)
     scenario_midi_ecran(binaire, 25, 80)

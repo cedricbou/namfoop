@@ -164,6 +164,8 @@ pub enum Action {
     EditPrompt(usize),
     /// Le set actif a changé (ou disparu) : la banque préchargée doit être refaite.
     SetChanged,
+    /// **Changer d'instrument** (ou le recalibrer), confirmé au pied : la session se relance.
+    Relaunch(midi::instrument::Relaunch),
     Quit,
 }
 
@@ -311,6 +313,8 @@ pub struct State {
     /// de l'arbitre, il donne la position dans la noire sans jamais dériver : c'est ce qui place
     /// la battue, comme il place le clic.
     clock_seq: u64,
+    /// Mes instruments, l'instrument joué et le geste qui attend sa confirmation (§ 8).
+    pub instrument: midi::instrument::Instruments,
 }
 
 impl State {
@@ -367,6 +371,7 @@ impl State {
             midi_pc: None,
             tempo: engine::tempo::Arbiter::new(),
             clock_seq: 0,
+            instrument: Default::default(),
             tuner: None,
             tuner_key: Key::Char('u'),
             sound_back_at: None,
@@ -621,6 +626,7 @@ impl State {
         // **la battue** (§ 11 du mode Set) : la position avance avec l'horloge fournie, et rien
         // n'en descend dans le fil audio — la bande est dessinée par le fil de l'interface
         self.advance_beat(now_ms);
+        self.expire_instrument(now_ms);
         // la fenêtre PC + CC du mode Set : un Program Change seul finit par jouer son morceau
         if let Some(a) = self.flush_midi_pc(now_ms) {
             return a;

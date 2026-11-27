@@ -6,6 +6,16 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Instruments (#436)
+- **Changer d'instrument au pied, sur scène** : CC 102 (la valeur n choisit l'instrument n+1)
+  propose `Passer à 2 Fretless ? Refais le geste (5 s)` sans rien changer ; le même geste dans les
+  5 secondes relance la session avec cet instrument et sa calibration, au même set, même morceau,
+  même son, le port MIDI gardé ouvert. Le geste de l'instrument joué, fait deux fois, le
+  recalibre. Dans `browse` comme dans `run --set` ; réglable et coupable par canal dans
+  `namfoop midi` (`[midi] cc_instrument`), traduit dans sa zone « reçu » et dans la fiche.
+- **La question « pas calibrée » se répond au pied** : le geste de cet instrument calibre, un
+  bouton de son joue sans.
+
 ### MIDI (#474)
 - **Parcourir ses chaînes au pied** : dans l'espace Chaîne, CC 104 / CC 103 chargent la chaîne
   suivante / précédente de la banque, comme `PgDn` / `PgUp` (une chaîne modifiée fait d'abord
