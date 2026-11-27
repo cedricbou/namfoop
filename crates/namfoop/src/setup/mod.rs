@@ -80,17 +80,6 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, foun
                         }
                     }
                 }
-                Action::LoadMidiPorts => {
-                    let ports = midi_io::ports().unwrap_or_default();
-                    if ports.is_empty() {
-                        st.message = Some("aucun port MIDI vu : branche le pédalier, puis r".into());
-                    }
-                    let ports = ports
-                        .into_iter()
-                        .map(|p| state::MidiPortInfo { id: p.addr.clone(), label: p.label() })
-                        .collect();
-                    st.set_midi_ports(ports, conf.midi.as_ref().and_then(|m| m.input.as_deref()));
-                }
                 Action::OpenDevice => {
                     monitor = None;
                     std::thread::sleep(Duration::from_millis(200));

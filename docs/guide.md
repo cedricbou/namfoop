@@ -192,8 +192,11 @@ enregistrer. Six étapes :
    comme charge. La plus petite taille sans xrun est présélectionnée.
 6. **Résumé** : Entrée enregistre tout ce qui tient à la carte — device, buffer, entrées, rôle de
    chaque sortie — dans **son profil** ([§ 13](#profils-de-carte)), et la config ne retient que ta
-   **carte préférée** ([§ 16](#16-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est
-   pas touché.
+   **carte préférée** ([§ 16](#16-le-fichier-de-configuration)). Le reste (trim, niveau, MIDI...)
+   n'est pas touché.
+
+`setup` ne règle pas le MIDI : namfoop écoute tous tes appareils, quelle que soit la carte, et
+`namfoop midi` sert à en décocher ou à régler les canaux ([§ 12](#12-piloter-namfoop-au-pied--le-midi)).
 
 Ensuite, `namfoop browse`, `run`, `calibrate` et `latency` prennent la carte branchée avec son
 routage, sans aucune option. `--library` indique où chercher le modèle utilisé comme charge au
@@ -2961,8 +2964,13 @@ namfoop --midi-in "MC6" browse
 - `--no-midi` : aucune écoute, quoi qu'en dise la configuration — de quoi faire taire un pédalier
   qui fait des siennes au milieu d'un concert.
 
-Pour imposer ce seul port à chaque session, écris-le dans la configuration : `namfoop setup` le
-propose à son étape « pédalier MIDI », ou à la main ([§ 16](#16-le-fichier-de-configuration)) :
+`namfoop setup` ne touche pas au MIDI : sans réglage, namfoop écoute tous tes appareils, quelle
+que soit la carte son. Pour en écarter un, décoche-le dans `namfoop midi` (`b`) : le choix est
+enregistré par le **nom** de l'appareil, et tient quand tu rebranches ou changes de carte. Pour
+imposer un seul appareil à chaque session, écris son nom dans la configuration
+([§ 16](#16-le-fichier-de-configuration)) — un **numéro** de port (`28:0`, celui qu'écrivait
+l'ancienne étape MIDI de `setup`) est ignoré, parce qu'il change au rebranchement : namfoop le
+dit au démarrage, et un `S` dans `namfoop midi` retire la ligne.
 
 ```toml
 [midi]
@@ -3382,8 +3390,8 @@ source = "processed"
 channel = 2
 source = "di"
 
-[midi]                               # — setup, étape « pédalier MIDI » ([§ 12](#12-piloter-namfoop-au-pied--le-midi))
-in = "MC6"                           # seul port écouté (absent : tous) : nom, adresse, "sim:CHEMIN"
+[midi]                               # — namfoop midi ([§ 12](#12-piloter-namfoop-au-pied--le-midi))
+in = "MC6"                           # seul appareil écouté (absent : tous), par son nom, ou "sim:CHEMIN"
 off = false                          # true : aucune écoute MIDI (comme --no-midi)
 cc_sound = 34                        # le CC qui choisit le son du morceau (convention Fractal)
 cc_tap = 14                          # le CC du tap tempo (convention Fractal)

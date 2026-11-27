@@ -151,38 +151,6 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
                 "↑↓ choisir   Entrée valider   r refaire le test   ← retour   Échap quitter"
             }
         }
-        Step::Midi => {
-            lines.push(Line::raw("Quel pédalier MIDI (ou quelle application) namfoop doit-il écouter ?"));
-            lines.push(Line::from(Span::styled(
-                "Branche-le maintenant : il apparaît dans la liste (r pour relister).",
-                Style::new().fg(theme::text()),
-            )));
-            lines.push(Line::raw(""));
-            if s.midi_ports.is_empty() {
-                lines.push(Line::raw("   (aucun port MIDI — rien n'est enregistré, le premier"));
-                lines.push(Line::raw("    port branché sera écouté)"));
-            }
-            for (i, p) in s.midi_ports.iter().enumerate() {
-                let mut spans = vec![
-                    cursor(i == s.midi_cursor),
-                    Span::styled(p.label.clone(), Style::new().bold_if(i == s.midi_cursor)),
-                ];
-                if s.midi == super::state::MidiChoice::Port(p.id.clone()) {
-                    spans.push(tag("ÉCOUTÉ", theme::monitored()));
-                }
-                lines.push(Line::from(spans));
-            }
-            if s.midi == super::state::MidiChoice::Off {
-                lines.push(Line::raw(""));
-                lines.push(Line::from(Span::styled(
-                    "   MIDI coupé : aucun pédalier, aucune horloge.",
-                    Style::new().fg(theme::warn()),
-                )));
-            }
-            lines.push(Line::raw(""));
-            lines.push(Line::raw("Pour vérifier qu'il parle : `namfoop midi` affiche ce qui arrive."));
-            "↑↓ choisir   Entrée valider   x pas de MIDI   r relister   ← retour   Échap quitter"
-        }
         Step::Summary => {
             lines.push(Line::raw("Configuration à enregistrer dans ~/.config/namfoop/config.toml :"));
             lines.push(Line::raw(""));
@@ -201,7 +169,7 @@ pub fn render(s: &State, base: &crate::config::Config, f: &mut Frame) {
             for (c, r) in s.roles.iter().enumerate() {
                 lines.push(Line::raw(format!("   sortie {:<2} {}", c + 1, r.label())));
             }
-            lines.push(Line::raw(format!("   MIDI      {}", s.midi_label(base))));
+            lines.push(Line::raw(format!("   MIDI      {}", midi_summary(base))));
             lines.push(Line::raw(""));
             lines
                 .push(Line::raw("Ensuite : `namfoop calibrate` (une fois), puis `namfoop run -m <modèle>`."));
@@ -231,9 +199,17 @@ impl BoldIf for Style {
     }
 }
 
+/// Ce que le résumé dit du MIDI : `setup` ne le règle pas, il dit ce que namfoop fera.
+fn midi_summary(base: &model::Config) -> &'static str {
+    match base.midi.as_ref() {
+        Some(m) if m.off => "coupé ([midi] off) · namfoop midi pour le régler",
+        _ => "tous tes appareils · namfoop midi pour en décocher ou régler les canaux",
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::super::state::{DeviceInfo, Key, MidiChoice, MidiPortInfo};
+    use super::super::state::{DeviceInfo, Key};
     use super::*;
 
     fn screen(s: &State) -> String {
@@ -250,44 +226,10 @@ mod tests {
         s.on_key(Key::Down);
         s.on_key(Key::Char('m'));
         let txt = screen(&s);
-        assert!(txt.contains("étape 3/7 : entrées"), "{txt}");
+        assert!(txt.contains("étape 3/6 : entrées"), "{txt}");
         assert!(txt.contains("◀ BASSE") && txt.contains("◀ MICRO"), "{txt}");
         assert!(txt.contains("-12.0 dB") && txt.contains("-inf"), "{txt}");
         assert!(txt.contains("◀ signal"), "entrée 3 active non affectée : {txt}");
-    }
-
-    /// L'étape MIDI montre les ports, dit lequel est écouté, et renvoie vers `namfoop midi`.
-    #[test]
-    fn the_midi_step_lists_the_ports() {
-        let mut s = State::new(None);
-        s.step = Step::Midi;
-        s.set_midi_ports(
-            vec![
-                MidiPortInfo { id: "14:0".into(), label: "14:0  Midi Through Port-0".into() },
-                MidiPortInfo { id: "28:0".into(), label: "28:0  MC6 MKII MIDI 1".into() },
-            ],
-            Some("28:0"),
-        );
-        s.on_key(Key::Enter);
-        s.step = Step::Midi; // (Entrée mène au résumé : on revient voir l'écran)
-        let txt = screen(&s);
-        assert!(txt.contains("étape 6/7 : pédalier MIDI"), "{txt}");
-        assert!(txt.contains("MC6 MKII MIDI 1") && txt.contains("Midi Through"), "{txt}");
-        assert!(txt.contains("◀ ÉCOUTÉ"), "le port retenu se voit : {txt}");
-        assert!(txt.contains("namfoop midi"), "la vérification est nommée : {txt}");
-        s.on_key(Key::Char('x'));
-        assert_eq!(s.midi, MidiChoice::Off);
-        assert!(screen(&s).contains("MIDI coupé"), "{}", screen(&s));
-    }
-
-    /// Sans port, l'écran dit ce qui se passera (tous les appareils branchés) plutôt que rien.
-    #[test]
-    fn the_midi_step_without_any_port_says_so() {
-        let mut s = State::new(None);
-        s.step = Step::Midi;
-        let txt = screen(&s);
-        assert!(txt.contains("aucun port MIDI"), "{txt}");
-        assert!(txt.contains("premier"), "{txt}");
     }
 
     #[test]
@@ -311,6 +253,9 @@ mod tests {
             txt.contains("PreSonus AudioBox iTwo (hw:iTwo)") && txt.contains("basse     entrée 1"),
             "{txt}"
         );
-        assert!(txt.contains("MIDI      tous les appareils branchés"), "{txt}");
+        assert!(
+            txt.contains("MIDI      tous tes appareils · namfoop midi"),
+            "setup renvoie vers namfoop midi : {txt}"
+        );
     }
 }

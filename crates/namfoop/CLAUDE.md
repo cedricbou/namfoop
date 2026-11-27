@@ -23,7 +23,8 @@ cards.rs        MES CARTES (docs/design/instruments.md § 12) : `configured` (pr
                 qui liste), `system_id` (identifiant tiré du nom système, jamais du numéro : la
                 clé des calibrations). Jamais une carte non réglée : le profil livré ne suffit pas
 cli_midi.rs     options MIDI clap (MidiArgs : --midi-in, --no-midi, --midi-channel) -> midi_io::Settings
-                (CLI > config > défaut) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**,
+                (CLI > config > défaut ; une ADRESSE `client:port` dans la config, `is_address`,
+                est ignorée : elle change au rebranchement) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**,
                 et ne fait jamais échouer le démarrage — c'est le seul endroit où cette règle vit
                 (check-arch.sh refuse `midi_io::open` ailleurs qu'ici et dans midi_cmd.rs).
                 LES CANAUX ET LEURS NUMÉROS (ADR 0012) : `Listen` (la table canal -> `Numbers`,
@@ -96,9 +97,9 @@ theme.rs        LA liste des couleurs des écrans (et `paint` pour les commandes
 tui.rs          commun aux écrans plein écran : Key, poll_key, Session (logs coupés, stderr
                 redirigé, terminal restauré), meter, screen_text (tests)
 browse/         `browse` et `run --set` : voir src/browse/CLAUDE.md
-setup/          `setup` plein écran : state.rs (logique pure, testée ; l'étape MIDI y liste les ports
-                donnés par mod.rs et retient un `MidiChoice` — sans port en vue, elle n'écrit
-                rien plutôt que de figer « pas de MIDI »), ui.rs (ratatui, TestBackend),
+setup/          `setup` plein écran : state.rs (logique pure, testée ; AUCUNE étape MIDI : `to_config`
+                garde le `[midi]` de la config, que `namfoop midi` règle par le nom des
+                appareils), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par
                 backend), card.rs (ALSA : tout ce qui tient à la carte va dans SON profil, la
                 config d'avant est rangée dans le profil de sa carte, la config ne garde que la
