@@ -174,7 +174,7 @@ pour que le premier passage du modèle et de l'IR ne tombe pas sur le thread aud
 namfoop setup
 ```
 
-Un assistant plein écran, à faire une fois (et à refaire si tu changes de carte ou de câblage).
+Un assistant plein écran, à faire **une fois par carte** (et à refaire si tu changes de câblage).
 Flèches pour naviguer, Entrée pour valider, ← pour revenir, Échap pour quitter sans rien
 enregistrer. Six étapes :
 
@@ -190,11 +190,29 @@ enregistrer. Six étapes :
    seulement**, pour savoir où elle arrive. **Baisse le volume avant le premier bip.**
 5. **Buffer** : chaque taille est testée 5 s, en silence, avec un vrai modèle de ta bibliothèque
    comme charge. La plus petite taille sans xrun est présélectionnée.
-6. **Résumé** : Entrée enregistre les sections `[audio]` et `[routing]` de la config
-   ([§ 16](#16-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est pas touché.
+6. **Résumé** : Entrée enregistre tout ce qui tient à la carte — device, buffer, entrées, rôle de
+   chaque sortie — dans **son profil** ([§ 13](#profils-de-carte)), et la config ne retient que ta
+   **carte préférée** ([§ 16](#16-le-fichier-de-configuration)). Le reste (trim, niveau...) n'est
+   pas touché.
 
-Ensuite, `namfoop run`, `calibrate` et `latency` utilisent cette carte et ce routage sans aucune
-option. `--library` indique où chercher le modèle utilisé comme charge au test des buffers.
+Ensuite, `namfoop browse`, `run`, `calibrate` et `latency` prennent la carte branchée avec son
+routage, sans aucune option. `--library` indique où chercher le modèle utilisé comme charge au
+test des buffers.
+
+**Plusieurs cartes.** Règle chacune une fois avec `setup` : régler la seconde ne touche pas aux
+réglages de la première. La première réglée devient la préférée ; pour une autre, `setup` demande
+`En faire ma carte préférée ? (o / N)`. Au lancement, namfoop prend la préférée si elle est
+branchée, sinon l'unique autre carte réglée qui l'est, et le dit :
+
+```
+carte       Soundcraft Signature 12 MTK — PreSonus AudioBox iTwo n'est pas branchée
+```
+
+Les deux branchées, il prend la préférée et signale l'autre ; `--card` choisit pour la session :
+
+```sh
+namfoop --card mtk browse
+```
 
 Pour essayer l'assistant sans matériel : `namfoop --backend sim --no-config setup`.
 
@@ -2999,14 +3017,20 @@ commande (`namfoop --backend alsa --buffer 64 run -m b7k`).
 - `--rate` : fréquence d'échantillonnage (48000 ; les modèles sont entraînés à 48 kHz). Si la carte
   en impose une autre, namfoop refuse de démarrer.
 
-**La carte qui manque.** namfoop n'ouvre **aucune carte par défaut**. Sans carte dans la config ni
-en option, ou si celle de la config n'est pas branchée (ou si son nom ALSA a changé), il s'arrête en
-listant les cartes qu'il voit et la marche à suivre : `namfoop setup`, `--device hw:<id>`, ou
-`--backend sim --device 4x6` pour travailler sans matériel. Il ne choisit jamais une carte à votre
-place : sur scène, jouer dans la mauvaise sortie est pire qu'un refus.
+**La carte qui manque.** namfoop n'ouvre **aucune carte par défaut**. Sans carte réglée branchée,
+il s'arrête en listant les cartes qu'il voit, celles qui sont réglées, et la marche à suivre :
+`namfoop setup`, `--device hw:<id>`, ou `--backend sim --device 4x6` pour travailler sans
+matériel. Il ne prend jamais une carte que tu n'as pas réglée : sur scène, jouer dans la mauvaise
+sortie est pire qu'un refus. Plusieurs cartes réglées branchées sans la préférée : il refuse aussi,
+et montre `--card`.
+
+- `--card <id>` : la carte réglée à prendre pour cette session (`mtk`, `itwo` : l'identifiant
+  de son profil, tiré du nom que le système donne à la carte).
+- `--device` : un device ALSA donné à la main, hors des cartes réglées.
 
 ```sh
-namfoop --device hw:MTK browse     # la carte, le temps d'une session
+namfoop --card mtk browse          # une carte réglée, le temps d'une session
+namfoop --device hw:MTK browse     # un device, le temps d'une session
 ```
 
 **Formats ALSA.** namfoop essaie dans l'ordre `S32_LE`, `S24_3LE`, `S24_LE` puis `S16_LE`, pour la
@@ -3046,13 +3070,21 @@ enregistré).
 ### Profils de carte
 
 **Pourquoi.** Ce qui change d'une carte son à l'autre (device, buffer et périodes qui tiennent sans
-xrun, entrée de la basse, contrôles du mixer à régler, latence mesurée) est rangé dans un petit
-fichier TOML : changer de carte (iTwo, UMC404HD, HAT I2S sur le Pi) ne demande ni option ni code.
+xrun, entrées de la basse et du micro, rôle de chaque sortie, contrôles du mixer à régler, latence
+mesurée) est rangé dans un petit fichier TOML par carte : passer de l'iTwo à la MTK ne demande ni
+option ni nouveau `setup`.
 
-Un profil est livré pour l'iTwo (`profiles/itwo.toml`). Les tiens vont dans
-`~/.config/namfoop/profiles/<id>.toml` (à côté de la config) et priment à identifiant égal.
-`setup` (backend ALSA) écrit `[audio] profile = "<id>"` : il reprend le profil qui reconnaît la
-carte choisie, ou en crée un nouveau avec tes choix, à compléter.
+`setup` (backend ALSA) écrit le profil de la carte réglée dans
+`~/.config/namfoop/profiles/<id>.toml`, à côté de la config : il reprend le profil qui reconnaît la
+carte, ou en crée un, et y range tes choix. L'identifiant vient du nom que le système donne à la
+carte (`hw:MTK` → `mtk`), jamais de son numéro, qui change avec l'ordre de branchement : c'est lui
+qui retrouve les calibrations de tes instruments d'une machine à l'autre. Une carte n'est
+**réglée** que si son profil est écrit sur cet ordinateur : le profil livré de l'iTwo
+(`profiles/itwo.toml`) ne dit pas où vont les sorties, il sert de point de départ.
+
+Une config d'avant, qui porte elle-même `[audio] device` et `[routing]`, marche sans qu'on y
+touche : ses réglages valent pour la carte qu'elle nomme. Au premier `setup` d'une autre carte, ils
+sont rangés dans le profil de leur carte.
 
 ```toml
 # ~/.config/namfoop/profiles/hat.toml
@@ -3062,7 +3094,15 @@ device = "hw:sndrpihifiberry"
 buffer = 64
 periods = 3
 bass_in = 1
+mic_in = 2                 # optionnel
 measured_latency_ms = 4.8  # mesuré avec namfoop latency, pour mémoire
+[[outputs]]                # le rôle de chaque sortie, comme [[routing.outputs]] (§ 16)
+channel = 1
+source = "processed"
+[[outputs]]
+channel = 2
+source = "processed"
+click = true               # in-ear : reçoit aussi le clic
 [[mixer]]                  # réglé à l'ouverture (ALSA) : gain du préampli, sélection d'entrée...
 control = "Capture"        # nom d'après amixer -c <carte> scontrols
 value = "80%"              # « 80% », « -6dB », « on » / « off », entier brut ou nom d'un choix
@@ -3072,8 +3112,9 @@ value = "80%"              # « 80% », « -6dB », « on » / « off », entier
 namfoop --backend alsa latency      # profil reconnu : ni --device ni --buffer à donner
 ```
 
-Ordre de priorité : option de la ligne de commande > config > profil > défaut. Le profil choisi
-est `[audio] profile` ; sans lui, celui dont `match` apparaît dans le nom d'une carte branchée.
+Ordre de priorité : option de la ligne de commande > profil > défaut ; les réglages `[audio]` et
+`[routing]` d'une config d'avant passent avant le profil, pour la seule carte qu'elle nomme. Une
+carte est branchée quand son `match` apparaît dans le nom d'une carte que le système voit.
 
 Pièges :
 - le profil ne sert qu'en **ALSA direct**, puisqu'il décrit un device matériel : avec `--no-config`
@@ -3246,8 +3287,9 @@ library = "/srv/namfoop/library"     # optionnel : la bibliothèque ([§ 6](#6-l
 
 [audio]                              # — setup
 backend = "alsa"
-profile = "itwo"                     # optionnel : profil de carte (sinon reconnu d'après la carte)
-device = "hw:iTwo"
+profile = "itwo"                     # la carte préférée (son profil, § 13)
+device = "hw:iTwo"                   # config d'avant : device, buffer, [routing]… valent pour sa carte ;
+                                     # setup les range dans le profil de la carte
 # capture_device = "hw:1,1"          # optionnel (ALSA) : capture sur un autre device
 buffer = 48
 periods = 3

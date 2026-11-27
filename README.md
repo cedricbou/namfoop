@@ -32,7 +32,7 @@ git clone --recurse-submodules https://github.com/cedricbou/namfoop.git && cd na
 cargo build --release                         # prérequis : voir « Prérequis de compilation »
 ./target/release/namfoop import nam/         # zips (Tone3000, packs achetés) -> library/
 ./target/release/namfoop models               # inventaire des modèles et IR
-./target/release/namfoop setup                # une fois : carte, entrées, sorties, buffer
+./target/release/namfoop setup                # une fois par carte : entrées, sorties, buffer (namfoop prend la carte branchée)
 ./target/release/namfoop calibrate --instrument "bb 735a"   # une fois par instrument : joue fort 15 s
 ./target/release/namfoop instruments          # mes instruments et leurs calibrations, carte par carte
 ./target/release/namfoop browse               # choisir modèle / IR / mélange en jouant (S enregistre un preset, n repart de zéro)

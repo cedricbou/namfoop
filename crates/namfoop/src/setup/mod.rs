@@ -1,13 +1,16 @@
 //! `namfoop setup` : assistant plein écran pour choisir backend, carte, entrées, sorties et buffer.
-//! Écrit les sections [audio], [routing] et [midi] de la config ; le reste (trim, niveau) est
-//! conservé.
+//! En ALSA, tout ce qui tient à la carte va dans son profil (`card.rs`) et la config ne garde que
+//! la carte préférée ; en carte simulée, [audio] et [routing] vont dans la config. [midi] va dans
+//! la config ; le reste (trim, niveau) est conservé.
 //!
+//! - `card.rs`    ce qui s'écrit pour une carte ALSA (testé)
 //! - `state.rs`   logique pure (testée) : touches -> transitions + actions
 //! - `ui.rs`      rendu ratatui (testé avec TestBackend)
 //! - `audio.rs`   vumètres, bip, test des buffers
 //! - `devices.rs` liste des cartes par backend
 
 mod audio;
+mod card;
 mod devices;
 mod state;
 mod ui;
@@ -121,15 +124,22 @@ pub fn run(base: &Settings, cli_backend: Option<Kind>, conf: &LoadedConfig, foun
         let mut new = st.to_config(&conf.config, base.rate);
         if conf.ignored {
             println!("--no-config : configuration non enregistrée.");
-        } else {
-            if let (Kind::Alsa, Some(dev)) = (st.kind(), st.device()) {
-                new.audio.profile = Some(card_profile_for(conf, &st, dev)?);
+            println!("{}", toml::to_string_pretty(&ConfigView { audio: &new.audio, routing: &new.routing })?);
+        } else if let (Kind::Alsa, Some(dev)) = (st.kind(), st.device()) {
+            let dev = card::Device { id: &dev.id, label: &dev.label };
+            let saved = card::save(conf, &mut new, &dev, ask_preferred)?;
+            new.save(&conf.path)?;
+            if let Some(moved) = &saved.moved {
+                println!("Réglages de la carte d'avant rangés dans son profil : {}", moved.display());
             }
+            println!("Carte « {} » réglée : {}", saved.id, saved.path.display());
+            println!("Carte préférée : {}   ({})", saved.preferred, conf.path.display());
+        } else {
             new.save(&conf.path)?;
             println!("Enregistré : {}", conf.path.display());
+            println!("{}", toml::to_string_pretty(&ConfigView { audio: &new.audio, routing: &new.routing })?);
         }
-        println!("{}", toml::to_string_pretty(&ConfigView { audio: &new.audio, routing: &new.routing })?);
-        println!("Suite : `namfoop calibrate` (une fois), puis `namfoop run -m <modèle>`.");
+        println!("Suite : `namfoop calibrate --instrument \"ma basse\"` (une fois par instrument et par carte), puis `namfoop browse`.");
     } else {
         println!("Assistant quitté sans rien enregistrer.");
     }
@@ -149,30 +159,11 @@ struct ConfigView<'a> {
     routing: &'a engine::router::Routing,
 }
 
-/// Profil de la carte choisie : un profil connu qui la reconnaît, sinon un nouveau écrit dans
-/// `profiles/` (à côté de la config) avec les choix de l'assistant. Renvoie son identifiant.
-fn card_profile_for(conf: &LoadedConfig, st: &State, dev: &state::DeviceInfo) -> Result<String> {
-    let dir = model::card::user_dir(&conf.path);
-    let all = model::card::all_profiles(Some(&dir))?;
-    let card = dev.id.strip_prefix("hw:").unwrap_or(&dev.id).split(',').next().unwrap_or("").to_string();
-    if let Some((id, p)) = crate::cli_audio::detect(&all, &[(dev.id.clone(), dev.label.clone())]) {
-        println!("Profil de carte reconnu : {id} ({})", p.name);
-        return Ok(id);
-    }
-    let id: String =
-        card.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
-    let id = if id.is_empty() { "carte".to_string() } else { id };
-    let p = model::CardProfile {
-        name: dev.label.clone(),
-        match_name: card,
-        device: Some(dev.id.clone()),
-        buffer: st.chosen_buffer(),
-        periods: Some(st.periods),
-        bass_in: st.bass_in.map(|b| b + 1),
-        ..Default::default()
-    };
-    let path = dir.join(format!("{id}.toml"));
-    p.save(&path)?;
-    println!("Nouveau profil de carte : {} (à compléter : latence mesurée, [[mixer]])", path.display());
-    Ok(id)
+/// Une autre carte est déjà la préférée : faut-il que celle-ci le devienne ? Non par défaut.
+fn ask_preferred(name: &str) -> bool {
+    use std::io::Write;
+    print!("{name} : en faire ma carte préférée ? (o / N) ");
+    let _ = std::io::stdout().flush();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).is_ok() && matches!(line.trim(), "o" | "O" | "oui")
 }

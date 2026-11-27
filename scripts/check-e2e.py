@@ -1069,7 +1069,7 @@ def scenario_niveau_de_l_instrument(binaire):
 def scenario_question(binaire):
     """**La question du lancement** (`docs/design/instruments.md` § 5) : un instrument jamais
     calibré sur la carte branchée fait poser la question **avant** d'ouvrir la carte. On la vise
-    avec un device ALSA qui n'existe pas : la question passe, `Échap` retient « jouée sans » dans
+    avec un device ALSA qui n'existe pas, donné par `--device` : la question passe, `Échap` retient « jouée sans » dans
     le fichier de l'instrument, puis l'ouverture de la carte échoue — c'est le signe que rien
     n'a été ouvert avant la réponse. Relancé, namfoop ne repose pas la question. En carte
     simulée, aucune question."""
@@ -1082,9 +1082,12 @@ def scenario_question(binaire):
         config = os.path.join(tmp, "config.toml")
 
         def lancer(backend, touches=None):
+            # le device en option : une carte écrite dans la config, mais absente, est refusée
+            # avant toute question (aucune carte réglée n'est branchée)
+            device = "4x6" if backend == "sim" else "hw:Nulle"
             with open(config, "w", encoding="utf-8") as f:
-                f.write(f'[audio]\nbackend = "{backend}"\ndevice = "{"4x6" if backend == "sim" else "hw:Nulle"}"\n')
-            ec = Ecran(binaire, ["--config", config, "browse", "--library", bib], 25, 80,
+                f.write(f'[audio]\nbackend = "{backend}"\n')
+            ec = Ecran(binaire, ["--config", config, "--device", device, "browse", "--library", bib], 25, 80,
                        os.path.join(tmp, "trace.log"))
             try:
                 ec.lire(2.0)

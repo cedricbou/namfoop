@@ -54,6 +54,8 @@ pub fn decide(cal: &Calibration, keyboard: bool) -> Decision {
 /// la bibliothèque et l'instrument demandé.
 pub struct Prep<'a> {
     pub audio: &'a audio_io::Settings,
+    /// La carte jouée, celle des calibrations.
+    pub card: instrument::Card,
     pub routing: &'a Routing,
     pub library: &'a Path,
     pub query: Option<&'a str>,
@@ -62,9 +64,9 @@ pub struct Prep<'a> {
 /// Sur la carte : résout la calibration jouée, pose la question s'il le faut, puis écrit la
 /// ligne de démarrage avec le niveau retenu (`level` : `--level` de la commande).
 pub fn on_card(conf: &LoadedConfig, prep: &Prep, level: Option<LevelArg>) -> Result<Calibration> {
-    let card = instrument::card_of(conf, prep.audio)?;
+    let card = &prep.card;
     let calib =
-        || instrument::resolve(conf, &instrument::load(prep.library)?, prep.query, &card, prep.library);
+        || instrument::resolve(conf, &instrument::load(prep.library)?, prep.query, card, prep.library);
     let c = run(calib()?, prep, calib)?;
     if let Some(line) = c.startup_line(level.map(Into::into).unwrap_or_else(|| c.level(conf.config.level))) {
         eprintln!("{line}");

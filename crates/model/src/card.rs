@@ -1,5 +1,7 @@
 //! Profils de carte : ce qui change d'une carte son à l'autre (device, buffer et périodes validés,
-//! entrée instrument, contrôles mixer à régler à l'ouverture, latence mesurée), en TOML.
+//! entrées de l'instrument et du micro, rôle de chaque sortie, contrôles mixer à régler à
+//! l'ouverture, latence mesurée), en TOML. `namfoop setup` écrit tout ce qui tient à la carte
+//! dans son profil : régler une seconde carte ne touche pas à la première.
 //! Profils livrés : `profiles/*.toml` du dépôt (inclus dans le binaire) ; ceux de l'utilisateur,
 //! dans `~/.config/namfoop/profiles/`, priment à identifiant égal (nom du fichier sans `.toml`).
 
@@ -7,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
+use crate::routing::OutputRoute;
 
 /// Un contrôle mixer ALSA réglé à l'ouverture de la carte (ex. gain du préampli d'un HAT).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -33,9 +36,19 @@ pub struct CardProfile {
     pub periods: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<u32>,
+    /// Device ALSA de capture, s'il diffère de `device`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_device: Option<String>,
     /// Entrée de la basse (à partir de 1).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bass_in: Option<usize>,
+    /// Entrée du micro (à partir de 1).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mic_in: Option<usize>,
+    /// Rôle de chaque sortie, et celles qui reçoivent le clic. Vide : un profil livré, ou écrit
+    /// avant que les sorties n'y soient rangées.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub outputs: Vec<OutputRoute>,
     /// Latence aller-retour mesurée avec ces réglages (ms), pour mémoire et pour les tests.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub measured_latency_ms: Option<f32>,
@@ -122,6 +135,31 @@ mod tests {
         assert!(
             itwo.matches("PreSonus AudioBox iTwo Pro") && itwo.matches("hw:iTwo") && !itwo.matches("hw:MTK")
         );
+    }
+
+    /// Un profil porte le routage de sa carte, et un profil d'avant (sans sorties) se relit.
+    #[test]
+    fn a_profile_keeps_its_routing_and_an_older_one_still_reads() {
+        use crate::routing::Source;
+        let p = CardProfile {
+            name: "Soundcraft Signature 12 MTK".into(),
+            match_name: "MTK".into(),
+            device: Some("hw:MTK".into()),
+            bass_in: Some(1),
+            mic_in: Some(2),
+            outputs: vec![
+                OutputRoute { channel: 1, source: Source::Processed, click: false },
+                OutputRoute { channel: 2, source: Source::Processed, click: true },
+                OutputRoute { channel: 6, source: Source::Di, click: false },
+            ],
+            ..Default::default()
+        };
+        let text = toml::to_string_pretty(&p).unwrap();
+        assert_eq!(CardProfile::parse("mtk", &text).unwrap(), p, "{text}");
+        let old =
+            "name = \"MTK\"\nmatch = \"MTK\"\ndevice = \"hw:MTK\"\nbuffer = 48\nperiods = 3\nbass_in = 1\n";
+        let p = CardProfile::parse("mtk", old).unwrap();
+        assert_eq!((p.bass_in, p.mic_in, p.outputs.len()), (Some(1), None, 0));
     }
 
     #[test]
