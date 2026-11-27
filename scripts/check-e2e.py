@@ -27,6 +27,11 @@ Ce que ce harnais sait, et qui coûte une demi-journée à redécouvrir :
 7. Ne pas scruter l'écran pour une valeur qui CHANGE : ratatui n'écrit que les cellules modifiées,
    si bien qu'une valeur arrive en morceaux épars. Pour « ce qu'on entend », la source de vérité est
    la trace (`NAMFOOP_BROWSE_TRACE`), pas l'écran.
+8. **Sans port demandé, namfoop écoute TOUS les appareils MIDI de la machine** : un pédalier
+   branché, ou l'horloge qu'Ableton (ou `arr play --clock`) envoie à la session de l'utilisateur,
+   arrive aussi dans l'écran testé et fausse le tempo, la battue, la chaîne installée. Chaque
+   lancement passe donc par `isoler()`, qui ajoute `--no-midi` sauf si le scénario demande un port
+   simulé (`--midi-in sim:…` ou `in = "sim:…"` dans sa config).
 """
 
 import os
@@ -59,6 +64,23 @@ except ImportError as e:  # pragma: no cover - dépend de la plateforme
     sortir_sans_conclure(f"module absent ({e})")
 
 
+def isoler(args):
+    """Les arguments d'un lancement, **coupés du MIDI de la machine** (piège 8) : `--no-midi`
+    ajouté, sauf si le scénario choisit déjà son port (`--midi-in`, `--no-midi`) ou en écrit un
+    simulé dans sa config."""
+    if "--midi-in" in args or "--no-midi" in args:
+        return list(args)
+    if "--config" in args:
+        i = args.index("--config") + 1
+        try:
+            with open(args[i], encoding="utf-8") as f:
+                if re.search(r'^in\s*=\s*"sim:', f.read(), re.M):
+                    return list(args)
+        except (IndexError, OSError):
+            pass
+    return ["--no-midi", *args]
+
+
 class Ecran:
     """Un namfoop plein écran dans un pseudo-terminal."""
 
@@ -72,7 +94,7 @@ class Ecran:
         e = dict(os.environ, TERM="xterm-256color", NAMFOOP_BROWSE_TRACE=trace, RUST_LOG="off")
         e.update(env or {})
         self.proc = subprocess.Popen(
-            [binaire, *args], stdin=esclave, stdout=esclave, stderr=esclave, env=e, close_fds=True
+            [binaire, *isoler(args)], stdin=esclave, stdout=esclave, stderr=esclave, env=e, close_fds=True
         )
         os.close(esclave)
         self.maitre = maitre
@@ -862,7 +884,7 @@ def scenario_midi_plan(binaire, lignes, colonnes):
             ecrit = open(os.path.join(bib, "sets/concert.set.toml"), encoding="utf-8").read()
             verifier("pc = 7" in ecrit, f"{taille} : le set enregistré porte le PC 7")
             # la fiche (`--fiche`) se calcule du set enregistré : le morceau y porte son PC 7
-            fiche = subprocess.run([binaire, "--config", config, "midi", "--fiche", "--library", bib],
+            fiche = subprocess.run([binaire, *isoler(["--config", config, "midi", "--fiche", "--library", bib])],
                                    capture_output=True, text=True, timeout=20).stdout
             verifier("PC 7" in fiche and "Le Phare" in fiche, f"{taille} : la fiche porte « PC 7 Le Phare »")
             verifier(all(len(l) <= 46 for l in fiche.splitlines()), f"{taille} : la fiche tient sur un téléphone")
@@ -1055,8 +1077,8 @@ def scenario_niveau_de_l_instrument(binaire):
                 os.remove(fiche)
             sortie = os.path.join(dossier, "sortie.wav")
             r = subprocess.run(
-                [binaire, "--config", chemin, "render", "--library", bib, "-m", MODELE,
-                 "-i", os.path.join(bib, "ir/essai/essai.wav"), "-o", sortie],
+                [binaire, *isoler(["--config", chemin, "render", "--library", bib, "-m", MODELE,
+                                   "-i", os.path.join(bib, "ir/essai/essai.wav"), "-o", sortie])],
                 capture_output=True, text=True, timeout=120,
             )
             ok = r.returncode == 0

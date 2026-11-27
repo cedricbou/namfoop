@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Atelier (#473)
+- **Les essais de bout en bout n'écoutent plus le MIDI de la machine** : sans port demandé, chaque
+  écran testé s'abonnait à tous les appareils MIDI, et l'horloge envoyée à la session de
+  l'utilisateur (Ableton, `arr play --clock`) faussait le tempo, la battue et la chaîne installée.
+  Chaque lancement reçoit `--no-midi`, sauf les scénarios qui testent le MIDI sur un port simulé.
+
 ### MIDI (#435)
 - **Changer de morceau au pied, sans Ableton** : CC 104 joue le morceau suivant du set, CC 103 le
   précédent, sur leur premier son, comme `→` / `←`, dans `browse` comme dans `run --set` ; ils
