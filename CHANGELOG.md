@@ -6,6 +6,14 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#468)
+- **`setup` ne fige plus de port MIDI** : son étape MIDI disparaît, et son résumé renvoie vers
+  `namfoop midi`. Sans réglage, namfoop écoute tous tes appareils, quelle que soit la carte son ;
+  on en décoche dans `namfoop midi`, par leur nom, et le choix tient au rebranchement.
+- **Un numéro de port écrit par l'ancien `setup`** (`[midi] in = "28:0"`) est ignoré, et namfoop
+  le dit au démarrage ; un `S` dans `namfoop midi` retire la ligne. Un nom d'appareil et
+  `--midi-in` restent suivis.
+
 ### Instruments (#436)
 - **Changer d'instrument au pied, sur scène** : CC 102 (la valeur n choisit l'instrument n+1)
   propose `Passer à 2 Fretless ? Refais le geste (5 s)` sans rien changer ; le même geste dans les

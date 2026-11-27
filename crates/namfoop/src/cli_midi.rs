@@ -253,7 +253,13 @@ impl MidiArgs {
             return None;
         }
         Some(Settings {
-            port: self.midi_in.clone().or_else(|| conf.and_then(|m| m.input.clone())),
+            // une **adresse** de séquenceur dans la config (« 28:0 », l'ancienne étape MIDI de
+            // `setup`) ne vaut plus rien : elle change au rebranchement. Seuls un nom et `sim:`
+            // désignent un appareil ; `--midi-in` passe toujours, c'est un choix du moment.
+            port: self
+                .midi_in
+                .clone()
+                .or_else(|| conf.and_then(|m| m.input.clone()).filter(|p| !is_address(p))),
             clock_from: conf.and_then(|m| m.clock_from.clone()),
             ignore: conf.map(|m| m.ignore.clone()).unwrap_or_default(),
         })
@@ -268,6 +274,14 @@ impl MidiArgs {
     /// démarrage** : un concert ne s'arrête pas parce qu'un câble MIDI est débranché.
     pub fn open(&self, file: &FileConfig) -> Option<MidiIn> {
         let cfg = self.resolve(file)?;
+        if let Some(old) = file.midi.as_ref().and_then(|m| m.input.as_deref()).filter(|p| is_address(p)) {
+            if self.midi_in.is_none() {
+                log::warn!(
+                    "[midi] in = « {old} » ignoré (un numéro de port change au rebranchement) : \
+                     j'écoute tous tes appareils — namfoop midi pour en décocher"
+                );
+            }
+        }
         match midi_io::open(&cfg) {
             Ok(input) => {
                 let m = MidiIn { input, listen: self.listen(file), ignored: 0 };
@@ -288,11 +302,32 @@ impl MidiArgs {
     }
 }
 
+/// Une **adresse** de séquenceur ALSA (`client:port`, deux nombres) plutôt qu'un nom : ce que
+/// l'ancienne étape MIDI de `setup` écrivait, et qui change selon l'ordre de branchement.
+pub fn is_address(port: &str) -> bool {
+    let mut parts = port.split(':');
+    let num = |p: Option<&str>| p.is_some_and(|x| !x.is_empty() && x.bytes().all(|b| b.is_ascii_digit()));
+    num(parts.next()) && num(parts.next()) && parts.next().is_none()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use midi_io::Event;
+
+    /// Une adresse écrite dans la config est ignorée : tous les appareils. Un nom, `sim:` et
+    /// `--midi-in` (même une adresse) restent suivis.
+    #[test]
+    fn an_address_in_the_config_listens_to_everything() {
+        assert!(is_address("28:0") && is_address("128:3"));
+        assert!(!is_address("MC6") && !is_address("sim:/tmp/m") && !is_address("Ampero Control:0"));
+        let none = MidiArgs::default();
+        assert_eq!(none.resolve(&conf(Some("28:0"), false)).and_then(|s| s.port), None, "tous");
+        assert_eq!(none.resolve(&conf(Some("MC6"), false)).and_then(|s| s.port).as_deref(), Some("MC6"));
+        let option = MidiArgs { midi_in: Some("28:0".into()), ..Default::default() };
+        assert_eq!(option.resolve(&conf(None, false)).and_then(|s| s.port).as_deref(), Some("28:0"));
+    }
 
     fn conf(input: Option<&str>, off: bool) -> FileConfig {
         FileConfig {

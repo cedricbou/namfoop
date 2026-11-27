@@ -117,7 +117,11 @@ impl State {
     /// L'écran sur la section `[midi]` de la config. Un `channel = N` seul devient un canal réglé
     /// (même sens, ADR 0012) : c'est la forme que l'écran écrit.
     pub fn new(midi: Midi, can_save: bool) -> Self {
+        let saved_input = midi.input.clone();
         let mut draft = midi;
+        // l'adresse d'un port (« 28:0 », écrite par l'ancien `setup`) n'est plus suivie : le
+        // brouillon la retire, si bien qu'un `S` la retire aussi de la config
+        let stale = draft.input.take_if(|p| crate::cli_midi::is_address(p));
         if let Some(c) = draft.channel.take() {
             if !draft.channels.iter().any(|x| x.channel == c) {
                 draft.channels.push(channel(c));
@@ -129,8 +133,10 @@ impl State {
         } else {
             Row::Channel(Some(draft.channels[0].channel))
         };
-        Self {
-            saved: draft.clone(),
+        let mut saved = draft.clone();
+        saved.input = saved_input;
+        let mut st = Self {
+            saved,
             draft,
             can_save,
             cursor,
@@ -160,7 +166,14 @@ impl State {
             fiche_scroll: 0,
             playing: None,
             logged_tempo: None,
+        };
+        if let Some(old) = stale {
+            st.say(
+                format!("[midi] in = « {old} » n'est plus suivi (un numéro de port change) : S le retire"),
+                Tone::Plain,
+            );
         }
+        st
     }
 
     pub fn dirty(&self) -> bool {

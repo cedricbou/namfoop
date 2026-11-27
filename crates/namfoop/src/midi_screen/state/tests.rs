@@ -427,3 +427,16 @@ fn l_horloge_s_affiche_par_son_tempo() {
     assert_eq!(lignes.len(), 1, "un seul tempo, une seule ligne : {lignes:?}");
     assert!(lignes[0].starts_with("→ ♩ 12"), "{lignes:?}");
 }
+
+/// L'adresse d'un port écrite par l'ancien `setup` n'est plus suivie : le brouillon la retire, et
+/// l'écran dit qu'un `S` la retirera de la config. Un nom d'appareil, lui, reste.
+#[test]
+fn une_adresse_de_port_ecrite_par_setup_est_retiree_au_s() {
+    let s = State::new(Midi { input: Some("28:0".into()), ..Default::default() }, true);
+    assert_eq!(s.draft.input, None);
+    assert!(s.dirty(), "S a quelque chose à écrire");
+    assert!(s.message.as_ref().is_some_and(|(m, _)| m.contains("28:0") && m.contains("S le retire")));
+    let s = State::new(Midi { input: Some("MC6".into()), ..Default::default() }, true);
+    assert_eq!(s.draft.input.as_deref(), Some("MC6"));
+    assert!(!s.dirty());
+}
