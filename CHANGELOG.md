@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Atelier (#470)
+- L'écran de `namfoop midi` est découpé en fichiers plus petits, avant d'y ajouter les gestes de
+  morceau et d'instrument. Aucun comportement ne change.
+
 ### Atelier (#434)
 - Les tests des messages MIDI de l'écran sont rangés dans leur propre fichier, avant d'y ajouter
   des gestes. Aucun comportement ne change.

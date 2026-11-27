@@ -173,13 +173,15 @@ midi_rules.rs   ce qu'un message demande à un set (le morceau d'un PC, le son d
                 refus) : règles pures, partagées par browse/state/midi/, qui joue, et l'écran MIDI,
                 qui dit ce qui serait joué — une seule source pour « n'a que 2 sons »
 midi_screen/    l'écran plein écran de `midi` (docs/design/midi.md), rangé comme setup/ : state.rs
-                (pure, testée : brouillon de [midi], fenêtre « Régler » et sa capture, refus ;
+                (pure, testée : brouillon de [midi], refus ; state/types.rs : lignes, fenêtres,
+                actions ; state/input.rs : la fenêtre « Régler » et sa capture ;
                 state/incoming.rs : ce qui arrive et ce que namfoop en ferait ;
                 state/plan.rs : les onglets, le Plan du set — numéro d'un morceau par la règle de
                 library::set::SetSpec::pc_owner, la même que l'édition du set de browse),
                 fiche.rs (la fiche, fonction PURE : l'onglet, fiche-midi.txt et --fiche l'appellent ;
                 lignes de 46 colonnes au plus, testé),
-                ui.rs (neutre : theme::neutral, jamais d'accent d'espace), table.rs (les touches,
+                ui.rs (neutre : theme::neutral, jamais d'accent d'espace ; ui/set.rs : le Plan,
+                la Fiche, la liste à choisir), table.rs (les touches,
                 déclarées une fois : barre et aide en dérivent), keyboard.rs + keyboard.ref.txt
                 (l'oracle du clavier). Reçoit le port DÉJÀ ouvert par midi_cmd.rs, sans appareil
                 décoché ni horloge imposée : il applique son brouillon lui-même
