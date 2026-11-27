@@ -145,7 +145,9 @@ impl ActiveSet {
         let songs: Vec<usize> = self.flat().iter().map(|(i, _)| *i).collect();
         let first_of = |song: usize| self.flat().into_iter().find(|(i, _)| *i == song);
         match here {
-            None => first_of(if down { *songs.first()? } else { *songs.last()? }),
+            // rien d'engagé : les deux sens partent du **premier** morceau — en début de concert,
+            // un appui sur le mauvais bouton ne doit pas envoyer le rappel
+            None => first_of(*songs.first()?),
             Some(cur) if down => songs.iter().find(|i| **i > cur).copied().and_then(first_of),
             Some(cur) => songs.iter().rev().find(|i| **i < cur).copied().and_then(first_of),
         }
@@ -392,6 +394,9 @@ mod tests {
     #[test]
     fn stepping_songs_goes_to_the_first_sound() {
         let mut s = set();
+        // rien d'engagé : « précédent » comme « suivant » partent du premier morceau
+        assert_eq!(s.step_song(true), Some((0, 0)));
+        assert_eq!(s.step_song(false), Some((0, 0)), "jamais le dernier : ce serait le rappel");
         s.at = Some((0, 1)); // deuxième son du premier morceau
         assert_eq!(s.step_song(true), Some((1, 0)), "le premier son du morceau suivant");
         s.at = Some((1, 1));

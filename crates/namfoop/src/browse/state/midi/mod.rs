@@ -276,9 +276,17 @@ impl State {
     /// `←`, donc le premier son du morceau, la même banque préchargée, et le son rendu si l'on
     /// était à l'accordeur. 64 ou plus agit, 0-63 est ignoré sans bruit : c'est le relâcher d'un
     /// bouton qui envoie 127 puis 0. Un PC en attente est oublié : la dernière demande gagne.
+    ///
+    /// **Dans l'espace Chaîne, le même geste parcourt la banque** : le chemin de `PgDn` / `PgUp`,
+    /// confirmation d'une chaîne non enregistrée comprise. On y compare des chaînes, et le pied
+    /// qui changeait de morceau envoyait ailleurs.
     fn midi_step_song(&mut self, cc: u8, value: u8, down: bool) -> Action {
         if value < 64 {
             return Action::None;
+        }
+        if self.space == super::space::Space::Chain {
+            self.midi_pc = None;
+            return self.step_preset(down);
         }
         if self.set.is_none() {
             self.message = Some(format!("CC {cc} : aucun set ouvert"));

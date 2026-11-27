@@ -2875,7 +2875,14 @@ font ce que font `←` et `→` dans un set : **CC 104** joue le **morceau suiva
 
 - **64 ou plus** agit, **moins de 64** est ignoré : un bouton qui envoie 127 à l'appui et 0 au
   relâcher ne change de morceau qu'une fois.
-- **Sans set ouvert**, ils ne font rien, et l'écran le dit (`CC 104 : aucun set ouvert`).
+- **Dans l'espace Chaîne** (`2`), ils parcourent tes **chaînes** : CC 104 fait ce que fait
+  `PgDn` (la chaîne suivante de la banque), CC 103 ce que fait `PgUp`, et une chaîne modifiée
+  fait d'abord demander, comme au clavier. C'est ce qui sert en répétition, pour comparer des
+  chaînes la basse dans les mains ; le set, lui, ne bouge pas.
+- **Aucun morceau encore engagé** : les deux partent du **premier** morceau, comme `←` et `→`.
+  Un appui sur le mauvais bouton en début de concert n'envoie pas le rappel.
+- **Sans set ouvert**, hors de l'espace Chaîne, ils ne font rien, et l'écran le dit
+  (`CC 104 : aucun set ouvert`).
 - Les numéros se règlent par canal dans `namfoop midi` (lignes « Morceau précédent » et « Morceau
   suivant »), ou par `[midi] cc_prev_song` / `cc_next_song` (§ 16) ; `b` coupe le geste. La fiche
   pour le groupe les mentionne.
