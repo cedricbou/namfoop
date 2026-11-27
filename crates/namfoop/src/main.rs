@@ -1,6 +1,7 @@
 mod amp;
 mod browse;
 mod calibrate;
+mod cards;
 mod cli_audio;
 mod cli_midi;
 mod cli_routing;
@@ -284,11 +285,15 @@ fn main() -> Result<()> {
     // la préparation (prepare.rs) : la question si l'instrument n'est pas calibré sur la carte,
     // puis la ligne de démarrage, avec le niveau retenu (`level` : `--level` de la commande)
     let query = cli.instrument.as_deref();
-    let on_card =
-        |audio: &audio_io::Settings, library: &std::path::Path, level, routing: &engine::Routing| {
-            let prep = prepare::Prep { audio, routing, library, query };
-            prepare::on_card(&conf, &prep, level)
-        };
+    let on_card = |audio: &audio_io::Settings,
+                   card: &Option<cards::Card>,
+                   library: &std::path::Path,
+                   level,
+                   routing: &engine::Routing| {
+        let card = instrument::card_of(audio, card.as_ref());
+        let prep = prepare::Prep { audio, card, routing, library, query };
+        prepare::on_card(&conf, &prep, level)
+    };
     let offline = |library: &std::path::Path, level| prepare::offline(&conf, library, query, level);
     match cli.cmd {
         Cmd::Run { mut amp, routing, seconds, quiet, no_trails, click, set } => {
@@ -315,20 +320,20 @@ fn main() -> Result<()> {
                     );
                 }
                 found.require()?;
-                let (audio, profile) = audio()?;
-                let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
+                let (audio, card) = audio()?;
+                let routing = routing.apply(&cli_audio::base_routing(&conf, card.as_ref()));
                 let start = browse::Start {
                     set: (!query.is_empty()).then_some(query.as_str()),
                     locked: true,
-                    calibration: on_card(&audio, &amp.library, None, &routing)?,
+                    calibration: on_card(&audio, &card, &amp.library, None, &routing)?,
                     midi: cli.midi.open(&conf.config),
                     ..Default::default()
                 };
                 return browse::run(&audio, &conf, &amp.library, &routing, 1.0, !no_trails, start);
             }
-            let (audio, profile) = audio()?;
-            let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
-            amp.calibration = on_card(&audio, &amp.library, amp.level, &routing)?;
+            let (audio, card) = audio()?;
+            let routing = routing.apply(&cli_audio::base_routing(&conf, card.as_ref()));
+            amp.calibration = on_card(&audio, &card, &amp.library, amp.level, &routing)?;
             let session = live::Session { seconds, quiet, trails: !no_trails, click };
             live::run(&audio, &conf, &amp, &routing, cli.midi.open(&conf.config), session)
         }
@@ -366,9 +371,9 @@ fn main() -> Result<()> {
                     midi: cli.midi.open(&conf.config),
                     ..Default::default()
                 };
-                let (audio, profile) = audio()?;
-                let routing = cli_audio::base_routing(&conf, profile.as_ref());
-                let calibration = on_card(&audio, &args.library, None, &routing)?;
+                let (audio, card) = audio()?;
+                let routing = cli_audio::base_routing(&conf, card.as_ref());
+                let calibration = on_card(&audio, &card, &args.library, None, &routing)?;
                 let start = browse::Start { calibration, ..start };
                 browse::run(&audio, &conf, &args.library, &routing, 1.0, true, start)?;
             }
@@ -392,8 +397,8 @@ fn main() -> Result<()> {
         Cmd::Fx { name } => fx_cmd::run(name.as_deref()),
         Cmd::Calibrate { seconds, target, channel, dry_run, library } => {
             let library = lib(&library).path;
-            let (audio, profile) = audio()?;
-            let mut routing = cli_audio::base_routing(&conf, profile.as_ref());
+            let (audio, card) = audio()?;
+            let mut routing = cli_audio::base_routing(&conf, card.as_ref());
             if let Some(c) = channel {
                 routing.bass_in = c;
             }
@@ -401,7 +406,7 @@ fn main() -> Result<()> {
             let dest = match instrument::to_calibrate(&list, cli.instrument.as_deref())? {
                 _ if dry_run => calibrate::Dest::Nowhere,
                 Some((instrument, new)) => {
-                    let card = match instrument::card_of(&conf, &audio)? {
+                    let card = match instrument::card_of(&audio, card.as_ref()) {
                         instrument::Card::Real(id) => id,
                         _ => "sim".into(),
                     };
@@ -420,12 +425,12 @@ fn main() -> Result<()> {
         Cmd::Browse { library, size, filter, set, no_trails, routing } => {
             let found = lib(&library);
             let library = found.require()?;
-            let (audio, profile) = audio()?;
-            let routing = routing.apply(&cli_audio::base_routing(&conf, profile.as_ref()));
+            let (audio, card) = audio()?;
+            let routing = routing.apply(&cli_audio::base_routing(&conf, card.as_ref()));
             let start = browse::Start {
                 filter: filter.as_deref(),
                 set: set.as_deref(),
-                calibration: on_card(&audio, library, None, &routing)?,
+                calibration: on_card(&audio, &card, library, None, &routing)?,
                 midi: cli.midi.open(&conf.config),
                 ..Default::default()
             };
@@ -433,7 +438,8 @@ fn main() -> Result<()> {
         }
         Cmd::Midi { args } => midi_cmd::run(&args, &cli.midi, &conf, &lib(&args.library).path),
         Cmd::Setup { library } => {
-            setup::run(&audio()?.0, cli.audio.backend.map(Into::into), &conf, &lib(&library))
+            // `setup` règle une carte : il ne passe pas par le choix des cartes déjà réglées
+            setup::run(&cli.audio.resolve(&conf), cli.audio.backend.map(Into::into), &conf, &lib(&library))
         }
         Cmd::Latency { out_ch, in_ch, count, chains, chain, model, ir, library } => {
             let library = lib(&library).path;

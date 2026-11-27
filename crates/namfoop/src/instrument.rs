@@ -202,17 +202,17 @@ pub fn resolve(
     })
 }
 
-/// La carte d'une commande qui ouvre la carte : l'identifiant du profil retenu, sinon le nom du
-/// device ALSA réduit à un identifiant.
-pub fn card_of(conf: &LoadedConfig, audio: &audio_io::Settings) -> Result<Card> {
+/// La carte d'une commande qui ouvre la carte : l'identifiant de la carte retenue
+/// (`cli_audio::card`), sinon le nom système du device ALSA (`cards::system_id`).
+pub fn card_of(audio: &audio_io::Settings, card: Option<&crate::cards::Card>) -> Card {
     if audio.backend == audio_io::Kind::Sim {
-        return Ok(Card::Sim);
+        return Card::Sim;
     }
-    if let Some((id, _)) = crate::cli_audio::card_profile(conf, audio.backend)? {
-        return Ok(Card::Real(id));
+    if let Some(c) = card {
+        return Card::Real(c.id.clone());
     }
     let device = audio.device.as_deref().unwrap_or("default");
-    Ok(Card::Real(lib_instrument::slug(device.trim_start_matches("hw:"))))
+    Card::Real(crate::cards::system_id(device, crate::cards::alsa_name))
 }
 
 /// La bibliothèque peut manquer (`render` s'en passe) : sans elle, aucun instrument.

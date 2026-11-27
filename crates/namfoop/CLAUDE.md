@@ -13,9 +13,15 @@ crates/namfoop/src/
 main.rs         sous-commandes clap, et le refus AVANT d'ouvrir la carte quand `run --set` n'a ni
                 set donné ni set retenu : un service de scène doit échouer bruyamment
 cli_audio.rs    options audio clap (AudioArgs, BackendArg) -> audio_io::Settings (CLI > config >
-                défaut), to_audio (model::BackendKind -> audio_io::Kind) ; profil de carte
-                (card_profile, detect, settings, base_routing : CLI > config > profil > défaut,
-                ALSA seulement)
+                défaut), to_audio (model::BackendKind -> audio_io::Kind) ; --card ; la carte
+                jouée (`card` : cards::choose parmi les cartes réglées, sinon card_profile /
+                detect d'avant ; settings, base_routing : CLI > profil > défaut, la config
+                d'avant ne valant que pour SA carte, `Card::of_config` ; ALSA seulement)
+cards.rs        MES CARTES (docs/design/instruments.md § 12) : `configured` (profils écrits à
+                côté de la config + la carte que la config d'avant porte), `choose`, PURE
+                (--card > préférée branchée > l'unique autre réglée branchée, annoncée > refus
+                qui liste), `system_id` (identifiant tiré du nom système, jamais du numéro : la
+                clé des calibrations). Jamais une carte non réglée : le profil livré ne suffit pas
 cli_midi.rs     options MIDI clap (MidiArgs : --midi-in, --no-midi, --midi-channel) -> midi_io::Settings
                 (CLI > config > défaut) ; `open()` ouvre le port **ou dit pourquoi il n'y en a pas**,
                 et ne fait jamais échouer le démarrage — c'est le seul endroit où cette règle vit
@@ -88,7 +94,9 @@ setup/          `setup` plein écran : state.rs (logique pure, testée ; l'étap
                 donnés par mod.rs et retient un `MidiChoice` — sans port en vue, elle n'écrit
                 rien plutôt que de figer « pas de MIDI »), ui.rs (ratatui, TestBackend),
                 audio.rs (vumètres, bip, test des buffers ; engine::raw), devices.rs (cartes par
-                backend)
+                backend), card.rs (ALSA : tout ce qui tient à la carte va dans SON profil, la
+                config d'avant est rangée dans le profil de sa carte, la config ne garde que la
+                préférée — « en faire ma carte préférée ? (o / N) »)
 live.rs         `run` : construit la chaîne, Engine::start, affichage (vumètre, charge DSP), vide la
                 file MIDI à chaque tour. Un PC n'y désigne rien — `run` joue UNE chaîne, il n'a ni
                 banque ni set, et c'est dans les écrans qu'un PC choisit un preset — mais l'horloge

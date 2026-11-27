@@ -41,6 +41,9 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
+
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
@@ -116,36 +119,33 @@ Options:
   -m, --model <MODEL>
           Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --input-db <INPUT_DB>
           Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
           
           [default: 0]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --output-db <OUTPUT_DB>
           Gain après le modèle (dB)
           
           [default: 0]
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
-
-      --cpu <CPU>
-          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --level <LEVEL>
           Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : match si l'instrument joué est calibré, sinon la config
@@ -155,20 +155,23 @@ Options:
           - normalize: Loudness du modèle ramenée à `target_db` (convention NAM)
           - raw:       Sortie brute du modèle
 
-      --rate <RATE>
-          Fréquence d'échantillonnage [défaut : 48000]
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
-
       --no-limiter
           Désactive le limiteur de sortie
 
-      --no-midi
-          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -180,28 +183,31 @@ Options:
           
           [default: 200]
 
-      --midi-channel <N>
-          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --master-db <MASTER_DB>
           Volume final (dB)
           
           [default: 0]
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --tempo <BPM>
           Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
 
-      --instrument <INSTRUMENT>
-          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --pre <FX>
           Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
       --post <FX>
           Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
@@ -271,36 +277,33 @@ Options:
   -m, --model <MODEL>
           Modèle NAM : identifiant (`namfoop models`), chemin, ou mots-clés (ex: "b7k")
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
   -i, --ir <IR>
           IR de baffle (.wav) ou mélange (.cab.toml) : identifiant (`namfoop models`), chemin, mots-clés (ex: "dg212 sm57") ou « auto » (la mieux conseillée pour le modèle)
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --input-db <INPUT_DB>
           Gain avant ce modèle (dB), en plus du trim : plus = plus de saturation
           
           [default: 0]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --output-db <OUTPUT_DB>
           Gain après le modèle (dB)
           
           [default: 0]
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --trim <TRIM>
           Trim d'entrée global de l'instrument (dB). Défaut : valeur de la config (`calibrate`)
-
-      --cpu <CPU>
-          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --level <LEVEL>
           Volume de sortie : match (= basse en direct), normalize (-18 dB), raw. Défaut : match si l'instrument joué est calibré, sinon la config
@@ -310,20 +313,23 @@ Options:
           - normalize: Loudness du modèle ramenée à `target_db` (convention NAM)
           - raw:       Sortie brute du modèle
 
-      --rate <RATE>
-          Fréquence d'échantillonnage [défaut : 48000]
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --target-db <TARGET_DB>
           Cible du mode normalize (dB)
 
-      --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
-
       --no-limiter
           Désactive le limiteur de sortie
 
-      --no-midi
-          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
@@ -335,28 +341,31 @@ Options:
           
           [default: 200]
 
-      --midi-channel <N>
-          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
-
-      --config <CONFIG>
-          Fichier de config [défaut : ~/.config/namfoop/config.toml]
+      --no-midi
+          Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
 
       --master-db <MASTER_DB>
           Volume final (dB)
           
           [default: 0]
 
-      --no-config
-          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
+      --midi-channel <N>
+          Canal MIDI écouté, de 1 à 16 : un Program Change ou un CC d'un autre canal est ignoré (l'horloge, Start et Stop passent toujours) [défaut : config, sinon tous les canaux]
+
+      --config <CONFIG>
+          Fichier de config [défaut : ~/.config/namfoop/config.toml]
 
       --tempo <BPM>
           Tempo (BPM) dont les effets réglés en divisions rythmiques tirent leur durée (ex: --post delay:division=1/8. --tempo 92). Par défaut 120, ou celui du preset (--preset)
 
-      --instrument <INSTRUMENT>
-          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
+      --no-config
+          Ignore la config : réglages par défaut (tests reproductibles, comparaisons)
 
       --pre <FX>
           Effet avant le modèle (après le trim), répétable, dans l'ordre donné : nom:param=valeur,... (ex: gain:db=-6). Change ce que le modèle reçoit, donc sa saturation. Liste : namfoop fx
+
+      --instrument <INSTRUMENT>
+          Instrument joué : numéro, nom ou quelques lettres (`namfoop instruments`) [défaut : l'instrument par défaut de la bibliothèque]. Sa calibration sur la carte branchée règle le trim et le niveau « match ». Avec `calibrate`, l'instrument à mesurer, créé s'il n'existe pas
 
       --post <FX>
           Effet après le modèle et l'IR (avant le niveau, le master et le limiteur), répétable, dans l'ordre donné (ex: --post gain:db=-6). Liste : namfoop fx
@@ -419,8 +428,8 @@ Options:
           
           [default: 64]
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --seconds <SECONDS>
           Secondes d'audio simulées par modèle
@@ -430,14 +439,17 @@ Options:
       --all-sizes
           Mesure chaque taille des modèles slimmable
 
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+
       --capture-device <CAPTURE_DEVICE>
           Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
-
       --fx
           Mesure les effets du catalogue (aux réglages par défaut) au lieu des modèles
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
@@ -495,44 +507,47 @@ Options:
       --pack <PACK>
           Nom du pack (dossier dans la bibliothèque) [défaut : nom du zip ou du dossier]
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --dry-run
           Vérifie et affiche le résultat sans rien écrire
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --skip-duplicates
           N'importe pas un fichier identique (octet par octet) à un fichier déjà dans la bibliothèque ou plus haut dans l'import. Par défaut il est importé quand même, pour que chaque pack reste complet, et signalé
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --review
           Ouvre ensuite le navigateur sur les modèles importés, éditeur ouvert : écoute, type de capture, gain d'entrée, IR préférée (prend la carte son)
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --undo
           Défait le dernier import d'une valise : ce qui est arrivé repart, ce que l'import a remplacé ou supprimé revient. Un seul niveau ; la valise n'est pas touchée
 
-      --cpu <CPU>
-          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
-
       --overwrite
           Valise : fait de cette machine la copie exacte de la valise. Ce qui a changé ici est remplacé sans question, après confirmation ; l'état d'avant est gardé
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --exchanges <DOSSIER>
           Valise : dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
 
-      --rate <RATE>
-          Fréquence d'échantillonnage [défaut : 48000]
-
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
           Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
@@ -578,23 +593,26 @@ Options:
       --dry-run
           Montre ce qui partirait, sans rien écrire
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --overwrite
           Écrit même sur une valise qui porte des changements que cette machine n'a pas vus : la valise devient exactement cette machine, après confirmation, et ces changements sont perdus
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --exchanges <DOSSIER>
           Dossier de la mémoire des échanges de cette machine (son nom, ses derniers échanges) [défaut : echanges/ à côté du fichier de config ; obligatoire avec --no-config]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -649,8 +667,8 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --type <GEAR_TYPE>
           Type de capture (décide s'il faut une IR)
@@ -662,20 +680,26 @@ Options:
           - pedal:    Pédale : une IR est nécessaire
           - preamp:   Préampli : une IR est nécessaire
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --make <MAKE>
           Marque de l'ampli (aide au choix des IR conseillées)
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --name <NAME>
           Nom affiché
 
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
       --input-db <INPUT_DB>
           Gain d'entrée propre au modèle (dB), ajouté à --input-db ; 0 pour l'annuler
+
+      --ir <IR>
+          IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -683,17 +707,14 @@ Options:
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
-      --ir <IR>
-          IR préférée du modèle (identifiant, chemin ou mots-clés) : en tête des conseils et de -i auto
-
-      --rate <RATE>
-          Fréquence d'échantillonnage [défaut : 48000]
-
       --reset
           Efface toutes les corrections de ce(s) modèle(s)
 
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
           Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
@@ -735,6 +756,9 @@ Options:
           Possible values:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
@@ -795,6 +819,9 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
+
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
@@ -854,6 +881,9 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
+
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
@@ -912,6 +942,9 @@ Options:
           Possible values:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
+
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
@@ -973,25 +1006,28 @@ Options:
           
           [default: 15]
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --target <TARGET>
           Crête robuste visée à l'entrée des modèles (dBFS)
           
           [default: -30]
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
-
       --channel <CHANNEL>
           Entrée de la carte où est branchée la basse [défaut : config (setup), sinon 1]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --dry-run
           Analyse seulement, ne sauve rien
+
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --library <DOSSIER>
           Dossier de la bibliothèque, où vivent les instruments [défaut : ./library, sinon ~/.local/share/namfoop/library]
@@ -1045,17 +1081,20 @@ Options:
           - alsa: ALSA direct : latence minimale et stable, accès exclusif à la carte
           - sim:  Carte simulée (basse synthétique sur l'entrée 1) : tests et démo sans matériel
 
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
+
       --default <INSTRUMENT>
           Fait de cet instrument (numéro, nom ou quelques lettres) celui que namfoop prend à chaque lancement
 
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
-
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --buffer <BUFFER>
           Taille de buffer / période en frames [défaut : config, sinon 64]
@@ -1109,34 +1148,37 @@ Options:
       --library <DOSSIER>
           Dossier de la bibliothèque [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --size <SIZE>
           Taille des modèles slimmable : 0 = le plus léger, 1 = complet
           
           [default: 1]
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --filter <FILTER>
           Filtre initial de la liste (ex: "PopPunk")
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --set <SET>
           Set de concert à ouvrir : identifiant (`namfoop sets`), nom ou mots-clés. PgDn / PgUp suivent alors ses morceaux au lieu de la banque entière
 
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
       --no-trails
           Coupe la queue de preset : la réverbe et le delay du preset quitté s'arrêtent net au changement, mais une seule chaîne tourne (moins de charge DSP)
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
-
       --bass-in <BASS_IN>
           Entrée de la carte où est branchée la basse [défaut : config, sinon 1]
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
 
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
@@ -1147,11 +1189,11 @@ Options:
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
 
-      --midi-in <PORT>
-          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
-
       --route <N=SOURCE>
           Rôle d'une sortie, N=source avec source = processed, di, mic ou mute (répétable, ex: --route 1=processed --route 2=di) [défaut : config, sinon 1 et 2 = processed]
+
+      --midi-in <PORT>
+          Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]
 
       --no-midi
           Coupe l'écoute MIDI : ni pédalier, ni horloge, quoi qu'en dise la config
@@ -1190,35 +1232,38 @@ Options:
       --list
           Liste les ports et s'arrête, sans écouter
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --seconds <SECONDS>
           Arrêt automatique après N secondes (tests ; affiche ligne à ligne) [défaut : Ctrl+C]
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
 
       --lines
           Affiche les messages ligne à ligne au lieu de l'écran de réglage (imposé quand la sortie n'est pas un terminal)
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --library <DOSSIER>
           Dossier de la bibliothèque, pour lire le set du moment (ce qu'un Program Change appelle) [défaut : ./library, sinon ~/.local/share/namfoop/library]
 
-      --periods <PERIODS>
-          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
 
       --set <SET>
           Le set dont parlent l'écran et la fiche (identifiant ou morceau de nom, comme `browse --set`) [défaut : le set du moment, `[set] default`]
 
-      --cpu <CPU>
-          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
-
       --fiche [<CANAL>]
           Imprime la fiche à envoyer au groupe pour ce canal (sans valeur : le premier canal réglé), puis s'arrête, sans ouvrir de port ni l'écran
+
+      --periods <PERIODS>
+          Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
+
+      --cpu <CPU>
+          Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
       --rate <RATE>
           Fréquence d'échantillonnage [défaut : 48000]
@@ -1262,6 +1307,9 @@ Options:
 
       --library <DOSSIER>
           Dossier de la bibliothèque (un modèle sert de charge au test des buffers) [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --device <DEVICE>
           Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
@@ -1323,30 +1371,36 @@ Options:
           
           [default: 1]
 
-      --device <DEVICE>
-          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+      --card <CARD>
+          Carte réglée à prendre pour cette session, par son identifiant (ex: "mtk") [défaut : la préférée si elle est branchée, sinon l'unique autre carte réglée branchée]
 
       --in-ch <IN_CH>
           Canal d'entrée où revient le signal
           
           [default: 2]
 
-      --capture-device <CAPTURE_DEVICE>
-          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
-
       --count <COUNT>
           Nombre de mesures par passe
           
           [default: 10]
 
-      --buffer <BUFFER>
-          Taille de buffer / période en frames [défaut : config, sinon 64]
+      --device <DEVICE>
+          Carte : device ALSA (ex: "hw:iTwo") ou canaux simulés (ex: "4x6") [défaut : config, sinon profil de carte ; sinon aucune, lancer « namfoop setup »]
+
+      --capture-device <CAPTURE_DEVICE>
+          Device ALSA de capture, si l'entrée est sur une autre carte ou un autre device que la sortie (ex: "hw:1,0" pour un HAT) [défaut : config, sinon le même que --device]
 
       --chains
           Mesure aussi chaque chaîne de référence : l'impulsion la traverse, puis elle tourne à côté (charge DSP et xruns par passe)
 
+      --buffer <BUFFER>
+          Taille de buffer / période en frames [défaut : config, sinon 64]
+
       --chain <NOM>
           Une seule chaîne de référence, par son nom (un nom inconnu les liste)
+
+  -m, --model <MODEL>
+          Modèle qui remplit les chaînes de référence (défaut : le modèle d'exemple du moteur NAM)
 
       --periods <PERIODS>
           Nombre de périodes côté playback (ALSA) [défaut : config, sinon 3]
@@ -1354,17 +1408,14 @@ Options:
       --cpu <CPU>
           Cœur du processeur réservé au thread audio (ALSA, sim ; ex: 3). Utile avec isolcpus sur le Pi [défaut : config, sinon aucun]
 
-  -m, --model <MODEL>
-          Modèle qui remplit les chaînes de référence (défaut : le modèle d'exemple du moteur NAM)
-
   -i, --ir <IR>
           IR qui remplit les chaînes de référence (défaut : une IR de synthèse)
 
-      --rate <RATE>
-          Fréquence d'échantillonnage [défaut : 48000]
-
       --library <DOSSIER>
           Dossier de la bibliothèque, où -m et -i sont cherchés [défaut : ./library, sinon ~/.local/share/namfoop/library]
+
+      --rate <RATE>
+          Fréquence d'échantillonnage [défaut : 48000]
 
       --midi-in <PORT>
           Port MIDI d'entrée : adresse du séquenceur ALSA (ex: "28:0"), morceau de nom de port (ex: "MC6"), ou "sim:CHEMIN" pour un port simulé (fichier ou tube ; cf. `namfoop midi`) [défaut : config, sinon tous les appareils MIDI d'entrée]

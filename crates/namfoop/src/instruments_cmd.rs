@@ -46,8 +46,8 @@ fn preferred(conf: &LoadedConfig) -> Option<&str> {
     conf.config.audio.profile.as_deref().filter(|_| !conf.ignored)
 }
 
-/// Les colonnes : la carte préférée, les cartes réglées sur cet ordinateur (profils écrits à côté
-/// de la config), puis celles qui ne portent qu'une calibration.
+/// Les colonnes : la carte préférée, les cartes réglées sur cet ordinateur, puis celles qui ne
+/// portent qu'une calibration.
 fn cards(conf: &LoadedConfig, list: &[Instrument]) -> Vec<String> {
     let mut out: Vec<String> = preferred(conf).map(String::from).into_iter().collect();
     let mut push = |id: String| {
@@ -55,14 +55,9 @@ fn cards(conf: &LoadedConfig, list: &[Instrument]) -> Vec<String> {
             out.push(id);
         }
     };
-    if !conf.ignored {
-        if let Ok(rd) = std::fs::read_dir(model::card::user_dir(&conf.path)) {
-            let mut ids: Vec<String> = rd
-                .filter_map(|e| e.ok()?.path().file_stem().map(|s| s.to_string_lossy().into_owned()))
-                .collect();
-            ids.sort();
-            ids.into_iter().for_each(&mut push);
-        }
+    // les cartes réglées (`cards::configured`) : profils écrits, et la carte de la config d'avant
+    for c in crate::cards::configured(conf).unwrap_or_default() {
+        push(c.id);
     }
     for i in list {
         i.calibration.keys().cloned().for_each(&mut push);

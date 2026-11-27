@@ -6,6 +6,18 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Cartes (#433)
+- **Changer de carte son sans refaire `setup`** : `setup` range tout ce qui tient à une carte —
+  device, buffer, entrées, rôle de chaque sortie, clic — dans son profil, et régler une seconde
+  carte ne touche pas à la première. Au lancement, namfoop prend la carte préférée si elle est
+  branchée, sinon l'unique autre carte réglée qui l'est, et une ligne `carte` le dit ; les deux
+  branchées, il signale l'autre. `--card mtk` choisit pour la session. Il ne prend jamais une carte
+  que tu n'as pas réglée.
+- L'identifiant d'une carte vient du nom que le système lui donne (`hw:1` et `hw:iTwo` donnent
+  `itwo`) : les calibrations d'un instrument se retrouvent d'une machine à l'autre.
+- Une config d'avant (`[audio] device`, `[routing]`) marche sans qu'on y touche ; au premier
+  `setup` d'une autre carte, ses réglages sont rangés dans le profil de sa carte.
+
 ### Correction (#464)
 - Un instrument jamais calibré, ou joué sans calibration, annonce « niveau normalize » au
   démarrage quand la config demande `match` : sans enregistrement, c'est ce qui joue.
