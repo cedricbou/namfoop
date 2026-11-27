@@ -143,7 +143,8 @@ sinon ceux de `[midi]` (`State::midi`). Trois choses à ne pas casser :
    fondu, même question quand la chaîne n'est pas enregistrée. Ne pas le court-circuiter.
 
 **Avec un set**, les mêmes messages parlent du set (§ 12 de `set.md`) : `PC` = le morceau dont le
-`pc` vaut n, `CC cc_sound` = le son k+1 du morceau joué, `Start` / `Stop` / `Continue` / `SPP` =
+`pc` vaut n, `CC cc_sound` = le son k+1 du morceau joué, `CC cc_next_song` / `cc_prev_song` (≥ 64)
+= `→` / `←` (`step_set_song`, le même chemin ; un PC en attente est oublié), `Start` / `Stop` / `Continue` / `SPP` =
 la battue (`set/beat.rs` : `beat_from_start`, `beat_stop`, `beat_continue`, `beat_seek_sixteenths`
 — `Continue` recale les deux repères, l'arbitre réancrant l'horloge —, qui passent par
 `library::bars::BarMap` — elle seule sait qu'une section change de mesure). Deux pièges :

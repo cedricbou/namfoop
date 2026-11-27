@@ -134,14 +134,7 @@ pub fn run(
             if let Some(ligne) = horloge.ligne(&m, &input.device_name(m.device)) {
                 let effet = match listen.why_not(m.channel) {
                     Some(raison) => format!("   ({raison})"),
-                    None => {
-                        let n = listen.numbers(m.channel);
-                        if n.muted.tuner {
-                            String::new()
-                        } else {
-                            en_clair(&m.event, n.cc_tuner)
-                        }
-                    }
+                    None => en_clair(&m.event, &listen.numbers(m.channel)),
                 };
                 println!("  {:>7.2} s  {ligne}{effet}", (m.at - debut).as_secs_f64());
             }
@@ -192,14 +185,25 @@ fn fiche(c: u8, set: Option<&str>, conf: &LoadedConfig, library: &std::path::Pat
     Ok(())
 }
 
-/// Ce que namfoop fait d'un message, quand la ligne brute ne le dit pas : le CC de l'accordeur.
-/// Écrit **après** le message, que la ligne garde recopiable dans un port simulé.
-fn en_clair(event: &midi_io::Event, cc_tuner: u8) -> String {
-    match event {
-        midi_io::Event::Control { cc, value } if *cc == cc_tuner => {
-            format!("   (accordeur : {})", if *value >= 64 { "basse coupée" } else { "son rendu" })
-        }
-        _ => String::new(),
+/// Ce que namfoop fait d'un message, quand la ligne brute ne le dit pas : le CC de l'accordeur et
+/// ceux du morceau suivant / précédent, sauf s'ils sont coupés. Écrit **après** le message, que la
+/// ligne garde recopiable dans un port simulé.
+fn en_clair(event: &midi_io::Event, n: &crate::cli_midi::Numbers) -> String {
+    let midi_io::Event::Control { cc, value } = *event else { return String::new() };
+    if cc == n.cc_tuner && !n.muted.tuner {
+        return format!("   (accordeur : {})", if value >= 64 { "basse coupée" } else { "son rendu" });
+    }
+    let song = if cc == n.cc_next_song && !n.muted.next_song {
+        "morceau suivant"
+    } else if cc == n.cc_prev_song && !n.muted.prev_song {
+        "morceau précédent"
+    } else {
+        return String::new();
+    };
+    if value >= 64 {
+        format!("   ({song})")
+    } else {
+        format!("   ({song} : relâché, ignoré)")
     }
 }
 
@@ -243,10 +247,26 @@ mod tests {
     #[test]
     fn le_cc_de_l_accordeur_se_lit_en_clair() {
         let on = Event::Control { cc: 15, value: 127 };
-        assert_eq!(en_clair(&on, 15), "   (accordeur : basse coupée)");
-        assert_eq!(en_clair(&Event::Control { cc: 15, value: 0 }, 15), "   (accordeur : son rendu)");
-        assert_eq!(en_clair(&on, 20), "", "un autre numéro réglé : le 15 n'est plus l'accordeur");
-        assert_eq!(en_clair(&Event::Control { cc: 34, value: 1 }, 15), "");
+        let n = crate::cli_midi::Numbers::default();
+        assert_eq!(en_clair(&on, &n), "   (accordeur : basse coupée)");
+        assert_eq!(en_clair(&Event::Control { cc: 15, value: 0 }, &n), "   (accordeur : son rendu)");
+        let other = crate::cli_midi::Numbers { cc_tuner: 20, ..n };
+        assert_eq!(en_clair(&on, &other), "", "un autre numéro réglé : le 15 n'est plus l'accordeur");
+        assert_eq!(en_clair(&Event::Control { cc: 34, value: 1 }, &n), "");
+        let muted =
+            crate::cli_midi::Numbers { muted: crate::cli_midi::Muted { tuner: true, ..n.muted }, ..n };
+        assert_eq!(en_clair(&on, &muted), "", "l'accordeur coupé ne se traduit pas");
+    }
+
+    #[test]
+    fn les_cc_de_morceau_se_lisent_en_clair() {
+        let n = crate::cli_midi::Numbers::default();
+        assert_eq!(en_clair(&Event::Control { cc: 104, value: 127 }, &n), "   (morceau suivant)");
+        assert_eq!(en_clair(&Event::Control { cc: 103, value: 127 }, &n), "   (morceau précédent)");
+        assert_eq!(
+            en_clair(&Event::Control { cc: 104, value: 0 }, &n),
+            "   (morceau suivant : relâché, ignoré)"
+        );
     }
 
     #[test]

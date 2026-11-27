@@ -136,6 +136,8 @@ impl State {
             cc_sound: keep(base.cc_sound, d.cc_sound),
             cc_tap: keep(base.cc_tap, d.cc_tap),
             cc_tuner: keep(base.cc_tuner, d.cc_tuner),
+            cc_prev_song: keep(base.cc_prev_song, d.cc_prev_song),
+            cc_next_song: keep(base.cc_next_song, d.cc_next_song),
             ..channel(c)
         }
     }
@@ -152,6 +154,8 @@ impl State {
                 Gesture::Sound => self.draft.cc_sound = v,
                 Gesture::Tap => self.draft.cc_tap = v,
                 Gesture::Tuner => self.draft.cc_tuner = v,
+                Gesture::PrevSong => self.draft.cc_prev_song = v,
+                Gesture::NextSong => self.draft.cc_next_song = v,
                 Gesture::Pc => {}
             },
             Some(c) => {
@@ -160,6 +164,8 @@ impl State {
                         Gesture::Sound => x.cc_sound = Some(v),
                         Gesture::Tap => x.cc_tap = Some(v),
                         Gesture::Tuner => x.cc_tuner = Some(v),
+                        Gesture::PrevSong => x.cc_prev_song = Some(v),
+                        Gesture::NextSong => x.cc_next_song = Some(v),
                         Gesture::Pc => {}
                     }
                 }

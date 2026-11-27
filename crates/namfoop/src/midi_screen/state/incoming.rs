@@ -96,6 +96,35 @@ impl State {
             }
             (Gesture::Sound, _, None) => ("sans set, le son du morceau ne désigne rien".into(), Tone::Dim),
             (Gesture::Tap, ..) => ("→ tap tempo".into(), Tone::Plain),
+            (Gesture::PrevSong | Gesture::NextSong, Event::Control { value, .. }, _) if value < 64 => {
+                ("relâché : ignoré".into(), Tone::Dim)
+            }
+            (Gesture::PrevSong | Gesture::NextSong, _, None) => ("aucun set ouvert : rien".into(), Tone::Dim),
+            (Gesture::PrevSong | Gesture::NextSong, _, Some(spec)) => {
+                let down = g == Gesture::NextSong;
+                let from = self.playing.map(|(s, _)| s);
+                let to = match from {
+                    None => Some(0),
+                    Some(s) if down => (s + 1 < spec.songs.len()).then_some(s + 1),
+                    Some(s) => s.checked_sub(1),
+                };
+                match to {
+                    Some(song) => {
+                        self.playing = Some((song, 0));
+                        self.heard.insert((song, None), now_ms);
+                        self.heard.insert((song, Some(0)), now_ms);
+                        (
+                            format!(
+                                "→ morceau « {} », son 1 « {} »",
+                                title(spec, song),
+                                preset(spec, song, 0)
+                            ),
+                            Tone::Plain,
+                        )
+                    }
+                    None => ((if down { "dernier morceau" } else { "premier morceau" }).into(), Tone::Dim),
+                }
+            }
             (Gesture::Tuner, Event::Control { value, .. }, _) if value >= 64 => {
                 ("→ basse coupée, accordeur".into(), Tone::Cut)
             }
@@ -119,8 +148,7 @@ impl State {
         let (g, text) = match m.event {
             Event::ProgramChange(p) => (Some(Gesture::Pc), format!("PC {p}")),
             Event::Control { cc, value } => {
-                let g =
-                    [Gesture::Sound, Gesture::Tap, Gesture::Tuner].into_iter().find(|g| cc_of(&n, *g) == cc);
+                let g = GESTURES[1..].iter().copied().find(|g| cc_of(&n, *g) == cc);
                 (g, format!("valeur {value}"))
             }
             _ => (None, String::new()),

@@ -564,6 +564,13 @@ def scenario_midi_set(binaire, lignes, colonnes):
             ec.lire(0.8)
             verifier("⏸" in ec.voir(), f"{taille} : `stop` arrête la battue")
 
+            # **morceau suivant au pied** (CC 104) : le set n'a qu'un morceau, donc la borne, qui
+            # ne boucle pas ; le relâcher (valeur 0) ne dit rien. Le CC 103 est testé dans l'état :
+            # « premier » réécrirait « dernier » case par case, que le tampon ne relit pas en entier
+            os.write(fd, b"cc 104 127\ncc 104 0\n")
+            ec.lire(0.8)
+            verifier("dernier morceau" in ec.voir(), f"{taille} : CC 104 suit le set, sans boucler")
+
             # **l'accordeur depuis Ableton** (CC 15) : entrée, idempotence, sortie, puis le retour
             # automatique par un PC et par un Start
             def coupures():

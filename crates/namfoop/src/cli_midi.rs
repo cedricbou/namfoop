@@ -36,6 +36,8 @@ pub struct Numbers {
     pub cc_sound: u8,
     pub cc_tap: u8,
     pub cc_tuner: u8,
+    pub cc_prev_song: u8,
+    pub cc_next_song: u8,
     /// Les gestes **coupés** (`b` dans `namfoop midi`) : un message qui les demande est ignoré.
     pub muted: Muted,
 }
@@ -43,7 +45,14 @@ pub struct Numbers {
 impl Default for Numbers {
     fn default() -> Self {
         let m = model::Midi::default();
-        Self { cc_sound: m.cc_sound, cc_tap: m.cc_tap, cc_tuner: m.cc_tuner, muted: Muted::default() }
+        Self {
+            cc_sound: m.cc_sound,
+            cc_tap: m.cc_tap,
+            cc_tuner: m.cc_tuner,
+            cc_prev_song: m.cc_prev_song,
+            cc_next_song: m.cc_next_song,
+            muted: Muted::default(),
+        }
     }
 }
 
@@ -54,6 +63,8 @@ pub struct Muted {
     pub sound: bool,
     pub tap: bool,
     pub tuner: bool,
+    pub prev_song: bool,
+    pub next_song: bool,
 }
 
 impl Muted {
@@ -64,6 +75,8 @@ impl Muted {
             sound: list.contains(&G::Sound),
             tap: list.contains(&G::Tap),
             tuner: list.contains(&G::Tuner),
+            prev_song: list.contains(&G::PrevSong),
+            next_song: list.contains(&G::NextSong),
         }
     }
 
@@ -74,6 +87,8 @@ impl Muted {
             G::Sound => self.sound,
             G::Tap => self.tap,
             G::Tuner => self.tuner,
+            G::PrevSong => self.prev_song,
+            G::NextSong => self.next_song,
         }
     }
 }
@@ -85,6 +100,8 @@ pub fn gesture_name(g: model::Gesture) -> &'static str {
         model::Gesture::Sound => "le son du morceau",
         model::Gesture::Tap => "le tap tempo",
         model::Gesture::Tuner => "l'accordeur",
+        model::Gesture::PrevSong => "le morceau précédent",
+        model::Gesture::NextSong => "le morceau suivant",
     }
 }
 
@@ -110,6 +127,8 @@ impl Listen {
             cc_sound: m.cc_sound,
             cc_tap: m.cc_tap,
             cc_tuner: m.cc_tuner,
+            cc_prev_song: m.cc_prev_song,
+            cc_next_song: m.cc_next_song,
             muted: Muted::from_list(&m.muted),
         };
         let mut channels: Vec<(u8, Numbers)> = m
@@ -122,6 +141,8 @@ impl Listen {
                         cc_sound: c.cc_sound.unwrap_or(base.cc_sound),
                         cc_tap: c.cc_tap.unwrap_or(base.cc_tap),
                         cc_tuner: c.cc_tuner.unwrap_or(base.cc_tuner),
+                        cc_prev_song: c.cc_prev_song.unwrap_or(base.cc_prev_song),
+                        cc_next_song: c.cc_next_song.unwrap_or(base.cc_next_song),
                         muted: Muted::from_list(&c.muted),
                     },
                 )
@@ -377,15 +398,36 @@ mod tests {
         assert_eq!(l.label().as_deref(), Some("1 · 5"));
         assert_eq!(
             l.numbers(Some(5)),
-            Numbers { cc_sound: 20, cc_tap: 13, cc_tuner: 15, muted: Muted::default() }
+            Numbers {
+                cc_sound: 20,
+                cc_tap: 13,
+                cc_tuner: 15,
+                cc_prev_song: 103,
+                cc_next_song: 104,
+                muted: Muted::default()
+            }
         );
         assert_eq!(
             l.numbers(Some(1)),
-            Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 16, muted: Muted::default() }
+            Numbers {
+                cc_sound: 34,
+                cc_tap: 13,
+                cc_tuner: 16,
+                cc_prev_song: 103,
+                cc_next_song: 104,
+                muted: Muted::default()
+            }
         );
         assert_eq!(
             l.numbers(None),
-            Numbers { cc_sound: 34, cc_tap: 13, cc_tuner: 15, muted: Muted::default() }
+            Numbers {
+                cc_sound: 34,
+                cc_tap: 13,
+                cc_tuner: 15,
+                cc_prev_song: 103,
+                cc_next_song: 104,
+                muted: Muted::default()
+            }
         );
         assert!(l.hears(Some(1)) && l.hears(Some(5)) && l.hears(None));
         assert!(!l.hears(Some(10)));
@@ -402,7 +444,17 @@ mod tests {
         let l = Listen::from_config(&m, None);
         assert_eq!(
             l.channels,
-            [(5, Numbers { cc_sound: 20, cc_tap: 14, cc_tuner: 15, muted: Muted::default() })]
+            [(
+                5,
+                Numbers {
+                    cc_sound: 20,
+                    cc_tap: 14,
+                    cc_tuner: 15,
+                    cc_prev_song: 103,
+                    cc_next_song: 104,
+                    muted: Muted::default()
+                }
+            )]
         );
     }
 
@@ -419,7 +471,15 @@ mod tests {
     }
 
     fn channel(channel: u8) -> model::MidiChannel {
-        model::MidiChannel { channel, cc_sound: None, cc_tap: None, cc_tuner: None, muted: Vec::new() }
+        model::MidiChannel {
+            channel,
+            cc_sound: None,
+            cc_tap: None,
+            cc_tuner: None,
+            cc_prev_song: None,
+            cc_next_song: None,
+            muted: Vec::new(),
+        }
     }
 
     /// Un geste coupé l'est **sur son canal** : le tap coupé du canal 1 ne coupe pas celui du 5.

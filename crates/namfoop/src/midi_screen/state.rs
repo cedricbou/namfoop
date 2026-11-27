@@ -18,7 +18,8 @@ use crate::cli_midi::{gesture_name, Listen, Numbers};
 use crate::tui::Key;
 
 /// Les gestes d'un canal, dans l'ordre de l'écran.
-pub const GESTURES: [Gesture; 4] = [Gesture::Pc, Gesture::Sound, Gesture::Tap, Gesture::Tuner];
+pub const GESTURES: [Gesture; 6] =
+    [Gesture::Pc, Gesture::Sound, Gesture::Tap, Gesture::Tuner, Gesture::PrevSong, Gesture::NextSong];
 
 /// Sans top depuis ce délai, un appareil ne bat plus (ADR 0008).
 const BEAT_LOST_MS: u64 = 500;
@@ -422,6 +423,8 @@ impl State {
             self.draft.cc_sound = n.cc_sound;
             self.draft.cc_tap = n.cc_tap;
             self.draft.cc_tuner = n.cc_tuner;
+            self.draft.cc_prev_song = n.cc_prev_song;
+            self.draft.cc_next_song = n.cc_next_song;
             self.draft.muted = muted;
             self.draft.channels.clear();
             self.cursor = Row::Channel(None);
@@ -463,7 +466,15 @@ impl State {
 
 /// Un canal réglé sans numéro propre : il reprend ceux de `[midi]`.
 fn channel(c: u8) -> MidiChannel {
-    MidiChannel { channel: c, cc_sound: None, cc_tap: None, cc_tuner: None, muted: Vec::new() }
+    MidiChannel {
+        channel: c,
+        cc_sound: None,
+        cc_tap: None,
+        cc_tuner: None,
+        cc_prev_song: None,
+        cc_next_song: None,
+        muted: Vec::new(),
+    }
 }
 
 /// Un nom d'appareil correspond-il à un morceau de nom de la config ? (insensible à la casse,
@@ -479,6 +490,8 @@ pub fn cc_of(n: &Numbers, g: Gesture) -> u8 {
         Gesture::Sound => n.cc_sound,
         Gesture::Tap => n.cc_tap,
         Gesture::Tuner => n.cc_tuner,
+        Gesture::PrevSong => n.cc_prev_song,
+        Gesture::NextSong => n.cc_next_song,
     }
 }
 

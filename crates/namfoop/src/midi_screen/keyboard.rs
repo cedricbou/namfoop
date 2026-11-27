@@ -46,6 +46,8 @@ fn contexts() -> Vec<Contexte> {
                     cc_sound: Some(20),
                     cc_tap: None,
                     cc_tuner: None,
+                    cc_prev_song: None,
+                    cc_next_song: None,
                     muted: vec![],
                 }],
                 ..Default::default()
