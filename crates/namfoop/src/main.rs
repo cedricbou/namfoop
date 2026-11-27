@@ -27,6 +27,7 @@ mod prepare;
 mod presets_cmd;
 mod sets_cmd;
 mod setup;
+mod stage;
 mod theme;
 mod tui;
 
@@ -291,7 +292,7 @@ fn main() -> Result<()> {
                    level,
                    routing: &engine::Routing| {
         let card = instrument::card_of(audio, card.as_ref());
-        let prep = prepare::Prep { audio, card, routing, library, query };
+        let prep = prepare::Prep { audio, card, routing, library, query, midi: None };
         prepare::on_card(&conf, &prep, level)
     };
     let offline = |library: &std::path::Path, level| prepare::offline(&conf, library, query, level);
@@ -322,14 +323,19 @@ fn main() -> Result<()> {
                 found.require()?;
                 let (audio, card) = audio()?;
                 let routing = routing.apply(&cli_audio::base_routing(&conf, card.as_ref()));
-                let start = browse::Start {
+                let session = stage::Session {
+                    conf: &conf,
+                    audio: &audio,
+                    card: card.as_ref(),
+                    routing: &routing,
+                    library: &amp.library,
+                    size: 1.0,
+                    trails: !no_trails,
+                    filter: None,
                     set: (!query.is_empty()).then_some(query.as_str()),
                     locked: true,
-                    calibration: on_card(&audio, &card, &amp.library, None, &routing)?,
-                    midi: cli.midi.open(&conf.config),
-                    ..Default::default()
                 };
-                return browse::run(&audio, &conf, &amp.library, &routing, 1.0, !no_trails, start);
+                return stage::run(&session, cli.instrument.as_deref(), cli.midi.open(&conf.config));
             }
             let (audio, card) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, card.as_ref()));
@@ -375,6 +381,7 @@ fn main() -> Result<()> {
                 let routing = cli_audio::base_routing(&conf, card.as_ref());
                 let calibration = on_card(&audio, &card, &args.library, None, &routing)?;
                 let start = browse::Start { calibration, ..start };
+                // la revue d'un import ne relance pas : un changement d'instrument la referme
                 browse::run(&audio, &conf, &args.library, &routing, 1.0, true, start)?;
             }
             Ok(())
@@ -427,14 +434,19 @@ fn main() -> Result<()> {
             let library = found.require()?;
             let (audio, card) = audio()?;
             let routing = routing.apply(&cli_audio::base_routing(&conf, card.as_ref()));
-            let start = browse::Start {
+            let session = stage::Session {
+                conf: &conf,
+                audio: &audio,
+                card: card.as_ref(),
+                routing: &routing,
+                library,
+                size,
+                trails: !no_trails,
                 filter: filter.as_deref(),
                 set: set.as_deref(),
-                calibration: on_card(&audio, &card, library, None, &routing)?,
-                midi: cli.midi.open(&conf.config),
-                ..Default::default()
+                locked: false,
             };
-            browse::run(&audio, &conf, library, &routing, size, !no_trails, start)
+            stage::run(&session, cli.instrument.as_deref(), cli.midi.open(&conf.config))
         }
         Cmd::Midi { args } => midi_cmd::run(&args, &cli.midi, &conf, &lib(&args.library).path),
         Cmd::Setup { library } => {

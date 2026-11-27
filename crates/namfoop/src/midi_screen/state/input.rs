@@ -138,6 +138,7 @@ impl State {
             cc_tuner: keep(base.cc_tuner, d.cc_tuner),
             cc_prev_song: keep(base.cc_prev_song, d.cc_prev_song),
             cc_next_song: keep(base.cc_next_song, d.cc_next_song),
+            cc_instrument: keep(base.cc_instrument, d.cc_instrument),
             ..channel(c)
         }
     }
@@ -156,6 +157,7 @@ impl State {
                 Gesture::Tuner => self.draft.cc_tuner = v,
                 Gesture::PrevSong => self.draft.cc_prev_song = v,
                 Gesture::NextSong => self.draft.cc_next_song = v,
+                Gesture::Instrument => self.draft.cc_instrument = v,
                 Gesture::Pc => {}
             },
             Some(c) => {
@@ -166,6 +168,7 @@ impl State {
                         Gesture::Tuner => x.cc_tuner = Some(v),
                         Gesture::PrevSong => x.cc_prev_song = Some(v),
                         Gesture::NextSong => x.cc_next_song = Some(v),
+                        Gesture::Instrument => x.cc_instrument = Some(v),
                         Gesture::Pc => {}
                     }
                 }

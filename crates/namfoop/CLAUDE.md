@@ -47,7 +47,13 @@ prepare.rs      LA PRÉPARATION d'une session qui joue (docs/design/instruments.
                 par main (`on_card`, et `offline` hors carte, sans question) AVANT d'ouvrir la carte : `decide`, pure (état de la
                 calibration, clavier) -> jouer | demander | jouer sans et le dire ; la question en
                 plein écran (Entrée : calibrate::run puis relecture ; Échap : `skipped` dans le
-                fichier de l'instrument, une écriture impossible ne vaut que pour la session)
+                fichier de l'instrument, une écriture impossible ne vaut que pour la session) ;
+                AU PIED, `Prep::midi` (le port déjà ouvert) : le geste de cet instrument
+                calibre, le CC du son joue sans (`foot_answer`, pure) ; `recalibrate` pour stage.rs
+stage.rs        LA SESSION QUI JOUE ET SES RELANCES (`browse`, `run --set`) : préparation, écran,
+                et, quand l'écran rend `Outcome::relaunch` (un autre instrument confirmé au pied,
+                ou le même à recalibrer, docs/design/instruments.md § 8), on recommence avec cet
+                instrument au même son du set, le port MIDI gardé ouvert
 instrument.rs   LA CALIBRATION JOUÉE (docs/design/instruments.md § 4) : `resolve`, pure — (instrument
                 demandé, carte) -> trim, enregistrement, cible, état ; --instrument > instrument par
                 défaut de la bibliothèque > calibration de la config ; --no-config ne prend aucun

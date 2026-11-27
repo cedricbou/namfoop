@@ -69,6 +69,7 @@ pub fn gesture_label(g: Gesture) -> &'static str {
         Gesture::Tuner => "Accordeur",
         Gesture::PrevSong => "Morceau précédent",
         Gesture::NextSong => "Morceau suivant",
+        Gesture::Instrument => "Instrument",
     }
 }
 

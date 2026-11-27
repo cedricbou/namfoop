@@ -39,6 +39,9 @@ pub fn run(
     st.pinned = pinned;
     st.set = load_set(conf, library, set);
     st.sets = sets(library);
+    // une bibliothèque illisible ne prive pas de l'écran : la zone « reçu » dira le numéro seul
+    st.instruments =
+        crate::instrument::load(library).unwrap_or_default().iter().map(|i| (i.number, i.label())).collect();
     // les gabarits livrés, puis ceux de l'utilisateur (`midi-templates/` à côté de la config)
     match model::midi_template::all(Some(&model::midi_template::user_dir(&conf.path))) {
         Ok(all) => st.templates = all.into_iter().map(|(_, t)| t).collect(),

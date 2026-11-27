@@ -18,8 +18,15 @@ use crate::cli_midi::{gesture_name, Listen, Numbers};
 use crate::tui::Key;
 
 /// Les gestes d'un canal, dans l'ordre de l'écran.
-pub const GESTURES: [Gesture; 6] =
-    [Gesture::Pc, Gesture::Sound, Gesture::Tap, Gesture::Tuner, Gesture::PrevSong, Gesture::NextSong];
+pub const GESTURES: [Gesture; 7] = [
+    Gesture::Pc,
+    Gesture::Sound,
+    Gesture::Tap,
+    Gesture::Tuner,
+    Gesture::PrevSong,
+    Gesture::NextSong,
+    Gesture::Instrument,
+];
 
 /// Sans top depuis ce délai, un appareil ne bat plus (ADR 0008).
 const BEAT_LOST_MS: u64 = 500;
@@ -101,6 +108,9 @@ pub struct State {
     pub playing: Option<(usize, usize)>,
     /// Le dernier tempo écrit dans la zone « reçu » : une ligne par changement, jamais par top.
     logged_tempo: Option<f64>,
+    /// Mes instruments (numéro, « 2 Fretless ») : la zone « reçu » nomme celui qu'un CC de
+    /// l'instrument appellerait.
+    pub instruments: Vec<(u32, String)>,
 }
 
 impl State {
@@ -139,6 +149,7 @@ impl State {
             modal: None,
             message: None,
             pinned: None,
+            instruments: Vec::new(),
             set: None,
             sets: Vec::new(),
             tab: Tab::Devices,
@@ -425,6 +436,7 @@ impl State {
             self.draft.cc_tuner = n.cc_tuner;
             self.draft.cc_prev_song = n.cc_prev_song;
             self.draft.cc_next_song = n.cc_next_song;
+            self.draft.cc_instrument = n.cc_instrument;
             self.draft.muted = muted;
             self.draft.channels.clear();
             self.cursor = Row::Channel(None);
@@ -473,6 +485,7 @@ fn channel(c: u8) -> MidiChannel {
         cc_tuner: None,
         cc_prev_song: None,
         cc_next_song: None,
+        cc_instrument: None,
         muted: Vec::new(),
     }
 }
@@ -492,6 +505,7 @@ pub fn cc_of(n: &Numbers, g: Gesture) -> u8 {
         Gesture::Tuner => n.cc_tuner,
         Gesture::PrevSong => n.cc_prev_song,
         Gesture::NextSong => n.cc_next_song,
+        Gesture::Instrument => n.cc_instrument,
     }
 }
 

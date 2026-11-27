@@ -156,6 +156,16 @@ la battue (`set/beat.rs` : `beat_from_start`, `beat_stop`, `beat_continue`, `bea
 - un son hors du morceau, un `pc` qu'aucun morceau ne porte, une position au-delà du morceau :
   **ignorés avec un message**. Fractal écrête, namfoop le dit (ADR 0011).
 
+**Dans l'espace Chaîne**, `cc_next_song` / `cc_prev_song` prennent le chemin de `PgDn` / `PgUp`
+(`step_preset`), set ou non.
+
+**L'instrument** (`state/midi/instrument.rs`, `CC cc_instrument`) : un geste pose
+`State::instrument` en attente (5 s, libérée par `tick`), le même confirme et rend
+`Action::Relaunch`. `run` quitte alors la boucle et rend `Outcome::relaunch` avec la `Resume`
+(espace, set, son) et le **port MIDI**, que `stage.rs` repasse à la session suivante. L'écran ne
+change jamais d'instrument lui-même : ni la banque ni `build.rs` ne le connaissent. La trace
+écrit une ligne `session instrument=… reprise=…` par session, que lit `scenario_instrument_au_pied`.
+
 Le **tempo** vient de là aussi (ADR 0008) : les tops d'horloge, `Start` / `Continue` / `Stop` vont à
 l'arbitre, et le CC de tap appelle `tap_tempo_at` — **la touche `*`, au message près**. Chaque
 message porte **son** instant (`on_midi(event, at_us)`), et c'est vital : la boucle ne repasse que

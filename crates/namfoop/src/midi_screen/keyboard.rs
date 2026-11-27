@@ -48,6 +48,7 @@ fn contexts() -> Vec<Contexte> {
                     cc_tuner: None,
                     cc_prev_song: None,
                     cc_next_song: None,
+                    cc_instrument: None,
                     muted: vec![],
                 }],
                 ..Default::default()
