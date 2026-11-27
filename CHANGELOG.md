@@ -6,6 +6,12 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Set (#475)
+- **Un tempo tapé pendant un set ne demande plus d'enregistrer** : dans l'espace Set et dans
+  `run --set`, le tap (au pied ou `*`) donne le tempo du soir sans rendre le preset « non
+  enregistré » ; le morceau suivant se joue sans question et repart de son tempo. Dans l'espace
+  Chaîne, un tap reste un réglage que `S` enregistre.
+
 ### Atelier (#473)
 - **Les essais de bout en bout n'écoutent plus le MIDI de la machine** : sans port demandé, chaque
   écran testé s'abonnait à tous les appareils MIDI, et l'horloge envoyée à la session de

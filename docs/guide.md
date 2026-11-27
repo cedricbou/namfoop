@@ -1911,6 +1911,10 @@ enregistré » apparaît, `S` l'enregistre, et passer au preset suivant restaure
 Autrement dit, un tap qu'on ne garde pas est perdu — c'est voulu, et c'est la même règle que pour
 tout le reste de `browse`.
 
+**Pendant un set, le tap ne modifie rien.** Dans l'espace Set (`3`) et sur scène (`run --set`),
+taper au pied ou au clavier donne le tempo du soir pour le son joué, sans étoile « non
+enregistré » : le morceau suivant se joue sans rien demander, et repart de son propre tempo.
+
 Le tempo est un **réglage vivant** : taper pendant que le delay sonne ne reconstruit rien et ne
 coupe aucune répétition. Le passage d'un temps à l'autre fond en 50 ms, sans glissement de hauteur.
 

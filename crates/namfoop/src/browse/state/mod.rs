@@ -562,9 +562,9 @@ impl State {
         format!("{} = {}, soit {} ({ms:.0} ms à {bpm:.0} BPM){capped}", d.label, d.name, d.beats_label)
     }
 
-    /// Un **tap** (`*`) : il donne le tempo *et* modifie le preset, comme tout autre réglage
-    /// — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de preset
-    /// restaure celui du preset suivant.
+    /// Un **tap** (`*`) : il donne le tempo *et*, dans l'espace Chaîne, modifie le preset, comme
+    /// tout autre réglage — l'étoile « non enregistré » apparaît, `S` l'enregistre, une bascule de
+    /// preset restaure celui du preset suivant. Dans l'espace Set, il ne vaut que pour le son joué.
     fn tap_tempo(&mut self) -> Action {
         self.tap_tempo_at(self.now)
     }
@@ -598,6 +598,13 @@ impl State {
         let bpm = self.tempo.bpm();
         if self.tempo.source() == engine::tempo::TempoSource::Tap {
             self.fx.chain.tempo_bpm = bpm;
+            // **dans l'espace Set** (et sur scène, `run --set`), un tap est le tempo du soir, pas
+            // un réglage du preset : il ne rend rien « non enregistré », si bien que le morceau
+            // suivant ne demande rien, et le changement de son l'oublie (ADR 0008). Dans l'espace
+            // Chaîne, il modifie le preset, et `S` l'enregistre.
+            if self.space == space::Space::Set {
+                self.start_fx.tempo_bpm = bpm;
+            }
             self.message = Some(format!("tempo {bpm:.1} BPM (tap)"));
         } else {
             // une seule frappe ne mesure rien : le dire plutôt que de ne rien faire

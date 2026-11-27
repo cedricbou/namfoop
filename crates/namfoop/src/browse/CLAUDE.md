@@ -235,7 +235,8 @@ une fois (`confirm_switch`) et `n` la **chaîne vierge** (chaîne vide, preset *
 `pending_switch: Option<Pending>` (`Preset(i)` | `New`), que `mod.rs` reprend après l'écriture.
 
 **Deux tempos distincts** : `fx.chain.tempo_bpm` est le tempo **enregistré** (ce que `S` écrit, ce
-que `unsaved()` compare ; seuls un tap et un chargement de preset le changent), et
+que `unsaved()` compare ; seuls un tap et un chargement de preset le changent — un tap de
+l'espace Set l'écrit aussi dans `start_fx`, la référence, pour ne rien rendre « non enregistré »), et
 `State::heard_tempo_bpm()` le tempo **entendu**, celui de l'arbitre `engine::tempo::Arbiter` que
 `State` possède. C'est l'entendu qui va dans la case et à l'écran, et les deux diffèrent dès qu'une
 horloge MIDI tourne. `*` = tap (`State::tap_tempo`), et `tick()` appelle `Arbiter::poll` pour voir
