@@ -130,7 +130,7 @@ vérification, et l'installation passe par `bank.install_warm`.
 
 **L'entrée MIDI** arrive par `Start::midi` : un `cli_midi::MidiIn` déjà ouvert par le binaire, qui
 ne rend que les messages des canaux écoutés, dont la boucle vide la file **à chaque tour**, hors du
-fil audio, et dont chaque message passe par `State::on_midi_from` (`state/midi.rs`, pure —
+fil audio, et dont chaque message passe par `State::on_midi_from` (`state/midi/mod.rs`, pure —
 ADR 0011) avec son canal : ses numéros sont ceux du canal (`State::midi_channels`, ADR 0012),
 sinon ceux de `[midi]` (`State::midi`). Trois choses à ne pas casser :
 

@@ -170,7 +170,7 @@ exchange.rs     commun à `export` et `import` : la mémoire des échanges (`ech
                 qu'un verrou qu'un arrêt brutal laisserait derrière lui
 meta_cmd.rs     `meta` : affichage d'un modèle
 midi_rules.rs   ce qu'un message demande à un set (le morceau d'un PC, le son d'un CC, la raison d'un
-                refus) : règles pures, partagées par browse/state/midi.rs, qui joue, et l'écran MIDI,
+                refus) : règles pures, partagées par browse/state/midi/, qui joue, et l'écran MIDI,
                 qui dit ce qui serait joué — une seule source pour « n'a que 2 sons »
 midi_screen/    l'écran plein écran de `midi` (docs/design/midi.md), rangé comme setup/ : state.rs
                 (pure, testée : brouillon de [midi], fenêtre « Régler » et sa capture, refus ;
