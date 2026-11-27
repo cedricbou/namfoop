@@ -1066,6 +1066,56 @@ def scenario_niveau_de_l_instrument(binaire):
         verifier(normalise != ici, "niveau : sans instrument, la config `normalize` vaut")
 
 
+def scenario_question(binaire):
+    """**La question du lancement** (`docs/design/instruments.md` § 5) : un instrument jamais
+    calibré sur la carte branchée fait poser la question **avant** d'ouvrir la carte. On la vise
+    avec un device ALSA qui n'existe pas : la question passe, `Échap` retient « jouée sans » dans
+    le fichier de l'instrument, puis l'ouverture de la carte échoue — c'est le signe que rien
+    n'a été ouvert avant la réponse. Relancé, namfoop ne repose pas la question. En carte
+    simulée, aucune question."""
+    with tempfile.TemporaryDirectory(prefix="namfoop-e2e-question-") as tmp:
+        bib = bibliotheque_jetable(os.path.join(tmp, "library"))
+        os.makedirs(os.path.join(bib, "instruments"))
+        fiche = os.path.join(bib, "instruments", "guitare.toml")
+        with open(fiche, "w", encoding="utf-8") as f:
+            f.write('name = "Guitare"\nnumber = 1\n')
+        config = os.path.join(tmp, "config.toml")
+
+        def lancer(backend, touches=None):
+            with open(config, "w", encoding="utf-8") as f:
+                f.write(f'[audio]\nbackend = "{backend}"\ndevice = "{"4x6" if backend == "sim" else "hw:Nulle"}"\n')
+            ec = Ecran(binaire, ["--config", config, "browse", "--library", bib], 25, 80,
+                       os.path.join(tmp, "trace.log"))
+            try:
+                ec.lire(2.0)
+                vu = ec.voir()
+                if touches:
+                    ec.taper(touches, 1.5)
+                return vu, ec
+            except Exception:
+                ec.tuer()
+                raise
+
+        vu, ec = lancer("alsa", "\x1b")
+        ec.tuer()
+        verifier("1 Guitare n'est pas calibrée sur nulle" in vu, "question : l'instrument et la carte sont nommés")
+        verifier("Rien ne sort" in vu, "question : rien ne sort avant la réponse")
+        with open(fiche, encoding="utf-8") as f:
+            verifier("skipped = true" in f.read(), "question : `Échap` retient « jouée sans »")
+        vu, ec = lancer("alsa")
+        ec.tuer()
+        verifier("avant de jouer" not in vu, "question : elle ne revient pas une fois répondue")
+        os.remove(fiche)
+        with open(fiche, "w", encoding="utf-8") as f:
+            f.write('name = "Guitare"\nnumber = 1\n')
+        vu, ec = lancer("sim")
+        try:
+            verifier("avant de jouer" not in vu and "1 Guitare" in vu, "question : aucune en carte simulée")
+            ec.taper("Q", 0.6)
+        finally:
+            ec.tuer()
+
+
 def main():
     # NAMFOOP_BIN d'abord (check.sh le pose : la CI compile dans target/ci/)
     candidats = [os.environ["NAMFOOP_BIN"]] if os.environ.get("NAMFOOP_BIN") else []
@@ -1083,6 +1133,7 @@ def main():
         scenario_accordeur(binaire, lignes, colonnes)
         scenario_instruments(binaire, lignes, colonnes)
     scenario_niveau_de_l_instrument(binaire)
+    scenario_question(binaire)
     # une seule taille : le MIDI ne dessine presque rien, la taille d'écran n'y change rien
     scenario_midi(binaire, 25, 80)
     scenario_midi_horloge(binaire, 25, 80)

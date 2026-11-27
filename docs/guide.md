@@ -1349,9 +1349,34 @@ instrument  1 BB 735A · calibrée sur itwo (trim -17,5 dB) · niveau match
 ```
 
 L'écran de `browse` et la scène le rappellent à droite de l'en-tête — en vert `calibrée`, en jaune
-`non calibrée` —, ou en tête de la ligne d'état quand l'en-tête n'a pas la place. Un instrument
-jamais calibré sur la carte branchée joue **sans calibration** (trim nul, pas de repère sur le
-vumètre d'entrée) : la ligne de démarrage dit comment le calibrer.
+`non calibrée` —, ou en tête de la ligne d'état quand l'en-tête n'a pas la place.
+
+**Un instrument jamais calibré sur la carte branchée** : avant d'ouvrir la carte, namfoop pose la
+question, et rien ne sort tant que tu n'as pas répondu.
+
+```
+ namfoop · avant de jouer
+
+   2 Fretless n'est pas calibrée sur itwo.
+
+   Entrée    calibrer maintenant : je joue fort 15 s
+   Échap     jouer sans calibrer (la question ne reviendra pas)
+   q         ne pas jouer
+```
+
+- `Entrée` lance la mesure de `calibrate` ; une fois la calibration rangée, l'écran s'ouvre. Une
+  mesure refusée (entrée saturée, signal trop faible) dit quoi corriger et repose la question.
+- `Échap` joue **sans calibration** (trim nul, pas de repère sur le vumètre d'entrée, `non
+  calibrée` dans l'en-tête) et le retient dans le fichier de l'instrument : les lancements
+  suivants ne demandent plus rien. La première calibration efface ce choix. Si la bibliothèque est
+  protégée en écriture, la réponse vaut pour la session.
+- Jouer une note ne répond pas : seule une touche répond.
+- **Sans clavier** (namfoop lancé par un service, sur le Pi), personne ne peut répondre : il joue
+  sans calibration et le dit dans ses lignes de démarrage, sans rien retenir.
+- Un instrument calibré, la carte simulée et une bibliothèque sans instrument ne posent jamais la
+  question.
+
+`namfoop calibrate --instrument` reste la façon de refaire une calibration existante.
 
 La **carte** est celle de ton profil (`namfoop setup`). Sur la **carte simulée** et hors carte
 (`render`, `models`, `meta`, `import`), namfoop prend la calibration de l'instrument sur ta carte
