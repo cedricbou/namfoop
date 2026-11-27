@@ -1319,7 +1319,8 @@ namfoop calibrate --instrument "BB 735A"
 **Un instrument calibré joue en volume `match`** ([§ 9](#volume-de-sortie--level)), sur tout
 ordinateur où arrive ta bibliothèque, quel que soit le `level` de la config : c'est sa mesure qui
 sert de référence. `--level` garde la main pour une session. Un instrument jamais calibré, ou joué
-sans calibration, suit le `level` de la config.
+sans calibration, suit le `level` de la config, sauf `match`, qui n'a pas de référence sans
+enregistrement : il joue alors en `normalize`, et la ligne de démarrage le dit.
 
 Sans `--instrument`, `calibrate` mesure l'instrument par défaut. Une bibliothèque **sans aucun
 instrument** garde le fonctionnement d'avant les instruments : la calibration va dans la config,

@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Correction (#464)
+- Un instrument jamais calibré, ou joué sans calibration, annonce « niveau normalize » au
+  démarrage quand la config demande `match` : sans enregistrement, c'est ce qui joue.
+
 ### Instruments (#432)
 - **Calibrer un instrument au moment de lancer** : `browse`, `run` et `run --set` avec un instrument
   jamais calibré sur la carte branchée posent la question avant d'ouvrir la carte — `Entrée` lance
