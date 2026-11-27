@@ -6,6 +6,10 @@ section prend le numéro de version.
 
 ## Non publié
 
+### Atelier (#434)
+- Les tests des messages MIDI de l'écran sont rangés dans leur propre fichier, avant d'y ajouter
+  des gestes. Aucun comportement ne change.
+
 ### Cartes (#433)
 - **Changer de carte son sans refaire `setup`** : `setup` range tout ce qui tient à une carte —
   device, buffer, entrées, rôle de chaque sortie, clic — dans son profil, et régler une seconde
