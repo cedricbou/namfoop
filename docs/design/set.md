@@ -136,7 +136,8 @@ le message dit `fin du set`. Sans set, l'espace Set le dit (`aucun set : L pour 
 
 **Morceau suivant / précédent** : deux touches réglables (défaut `→` / `←`), qui vont au **premier
 son** du morceau. Elles servent quand un morceau finit sur son 2e son, et aux pédaliers à 3 boutons
-et plus.
+et plus. Sans morceau engagé, les deux vont au **premier** morceau : en début de concert, un
+appui sur la mauvaise ne doit pas envoyer le rappel.
 
 **↑↓ puis Entrée** (espace 3 seulement) : viser un morceau sans changer le son, puis le jouer (son 1).
 Rien ne change à l'oreille tant qu'on n'a pas appuyé sur Entrée.
@@ -390,7 +391,9 @@ Pi (rafraîchissement ratatui). Un **clic audio** dans les in-ears serait possib
 - **Song Position Pointer** (Ableton l'envoie en mode « Song ») : position en doubles croches,
   convertie en section / mesure / temps par la carte des mesures (§ 11).
 - **Morceau précédent / suivant au pied** (CC 103 / CC 104) et **changement d'instrument** (CC 102),
-  pour un pédalier à quelques boutons : [`instruments.md`](instruments.md) § 8, § 9 et § 13.
+  pour un pédalier à quelques boutons : [`instruments.md`](instruments.md) § 8, § 9 et § 13. Dans
+  l'espace **Chaîne**, CC 103 / 104 font ce que font `PgUp` / `PgDn` : ils parcourent la banque.
+  Sans morceau engagé, les deux partent du premier morceau.
 - Plus tard, hors épique : **Bank Select CC#0** pour choisir le set (la banque Fractal), CC « son
   suivant / précédent », OSC (AbleSet publie le morceau et la section en cours), CC de slot à la
   Kemper.

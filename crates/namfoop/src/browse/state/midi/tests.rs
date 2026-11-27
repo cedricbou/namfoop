@@ -525,10 +525,12 @@ fn a_song_cc_gives_the_sound_back() {
     assert!(!s.bass_cut(), "le son revient avec le morceau");
 }
 
-/// Sans set ouvert, les deux messages ne font rien, et l'écran le dit.
+/// Sans set ouvert, hors de l'espace Chaîne (qui parcourt la banque), les deux messages ne font
+/// rien, et l'écran le dit.
 #[test]
 fn the_song_ccs_without_a_set_say_so() {
     let mut s = bank();
+    s.on_key(Key::Char('1'));
     assert_eq!(s.on_midi(Event::Control { cc: 104, value: 127 }, 0, 0), Action::None);
     assert_eq!(s.message.as_deref(), Some("CC 104 : aucun set ouvert"));
 }
@@ -584,4 +586,24 @@ fn a_tap_during_a_set_never_asks_to_save() {
     s.on_midi(Event::Control { cc: 14, value: 127 }, t0 + 3_000_000, 0);
     s.on_midi(Event::Control { cc: 14, value: 127 }, t0 + 3_577_000, 0);
     assert!(!s.unsaved().is_empty(), "le tap de l'espace Chaîne est un réglage");
+}
+
+/// **Dans l'espace Chaîne, les CC de morceau parcourent la banque** : le chemin de `PgDn` /
+/// `PgUp`, et le set ne bouge pas. Une chaîne non enregistrée fait demander, comme la touche.
+#[test]
+fn in_the_chain_space_the_song_ccs_step_through_the_bank() {
+    let mut s = scene();
+    s.on_key(Key::Char('2'));
+    let before = at(&s);
+    assert!(matches!(s.on_midi(Event::Control { cc: 104, value: 127 }, 0, 0), Action::Play { .. }));
+    assert_eq!(s.preset_index(), Some(1), "le preset suivant de la banque");
+    assert_eq!(at(&s), before, "le set ne bouge pas");
+    assert!(matches!(s.on_midi(Event::Control { cc: 103, value: 127 }, 1_000, 0), Action::Play { .. }));
+    assert_eq!(s.preset_index(), Some(0), "et le précédent");
+    assert_eq!(s.on_midi(Event::Control { cc: 104, value: 0 }, 2_000, 0), Action::None, "le relâcher");
+
+    s.fx.chain.volume_db = 3.0; // une chaîne modifiée : rien ne se perd sans demander
+    assert_eq!(s.on_midi(Event::Control { cc: 104, value: 127 }, 3_000, 0), Action::None);
+    assert!(s.confirm_switch, "la confirmation, comme pour PgDn");
+    assert_eq!(s.preset_index(), Some(0));
 }

@@ -6,6 +6,13 @@ section prend le numéro de version.
 
 ## Non publié
 
+### MIDI (#474)
+- **Parcourir ses chaînes au pied** : dans l'espace Chaîne, CC 104 / CC 103 chargent la chaîne
+  suivante / précédente de la banque, comme `PgDn` / `PgUp` (une chaîne modifiée fait d'abord
+  demander) ; dans l'espace Set et `run --set`, ils changent toujours de morceau.
+- **« Précédent » sans morceau engagé part du premier morceau**, au pied comme avec `←`, au lieu
+  du dernier : en début de concert, un mauvais bouton n'envoie plus le rappel.
+
 ### Set (#475)
 - **Un tempo tapé pendant un set ne demande plus d'enregistrer** : dans l'espace Set et dans
   `run --set`, le tap (au pied ou `*`) donne le tempo du soir sans rendre le preset « non

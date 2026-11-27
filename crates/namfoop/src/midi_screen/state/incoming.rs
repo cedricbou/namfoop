@@ -99,7 +99,11 @@ impl State {
             (Gesture::PrevSong | Gesture::NextSong, Event::Control { value, .. }, _) if value < 64 => {
                 ("relâché : ignoré".into(), Tone::Dim)
             }
-            (Gesture::PrevSong | Gesture::NextSong, _, None) => ("aucun set ouvert : rien".into(), Tone::Dim),
+            // dans l'espace Chaîne de `browse`, le même geste parcourt la banque, set ou non
+            (Gesture::PrevSong | Gesture::NextSong, _, None) => {
+                let which = if g == Gesture::NextSong { "suivante" } else { "précédente" };
+                (format!("aucun set ouvert : chaîne {which} dans l'espace Chaîne"), Tone::Dim)
+            }
             (Gesture::PrevSong | Gesture::NextSong, _, Some(spec)) => {
                 let down = g == Gesture::NextSong;
                 let from = self.playing.map(|(s, _)| s);
